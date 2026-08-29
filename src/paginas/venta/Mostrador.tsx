@@ -29,7 +29,7 @@ export function Mostrador() {
 
       <Divisor />
 
-      <p className="util" style={{ textAlign: 'center' }}>
+      <p className="util centrado">
         <Link to="/verificacion">Comprobar mi acceso</Link>
       </p>
     </div>

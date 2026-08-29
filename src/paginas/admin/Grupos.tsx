@@ -66,7 +66,7 @@ export function Grupos() {
         </Aviso>
       ) : null}
 
-      <form className="tarjeta" onSubmit={(e) => void agregar(e)} style={{ marginBottom: 'var(--e-5)' }}>
+      <form className="tarjeta" onSubmit={(e) => void agregar(e)}>
         <h2>Agregar grupo</h2>
         <hr className="divisor" />
         <div className="fila">
@@ -76,7 +76,9 @@ export function Grupos() {
           <Campo etiqueta="Precio en $" htmlFor="g-precio">
             <input id="g-precio" type="number" step="0.01" min="0.01" required value={precio} onChange={(e) => setPrecio(e.target.value)} />
           </Campo>
-          <button type="submit" className="boton" style={{ flex: '0 0 auto' }} disabled={guardando}>Agregar</button>
+        </div>
+        <div className="acciones">
+          <button type="submit" className="boton" disabled={guardando}>Agregar grupo</button>
         </div>
       </form>
 
@@ -105,7 +107,7 @@ export function Grupos() {
                     <td className="num">
                       <input
                         type="number" step="0.01" min="0.01"
-                        style={{ maxWidth: 120, textAlign: 'right' }}
+                        className="entrada-compacta"
                         value={enEdicion ?? String(g.precio_usd)}
                         onChange={(e) => setEdicion((prev) => ({ ...prev, [g.id]: e.target.value }))}
                       />
@@ -113,15 +115,15 @@ export function Grupos() {
                     <td className="num precio">{formatearBs(precioEnBs(Number(enEdicion ?? g.precio_usd), tasa?.tasa_venta ?? null))}</td>
                     <td>{g.activo ? <span className="etiqueta etiqueta--exito">Activo</span> : <span className="etiqueta">Inactivo</span>}</td>
                     <td>
-                      <div className="fila" style={{ gap: 'var(--e-2)' }}>
+                      <div className="grupo-botones">
                         <button
-                          type="button" className="boton boton--secundario" style={{ flex: '0 0 auto' }}
+                          type="button" className="boton boton--secundario boton--pequeno"
                           disabled={enEdicion === undefined || enEdicion === String(g.precio_usd)}
                           onClick={() => void guardarPrecio(g.id)}
                         >
                           Guardar
                         </button>
-                        <button type="button" className="boton boton--secundario" style={{ flex: '0 0 auto' }} onClick={() => void alternarActivo(g.id, g.activo)}>
+                        <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void alternarActivo(g.id, g.activo)}>
                           {g.activo ? 'Desactivar' : 'Activar'}
                         </button>
                       </div>

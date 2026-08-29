@@ -73,7 +73,7 @@ export function Inventario() {
         </Aviso>
       ) : null}
 
-      <div className="tarjeta" style={{ marginBottom: 'var(--e-4)' }}>
+      <div className="tarjeta" style={{ marginBottom: 'var(--e-5)' }}>
         <div className="fila">
           <Campo etiqueta="Buscar" htmlFor="f-texto">
             <input id="f-texto" value={filtros.texto} onChange={(e) => cambiarFiltro('texto', e.target.value)} placeholder="Nombre o SKU" />
@@ -142,10 +142,10 @@ export function Inventario() {
                   return (
                     <tr key={m.id}>
                       <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
-                      <td className="util">{m.sku}</td>
+                      <td className="celda-sku">{m.sku}</td>
                       <td>
-                        {m.nombre}
-                        {m.variantes_nota ? <div className="campo__pista">{m.variantes_nota}</div> : null}
+                        <div className="celda-nombre">{m.nombre}</div>
+                        {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
                       </td>
                       <td className="util">{m.grupo ?? '—'}</td>
                       <td className="util">{m.lote_codigo ?? '—'}</td>
@@ -163,12 +163,12 @@ export function Inventario() {
                         {m.existencia_total <= 2 ? (
                           <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
                         ) : m.existencia_total}
-                        {detalle ? <div className="campo__pista">{detalle}</div> : null}
+                        {detalle ? <div className="celda-nota">{detalle}</div> : null}
                       </td>
                       <td>
-                        <div className="fila" style={{ gap: 'var(--e-2)', flexWrap: 'nowrap' }}>
-                          <Link className="boton boton--secundario" to={`/admin/modelos/${m.id}`}>Editar</Link>
-                          <button type="button" className="boton boton--peligro" onClick={() => void desactivar(m.id, m.nombre)}>
+                        <div className="grupo-botones grupo-botones--firme">
+                          <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+                          <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
                             Retirar
                           </button>
                         </div>
@@ -179,7 +179,7 @@ export function Inventario() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={6}>Pagina {pagina + 1} de {paginas} · {totales.piezas} piezas</td>
+                  <td colSpan={6}>{totales.piezas} piezas en esta pagina</td>
                   <td className="num">{formatearUsd(totales.costoUsd)}</td>
                   <td className="num" colSpan={2}>{formatearUsd(totales.ventaUsd)}</td>
                   <td className="num" colSpan={2}>{formatearUsd(totales.margenUsd)}</td>
@@ -189,10 +189,11 @@ export function Inventario() {
             </table>
           </div>
 
-          <div className="acciones">
+          <div className="paginacion">
             <button type="button" className="boton boton--secundario" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>
               Anterior
             </button>
+            <span className="paginacion__cuenta">Pagina {pagina + 1} de {paginas}</span>
             <button type="button" className="boton boton--secundario" disabled={pagina + 1 >= paginas} onClick={() => setPagina((p) => p + 1)}>
               Siguiente
             </button>

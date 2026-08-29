@@ -178,27 +178,27 @@ export function Lotes() {
           <textarea id="l-notas" value={form.notas} onChange={(e) => cambiar('notas', e.target.value)} />
         </Campo>
 
-        <div className="tarjeta" style={{ background: 'var(--crema)' }}>
-          <span className="util secundario">Reparto del flete (previsualizacion)</span>
-          <div className="rejilla rejilla--3" style={{ marginTop: 'var(--e-3)' }}>
+        <div className="panel">
+          <span className="panel__titulo">Reparto del flete (previsualizacion)</span>
+          <div className="rejilla rejilla--3">
             <div>
-              <span className="util secundario">A mercancia</span>
-              <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearUsd(vistaPrevia.fleteMercanciaUsd)}</div>
+              <span className="dato__etiqueta">A mercancia</span>
+              <div className="dato__valor">{formatearUsd(vistaPrevia.fleteMercanciaUsd)}</div>
             </div>
             <div>
-              <span className="util secundario">A exhibidores</span>
-              <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearUsd(vistaPrevia.fleteExhibidoresUsd)}</div>
+              <span className="dato__etiqueta">A exhibidores</span>
+              <div className="dato__valor">{formatearUsd(vistaPrevia.fleteExhibidoresUsd)}</div>
             </div>
             <div>
-              <span className="util secundario">CAPEX de tienda</span>
-              <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearUsd(vistaPrevia.capexTiendaUsd)}</div>
+              <span className="dato__etiqueta">CAPEX de tienda</span>
+              <div className="dato__valor">{formatearUsd(vistaPrevia.capexTiendaUsd)}</div>
             </div>
             <div>
-              <span className="util secundario">Flete por gramo</span>
+              <span className="dato__etiqueta">Flete por gramo</span>
               <div className="cifra">{vistaPrevia.fletePorGramoUsd === null ? '—' : formatearUsd(vistaPrevia.fletePorGramoUsd, 4)}</div>
             </div>
           </div>
-          <p className="campo__pista" style={{ marginTop: 'var(--e-3)', marginBottom: 0 }}>
+          <p className="campo__pista">
             La cifra que manda es la que calcula la base al guardar. Esto solo evita guardar a ciegas.
           </p>
         </div>
@@ -215,7 +215,7 @@ export function Lotes() {
         </div>
       </form>
 
-      <h2 style={{ marginTop: 'var(--e-6)', marginBottom: 'var(--e-3)' }}>Lotes registrados</h2>
+      <h2 className="seccion-titulo">Lotes registrados</h2>
 
       {cargando ? <Cargando /> : lotes.length === 0 ? (
         <Vacio titulo="Aun no hay lotes">

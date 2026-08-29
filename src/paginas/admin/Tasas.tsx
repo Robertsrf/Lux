@@ -104,21 +104,21 @@ export function Tasas() {
           <h2>Vigente ahora</h2>
           <hr className="divisor" />
           {tasa ? (
-            <dl style={{ margin: 0, display: 'grid', gap: 'var(--e-3)' }}>
+            <dl className="lista-datos">
               <div>
-                <span className="util secundario">Tasa de venta</span>
-                <div className="precio" style={{ fontSize: 'var(--t-28)' }}>{formatearTasa(tasa.tasa_venta)}</div>
+                <span className="dato__etiqueta">Tasa de venta</span>
+                <div className="dato__valor dato__valor--grande">{formatearTasa(tasa.tasa_venta)}</div>
               </div>
               <div>
-                <span className="util secundario">Tasa BCV</span>
-                <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearTasa(tasa.tasa_bcv)}</div>
+                <span className="dato__etiqueta">Tasa BCV</span>
+                <div className="dato__valor">{formatearTasa(tasa.tasa_bcv)}</div>
               </div>
               <div>
-                <span className="util secundario">Brecha</span>
+                <span className="dato__etiqueta">Brecha</span>
                 <div className="cifra">{formatearPorcentaje(brecha(tasa.tasa_venta, tasa.tasa_bcv)! * 100)}</div>
               </div>
               <div>
-                <span className="util secundario">Desde</span>
+                <span className="dato__etiqueta">Desde</span>
                 <div className="cifra">{formatearFecha(tasa.creado_en)}</div>
               </div>
             </dl>
@@ -130,7 +130,7 @@ export function Tasas() {
         </div>
       </div>
 
-      <h2 style={{ marginTop: 'var(--e-6)', marginBottom: 'var(--e-3)' }}>Historico</h2>
+      <h2 className="seccion-titulo">Historico</h2>
       {cargando ? <Cargando /> : historico.length === 0 ? (
         <Vacio titulo="Aun no hay cambios de tasa registrados" />
       ) : (

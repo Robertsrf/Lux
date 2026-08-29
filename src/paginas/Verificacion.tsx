@@ -120,7 +120,7 @@ export function Verificacion() {
                 <td>
                   {p.bien
                     ? <span className="etiqueta etiqueta--exito">Pasa</span>
-                    : <span className="etiqueta" style={{ color: 'var(--error)' }}>Falla</span>}
+                    : <span className="etiqueta etiqueta--error">Falla</span>}
                 </td>
               </tr>
             ))}

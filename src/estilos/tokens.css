@@ -1,29 +1,58 @@
 /* =====================================================================
-   Lux by Emory — tokens de diseno. Unica fuente de verdad de la paleta.
+   Lux by Emory — tokens. Unica fuente de verdad de la paleta.
    Proporcion objetivo: 60% crema · 25% verde profundo · 10% salvia · 5% oro.
-   Si el oro pasa del 5% de una pantalla, quitale oro a algo.
    ===================================================================== */
 
 :root {
-  /* Paleta de marca */
+  /* --- Paleta de marca (no se toca) --- */
   --verde-profundo: #1F4045;
   --oro-arena:      #D0AE8A;
   --crema:          #EDE5D3;
   --salvia:         #7F9492;
 
-  /* Colores de sistema: los unicos anadidos permitidos */
+  /* --- Colores de sistema --- */
   --exito:  #4A6B52;
   --alerta: #A8763E;
   --error:  #8C3A32;
   --blanco: #FFFFFF;
   --tinta:  #14292C;
 
-  /* Tipografia */
-  --fuente-display: 'Fraunces', 'Bagind', Georgia, serif;
-  --fuente-cuerpo:  'EB Garamond', Georgia, serif;
-  --fuente-util:    'Jost', system-ui, sans-serif;
+  /* --- Variantes legibles -------------------------------------------
+     La salvia da 2,56:1 sobre crema: sirve de linea, no de texto.
+     La alerta da 3,14:1: sirve de borde, no de texto.
+     Estas dos son las mismas familias, oscurecidas hasta pasar 4,5:1.
+     Medido, no estimado.
+       --salvia-texto  4,89 sobre crema · 6,13 sobre blanco
+       --alerta-texto  4,65 sobre crema · 5,84 sobre blanco    */
+  --salvia-texto: #506664;
+  --alerta-texto: #875C2D;
 
-  /* Escala tipografica. No inventar tamanos intermedios. */
+  /* --- Superficies ---
+     Segunda capa de neutro para barras y paneles, mas fria que el papel. */
+  --papel:      var(--crema);
+  --superficie: var(--blanco);
+  --panel:      #F6F1E6;
+  --linea:      #CFC6B2;
+  --linea-suave: #E2DACA;
+
+  /* --- Texto --- */
+  --texto:            var(--verde-profundo);
+  --texto-fuerte:     var(--tinta);
+  --texto-secundario: var(--salvia-texto);
+  --texto-sobre-verde: var(--crema);
+
+  /* --- Tipografia ---------------------------------------------------
+     Jost es la fuente de trabajo: etiquetas, datos, tablas, botones,
+     formularios. Un panel de administracion es casi todo eso.
+     Fraunces es solo para titulos y para PRECIOS: es lo que hace que una
+     cifra se sienta de joyeria y no de ferreteria.
+     EB Garamond queda para prosa de verdad: nombre de la pieza,
+     descripciones, estados vacios y el catalogo impreso.                */
+  --fuente-ui:      'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-display: 'Fraunces', 'Bagind', Georgia, serif;
+  --fuente-prosa:   'EB Garamond', Georgia, serif;
+
+  /* Escala de la skill. No inventar tamanos intermedios. */
   --t-12: 12px;
   --t-14: 14px;
   --t-16: 16px;
@@ -32,31 +61,31 @@
   --t-40: 40px;
   --t-56: 56px;
 
-  /* Densidad de escritorio (admin). El mostrador la sobrescribe. */
+  /* --- Densidad: escritorio por defecto --- */
   --texto-base: 15px;
   --objetivo-tactil: 36px;
-  --hueco-tarjetas: 8px;
+  --alto-control: 38px;
+  --hueco-campos: 16px;
 
-  /* Espaciado */
-  --e-1: 4px;
-  --e-2: 8px;
-  --e-3: 12px;
-  --e-4: 16px;
-  --e-5: 24px;
-  --e-6: 32px;
-  --e-7: 48px;
-  --e-8: 64px;
+  /* --- Espaciado --- */
+  --e-1: 4px;  --e-2: 8px;  --e-3: 12px; --e-4: 16px;
+  --e-5: 24px; --e-6: 32px; --e-7: 48px; --e-8: 64px;
 
-  /* La marca es angular, no redondeada */
-  --radio: 4px;
-  --hairline: 1px solid var(--salvia);
+  /* --- Forma y movimiento --- */
+  --radio: 4px;                 /* la marca es angular, no redondeada */
   --tracking: 0.12em;
-  --transicion: 150ms ease;
+  --salida: cubic-bezier(0.22, 1, 0.36, 1);
+  --rapido: 140ms var(--salida);
+
+  /* --- Capas --- */
+  --z-barra: 10;
+  --z-cabecera-tabla: 20;
 }
 
 /* Cara de mostrador: tactil, una mano, telefono de gama baja */
 .mostrador {
   --texto-base: 18px;
   --objetivo-tactil: 56px;
-  --hueco-tarjetas: 12px;
+  --alto-control: 56px;
+  --hueco-campos: 20px;
 }

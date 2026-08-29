@@ -43,11 +43,11 @@ export function Disposicion() {
             </NavLink>
           </nav>
 
-          <div className="fila" style={{ flex: '0 0 auto', alignItems: 'center', gap: 'var(--e-3)' }}>
-            <span className="util" style={{ flex: '0 0 auto' }}>
+          <div className="sesion">
+            <span className="sesion__quien">
               {perfil?.nombre ?? 'Sin perfil'} · {perfil?.rol ?? '—'}
             </span>
-            <button type="button" className="boton boton--secundario" style={{ flex: '0 0 auto', color: 'var(--crema)', borderColor: 'var(--crema)' }} onClick={() => void salir()}>
+            <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void salir()}>
               Salir
             </button>
           </div>

@@ -193,13 +193,13 @@ export function FormularioModelo() {
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 
-      <form onSubmit={(e) => void guardar(e)}>
+      <form onSubmit={(e) => void guardar(e)} className="pila">
         <div className="tarjeta">
           <h2>Foto</h2>
           <hr className="divisor" />
 
           {fotoActual && !foto ? (
-            <img src={fotoActual} alt="" className="miniatura" style={{ width: 96, height: 96, marginBottom: 'var(--e-3)' }} />
+            <img src={fotoActual} alt="Foto actual del modelo" className="foto-actual" />
           ) : null}
 
           <Campo
@@ -220,7 +220,7 @@ export function FormularioModelo() {
           ) : null}
         </div>
 
-        <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
+        <div className="tarjeta">
           <h2>Identidad</h2>
           <hr className="divisor" />
 
@@ -249,7 +249,7 @@ export function FormularioModelo() {
           </Campo>
         </div>
 
-        <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
+        <div className="tarjeta">
           <h2>Costo y precio</h2>
           <hr className="divisor" />
 
@@ -282,24 +282,24 @@ export function FormularioModelo() {
             </Campo>
           </div>
 
-          <div className="tarjeta" style={{ background: 'var(--crema)' }}>
+          <div className="panel">
             <div className="rejilla rejilla--3">
               <div>
-                <span className="util secundario">Flete unitario</span>
+                <span className="dato__etiqueta">Flete unitario</span>
                 <div className="cifra">{formatearUsd(fleteUnitario, 4)}</div>
               </div>
               <div>
-                <span className="util secundario">Costo puesto</span>
-                <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearUsd(costoPuesto, 4)}</div>
+                <span className="dato__etiqueta">Costo puesto</span>
+                <div className="dato__valor">{formatearUsd(costoPuesto, 4)}</div>
               </div>
               <div>
-                <span className="util secundario">Precio</span>
-                <div className="precio" style={{ fontSize: 'var(--t-20)' }}>{formatearUsd(precioUsd)}</div>
+                <span className="dato__etiqueta">Precio</span>
+                <div className="dato__valor">{formatearUsd(precioUsd)}</div>
                 <div className="cifra secundario">{formatearBs(precioEnBs(precioUsd, tasa?.tasa_venta ?? null))}</div>
               </div>
               <div>
-                <span className="util secundario">Margen</span>
-                <div className={margen !== null && margen < 0 ? 'precio negativo' : 'precio'} style={{ fontSize: 'var(--t-20)' }}>
+                <span className="dato__etiqueta">Margen</span>
+                <div className={margen !== null && margen < 0 ? 'dato__valor negativo' : 'dato__valor'}>
                   {formatearUsd(margen)}
                 </div>
               </div>
@@ -307,7 +307,7 @@ export function FormularioModelo() {
           </div>
         </div>
 
-        <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
+        <div className="tarjeta">
           <h2>Existencia por ubicacion</h2>
           <hr className="divisor" />
           <p className="campo__pista">No hay un total guardado: la existencia siempre es por ubicacion y se suma.</p>

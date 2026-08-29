@@ -57,7 +57,7 @@ export function Entrar() {
   return (
     <div className="login">
       <div className="login__caja">
-        <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--e-4)', marginBottom: 'var(--e-6)' }}>
+        <div className="login__marca">
           <Monograma tamano={56} />
           <Wordmark tamano={40} />
         </div>
@@ -88,7 +88,7 @@ export function Entrar() {
 
           {usaPin ? (
             <>
-              <p className="util" style={{ textAlign: 'center', marginTop: 'var(--e-4)' }}>PIN de 4 digitos</p>
+              <p className="pin__titulo">PIN de 4 digitos</p>
               <div className="puntos-pin" aria-hidden="true">
                 {Array.from({ length: LARGO_PIN }, (_, i) => (
                   <span key={i} className={i < pin.length ? 'lleno' : undefined} />
