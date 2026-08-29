@@ -230,3 +230,321 @@ begin
    where id = p_venta_id;
 end;
 $$;
+
+-- ---------------------------------------------------------------------
+-- 4. TABLERO DEL DIA (vendedora)
+--
+-- El tablero existe para empujar el TICKET PROMEDIO, no el conteo de
+-- piezas: vender 4 anillos de $9 cumple el numero y falla en plata. Por
+-- eso se muestran dos cifras: piezas del dia y cuantas fueron de $20 o mas.
+-- El umbral vive en configuracion, no quemado en el codigo.
+-- ---------------------------------------------------------------------
+
+insert into configuracion (clave, valor, descripcion) values
+  ('premium_min_usd', 20, 'Precio desde el cual una pieza cuenta como premium en el tablero')
+on conflict (clave) do nothing;
+
+create or replace view v_tablero_dia
+with (security_invoker = off) as
+select
+  v.usuario_id,
+  count(*)                                   as ventas,
+  coalesce(sum(v.total_bs), 0)               as total_bs,
+  coalesce(sum(p.piezas), 0)                 as piezas,
+  coalesce(sum(p.premium), 0)                as piezas_premium,
+  case when count(*) > 0
+       then round(sum(v.total_bs) / count(*), 2)
+       else 0 end                            as ticket_promedio_bs
+from ventas v
+left join lateral (
+  select
+    coalesce(sum(i.cantidad), 0) as piezas,
+    coalesce(sum(i.cantidad) filter (
+      where i.precio_unitario_usd >= (select valor from configuracion where clave = 'premium_min_usd')
+    ), 0) as premium
+  from venta_items i
+  where i.venta_id = v.id
+) p on true
+where not v.anulada
+  and v.fecha::date = current_date
+  and (es_admin() or v.usuario_id = auth.uid())
+group by v.usuario_id;
+
+grant select on v_tablero_dia to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 5. CIERRE DIARIO
+--
+-- Al final del dia la vendedora cuenta SOLO CANTIDADES por ubicacion.
+-- Lo esperado es lo que el sistema cree que hay ahora mismo: la venta ya
+-- descontó al cobrar. Rapido y sostenible; el detalle pieza por pieza es
+-- el conteo semanal.
+-- ---------------------------------------------------------------------
+
+create or replace view v_cuadre_dia
+with (security_invoker = off) as
+select
+  u.id           as ubicacion_id,
+  u.nombre       as ubicacion,
+  u.orden,
+  coalesce((select sum(e.cantidad) from existencias e where e.ubicacion_id = u.id), 0) as esperado,
+  c.id           as conteo_id,
+  c.cantidad_contada,
+  c.diferencia,
+  c.creado_en    as contado_en
+from ubicaciones u
+left join lateral (
+  select * from conteos
+   where ubicacion_id = u.id and tipo = 'diario' and fecha = current_date
+   order by creado_en desc limit 1
+) c on true
+where u.activo and u.cuenta_en_cuadre;
+
+grant select on v_cuadre_dia to authenticated;
+
+create or replace function cerrar_dia(
+  p_ubicacion_id bigint,
+  p_contado      int,
+  p_notas        text default null
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_esperado int;
+  v_id       bigint;
+begin
+  if auth.uid() is null then
+    raise exception 'Hay que iniciar sesion para cerrar el dia.';
+  end if;
+  if p_contado is null or p_contado < 0 then
+    raise exception 'La cantidad contada no puede ser negativa.';
+  end if;
+
+  select coalesce(sum(cantidad), 0) into v_esperado
+    from existencias where ubicacion_id = p_ubicacion_id;
+
+  insert into conteos (tipo, ubicacion_id, usuario_id, cantidad_esperada, cantidad_contada, notas)
+  values ('diario', p_ubicacion_id, auth.uid(), v_esperado, p_contado, p_notas)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 6. EXISTENCIA POR UBICACION, SIN COSTOS
+-- Es la fuente de la cuadricula de venta y del conteo semanal.
+-- La vendedora no puede leer `modelos`, asi que entra por aqui.
+-- ---------------------------------------------------------------------
+
+create or replace view v_venta_ubicacion
+with (security_invoker = off) as
+select
+  e.ubicacion_id,
+  c.id as modelo_id,
+  c.sku,
+  c.nombre,
+  c.categoria,
+  c.variantes_nota,
+  c.foto_thumb_path,
+  c.foto_path,
+  c.grupo,
+  c.precio_usd,
+  c.precio_bs,
+  e.cantidad
+from existencias e
+join v_catalogo_venta c on c.id = e.modelo_id;
+
+grant select on v_venta_ubicacion to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 7. CONTEO SEMANAL DETALLADO
+-- Pieza por pieza, modelo por modelo, con ajuste de existencias y
+-- registro de la diferencia. Lo contado pasa a ser la verdad.
+-- ---------------------------------------------------------------------
+
+create or replace function registrar_conteo_semanal(
+  p_ubicacion_id bigint,
+  p_detalle      jsonb,
+  p_notas        text default null
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_conteo_id bigint;
+  v_fila      jsonb;
+  v_modelo    bigint;
+  v_contada   int;
+  v_esperada  int;
+  v_tot_esp   int := 0;
+  v_tot_cont  int := 0;
+begin
+  if auth.uid() is null then
+    raise exception 'Hay que iniciar sesion para registrar un conteo.';
+  end if;
+  if p_detalle is null or jsonb_array_length(p_detalle) = 0 then
+    raise exception 'El conteo no tiene ninguna linea.';
+  end if;
+
+  insert into conteos (tipo, ubicacion_id, usuario_id, cantidad_esperada, cantidad_contada, notas)
+  values ('semanal', p_ubicacion_id, auth.uid(), 0, 0, p_notas)
+  returning id into v_conteo_id;
+
+  for v_fila in select * from jsonb_array_elements(p_detalle)
+  loop
+    v_modelo  := (v_fila->>'modelo_id')::bigint;
+    v_contada := greatest((v_fila->>'cantidad_contada')::int, 0);
+
+    select coalesce(cantidad, 0) into v_esperada
+      from existencias
+     where modelo_id = v_modelo and ubicacion_id = p_ubicacion_id
+     for update;
+    v_esperada := coalesce(v_esperada, 0);
+
+    insert into conteo_detalle (conteo_id, modelo_id, cantidad_esperada, cantidad_contada)
+    values (v_conteo_id, v_modelo, v_esperada, v_contada);
+
+    -- Lo contado manda: se ajusta la existencia a la realidad fisica.
+    insert into existencias (modelo_id, ubicacion_id, cantidad)
+    values (v_modelo, p_ubicacion_id, v_contada)
+    on conflict (modelo_id, ubicacion_id)
+    do update set cantidad = excluded.cantidad, actualizado_en = now();
+
+    v_tot_esp  := v_tot_esp + v_esperada;
+    v_tot_cont := v_tot_cont + v_contada;
+  end loop;
+
+  update conteos
+     set cantidad_esperada = v_tot_esp,
+         cantidad_contada  = v_tot_cont
+   where id = v_conteo_id;
+
+  return v_conteo_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 8. REPORTES DEL ADMINISTRADOR
+-- La ganancia se mide SIEMPRE en dolares, con la tasa que se congelo al
+-- vender. Si el reporte de enero cambia porque hoy movieron la tasa, el
+-- sistema esta mintiendo.
+-- Las tres vistas filtran con es_admin(): la vendedora no ve ganancias.
+-- ---------------------------------------------------------------------
+
+create or replace view v_ventas_por_dia
+with (security_invoker = off) as
+select
+  v.fecha::date                                as dia,
+  count(*)                                     as ventas,
+  coalesce(sum(m.piezas), 0)                   as piezas,
+  coalesce(sum(v.total_bs), 0)                 as total_bs,
+  coalesce(sum(v.total_usd), 0)                as total_usd,
+  coalesce(sum(m.costo_usd), 0)                as costo_usd,
+  coalesce(sum(v.total_usd - m.costo_usd), 0)  as ganancia_usd
+from ventas v
+left join lateral (
+  select
+    coalesce(sum(i.cantidad), 0) as piezas,
+    coalesce(sum(i.costo_puesto_usd_snap * i.cantidad), 0) as costo_usd
+  from venta_items i where i.venta_id = v.id
+) m on true
+where not v.anulada
+  and es_admin()
+group by v.fecha::date;
+
+create or replace view v_mezcla_grupo
+with (security_invoker = off) as
+select
+  coalesce(g.nombre, 'Sin grupo')                                        as grupo,
+  coalesce(g.orden, 999)                                                 as orden,
+  sum(i.cantidad)                                                        as piezas,
+  sum(i.precio_unitario_usd * i.cantidad)                                as ingreso_usd,
+  sum((i.precio_unitario_usd - i.costo_puesto_usd_snap) * i.cantidad)    as ganancia_usd
+from venta_items i
+join ventas v  on v.id = i.venta_id and not v.anulada
+join modelos mo on mo.id = i.modelo_id
+left join grupos_precio g on g.id = mo.grupo_precio_id
+where es_admin()
+group by coalesce(g.nombre, 'Sin grupo'), coalesce(g.orden, 999);
+
+-- Rotacion y modelos dormidos en la misma vista: un modelo dormido es
+-- uno con dias_sin_vender alto, o que nunca se ha vendido desde que entro.
+create or replace view v_rotacion_modelo
+with (security_invoker = off) as
+select
+  mo.id,
+  mo.sku,
+  mo.nombre,
+  mo.categoria,
+  coalesce(g.nombre, 'Sin grupo')                                  as grupo,
+  coalesce(x.piezas, 0)                                            as piezas_vendidas,
+  x.ultima_venta,
+  case when x.ultima_venta is not null
+       then (current_date - x.ultima_venta::date) end              as dias_sin_vender,
+  (current_date - mo.creado_en::date)                              as dias_en_inventario,
+  coalesce((select sum(e.cantidad) from existencias e where e.modelo_id = mo.id), 0) as existencia,
+  mo.costo_puesto_usd,
+  coalesce(x.ganancia_usd, 0)                                      as ganancia_usd
+from modelos mo
+left join grupos_precio g on g.id = mo.grupo_precio_id
+left join lateral (
+  select
+    sum(i.cantidad)                                                     as piezas,
+    max(v.fecha)                                                        as ultima_venta,
+    sum((i.precio_unitario_usd - i.costo_puesto_usd_snap) * i.cantidad) as ganancia_usd
+  from venta_items i
+  join ventas v on v.id = i.venta_id and not v.anulada
+  where i.modelo_id = mo.id
+) x on true
+where mo.activo
+  and es_admin();
+
+grant select on v_ventas_por_dia   to authenticated;
+grant select on v_mezcla_grupo     to authenticated;
+grant select on v_rotacion_modelo  to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 9. PERMISOS DE EJECUCION
+-- Postgres otorga EXECUTE a PUBLIC por defecto: hay que revocarlo.
+-- ---------------------------------------------------------------------
+
+revoke all on function registrar_venta(text, text, jsonb, bigint, text, text, text)   from public, anon;
+revoke all on function registrar_venta_kit(bigint, text, bigint, text, text, text)    from public, anon;
+revoke all on function admin_anular_venta(bigint, text)                               from public, anon;
+revoke all on function cerrar_dia(bigint, int, text)                                  from public, anon;
+revoke all on function registrar_conteo_semanal(bigint, jsonb, text)                  from public, anon;
+
+grant execute on function registrar_venta(text, text, jsonb, bigint, text, text, text)  to authenticated;
+grant execute on function registrar_venta_kit(bigint, text, bigint, text, text, text)   to authenticated;
+grant execute on function admin_anular_venta(bigint, text)                              to authenticated;
+grant execute on function cerrar_dia(bigint, int, text)                                 to authenticated;
+grant execute on function registrar_conteo_semanal(bigint, jsonb, text)                 to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- =====================================================================
+-- 10. VERIFICACION (Fase 2)
+--
+-- Con sesion de VENDEDORA, todo esto debe dar 0 filas o permiso denegado:
+--   select * from v_ventas_por_dia;
+--   select * from v_mezcla_grupo;
+--   select * from v_rotacion_modelo;
+--   select * from venta_items;
+--
+-- Y esto debe funcionar:
+--   select * from v_venta_ubicacion where ubicacion_id = 1 and cantidad > 0;
+--   select * from v_tablero_dia;
+--   select * from v_cuadre_dia;
+--
+-- Prueba del minimo de mayoreo (debe FALLAR con 4 piezas por $18):
+--   select registrar_venta('mayor', 'efectivo_usd',
+--     '[{"modelo_id":1,"ubicacion_id":5,"cantidad":4}]'::jsonb);
+--
+-- Prueba de existencia insuficiente (debe FALLAR y no dejar rastro):
+--   select registrar_venta('detal', 'efectivo_bs',
+--     '[{"modelo_id":1,"ubicacion_id":5,"cantidad":9999}]'::jsonb);
+-- =====================================================================
