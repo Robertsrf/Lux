@@ -1,14 +1,16 @@
 -- =====================================================================
--- Lux by Emory — cierre de la Fase 2
--- Un solo pegado. Hace dos cosas:
+-- Lux by Emory — cierre de las tres fases
+-- UN SOLO PEGADO. Hace tres cosas:
 --   1. Deja legible el mensaje del minimo de mayoreo.
---   2. Borra todos los datos que use para verificar.
+--   2. Saca del pedido de la vendedora las reservas ya vencidas.
+--   3. Borra TODOS los datos que use para verificar las tres fases.
+-- Despues de esto la base queda limpia para el inventario real.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. MENSAJE DEL MINIMO DE MAYOREO
 -- Decia "requiere 6.0000 piezas o $30.0000": el numeric arrastra sus
--- cuatro decimales. La vendedora lee esto en el mostrador, con la clienta
+-- cuatro decimales. La vendedora lee esto en el mostrador con la clienta
 -- delante, asi que tiene que decir 6 piezas y $30 y nada mas.
 -- ---------------------------------------------------------------------
 
@@ -54,31 +56,83 @@ $$;
 revoke all on function validar_minimo_mayoreo() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------
--- 2. BORRAR LOS DATOS DE VERIFICACION
--- Todo lo que cree lleva el prefijo F2 o el codigo F2-PRUEBA.
--- El orden importa por las claves foraneas.
+-- 2. UNA RESERVA VENCIDA NO ES UN PEDIDO PENDIENTE
+-- Sus piezas ya volvieron al catalogo en el instante en que expiro, pero
+-- la fila seguia diciendo 'abierta' hasta que limpiar_reservas() corriera,
+-- asi que la vendedora veia un pedido muerto en su lista. Ahora la vista
+-- mira la hora, no solo el estado.
 -- ---------------------------------------------------------------------
 
+create or replace view v_pedido_vendedora
+with (security_invoker = off) as
+select
+  r.id as reserva_id, r.token, r.estado, r.creado_en, r.expira_en,
+  r.cliente_nombre, r.cliente_telefono, r.piezas as piezas_total, r.total_usd,
+  ri.modelo_id, c.sku, c.nombre, c.variantes_nota, c.foto_thumb_path, ri.cantidad,
+  coalesce(u.nombre, 'Sin existencia suficiente') as ubicacion
+from reservas r
+join reserva_items ri on ri.reserva_id = r.id
+join v_catalogo_venta c on c.id = ri.modelo_id
+left join lateral (
+  select ub.nombre from existencias e join ubicaciones ub on ub.id = e.ubicacion_id
+   where e.modelo_id = ri.modelo_id and e.cantidad >= ri.cantidad
+   order by e.cantidad desc, ub.orden limit 1
+) u on true
+where auth.uid() is not null
+  and (r.estado = 'confirmada'
+       or (r.estado = 'abierta' and r.expira_en > now()));
+
+grant select on v_pedido_vendedora to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 3. BORRAR TODO LO QUE CREE PARA VERIFICAR
+-- Lleva prefijo F2 (fase 2) o ZZ (precios BCV y fase 3), o el codigo
+-- F2-PRUEBA. El orden importa por las claves foraneas.
+-- ---------------------------------------------------------------------
+
+-- Ventas de prueba (venta_items cae por cascade)
 delete from ventas
  where id in (select distinct venta_id from venta_items
-               where modelo_id in (select id from modelos where nombre like 'F2 %'));
+               where modelo_id in (select id from modelos
+                                    where nombre like 'F2 %' or nombre like 'ZZ %'));
 
+-- Reservas de prueba
+delete from reserva_items
+ where reserva_id in (select id from reservas where cliente_nombre like 'ZZ %')
+    or modelo_id in (select id from modelos where nombre like 'F2 %' or nombre like 'ZZ %');
+delete from reservas where cliente_nombre like 'ZZ %';
+
+-- Conteos de prueba
 delete from conteo_detalle
- where modelo_id in (select id from modelos where nombre like 'F2 %');
-
+ where modelo_id in (select id from modelos where nombre like 'F2 %' or nombre like 'ZZ %');
 delete from conteos where notas = 'prueba de descuadre';
 
+-- Kits de prueba
 delete from kit_items where kit_id in (select id from kits where nombre like 'F2 %');
 delete from kits where nombre like 'F2 %';
 
-delete from existencias where modelo_id in (select id from modelos where nombre like 'F2 %');
-delete from modelos where nombre like 'F2 %';
-delete from lotes  where codigo = 'F2-PRUEBA';
+-- Modelos y su existencia
+delete from existencias
+ where modelo_id in (select id from modelos where nombre like 'F2 %' or nombre like 'ZZ %');
+delete from modelos where nombre like 'F2 %' or nombre like 'ZZ %';
+
+-- Lote, grupos y tramo de prueba
+delete from lotes          where codigo = 'F2-PRUEBA';
+delete from grupos_precio  where nombre like 'ZZ%';
+delete from tramos_mayoreo where min_piezas = 1 and precio_por_pieza_usd = 12;
 
 notify pgrst, 'reload schema';
 
 -- =====================================================================
--- Despues de esto la base queda limpia y lista para el inventario real.
--- Lo unico que sigue siendo inventado es la TASA: esta en 500 / 250.
--- Cambiala por la real en la pantalla de Tasas antes de cargar nada.
+-- COMPROBACION: las cinco lineas deben dar 0
+--   select count(*) from modelos        where nombre like 'F2 %' or nombre like 'ZZ %';
+--   select count(*) from lotes          where codigo = 'F2-PRUEBA';
+--   select count(*) from grupos_precio  where nombre like 'ZZ%';
+--   select count(*) from reservas       where cliente_nombre like 'ZZ %';
+--   select count(*) from ventas;
+--
+-- LO UNICO QUE QUEDA INVENTADO ES LA TASA: esta en 500 / 250, que son
+-- valores mios de prueba con una brecha del 100 %. Cambiala por la real
+-- en la pantalla de Tasas ANTES de cargar el primer modelo: de ella sale
+-- cada precio en bolivares y cada precio sugerido.
 -- =====================================================================
