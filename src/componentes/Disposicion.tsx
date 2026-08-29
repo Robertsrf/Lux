@@ -9,6 +9,7 @@ const ENLACES_ADMIN = [
   { a: '/admin/lotes', texto: 'Lotes' },
   { a: '/admin/grupos', texto: 'Grupos' },
   { a: '/admin/kits', texto: 'Kits' },
+  { a: '/admin/tramos', texto: 'Tramos' },
   { a: '/admin/tasas', texto: 'Tasas' },
   { a: '/catalogo', texto: 'Catalogo' },
 ];
@@ -18,6 +19,7 @@ const ENLACES_VENTA = [
   { a: '/venta/mayor', texto: 'Mayor' },
   { a: '/venta/tablero', texto: 'Mi dia' },
   { a: '/venta/cierre', texto: 'Cierre' },
+  { a: '/venta/pedidos', texto: 'Pedidos' },
   { a: '/venta/conteo', texto: 'Conteo' },
 ];
 

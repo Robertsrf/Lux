@@ -848,3 +848,7 @@ table.tabla tfoot td {
   color: var(--texto-fuerte);
 }
 .tablero__meta { font-size: var(--t-12); color: var(--texto-secundario); margin-top: var(--e-1); }
+
+/* Cabecera del catalogo publico: sin navegacion, no hay sesion. */
+.barra--publica { position: static; }
+.barra--publica .barra__interior { justify-content: space-between; }

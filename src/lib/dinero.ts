@@ -168,3 +168,32 @@ export function formatearFecha(iso: string | null | undefined): string {
   if (Number.isNaN(fecha.getTime())) return '—';
   return new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fecha);
 }
+
+/**
+ * Precio por pieza del tramo de mayoreo que alcanza esa cantidad.
+ *
+ * Solo para mostrar el total mientras la mayorista va tocando piezas: la
+ * cifra que manda es la que calcula `crear_reserva` en la base, que es
+ * quien congela el precio en la reserva.
+ *
+ * Si no hay tramos cargados devuelve null y el armador se niega a cotizar.
+ * No hay ningun precio quemado aqui, a proposito.
+ */
+export function precioPorPiezaPara(
+  tramos: { min_piezas: number; precio_por_pieza_usd: number; activo: boolean }[],
+  piezas: number,
+): number | null {
+  const aplicables = tramos.filter((t) => t.activo && t.min_piezas <= piezas);
+  if (aplicables.length === 0) return null;
+  return aplicables.reduce((mejor, t) => (t.min_piezas > mejor.min_piezas ? t : mejor)).precio_por_pieza_usd;
+}
+
+/** Cuantos minutos y segundos faltan para una fecha, ya formateados. */
+export function cuentaRegresiva(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const faltan = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(faltan) || faltan <= 0) return null;
+  const minutos = Math.floor(faltan / 60000);
+  const segundos = Math.floor((faltan % 60000) / 1000);
+  return `${minutos}:${String(segundos).padStart(2, '0')}`;
+}

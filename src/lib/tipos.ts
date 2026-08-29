@@ -208,3 +208,70 @@ export interface RotacionModelo {
   costo_puesto_usd: number;
   ganancia_usd: number;
 }
+
+/* ------------------------------------------------------------ Fase 3 */
+
+export type EstadoReserva = 'abierta' | 'confirmada' | 'vencida' | 'cancelada';
+
+/** Vista v_disponible_publico: lo unico que ve quien abre el enlace. */
+export interface ModeloPublico {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  variantes_nota: string | null;
+  foto_path: string | null;
+  foto_thumb_path: string | null;
+  precio_usd: number | null;
+  precio_bs: number | null;
+  /** Existencia menos lo reservado y vigente. */
+  disponible: number;
+}
+
+export interface Tramo {
+  id: number;
+  min_piezas: number;
+  precio_por_pieza_usd: number;
+  activo: boolean;
+}
+
+export interface ItemReserva {
+  modelo_id: number;
+  cantidad: number;
+  sku: string;
+  nombre: string;
+  variantes_nota: string | null;
+  foto_thumb_path: string | null;
+}
+
+/** Lo que devuelve ver_reserva(token). Sin una sola cifra de costo. */
+export interface ReservaVista {
+  estado: EstadoReserva;
+  creado_en: string;
+  expira_en: string;
+  cliente_nombre: string | null;
+  piezas: number | null;
+  precio_por_pieza_usd: number | null;
+  total_usd: number | null;
+  items: ItemReserva[];
+}
+
+/** Vista v_pedido_vendedora: una fila por pieza, con su ubicacion. */
+export interface LineaPedido {
+  reserva_id: number;
+  token: string;
+  estado: EstadoReserva;
+  creado_en: string;
+  expira_en: string;
+  cliente_nombre: string | null;
+  cliente_telefono: string | null;
+  piezas_total: number | null;
+  total_usd: number | null;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variantes_nota: string | null;
+  foto_thumb_path: string | null;
+  cantidad: number;
+  ubicacion: string;
+}

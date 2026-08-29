@@ -17,6 +17,10 @@ import { Kits as KitsVenta } from './paginas/venta/Kits';
 import { Tablero } from './paginas/venta/Tablero';
 import { Cierre } from './paginas/venta/Cierre';
 import { ConteoSemanal } from './paginas/venta/ConteoSemanal';
+import { Tramos } from './paginas/admin/Tramos';
+import { Pedidos } from './paginas/venta/Pedidos';
+import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
+import { Reserva } from './paginas/publico/Reserva';
 import { Cargando } from './componentes/Piezas';
 
 /** GitHub Pages no reescribe rutas: se usa HashRouter (/#/admin/inventario). */
@@ -36,6 +40,10 @@ export function App() {
         <Routes>
           <Route path="/entrar" element={<Entrar />} />
 
+          {/* Publico: sin sesion. Es el enlace que se comparte. */}
+          <Route path="/publico" element={<CatalogoPublico />} />
+          <Route path="/reserva/:token" element={<Reserva />} />
+
           <Route element={<RutaProtegida><Disposicion /></RutaProtegida>}>
             {/* Mostrador */}
             <Route path="/venta" element={<Mostrador />} />
@@ -43,6 +51,7 @@ export function App() {
             <Route path="/venta/tablero" element={<Tablero />} />
             <Route path="/venta/cierre" element={<Cierre />} />
             <Route path="/venta/conteo" element={<ConteoSemanal />} />
+            <Route path="/venta/pedidos" element={<Pedidos />} />
 
             {/* Comunes */}
             <Route path="/verificacion" element={<Verificacion />} />
@@ -55,6 +64,7 @@ export function App() {
             <Route path="/admin/lotes" element={soloAdmin(<Lotes />)} />
             <Route path="/admin/grupos" element={soloAdmin(<Grupos />)} />
             <Route path="/admin/kits" element={soloAdmin(<KitsAdmin />)} />
+            <Route path="/admin/tramos" element={soloAdmin(<Tramos />)} />
             <Route path="/admin/tasas" element={soloAdmin(<Tasas />)} />
             <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
           </Route>
