@@ -1,0 +1,62 @@
+/* =====================================================================
+   Lux by Emory — tokens de diseno. Unica fuente de verdad de la paleta.
+   Proporcion objetivo: 60% crema · 25% verde profundo · 10% salvia · 5% oro.
+   Si el oro pasa del 5% de una pantalla, quitale oro a algo.
+   ===================================================================== */
+
+:root {
+  /* Paleta de marca */
+  --verde-profundo: #1F4045;
+  --oro-arena:      #D0AE8A;
+  --crema:          #EDE5D3;
+  --salvia:         #7F9492;
+
+  /* Colores de sistema: los unicos anadidos permitidos */
+  --exito:  #4A6B52;
+  --alerta: #A8763E;
+  --error:  #8C3A32;
+  --blanco: #FFFFFF;
+  --tinta:  #14292C;
+
+  /* Tipografia */
+  --fuente-display: 'Fraunces', 'Bagind', Georgia, serif;
+  --fuente-cuerpo:  'EB Garamond', Georgia, serif;
+  --fuente-util:    'Jost', system-ui, sans-serif;
+
+  /* Escala tipografica. No inventar tamanos intermedios. */
+  --t-12: 12px;
+  --t-14: 14px;
+  --t-16: 16px;
+  --t-20: 20px;
+  --t-28: 28px;
+  --t-40: 40px;
+  --t-56: 56px;
+
+  /* Densidad de escritorio (admin). El mostrador la sobrescribe. */
+  --texto-base: 15px;
+  --objetivo-tactil: 36px;
+  --hueco-tarjetas: 8px;
+
+  /* Espaciado */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
+  --e-8: 64px;
+
+  /* La marca es angular, no redondeada */
+  --radio: 4px;
+  --hairline: 1px solid var(--salvia);
+  --tracking: 0.12em;
+  --transicion: 150ms ease;
+}
+
+/* Cara de mostrador: tactil, una mano, telefono de gama baja */
+.mostrador {
+  --texto-base: 18px;
+  --objetivo-tactil: 56px;
+  --hueco-tarjetas: 12px;
+}
