@@ -1,31 +1,42 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Wordmark } from './Marca';
+import { Monograma, Wordmark } from './Marca';
+import { Icono } from './Iconos';
+import type { NombreIcono } from './Iconos';
 import { useSesion } from '../hooks/useSesion';
 import { cerrarSesion } from '../lib/auth';
 
-const ENLACES_ADMIN = [
-  { a: '/admin/inventario', texto: 'Inventario' },
-  { a: '/admin/reportes', texto: 'Reportes' },
-  { a: '/admin/lotes', texto: 'Lotes' },
-  { a: '/admin/grupos', texto: 'Grupos' },
-  { a: '/admin/kits', texto: 'Kits' },
-  { a: '/admin/tramos', texto: 'Tramos' },
-  { a: '/admin/tasas', texto: 'Tasas' },
-  { a: '/catalogo', texto: 'Catalogo' },
+interface Enlace { a: string; texto: string; icono: NombreIcono }
+
+const ENLACES_ADMIN: Enlace[] = [
+  { a: '/admin/inventario', texto: 'Inventario', icono: 'inventario' },
+  { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
+  { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
+  { a: '/admin/grupos',     texto: 'Grupos',     icono: 'grupos' },
+  { a: '/admin/kits',       texto: 'Kits',       icono: 'kits' },
+  { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
+  { a: '/admin/tasas',      texto: 'Tasas',      icono: 'tasas' },
+  { a: '/catalogo',         texto: 'Catalogo',   icono: 'catalogo' },
 ];
 
-const ENLACES_VENTA = [
-  { a: '/venta', texto: 'Mostrador' },
-  { a: '/venta/mayor', texto: 'Mayor' },
-  { a: '/venta/tablero', texto: 'Mi dia' },
-  { a: '/venta/cierre', texto: 'Cierre' },
-  { a: '/venta/pedidos', texto: 'Pedidos' },
-  { a: '/venta/conteo', texto: 'Conteo' },
+const ENLACES_VENTA: Enlace[] = [
+  { a: '/venta',          texto: 'Mostrador', icono: 'mostrador' },
+  { a: '/venta/mayor',    texto: 'Mayor',     icono: 'mayor' },
+  { a: '/venta/pedidos',  texto: 'Pedidos',   icono: 'pedidos' },
+  { a: '/venta/tablero',  texto: 'Mi dia',    icono: 'dia' },
+  { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
+  { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
 ];
 
+/**
+ * Armazon de la aplicacion. En escritorio la navegacion vive en una barra
+ * lateral: caben las ocho secciones del admin con su nombre completo, en
+ * vez de apretarlas en una fila. En movil esa misma barra se vuelve
+ * superior y deja solo los iconos, para no robarle alto a la pantalla.
+ */
 export function Disposicion() {
   const { perfil, esAdmin } = useSesion();
   const navegar = useNavigate();
+  const enlaces = esAdmin ? ENLACES_ADMIN : ENLACES_VENTA;
 
   async function salir() {
     await cerrarSesion();
@@ -33,42 +44,46 @@ export function Disposicion() {
   }
 
   return (
-    <>
-      <header className="barra sin-impresion">
-        <div className="barra__interior">
-          <Wordmark tamano={20} />
-
-          <nav className="navegacion" aria-label="Secciones">
-            {esAdmin
-              ? ENLACES_ADMIN.map((e) => (
-                  <NavLink key={e.a} to={e.a} className={({ isActive }) => (isActive ? 'activo' : undefined)}>
-                    {e.texto}
-                  </NavLink>
-                ))
-              : ENLACES_VENTA.map((e) => (
-                  <NavLink key={e.a} to={e.a} end className={({ isActive }) => (isActive ? 'activo' : undefined)}>
-                    {e.texto}
-                  </NavLink>
-                ))}
-            <NavLink to="/verificacion" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
-              Verificacion
-            </NavLink>
-          </nav>
-
-          <div className="sesion">
-            <span className="sesion__quien">
-              {perfil?.nombre ?? 'Sin perfil'} · {perfil?.rol ?? '—'}
-            </span>
-            <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void salir()}>
-              Salir
-            </button>
-          </div>
+    <div className="armazon">
+      <aside className="lateral">
+        <div className="lateral__marca">
+          <Monograma tamano={38} />
+          <Wordmark tamano={18} />
         </div>
-      </header>
 
-      <main>
+        <nav className="navegacion" aria-label="Secciones">
+          {enlaces.map((e) => (
+            <NavLink key={e.a} to={e.a} end className={({ isActive }) => (isActive ? 'activo' : undefined)}>
+              <Icono nombre={e.icono} />
+              <span className="texto-nav">{e.texto}</span>
+            </NavLink>
+          ))}
+          <NavLink to="/verificacion" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
+            <Icono nombre="verificacion" />
+            <span className="texto-nav">Verificacion</span>
+          </NavLink>
+        </nav>
+
+        <div className="sesion">
+          <span className="sesion__quien">
+            <span className="sesion__nombre">{perfil?.nombre ?? 'Sin perfil'}</span>
+            <span className="sesion__rol">{perfil?.rol ?? '—'}</span>
+          </span>
+          <button
+            type="button"
+            className="boton boton--secundario boton--pequeno boton--icono"
+            onClick={() => void salir()}
+            aria-label="Cerrar sesion"
+            title="Cerrar sesion"
+          >
+            <Icono nombre="salir" className="icono icono--sm" />
+          </button>
+        </div>
+      </aside>
+
+      <main className="contenido">
         <Outlet />
       </main>
-    </>
+    </div>
   );
 }

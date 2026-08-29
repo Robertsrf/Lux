@@ -25,6 +25,8 @@ No apliques la misma densidad a las dos.
 
 La brújula es **Rolex**: autoridad silenciosa. El lujo no se grita, se demuestra. Mucho aire, poco ruido, un solo elemento protagonista por pantalla. Nada de degradados, sombras dramáticas, emojis decorativos ni animaciones de relleno.
 
+El estuche es **redondeado y cálido**, no una caja angular. La profundidad se consigue con elevación suave teñida de verde —nunca sombras grises ni dramáticas— y con capas de superficie, no con bordes duros.
+
 La joya es siempre la protagonista. La interfaz es el estuche, no la pieza.
 
 ---
@@ -63,8 +65,10 @@ Ningún otro color. Si necesitas uno nuevo, no lo necesitas.
 - Texto de cuerpo sobre crema → **verde profundo** o `--tinta`. Nunca oro.
 - El oro **solo luce sobre verde profundo**. Oro sobre crema en texto pequeño es ilegible: prohibido.
 - Verde profundo sobre crema para todo lo que se lea de corrido.
-- Salvia solo para texto secundario, nunca para información crítica.
-- Todo texto debe pasar contraste 4.5:1. La tienda tiene luz fuerte y el teléfono es de gama baja.
+- **La salvia no es un color de texto.** Da 2,56:1 sobre crema: sirve para líneas y bordes de control, no para leer. Para texto secundario existe `--salvia-texto` (#506664), la misma familia oscurecida hasta 4,89:1.
+- Lo mismo con `--alerta`: como texto se usa `--alerta-texto` (#875C2D), 4,65:1.
+- Todo texto debe pasar contraste 4.5:1, **medido, no estimado**. La tienda tiene luz fuerte y el teléfono es de gama baja.
+- El borde de un control necesita 3:1 para verse. La salvia da 3,20 sobre blanco y por eso sí sirve ahí.
 
 ---
 
@@ -75,7 +79,9 @@ Tres roles. La jerarquía carga la personalidad.
 1. **Display serif de alto contraste** — la fuente de marca es **Bagind**. Para el logotipo, titulares y **cifras de precio**. Con restricción; nunca para párrafos.
    - Si Bagind no está incrustada, usa **Fraunces** como sustituto (`@fontsource/fraunces`).
 2. **Serif de lectura** — **EB Garamond** para descripciones y cuerpo.
-3. **Sans utilitaria** — **Jost** en MAYÚSCULAS con `letter-spacing: 0.12em` para etiquetas, encabezados de tabla, datos y botones.
+3. **Sans utilitaria** — **Jost**, y es la **fuente de trabajo de la interfaz**: cuerpo, etiquetas, encabezados de tabla, datos, formularios y botones. En MAYÚSCULAS con `letter-spacing: 0.12em` para etiquetas y botones.
+
+   Un panel de administración es casi todo etiquetas y cifras. Aplicar la serif de lectura a toda la interfaz la envejece: EB Garamond se reserva para prosa de verdad —nombre de la pieza, descripciones, estados vacíos y el catálogo impreso—.
 
 ```css
 --fuente-display: 'Fraunces', 'Bagind', Georgia, serif;
@@ -101,14 +107,39 @@ Prohibido: deformar, rotar, añadir sombras o degradados al logotipo, ponerlo so
 
 ---
 
+## Forma y elevación
+
+La marca es **redondeada**. Una sola escala, sin inventar valores intermedios:
+
+```css
+--radio-xs:    6px;   /* anillos de foco, detalles */
+--radio:      12px;   /* campos, contadores, píldoras pequeñas */
+--radio-md:   16px;   /* paneles, monograma, teclado del PIN */
+--radio-lg:   22px;   /* tarjetas, tablas, estados vacíos */
+--radio-pill: 999px;  /* TODOS los botones, etiquetas y filtros */
+```
+
+**Los botones son píldoras.** Sin excepción: primario, secundario, peligro y los del mostrador.
+
+La profundidad va en tres pasos y **siempre teñida de verde**, nunca gris:
+
+```css
+--sombra-1: reposo (tarjetas, campos, botones)
+--sombra-2: hover
+--sombra-3: elemento flotante (barra del carrito) y tarjeta levantada
+```
+
+Una tarjeta tocable sube 3 px al pasar por encima y vuelve al presionar. El movimiento dura 150–240 ms con salida exponencial: se siente vivo sin hacerse esperar.
+
 ## Densidad y objetivos táctiles
 
 | | Mostrador | Escritorio admin |
 |---|---|---|
-| Objetivo táctil mínimo | **56 px** | 36 px |
+| Objetivo táctil mínimo | **56 px** | 40 px |
 | Texto base | 18 px | 15 px |
-| Espaciado entre tarjetas | 12 px | 8 px |
+| Espaciado entre tarjetas | 20 px | 16 px |
 | Foto en cuadrícula | 1 columna en móvil angosto, 2 en normal | 4–6 columnas |
+| Navegación | Barra superior, solo iconos | Barra lateral de 244 px con nombres |
 
 La vendedora usa el pulgar con joyas en la otra mano. **Botones grandes, separados, sin nada crítico en la esquina superior.** Las acciones principales van abajo, al alcance del pulgar.
 
@@ -117,7 +148,7 @@ La vendedora usa el pulgar con joyas en la otra mano. **Botones grandes, separad
 ## Componentes clave
 
 ### Tarjeta de modelo (cuadrícula de venta)
-Foto cuadrada arriba ocupando la mayor parte. Debajo: nombre en serif de cuerpo, precio en Bs en display serif, y existencia como etiqueta pequeña en Jost mayúsculas. Fondo blanco sobre crema, borde hairline salvia, radio de esquina **4 px máximo** — la marca es angular, no redondeada.
+Foto cuadrada arriba ocupando la mayor parte. Debajo: nombre en serif de cuerpo, precio en Bs en display serif, y existencia como etiqueta pequeña en Jost mayúsculas. Fondo blanco sobre crema, borde suave, radio `--radio-lg` y elevación `--sombra-1`, que sube a `--sombra-3` al tocarla.
 
 Estado de existencia baja (≤2): etiqueta en `--alerta`. Existencia cero: la tarjeta no aparece.
 

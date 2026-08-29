@@ -1,6 +1,6 @@
 /* =====================================================================
    Lux by Emory — tokens. Unica fuente de verdad de la paleta.
-   Proporcion objetivo: 60% crema · 25% verde profundo · 10% salvia · 5% oro.
+   Lenguaje de formas: redondeado y calido. El estuche, no la caja.
    ===================================================================== */
 
 :root {
@@ -17,69 +17,75 @@
   --blanco: #FFFFFF;
   --tinta:  #14292C;
 
-  /* --- Variantes legibles -------------------------------------------
-     La salvia da 2,56:1 sobre crema: sirve de linea, no de texto.
-     La alerta da 3,14:1: sirve de borde, no de texto.
-     Estas dos son las mismas familias, oscurecidas hasta pasar 4,5:1.
-     Medido, no estimado.
+  /* --- Variantes legibles (medidas, no estimadas) -------------------
        --salvia-texto  4,89 sobre crema · 6,13 sobre blanco
-       --alerta-texto  4,65 sobre crema · 5,84 sobre blanco    */
+       --alerta-texto  4,65 sobre crema · 5,84 sobre blanco
+     La salvia original da 2,56 sobre crema: sirve de linea, no de texto. */
   --salvia-texto: #506664;
   --alerta-texto: #875C2D;
 
-  /* --- Superficies ---
-     Segunda capa de neutro para barras y paneles, mas fria que el papel. */
-  --papel:      var(--crema);
-  --superficie: var(--blanco);
-  --panel:      #F6F1E6;
-  --linea:      #CFC6B2;
-  --linea-suave: #E2DACA;
+  /* --- Superficies, en capas calidas --- */
+  --papel:       #F4EFE4;
+  --superficie:  var(--blanco);
+  --panel:       #FAF6EE;
+  --panel-hondo: #EFE8DA;
+  --linea:       #E0D8C7;
+  --linea-suave: #EDE7DA;
+  --verde-suave: #F0F4F3;
 
   /* --- Texto --- */
-  --texto:            var(--verde-profundo);
-  --texto-fuerte:     var(--tinta);
-  --texto-secundario: var(--salvia-texto);
+  --texto:             var(--verde-profundo);
+  --texto-fuerte:      var(--tinta);
+  --texto-secundario:  var(--salvia-texto);
   --texto-sobre-verde: var(--crema);
 
   /* --- Tipografia ---------------------------------------------------
-     Jost es la fuente de trabajo: etiquetas, datos, tablas, botones,
-     formularios. Un panel de administracion es casi todo eso.
-     Fraunces es solo para titulos y para PRECIOS: es lo que hace que una
-     cifra se sienta de joyeria y no de ferreteria.
-     EB Garamond queda para prosa de verdad: nombre de la pieza,
-     descripciones, estados vacios y el catalogo impreso.                */
+     Jost es la fuente de trabajo. Fraunces solo para titulos y PRECIOS.
+     EB Garamond para prosa: nombre de la pieza y catalogo impreso.     */
   --fuente-ui:      'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fuente-display: 'Fraunces', 'Bagind', Georgia, serif;
   --fuente-prosa:   'EB Garamond', Georgia, serif;
 
-  /* Escala de la skill. No inventar tamanos intermedios. */
-  --t-12: 12px;
-  --t-14: 14px;
-  --t-16: 16px;
-  --t-20: 20px;
-  --t-28: 28px;
-  --t-40: 40px;
-  --t-56: 56px;
+  --t-12: 12px;  --t-14: 14px;  --t-16: 16px;  --t-20: 20px;
+  --t-28: 28px;  --t-40: 40px;  --t-56: 56px;
 
   /* --- Densidad: escritorio por defecto --- */
   --texto-base: 15px;
-  --objetivo-tactil: 36px;
-  --alto-control: 38px;
-  --hueco-campos: 16px;
+  --objetivo-tactil: 40px;
+  --alto-control: 42px;
+  --hueco-campos: 18px;
 
   /* --- Espaciado --- */
   --e-1: 4px;  --e-2: 8px;  --e-3: 12px; --e-4: 16px;
   --e-5: 24px; --e-6: 32px; --e-7: 48px; --e-8: 64px;
 
-  /* --- Forma y movimiento --- */
-  --radio: 4px;                 /* la marca es angular, no redondeada */
+  /* --- Forma: la marca ahora es redondeada --- */
+  --radio-xs:   6px;
+  --radio:     12px;
+  --radio-md:  16px;
+  --radio-lg:  22px;
+  --radio-pill: 999px;
+
+  /* --- Elevacion: sombra tenida de verde, nunca gris ni dramatica --- */
+  --sombra-1: 0 1px 2px rgba(31, 64, 69, 0.05),
+              0 2px 8px rgba(31, 64, 69, 0.04);
+  --sombra-2: 0 2px 4px rgba(31, 64, 69, 0.06),
+              0 8px 24px rgba(31, 64, 69, 0.07);
+  --sombra-3: 0 4px 8px rgba(31, 64, 69, 0.08),
+              0 16px 40px rgba(31, 64, 69, 0.10);
+  --anillo-foco: 0 0 0 3px rgba(31, 64, 69, 0.18);
+  --anillo-oro:  0 0 0 3px rgba(208, 174, 138, 0.40);
+
+  /* --- Movimiento: sale rapido, entra suave --- */
   --tracking: 0.12em;
-  --salida: cubic-bezier(0.22, 1, 0.36, 1);
-  --rapido: 140ms var(--salida);
+  --salida:  cubic-bezier(0.22, 1, 0.36, 1);
+  --rapido:  150ms var(--salida);
+  --medio:   240ms var(--salida);
 
   /* --- Capas --- */
-  --z-barra: 10;
-  --z-cabecera-tabla: 20;
+  --z-barra: 20;
+  --z-cabecera-tabla: 10;
+  --z-flotante: 30;
 }
 
 /* Cara de mostrador: tactil, una mano, telefono de gama baja */
@@ -88,4 +94,8 @@
   --objetivo-tactil: 56px;
   --alto-control: 56px;
   --hueco-campos: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --rapido: 1ms linear; --medio: 1ms linear; }
 }

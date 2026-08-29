@@ -49,7 +49,9 @@
 @page { margin: 14mm; }
 
 @media print {
-  .sin-impresion { display: none !important; }
+  /* Nada del armazon de la aplicacion entra al catalogo impreso. */
+  .sin-impresion, .lateral, .barra { display: none !important; }
+  .armazon { display: block; }
 
   html, body {
     background: var(--crema) !important;
