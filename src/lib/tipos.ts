@@ -103,3 +103,108 @@ export interface Existencia {
   ubicacion_id: number;
   cantidad: number;
 }
+
+/* ------------------------------------------------------------ Fase 2 */
+
+export type TipoVenta = 'detal' | 'mayor';
+export type MetodoPago = 'punto' | 'pago_movil' | 'transferencia' | 'efectivo_bs' | 'efectivo_usd';
+
+export const METODOS_PAGO: { valor: MetodoPago; texto: string }[] = [
+  { valor: 'punto', texto: 'Punto de venta' },
+  { valor: 'pago_movil', texto: 'Pago movil' },
+  { valor: 'transferencia', texto: 'Transferencia' },
+  { valor: 'efectivo_bs', texto: 'Efectivo Bs' },
+  { valor: 'efectivo_usd', texto: 'Efectivo $' },
+];
+
+/** Vista v_venta_ubicacion: existencia por ubicacion, sin una sola cifra de costo. */
+export interface ModeloEnUbicacion {
+  ubicacion_id: number;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  variantes_nota: string | null;
+  foto_thumb_path: string | null;
+  foto_path: string | null;
+  grupo: string | null;
+  precio_usd: number | null;
+  precio_bs: number | null;
+  cantidad: number;
+}
+
+/** Una linea del carrito, antes de cobrar. */
+export interface LineaCarrito {
+  modelo_id: number;
+  ubicacion_id: number;
+  sku: string;
+  nombre: string;
+  foto_thumb_path: string | null;
+  precio_usd: number;
+  precio_bs: number;
+  cantidad: number;
+  disponible: number;
+}
+
+export interface TableroDia {
+  usuario_id: string;
+  ventas: number;
+  total_bs: number;
+  piezas: number;
+  piezas_premium: number;
+  ticket_promedio_bs: number;
+}
+
+export interface CuadreUbicacion {
+  ubicacion_id: number;
+  ubicacion: string;
+  orden: number;
+  esperado: number;
+  conteo_id: number | null;
+  cantidad_contada: number | null;
+  diferencia: number | null;
+  contado_en: string | null;
+}
+
+export interface Kit {
+  id: number;
+  nombre: string;
+  tipo: 'fijo' | 'armado';
+  precio_por_pieza_usd: number;
+  n_piezas: number;
+  descripcion: string | null;
+  activo: boolean;
+}
+
+export interface VentaPorDia {
+  dia: string;
+  ventas: number;
+  piezas: number;
+  total_bs: number;
+  total_usd: number;
+  costo_usd: number;
+  ganancia_usd: number;
+}
+
+export interface MezclaGrupo {
+  grupo: string;
+  orden: number;
+  piezas: number;
+  ingreso_usd: number;
+  ganancia_usd: number;
+}
+
+export interface RotacionModelo {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  grupo: string;
+  piezas_vendidas: number;
+  ultima_venta: string | null;
+  dias_sin_vender: number | null;
+  dias_en_inventario: number;
+  existencia: number;
+  costo_puesto_usd: number;
+  ganancia_usd: number;
+}

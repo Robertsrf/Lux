@@ -1,37 +1,293 @@
-import { Link } from 'react-router-dom';
-import { Vacio } from '../../componentes/Piezas';
-import { Divisor } from '../../componentes/Marca';
-import { useSesion } from '../../hooks/useSesion';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase, mensajeDeError } from '../../lib/supabase';
+import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
+import { formatearBs, formatearUsd } from '../../lib/dinero';
+import { urlPublicaFoto } from '../../lib/fotos';
+import { useUbicaciones } from '../../hooks/useCatalogos';
+import { useTasa } from '../../hooks/useTasa';
+import { useCarrito } from '../../hooks/useCarrito';
+import { METODOS_PAGO } from '../../lib/tipos';
+import type { MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
+
+const COLUMNAS = 'ubicacion_id, modelo_id, sku, nombre, categoria, variantes_nota, foto_thumb_path, grupo, precio_usd, precio_bs, cantidad';
 
 /**
- * Cara de mostrador. En la Fase 1 todavia no hay punto de venta: la cuadricula
- * tactil, el cobro y el cierre diario son la Fase 2. Esta pantalla existe para
- * que la vendedora pueda entrar y comprobar su acceso sin encontrarse un error.
+ * Cuadricula de venta. Disenada para TOCAR, no para leer: foto grande,
+ * un toque agrega una pieza, y el total y el boton de cobrar viven abajo,
+ * al alcance del pulgar.
+ *
+ * Aqui no se muestra ni se consulta una sola cifra de costo.
  */
 export function Mostrador() {
-  const { perfil } = useSesion();
+  const { ubicaciones } = useUbicaciones();
+  const { tasa } = useTasa();
+  const carrito = useCarrito();
+
+  const [ubicacionId, setUbicacionId] = useState<number | null>(null);
+  const [texto, setTexto] = useState('');
+  const [modelos, setModelos] = useState<ModeloEnUbicacion[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [paso, setPaso] = useState<'venta' | 'cobro'>('venta');
+  const [metodo, setMetodo] = useState<MetodoPago | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+  const tituloCobro = useRef<HTMLHeadingElement>(null);
+
+  // El mostrador arranca en la primera vitrina, no en la bodega.
+  useEffect(() => {
+    if (ubicacionId === null && ubicaciones.length > 0) {
+      const preferida = ubicaciones.find((u) => u.tipo !== 'bodega') ?? ubicaciones[0]!;
+      setUbicacionId(preferida.id);
+    }
+  }, [ubicaciones, ubicacionId]);
+
+  const cargar = useCallback(async () => {
+    if (ubicacionId === null) return;
+    setCargando(true);
+    setError(null);
+
+    let consulta = supabase
+      .from('v_venta_ubicacion')
+      .select(COLUMNAS)
+      .eq('ubicacion_id', ubicacionId)
+      .gt('cantidad', 0)
+      .order('nombre', { ascending: true })
+      .limit(300);
+
+    if (texto.trim()) {
+      const t = texto.trim().replace(/[%,]/g, ' ');
+      consulta = consulta.or(`nombre.ilike.%${t}%,sku.ilike.%${t}%`);
+    }
+
+    const { data, error: err } = await consulta;
+    if (err) setError(mensajeDeError(err));
+    setModelos((data as unknown as ModeloEnUbicacion[] | null) ?? []);
+    setCargando(false);
+  }, [ubicacionId, texto]);
+
+  useEffect(() => {
+    const t = setTimeout(() => void cargar(), texto ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [cargar, texto]);
+
+  useEffect(() => {
+    if (paso === 'cobro') tituloCobro.current?.focus();
+  }, [paso]);
+
+  const enCarrito = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const l of carrito.lineas) m.set(l.modelo_id, l.cantidad);
+    return m;
+  }, [carrito.lineas]);
+
+  async function confirmar() {
+    if (!metodo) return;
+    const r = await carrito.cobrar(metodo);
+    if (r.ok) {
+      setExito(`Venta registrada. Numero ${r.ventaId}.`);
+      setMetodo(null);
+      setPaso('venta');
+      await cargar();
+    }
+  }
+
+  /* ----------------------------------------------------------- cobro */
+
+  if (paso === 'cobro') {
+    return (
+      <div className="pagina pagina--angosta mostrador">
+        <div className="encabezado-pagina">
+          <div>
+            <h1 tabIndex={-1} ref={tituloCobro}>Cobrar</h1>
+            <p>{carrito.totales.piezas} pieza{carrito.totales.piezas === 1 ? '' : 's'}</p>
+          </div>
+        </div>
+
+        {carrito.error ? (
+          <ResumenErrores titulo="No se registro la venta">{carrito.error}</ResumenErrores>
+        ) : null}
+
+        <div className="lineas-cobro">
+          {carrito.lineas.map((l) => {
+            const foto = urlPublicaFoto(l.foto_thumb_path);
+            return (
+              <div className="linea-cobro" key={`${l.modelo_id}-${l.ubicacion_id}`}>
+                {foto
+                  ? <img className="linea-cobro__foto" src={foto} alt="" />
+                  : <span className="linea-cobro__foto" />}
+                <div>
+                  <div className="linea-cobro__nombre">{l.nombre}</div>
+                  <div className="linea-cobro__precio">
+                    {formatearBs(l.precio_bs)} c/u · quedan {l.disponible}
+                  </div>
+                </div>
+                <div className="contador">
+                  <button
+                    type="button"
+                    aria-label={`Quitar una unidad de ${l.nombre}`}
+                    onClick={() => carrito.cambiarCantidad(l.modelo_id, l.ubicacion_id, l.cantidad - 1)}
+                  >
+                    &minus;
+                  </button>
+                  <span className="contador__valor">{l.cantidad}</span>
+                  <button
+                    type="button"
+                    aria-label={`Agregar una unidad de ${l.nombre}`}
+                    disabled={l.cantidad >= l.disponible}
+                    onClick={() => carrito.cambiarCantidad(l.modelo_id, l.ubicacion_id, l.cantidad + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="total-cobro">
+          <span className="util secundario">Total a cobrar</span>
+          <div>
+            <div className="total-cobro__cifra">{formatearBs(carrito.totales.totalBs)}</div>
+            {tasa ? (
+              <div className="total-cobro__referencia">
+                Equivale a {formatearUsd(carrito.totales.totalBs / tasa.tasa_bcv)} al cambio BCV
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <h2>Como paga</h2>
+        <div className="metodos-pago" style={{ marginTop: 'var(--e-3)' }}>
+          {METODOS_PAGO.map((m) => (
+            <button
+              key={m.valor}
+              type="button"
+              aria-pressed={metodo === m.valor}
+              onClick={() => setMetodo(m.valor)}
+            >
+              {m.texto}
+            </button>
+          ))}
+        </div>
+
+        <div className="acciones">
+          <button
+            type="button"
+            className="boton boton--confirmar"
+            disabled={!metodo || carrito.cobrando || carrito.lineas.length === 0}
+            onClick={() => void confirmar()}
+          >
+            {carrito.cobrando ? 'Registrando' : 'Registrar venta'}
+          </button>
+          <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
+            Seguir agregando
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* -------------------------------------------------------- cuadricula */
+
+  const ubicacion = ubicaciones.find((u) => u.id === ubicacionId);
 
   return (
-    <div className="pagina pagina--angosta mostrador">
+    <div className="pagina mostrador">
       <div className="encabezado-pagina">
         <div>
-          <h1>Hola, {perfil?.nombre ?? 'bienvenida'}</h1>
-          <p>Tu acceso quedo listo.</p>
+          <h1>Mostrador</h1>
+          <p>Toca una pieza para agregarla a la venta.</p>
         </div>
       </div>
 
-      <Vacio titulo="El mostrador llega en la Fase 2">
-        <p>
-          Por ahora el sistema esta cargando el inventario. Cuando este completo se abre
-          aqui la cuadricula de venta: tocar la foto, elegir cantidad, cobrar.
-        </p>
-      </Vacio>
+      {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
+      {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
+      {!tasa ? (
+        <Aviso tono="alerta" titulo="Sin tasa vigente">
+          No se puede cobrar hasta que un administrador fije la tasa del dia.
+        </Aviso>
+      ) : null}
 
-      <Divisor />
+      <div className="selector-ubicacion" role="group" aria-label="Ubicacion">
+        {ubicaciones.map((u) => (
+          <button
+            key={u.id}
+            type="button"
+            aria-pressed={u.id === ubicacionId}
+            onClick={() => setUbicacionId(u.id)}
+          >
+            {u.nombre}
+          </button>
+        ))}
+      </div>
 
-      <p className="util centrado">
-        <Link to="/verificacion">Comprobar mi acceso</Link>
-      </p>
+      <Campo etiqueta="Buscar" htmlFor="buscar-venta">
+        <input
+          id="buscar-venta"
+          type="search"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Nombre o SKU"
+          autoComplete="off"
+        />
+      </Campo>
+
+      {cargando ? (
+        <Cargando texto="Buscando piezas" />
+      ) : modelos.length === 0 ? (
+        <Vacio titulo={texto ? 'Ninguna pieza coincide' : `Aun no hay piezas en ${ubicacion?.nombre ?? 'esta ubicacion'}`}>
+          <p>{texto ? 'Prueba con otro nombre o borra la busqueda.' : 'Un administrador tiene que cargarlas primero.'}</p>
+        </Vacio>
+      ) : (
+        <div className="rejilla-venta">
+          {modelos.map((m) => {
+            const foto = urlPublicaFoto(m.foto_thumb_path);
+            const puestas = enCarrito.get(m.modelo_id) ?? 0;
+            const agotado = puestas >= m.cantidad;
+            return (
+              <button
+                key={m.modelo_id}
+                type="button"
+                className="tarjeta-modelo"
+                disabled={agotado || !tasa}
+                onClick={() => carrito.agregar(m)}
+                aria-label={`Agregar ${m.nombre}, ${formatearBs(m.precio_bs)}`}
+              >
+                {foto
+                  ? <img className="tarjeta-modelo__foto" src={foto} alt="" loading="lazy" />
+                  : <span className="tarjeta-modelo__foto" />}
+                <span className="tarjeta-modelo__cuerpo">
+                  <span className="tarjeta-modelo__nombre">{m.nombre}</span>
+                  <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
+                  <span className="tarjeta-modelo__pie">
+                    <span className={m.cantidad <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
+                      Quedan {m.cantidad}
+                    </span>
+                    {puestas > 0 ? <span className="tarjeta-modelo__contador">{puestas}</span> : null}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {carrito.totales.piezas > 0 ? (
+        <div className="barra-carrito">
+          <div className="barra-carrito__resumen">
+            <div className="barra-carrito__piezas">
+              {carrito.totales.piezas} pieza{carrito.totales.piezas === 1 ? '' : 's'}
+            </div>
+            <div className="barra-carrito__total">{formatearBs(carrito.totales.totalBs)}</div>
+          </div>
+          <button type="button" className="boton boton--secundario" onClick={carrito.vaciar}>
+            Vaciar
+          </button>
+          <button type="button" className="boton" onClick={() => { setExito(null); setPaso('cobro'); }}>
+            Cobrar
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

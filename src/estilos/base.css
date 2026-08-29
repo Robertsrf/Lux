@@ -614,3 +614,237 @@ table.tabla tfoot td {
 }
 
 .lista-datos { margin: 0; display: grid; gap: var(--e-4); }
+
+/* Error del campo: va pegado al control que lo causa, no solo arriba. */
+.campo__error {
+  display: block;
+  margin-top: var(--e-2);
+  font-size: var(--t-12);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--error);
+}
+.campo--con-error input,
+.campo--con-error select,
+.campo--con-error textarea { border-color: var(--error); }
+.campo--con-error input:focus-visible,
+.campo--con-error select:focus-visible,
+.campo--con-error textarea:focus-visible { outline-color: var(--error); }
+
+/* =====================================================================
+   Cara de mostrador. Tactil, una mano, telefono de gama baja.
+   Lo critico va ABAJO, al alcance del pulgar; nada importante arriba.
+   ===================================================================== */
+
+.mostrador { padding-bottom: 96px; }   /* sitio para la barra del carrito */
+
+.selector-ubicacion {
+  display: flex; gap: var(--e-2);
+  overflow-x: auto;
+  padding-bottom: var(--e-2);
+  margin-bottom: var(--e-4);
+  scrollbar-width: none;
+}
+.selector-ubicacion::-webkit-scrollbar { display: none; }
+.selector-ubicacion button {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 var(--e-4);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.selector-ubicacion button[aria-pressed='true'] {
+  background: var(--verde-profundo);
+  border-color: var(--verde-profundo);
+  color: var(--crema);
+}
+
+.rejilla-venta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--hueco-campos);
+}
+
+.tarjeta-modelo {
+  display: flex; flex-direction: column;
+  text-align: left;
+  padding: 0;
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  overflow: hidden;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--rapido), background var(--rapido);
+}
+.tarjeta-modelo:hover:not(:disabled) { border-color: var(--salvia-texto); }
+.tarjeta-modelo:active:not(:disabled) { background: var(--panel); }
+.tarjeta-modelo:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tarjeta-modelo__foto {
+  width: 100%; aspect-ratio: 1 / 1;
+  object-fit: cover; display: block;
+  background: var(--panel);
+  border-bottom: 1px solid var(--linea-suave);
+}
+.tarjeta-modelo__cuerpo { padding: var(--e-3); display: grid; gap: var(--e-1); }
+.tarjeta-modelo__nombre {
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-16);
+  line-height: 1.25;
+  color: var(--texto-fuerte);
+}
+.tarjeta-modelo__precio {
+  font-family: var(--fuente-display);
+  font-size: var(--t-20); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+}
+.tarjeta-modelo__pie { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
+.tarjeta-modelo__existencia {
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.tarjeta-modelo__existencia--baja { color: var(--alerta-texto); }
+.tarjeta-modelo__contador {
+  display: inline-grid; place-items: center;
+  min-width: 26px; height: 26px; padding: 0 var(--e-1);
+  background: var(--verde-profundo); color: var(--crema);
+  border-radius: var(--radio);
+  font-size: var(--t-12); font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Barra del carrito: fija abajo, al alcance del pulgar ------------- */
+
+.barra-carrito {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  z-index: var(--z-barra);
+  background: var(--verde-profundo);
+  color: var(--crema);
+  padding: var(--e-3) var(--e-4);
+  padding-bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: var(--e-4);
+  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
+}
+.barra-carrito__resumen { flex: 1 1 auto; min-width: 0; }
+.barra-carrito__piezas {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: color-mix(in srgb, var(--crema) 78%, transparent);
+}
+.barra-carrito__total {
+  font-family: var(--fuente-display);
+  font-size: var(--t-28); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.barra-carrito .boton {
+  min-height: 56px;
+  flex: 0 0 auto;
+  background: var(--oro-arena); border-color: var(--oro-arena); color: var(--tinta);
+}
+.barra-carrito .boton:hover:not(:disabled) { background: var(--crema); border-color: var(--crema); }
+.barra-carrito .boton--secundario {
+  background: transparent; color: var(--crema);
+  border-color: color-mix(in srgb, var(--crema) 40%, transparent);
+}
+
+/* --- Cobro: un paso a pantalla completa, no una ventana flotante ------ */
+
+.lineas-cobro { display: grid; gap: var(--e-2); margin-bottom: var(--e-5); }
+
+.linea-cobro {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: var(--e-3);
+  align-items: center;
+  padding: var(--e-3);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+}
+.linea-cobro__foto {
+  width: 56px; height: 56px; object-fit: cover;
+  border-radius: var(--radio); background: var(--panel); display: block;
+}
+.linea-cobro__nombre { font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.25; }
+.linea-cobro__precio { font-size: var(--t-12); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+
+.contador { display: flex; align-items: center; gap: var(--e-2); }
+.contador button {
+  width: var(--objetivo-tactil); height: var(--objetivo-tactil);
+  display: grid; place-items: center;
+  font-family: var(--fuente-ui); font-size: var(--t-20); line-height: 1;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: background var(--rapido), border-color var(--rapido);
+}
+.contador button:hover:not(:disabled) { background: var(--panel); border-color: var(--salvia); }
+.contador button:disabled { opacity: 0.35; cursor: not-allowed; }
+.contador__valor {
+  min-width: 2ch; text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-20); font-weight: 500;
+}
+
+.metodos-pago { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--e-2); }
+.metodos-pago button {
+  min-height: var(--objetivo-tactil);
+  padding: var(--e-2) var(--e-3);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  cursor: pointer;
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.metodos-pago button[aria-pressed='true'] {
+  background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema);
+}
+
+.total-cobro {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--e-3); flex-wrap: wrap;
+  padding: var(--e-4) 0;
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
+  margin-bottom: var(--e-5);
+}
+.total-cobro__cifra {
+  font-family: var(--fuente-display);
+  font-size: var(--t-40); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--texto-fuerte);
+}
+.total-cobro__referencia { font-size: var(--t-14); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+
+.tablero { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--e-4); }
+.tablero__celda {
+  padding: var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+}
+.tablero__cifra {
+  font-family: var(--fuente-display);
+  font-size: var(--t-40); font-weight: 600;
+  font-variant-numeric: tabular-nums; line-height: 1.05;
+  color: var(--texto-fuerte);
+}
+.tablero__meta { font-size: var(--t-12); color: var(--texto-secundario); margin-top: var(--e-1); }

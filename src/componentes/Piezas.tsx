@@ -1,3 +1,4 @@
+import { Children, cloneElement, isValidElement, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -22,8 +23,24 @@ export function Aviso({ tono = 'neutro', titulo, children }: {
   );
 }
 
+/**
+ * Resumen de errores de un formulario. Se lleva el foco al aparecer, para que
+ * quien navega con teclado o lector de pantalla sepa que fallo sin buscarlo.
+ * No sustituye a los errores por campo: van juntos.
+ */
+export function ResumenErrores({ titulo, children }: { titulo: string; children: ReactNode }) {
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => { caja.current?.focus(); }, []);
+  return (
+    <div className="aviso aviso--error" role="alert" tabIndex={-1} ref={caja}>
+      <strong>{titulo}</strong>
+      {children}
+    </div>
+  );
+}
+
 export function Cargando({ texto = 'Cargando' }: { texto?: string }) {
-  return <p className="cargando">{texto}</p>;
+  return <p className="cargando" role="status" aria-busy="true">{texto}</p>;
 }
 
 export function Vacio({ titulo, children }: { titulo: string; children?: ReactNode }) {
@@ -35,17 +52,36 @@ export function Vacio({ titulo, children }: { titulo: string; children?: ReactNo
   );
 }
 
-export function Campo({ etiqueta, pista, children, htmlFor }: {
+/**
+ * Campo de formulario. El error va DEBAJO del control y queda enlazado con
+ * aria-describedby, y el control se marca aria-invalid: asi el error se lee
+ * junto al campo que lo causa, no solo en un resumen arriba.
+ */
+export function Campo({ etiqueta, pista, error, children, htmlFor }: {
   etiqueta: string;
   pista?: string;
+  error?: string | null;
   htmlFor?: string;
   children: ReactNode;
 }) {
+  const idPista = pista && htmlFor ? `${htmlFor}-pista` : undefined;
+  const idError = error && htmlFor ? `${htmlFor}-error` : undefined;
+  const descrito = [idError, idPista].filter(Boolean).join(' ') || undefined;
+
+  const hijo = Children.only(children);
+  const control = isValidElement(hijo)
+    ? cloneElement(hijo as React.ReactElement<Record<string, unknown>>, {
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': descrito,
+      })
+    : hijo;
+
   return (
-    <div className="campo">
+    <div className={error ? 'campo campo--con-error' : 'campo'}>
       <label htmlFor={htmlFor}>{etiqueta}</label>
-      {children}
-      {pista ? <span className="campo__pista">{pista}</span> : null}
+      {control}
+      {error ? <span className="campo__error" id={idError}>{error}</span> : null}
+      {pista ? <span className="campo__pista" id={idPista}>{pista}</span> : null}
     </div>
   );
 }

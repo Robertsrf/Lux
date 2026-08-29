@@ -5,10 +5,20 @@ import { cerrarSesion } from '../lib/auth';
 
 const ENLACES_ADMIN = [
   { a: '/admin/inventario', texto: 'Inventario' },
+  { a: '/admin/reportes', texto: 'Reportes' },
   { a: '/admin/lotes', texto: 'Lotes' },
   { a: '/admin/grupos', texto: 'Grupos' },
+  { a: '/admin/kits', texto: 'Kits' },
   { a: '/admin/tasas', texto: 'Tasas' },
   { a: '/catalogo', texto: 'Catalogo' },
+];
+
+const ENLACES_VENTA = [
+  { a: '/venta', texto: 'Mostrador' },
+  { a: '/venta/mayor', texto: 'Mayor' },
+  { a: '/venta/tablero', texto: 'Mi dia' },
+  { a: '/venta/cierre', texto: 'Cierre' },
+  { a: '/venta/conteo', texto: 'Conteo' },
 ];
 
 export function Disposicion() {
@@ -33,11 +43,11 @@ export function Disposicion() {
                     {e.texto}
                   </NavLink>
                 ))
-              : (
-                  <NavLink to="/venta" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
-                    Mostrador
+              : ENLACES_VENTA.map((e) => (
+                  <NavLink key={e.a} to={e.a} end className={({ isActive }) => (isActive ? 'activo' : undefined)}>
+                    {e.texto}
                   </NavLink>
-                )}
+                ))}
             <NavLink to="/verificacion" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
               Verificacion
             </NavLink>
