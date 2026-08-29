@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBs, formatearUsd, porCantidad, precioEnBs } from '../../lib/dinero';
+import { formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
 import { METODOS_PAGO } from '../../lib/tipos';
-import type { Kit, MetodoPago } from '../../lib/tipos';
+import type { KitResumen, MetodoPago } from '../../lib/tipos';
 
 /**
  * Venta al mayor con kits fijos: elegir el kit y confirmar. Un solo
@@ -18,8 +18,8 @@ import type { Kit, MetodoPago } from '../../lib/tipos';
  */
 export function Kits() {
   const { tasa } = useTasa();
-  const [kits, setKits] = useState<Kit[]>([]);
-  const [elegido, setElegido] = useState<Kit | null>(null);
+  const [kits, setKits] = useState<KitResumen[]>([]);
+  const [elegido, setElegido] = useState<KitResumen | null>(null);
   const [metodo, setMetodo] = useState<MetodoPago | null>(null);
   const [cliente, setCliente] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -30,12 +30,12 @@ export function Kits() {
   useEffect(() => {
     void (async () => {
       const { data, error: err } = await supabase
-        .from('kits')
-        .select('id, nombre, tipo, precio_por_pieza_usd, n_piezas, descripcion, activo')
+        .from('v_kits_resumen')
+        .select('id, nombre, descripcion, activo, descuento_pct, piezas, subtotal_usd, total_usd')
         .eq('activo', true)
         .order('nombre');
       if (err) setError(mensajeDeError(err));
-      setKits((data as Kit[] | null) ?? []);
+      setKits((data as KitResumen[] | null) ?? []);
       setCargando(false);
     })();
   }, []);
@@ -67,7 +67,7 @@ export function Kits() {
 
   if (cargando) return <Cargando texto="Buscando kits" />;
 
-  const totalUsd = elegido ? deMonto(porCantidad(aMonto(elegido.precio_por_pieza_usd), elegido.n_piezas)) : null;
+  const totalUsd = elegido ? Number(elegido.total_usd) : null;
 
   return (
     <div className="pagina pagina--angosta mostrador">
@@ -88,7 +88,6 @@ export function Kits() {
       ) : (
         <div className="pila">
           {kits.map((k) => {
-            const total = deMonto(porCantidad(aMonto(k.precio_por_pieza_usd), k.n_piezas));
             const activo = elegido?.id === k.id;
             return (
               <div className="tarjeta" key={k.id} style={activo ? { borderColor: 'var(--oro-arena)', borderWidth: 2 } : undefined}>
@@ -99,16 +98,17 @@ export function Kits() {
                 <div className="rejilla rejilla--3">
                   <div>
                     <span className="dato__etiqueta">Piezas</span>
-                    <div className="dato__valor">{k.n_piezas}</div>
+                    <div className="dato__valor">{k.piezas}</div>
                   </div>
                   <div>
-                    <span className="dato__etiqueta">Por pieza</span>
-                    <div className="dato__valor">{formatearUsd(k.precio_por_pieza_usd)}</div>
+                    <span className="dato__etiqueta">Vale</span>
+                    <div className="dato__valor">{formatearUsd(k.subtotal_usd)}</div>
+                    <div className="campo__pista">sin descuento</div>
                   </div>
                   <div>
-                    <span className="dato__etiqueta">Total</span>
-                    <div className="dato__valor">{formatearBs(precioEnBs(total, tasa))}</div>
-                    <div className="campo__pista">{formatearUsd(total)}</div>
+                    <span className="dato__etiqueta">Se lleva {formatearPorcentaje(k.descuento_pct)}</span>
+                    <div className="dato__valor">{formatearBs(precioEnBs(Number(k.total_usd), tasa))}</div>
+                    <div className="campo__pista">{formatearUsd(k.total_usd)}</div>
                   </div>
                 </div>
 

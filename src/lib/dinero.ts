@@ -200,22 +200,30 @@ export function formatearFecha(iso: string | null | undefined): string {
 }
 
 /**
- * Precio por pieza del tramo de mayoreo que alcanza esa cantidad.
+ * Descuento del tramo de mayoreo que alcanza esa cantidad de piezas.
  *
  * Solo para mostrar el total mientras la mayorista va tocando piezas: la
  * cifra que manda es la que calcula `crear_reserva` en la base, que es
- * quien congela el precio en la reserva.
+ * quien congela subtotal, descuento y total en la reserva.
  *
  * Si no hay tramos cargados devuelve null y el armador se niega a cotizar.
- * No hay ningun precio quemado aqui, a proposito.
+ * No hay ningun porcentaje quemado aqui, a proposito.
  */
-export function precioPorPiezaPara(
-  tramos: { min_piezas: number; precio_por_pieza_usd: number; activo: boolean }[],
+export function descuentoPara(
+  tramos: { min_piezas: number; descuento_pct: number; activo: boolean }[],
   piezas: number,
 ): number | null {
   const aplicables = tramos.filter((t) => t.activo && t.min_piezas <= piezas);
   if (aplicables.length === 0) return null;
-  return aplicables.reduce((mejor, t) => (t.min_piezas > mejor.min_piezas ? t : mejor)).precio_por_pieza_usd;
+  return aplicables.reduce((mejor, t) => (t.min_piezas > mejor.min_piezas ? t : mejor)).descuento_pct;
+}
+
+/** Aplica un descuento porcentual sin pasar por aritmetica flotante. */
+export function aplicarDescuento(subtotal: number | null, descuentoPct: number | null): number | null {
+  if (subtotal === null) return null;
+  const pct = descuentoPct ?? 0;
+  if (pct <= 0) return subtotal;
+  return deMonto((aMonto(subtotal) * aMonto(100 - pct)) / aMonto(100));
 }
 
 /** Cuantos minutos y segundos faltan para una fecha, ya formateados. */

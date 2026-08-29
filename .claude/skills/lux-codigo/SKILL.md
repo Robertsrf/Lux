@@ -148,5 +148,14 @@ src/
 - Guardar precios en bolívares por modelo.
 - Recalcular costos históricos con la tasa de hoy.
 - Cargar flete a los exhibidores dentro del costo de las joyas.
-- Definir el precio de kit como porcentaje de descuento sobre el detal (se descuadra al mover la tasa). Se define en **$ por pieza**.
+- ~~Definir el precio de kit como porcentaje de descuento sobre el detal.~~
+  **Revertido en agosto de 2026.** La objeción original era que "al mover la tasa el
+  descuento se descuadra solo", y era cierta mientras el precio se anclaba en dólares
+  reales y se convertía con la tasa de venta. Con el precio anclado en **dólares BCV**
+  el porcentaje se aplica sobre un subtotal que no se mueve al cambiar la tasa, así que
+  el descuadre ya no existe. Kits y tramos usan **porcentaje de descuento**.
+
+  Lo que sí hay que vigilar: un porcentaje no conoce el costo. Un descuento grande sobre
+  una pieza de margen fino la deja por debajo del costo y la base no lo impide. La
+  pantalla de Tramos calcula el peor margen del catálogo y avisa.
 - Confiar en validación del navegador para reglas de negocio.

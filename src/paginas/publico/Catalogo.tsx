@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
-import { aMonto, deMonto, formatearBs, formatearUsd, porCantidad, precioEnBs, precioPorPiezaPara } from '../../lib/dinero';
+import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
@@ -71,11 +71,18 @@ export function Catalogo() {
 
   const resumen = useMemo(() => {
     let piezas = 0;
-    for (const n of seleccion.values()) piezas += n;
-    const precioPieza = precioPorPiezaPara(tramos, piezas);
-    const totalUsd = precioPieza === null ? null : deMonto(porCantidad(aMonto(precioPieza), piezas));
-    return { piezas, precioPieza, totalUsd };
-  }, [seleccion, tramos]);
+    const partes = [];
+    for (const [id, n] of seleccion) {
+      piezas += n;
+      const m = porId.get(id);
+      if (m?.precio_usd != null) partes.push(porCantidad(aMonto(m.precio_usd), n));
+    }
+    // El descuento sale del tramo que alcance esa cantidad. Sin tramos
+    // cargados no hay rebaja: se paga el detal, que es lo honesto.
+    const subtotal = deMonto(sumar(partes));
+    const descuento = descuentoPara(tramos, piezas);
+    return { piezas, subtotal, descuento, totalUsd: aplicarDescuento(subtotal, descuento) };
+  }, [seleccion, tramos, porId]);
 
   function agregar(m: ModeloPublico) {
     setSeleccion((prev) => {
@@ -162,22 +169,19 @@ export function Catalogo() {
           ) : null)}
         </div>
 
-        {resumen.precioPieza === null ? (
-          <Aviso tono="alerta" titulo="Todavia no podemos cotizar">
-            No hay precios de mayor cargados para {resumen.piezas} piezas. Escribenos y te cotizamos a mano.
-          </Aviso>
-        ) : (
-          <div className="total-cobro">
-            <div>
-              <span className="util secundario">Total al mayor</span>
-              <div className="campo__pista">{formatearUsd(resumen.precioPieza)} por pieza</div>
-            </div>
-            <div>
-              <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
-              <div className="total-cobro__referencia">{formatearUsd(resumen.totalUsd)}</div>
+        <div className="total-cobro">
+          <div>
+            <span className="util secundario">Tu total</span>
+            <div className="campo__pista">
+              {resumen.piezas} piezas valen {formatearBs(precioEnBs(resumen.subtotal, tasa))}
+              {resumen.descuento ? `, menos ${formatearPorcentaje(resumen.descuento)} de descuento` : ''}
             </div>
           </div>
-        )}
+          <div>
+            <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
+            <div className="total-cobro__referencia">{formatearUsd(resumen.totalUsd)}</div>
+          </div>
+        </div>
 
         <div className="fila">
           <Campo etiqueta="Tu nombre" htmlFor="r-nombre">
@@ -192,7 +196,7 @@ export function Catalogo() {
           <button
             type="button"
             className="boton boton--confirmar"
-            disabled={reservando || resumen.piezas === 0 || resumen.precioPieza === null}
+            disabled={reservando || resumen.piezas === 0}
             onClick={() => void reservar()}
           >
             {reservando ? 'Apartando' : 'Apartar mi pedido'}
@@ -295,9 +299,7 @@ export function Catalogo() {
                 {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
               </div>
               <div className="barra-carrito__total">
-                {resumen.totalUsd === null
-                  ? 'Te cotizamos'
-                  : formatearBs(precioEnBs(resumen.totalUsd, tasa))}
+                {formatearBs(precioEnBs(resumen.totalUsd, tasa))}
               </div>
             </div>
             <button type="button" className="boton boton--secundario" onClick={() => setSeleccion(new Map())}>

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
-import { cuentaRegresiva, formatearBs, formatearUsd, precioEnBs } from '../../lib/dinero';
+import { cuentaRegresiva, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import type { ReservaVista } from '../../lib/tipos';
@@ -114,7 +114,10 @@ export function Reserva() {
             <div className="total-cobro">
               <div>
                 <span className="util secundario">{reserva.piezas} piezas al mayor</span>
-                <div className="campo__pista">{formatearUsd(reserva.precio_por_pieza_usd)} por pieza</div>
+                <div className="campo__pista">
+                  Valen {formatearBs(precioEnBs(reserva.subtotal_usd, tasa))}
+                  {reserva.descuento_pct ? `, menos ${formatearPorcentaje(reserva.descuento_pct)} de descuento` : ''}
+                </div>
               </div>
               <div>
                 <div className="total-cobro__cifra">{formatearBs(precioEnBs(reserva.total_usd, tasa))}</div>

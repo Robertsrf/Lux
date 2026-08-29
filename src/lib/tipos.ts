@@ -172,7 +172,8 @@ export interface Kit {
   id: number;
   nombre: string;
   tipo: 'fijo' | 'armado';
-  precio_por_pieza_usd: number;
+  /** Descuento sobre lo que valen sus piezas, en por ciento. */
+  descuento_pct: number;
   n_piezas: number;
   descripcion: string | null;
   activo: boolean;
@@ -233,7 +234,8 @@ export interface ModeloPublico {
 export interface Tramo {
   id: number;
   min_piezas: number;
-  precio_por_pieza_usd: number;
+  /** Descuento sobre el subtotal, en por ciento. */
+  descuento_pct: number;
   activo: boolean;
 }
 
@@ -244,6 +246,7 @@ export interface ItemReserva {
   nombre: string;
   variantes_nota: string | null;
   foto_thumb_path: string | null;
+  precio_usd: number | null;
 }
 
 /** Lo que devuelve ver_reserva(token). Sin una sola cifra de costo. */
@@ -253,7 +256,8 @@ export interface ReservaVista {
   expira_en: string;
   cliente_nombre: string | null;
   piezas: number | null;
-  precio_por_pieza_usd: number | null;
+  subtotal_usd: number | null;
+  descuento_pct: number | null;
   total_usd: number | null;
   items: ItemReserva[];
 }
@@ -294,4 +298,16 @@ export interface PrecioSugerido {
   grupo_alcanza: boolean;
   precio_grupo_real: number | null;
   margen_resultante_pct: number | null;
+}
+
+/** Vista v_kits_resumen: lo que cuesta un kit, ya con su descuento. */
+export interface KitResumen {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  activo: boolean;
+  descuento_pct: number;
+  piezas: number;
+  subtotal_usd: number;
+  total_usd: number;
 }
