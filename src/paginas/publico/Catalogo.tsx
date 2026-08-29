@@ -193,7 +193,7 @@ export function Catalogo() {
     <>
       <header className="barra barra--publica">
         <div className="barra__interior">
-          <Wordmark tamano={24} />
+          <Wordmark alto={40} />
           <span className="sesion__quien">Desde Sabana de Mendoza para toda Venezuela</span>
         </div>
       </header>

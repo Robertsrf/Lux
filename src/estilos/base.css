@@ -80,29 +80,19 @@ button:disabled { cursor: not-allowed; }
 
 /* --- Marca ---------------------------------------------------------- */
 
-.wordmark { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; line-height: 1; }
-.wordmark__lux {
-  font-family: var(--fuente-display); font-weight: 600;
-  letter-spacing: 0.18em; text-indent: 0.18em;
-}
-.wordmark__emory {
-  display: flex; align-items: center; gap: var(--e-2);
-  font-size: 10px; font-weight: 500;
-  text-transform: uppercase; letter-spacing: var(--tracking);
-  opacity: 0.85;
-}
-.wordmark__linea { display: block; width: 24px; height: 1px; background: currentColor; opacity: 0.6; }
+.wordmark { display: block; width: auto; height: auto; max-width: 100%; }
 
 .monograma {
   display: inline-grid; place-items: center;
   width: 40px; height: 40px;
   background: var(--verde-profundo);
   color: var(--oro-arena);
-  font-family: var(--fuente-display); font-size: var(--t-20);
   border-radius: var(--radio-md);
   user-select: none;
   box-shadow: var(--sombra-1);
+  overflow: hidden;
 }
+.monograma img { display: block; width: auto; }
 
 .divisor { border: 0; border-top: 1px solid var(--linea-suave); margin: var(--e-5) 0; }
 
@@ -122,7 +112,8 @@ button:disabled { cursor: not-allowed; }
   color: var(--texto-sobre-verde);
   overflow-y: auto;
 }
-.lateral__marca { display: flex; align-items: center; gap: var(--e-3); padding: 0 var(--e-2); }
+.lateral__marca { display: flex; align-items: center; justify-content: center; padding: var(--e-2) var(--e-2) 0; }
+.lateral__marca .monograma { display: none; }
 .lateral :focus-visible { outline-color: var(--oro-arena); }
 
 .navegacion { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; }
@@ -830,6 +821,7 @@ table.tabla tfoot td {
   }
   .lateral__marca { padding: 0; }
   .lateral__marca .wordmark { display: none; }
+  .lateral__marca .monograma { display: inline-grid; }
   .navegacion {
     flex-direction: row; gap: var(--e-1);
     overflow-x: auto; scrollbar-width: none;

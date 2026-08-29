@@ -47,9 +47,11 @@ export function Disposicion() {
   return (
     <div className="armazon">
       <aside className="lateral">
+        {/* En escritorio manda el wordmark completo; en la barra superior
+            del movil no cabe legible y se usa el sello. */}
         <div className="lateral__marca">
-          <Monograma tamano={38} />
-          <Wordmark tamano={18} />
+          <Wordmark alto={52} />
+          <Monograma tamano={36} />
         </div>
 
         <nav className="navegacion" aria-label="Secciones">

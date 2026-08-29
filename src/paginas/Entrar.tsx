@@ -59,7 +59,7 @@ export function Entrar() {
       <div className="login__caja">
         <div className="login__marca">
           <Monograma tamano={56} />
-          <Wordmark tamano={40} />
+          <Wordmark alto={72} />
         </div>
 
         {!hayConfiguracion ? (

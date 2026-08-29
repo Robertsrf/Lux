@@ -69,7 +69,7 @@ export function Tasas() {
       <div className="encabezado-pagina">
         <div>
           <h1>Tasas</h1>
-          <p>Una sola tasa vigente a la vez. Cambiarla repricia el catalogo completo.</p>
+          <p>Dos numeros con trabajos distintos: uno cobra y el otro mide. Cambiarlos repricia el catalogo completo, sin tocar un solo producto.</p>
         </div>
       </div>
 
@@ -81,16 +81,27 @@ export function Tasas() {
           <h2>Fijar tasa vigente</h2>
           <hr className="divisor" />
 
-          <Campo etiqueta="Tasa de venta (Bs por $)" htmlFor="venta" pista="Con esta se cobra: precio en Bs = precio en $ x tasa de venta.">
+          <Campo
+            etiqueta="Tasa de compra de dolares (Bs por $)"
+            htmlFor="venta"
+            pista="A cuanto compras tu un dolar hoy: Binance, paralelo, tu casa de cambio. Nunca se le muestra a la clienta. Con esta se mide cuanto ganas de verdad."
+          >
             <input id="venta" type="number" step="0.0001" min="0.0001" required value={venta} onChange={(e) => setVenta(e.target.value)} />
           </Campo>
 
-          <Campo etiqueta="Tasa BCV (Bs por $)" htmlFor="bcv" pista="Solo de referencia: sirve para mostrar el equivalente en $.">
+          <Campo
+            etiqueta="Tasa BCV (Bs por $)"
+            htmlFor="bcv"
+            pista="La oficial. Con esta SE COBRA: lo que paga la clienta = precio de la etiqueta x tasa BCV."
+          >
             <input id="bcv" type="number" step="0.0001" min="0.0001" required value={bcv} onChange={(e) => setBcv(e.target.value)} />
           </Campo>
 
           <p className="util">
             Brecha calculada: <span className="cifra">{formatearPorcentaje(brechaPrevia === null ? null : brechaPrevia * 100)}</span>
+          </p>
+          <p className="campo__pista">
+            Es cuanto se lleva la brecha de cada venta. El sistema la muestra, no la impone.
           </p>
 
           <div className="acciones">
@@ -106,11 +117,11 @@ export function Tasas() {
           {tasa ? (
             <dl className="lista-datos">
               <div>
-                <span className="dato__etiqueta">Tasa de venta</span>
+                <span className="dato__etiqueta">Compra de dolares</span>
                 <div className="dato__valor dato__valor--grande">{formatearTasa(tasa.tasa_venta)}</div>
               </div>
               <div>
-                <span className="dato__etiqueta">Tasa BCV</span>
+                <span className="dato__etiqueta">BCV · la que cobra</span>
                 <div className="dato__valor">{formatearTasa(tasa.tasa_bcv)}</div>
               </div>
               <div>
@@ -139,7 +150,7 @@ export function Tasas() {
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th className="num">Venta</th>
+                <th className="num">Compra $</th>
                 <th className="num">BCV</th>
                 <th className="num">Brecha</th>
                 <th>Estado</th>

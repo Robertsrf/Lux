@@ -54,7 +54,7 @@ export function Reserva() {
     <>
       <header className="barra barra--publica">
         <div className="barra__interior">
-          <Wordmark tamano={24} />
+          <Wordmark alto={40} />
           <Link to="/publico" className="sesion__quien">Ver el catalogo</Link>
         </div>
       </header>

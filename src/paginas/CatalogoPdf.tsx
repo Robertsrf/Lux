@@ -67,7 +67,7 @@ export function CatalogoPdf() {
 
       <section className="catalogo__portada">
         <Monograma tamano={72} />
-        <Wordmark tamano={56} />
+        <Wordmark alto={104} tono="verde" />
         <p className="catalogo__dato">Catalogo del {formatearFecha(new Date().toISOString())}</p>
         <p className="catalogo__dato">{modelos.length} modelos disponibles</p>
       </section>

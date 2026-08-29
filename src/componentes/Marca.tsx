@@ -1,30 +1,53 @@
+import cremaUrl from '../marca/wordmark-crema.webp';
+import verdeUrl from '../marca/wordmark-verde.webp';
+import arenaUrl from '../marca/wordmark-arena.webp';
+import selloUrl from '../marca/sello-arena.webp';
+
 /**
- * Wordmark LUX con "By Emory" flanqueado por dos lineas finas, y el monograma
- * L como sello. Las dos lineas son el ornamento firma de la casa y se reutilizan
- * como divisor en toda la interfaz.
+ * Los logotipos reales de la casa, optimizados por scripts/preparar-logos.mjs
+ * desde los originales de marca-original/. Nunca se redibujan con CSS ni se
+ * deforman: se elige el archivo del color que toca y se le da alto.
  *
- * Prohibido deformarlo, rotarlo, ponerle sombra o degradado, o sacarlo de la
- * paleta.
+ * Que version usar:
+ *   crema  -> sobre verde profundo (barra lateral, acceso, catalogo publico)
+ *   verde  -> sobre crema o blanco (portada del catalogo impreso)
+ *   arena  -> sobre fondos oscuros donde el oro deba destacar
+ *
+ * El oro sobre crema en piezas pequenas es ilegible: por eso el wordmark
+ * verde es el unico permitido sobre papel.
  */
 
-export function Wordmark({ tamano = 28 }: { tamano?: number }) {
+export type TonoMarca = 'crema' | 'verde' | 'arena';
+
+const FUENTES: Record<TonoMarca, string> = {
+  crema: cremaUrl,
+  verde: verdeUrl,
+  arena: arenaUrl,
+};
+
+export function Wordmark({ alto = 34, tono = 'crema' }: { alto?: number; tono?: TonoMarca }) {
   return (
-    <span className="wordmark" aria-label="Lux by Emory">
-      <span className="wordmark__lux" style={{ fontSize: tamano }} aria-hidden="true">LUX</span>
-      <span className="wordmark__emory" aria-hidden="true">
-        <i className="wordmark__linea" />
-        By Emory
-        <i className="wordmark__linea" />
-      </span>
+    <img
+      className="wordmark"
+      src={FUENTES[tono]}
+      alt="Lux by Emory"
+      style={{ height: alto }}
+      width={alto * 1.76}
+      height={alto}
+    />
+  );
+}
+
+/** El monograma L como sello, sobre verde profundo. */
+export function Monograma({ tamano = 40 }: { tamano?: number }) {
+  return (
+    <span className="monograma" style={{ width: tamano, height: tamano }}>
+      <img src={selloUrl} alt="" aria-hidden="true" style={{ height: Math.round(tamano * 0.58) }} />
     </span>
   );
 }
 
-export function Monograma({ tamano }: { tamano?: number }) {
-  const estilo = tamano ? { width: tamano, height: tamano, fontSize: Math.round(tamano * 0.5) } : undefined;
-  return <span className="monograma" style={estilo} aria-hidden="true">L</span>;
-}
-
+/** Las dos lineas finas del wordmark, reutilizadas como divisor. */
 export function Divisor() {
   return <hr className="divisor" />;
 }

@@ -7,3 +7,6 @@ dist/
 
 # scripts de verificacion desechables
 prueba-temporal.mjs
+
+# Los originales de marca SI se versionan: son la fuente de los assets.
+# (npm run logos los regenera en src/marca y public/marca)
