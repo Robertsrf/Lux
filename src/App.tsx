@@ -21,7 +21,7 @@ import { Tramos } from './paginas/admin/Tramos';
 import { Pedidos } from './paginas/venta/Pedidos';
 import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
 import { Reserva } from './paginas/publico/Reserva';
-import { Cargando } from './componentes/Piezas';
+import { Cargando, LimiteDeError } from './componentes/Piezas';
 
 /** GitHub Pages no reescribe rutas: se usa HashRouter (/#/admin/inventario). */
 function Inicio() {
@@ -37,6 +37,7 @@ export function App() {
   return (
     <HashRouter>
       <ProveedorSesion>
+        <LimiteDeError>
         <Routes>
           <Route path="/entrar" element={<Entrar />} />
 
@@ -72,6 +73,7 @@ export function App() {
           <Route path="/" element={<Inicio />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </LimiteDeError>
       </ProveedorSesion>
     </HashRouter>
   );

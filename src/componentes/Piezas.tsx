@@ -1,4 +1,5 @@
-import { Children, cloneElement, isValidElement, useEffect, useRef } from 'react';
+import { Children, cloneElement, Component, isValidElement, useEffect, useRef } from 'react';
+import type { ErrorInfo } from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -68,13 +69,18 @@ export function Campo({ etiqueta, pista, error, children, htmlFor }: {
   const idError = error && htmlFor ? `${htmlFor}-error` : undefined;
   const descrito = [idError, idPista].filter(Boolean).join(' ') || undefined;
 
-  const hijo = Children.only(children);
-  const control = isValidElement(hijo)
-    ? cloneElement(hijo as React.ReactElement<Record<string, unknown>>, {
-        'aria-invalid': error ? true : undefined,
-        'aria-describedby': descrito,
-      })
-    : hijo;
+  // Se marca SOLO el primer elemento: es el control. Un campo puede traer
+  // mas de un hijo — un input y su datalist, por ejemplo — y aqui no se
+  // puede exigir uno solo: Children.only lanza y deja la pantalla en blanco.
+  let marcado = false;
+  const control = Children.toArray(children).map((hijo) => {
+    if (marcado || !isValidElement(hijo)) return hijo;
+    marcado = true;
+    return cloneElement(hijo as React.ReactElement<Record<string, unknown>>, {
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': descrito,
+    });
+  });
 
   return (
     <div className={error ? 'campo campo--con-error' : 'campo'}>
@@ -84,4 +90,43 @@ export function Campo({ etiqueta, pista, error, children, htmlFor }: {
       {pista ? <span className="campo__pista" id={idPista}>{pista}</span> : null}
     </div>
   );
+}
+
+/**
+ * Red de seguridad. Sin esto, cualquier excepcion durante el render deja la
+ * pantalla COMPLETAMENTE en blanco y sin pista de que paso: fue exactamente
+ * lo que ocurrio cuando un campo con dos hijos hizo reventar a Children.only.
+ *
+ * Ahora el fallo se ve, se puede reportar y el resto del sistema sigue en pie.
+ */
+export class LimiteDeError extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Fallo de la interfaz', error, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="pagina pagina--angosta">
+        <Aviso tono="error" titulo="Esta pantalla fallo">
+          <p>
+            No se pudo dibujar esta parte del sistema. El resto sigue funcionando:
+            usa el menu para irte a otra seccion.
+          </p>
+          <p className="campo__pista">Detalle tecnico: {this.state.error.message}</p>
+        </Aviso>
+        <div className="acciones acciones--sueltas">
+          <button type="button" className="boton" onClick={() => window.location.reload()}>
+            Recargar
+          </button>
+        </div>
+      </div>
+    );
+  }
 }

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Monograma, Wordmark } from './Marca';
 import { Icono } from './Iconos';
 import type { NombreIcono } from './Iconos';
+import { LimiteDeError } from './Piezas';
 import { useSesion } from '../hooks/useSesion';
 import { cerrarSesion } from '../lib/auth';
 
@@ -82,7 +83,10 @@ export function Disposicion() {
       </aside>
 
       <main className="contenido">
-        <Outlet />
+        {/* Si una pantalla falla, la navegacion sigue en pie. */}
+        <LimiteDeError>
+          <Outlet />
+        </LimiteDeError>
       </main>
     </div>
   );

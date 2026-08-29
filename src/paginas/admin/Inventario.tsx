@@ -62,9 +62,9 @@ export function Inventario() {
       <div className="encabezado-pagina">
         <div>
           <h1>Inventario</h1>
-          <p>{total} modelos activos · los precios en Bs salen de la tasa vigente, no estan guardados.</p>
+          <p>{total} productos activos · los precios en Bs salen de la tasa vigente, no estan guardados.</p>
         </div>
-        <Link className="boton" to="/admin/modelos/nuevo">Cargar modelo</Link>
+        <Link className="boton" to="/admin/modelos/nuevo">Agregar producto</Link>
       </div>
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
@@ -108,8 +108,8 @@ export function Inventario() {
       </div>
 
       {cargando ? <Cargando /> : modelos.length === 0 ? (
-        <Vacio titulo="No hay modelos con esos filtros">
-          <p>Quita algun filtro, o carga el primer modelo del inventario.</p>
+        <Vacio titulo="No hay productos con esos filtros">
+          <p>Quita algun filtro, o agrega el primer producto del inventario.</p>
         </Vacio>
       ) : (
         <>

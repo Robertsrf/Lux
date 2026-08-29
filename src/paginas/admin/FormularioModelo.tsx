@@ -197,14 +197,14 @@ export function FormularioModelo() {
   const margen = precioReal === null ? null : deMonto(aMonto(precioReal) - aMonto(costoPuesto));
   const margenPct = precioReal && precioReal > 0 && margen !== null ? (margen / precioReal) * 100 : null;
 
-  if (cargando) return <Cargando texto="Cargando modelo" />;
+  if (cargando) return <Cargando texto="Cargando producto" />;
 
   return (
     <div className="pagina pagina--angosta">
       <div className="encabezado-pagina">
         <div>
-          <h1>{esNuevo ? 'Cargar modelo' : `Editar ${form.sku}`}</h1>
-          <p>Se inventarian modelos con cantidad, no piezas sueltas.</p>
+          <h1>{esNuevo ? 'Agregar producto' : `Editar ${form.sku}`}</h1>
+          <p>Cada producto se inventaria con su cantidad, no pieza por pieza.</p>
         </div>
       </div>
 
@@ -423,7 +423,7 @@ export function FormularioModelo() {
 
         <div className="acciones">
           <button type="submit" className="boton boton--confirmar" disabled={guardando || procesandoFoto}>
-            {guardando ? 'Guardando' : esNuevo ? 'Cargar modelo' : 'Guardar cambios'}
+            {guardando ? 'Guardando' : esNuevo ? 'Agregar producto' : 'Guardar cambios'}
           </button>
           <button type="button" className="boton boton--secundario" onClick={() => navegar('/admin/inventario')}>
             Cancelar
