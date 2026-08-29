@@ -4,3 +4,6 @@ dist/
 .env.local
 *.local
 .DS_Store
+
+# scripts de verificacion desechables
+prueba-temporal.mjs
