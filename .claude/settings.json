@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git rev-parse*)",
+      "Bash(git ls-remote*)",
+      "Bash(git fetch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npm ci)",
+      "Bash(npm install*)",
+      "Bash(npx tsc*)",
+      "Bash(npx esbuild*)",
+      "Bash(node *)",
+      "Bash(curl -s https://api.github.com/*)",
+      "Bash(curl -s https://robertsrf.github.io/*)",
+      "Read",
+      "Edit(src/**)",
+      "Edit(.github/**)",
+      "Edit(*.sql)",
+      "Edit(*.md)",
+      "Edit(*.json)",
+      "Edit(*.ts)",
+      "Edit(*.html)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(rm -rf *)",
+      "Read(./.env)"
+    ]
+  }
+}
