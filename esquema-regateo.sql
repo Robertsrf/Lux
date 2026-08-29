@@ -85,7 +85,11 @@ begin
 end;
 $$;
 
-revoke all on function precio_minimo_de(bigint) from public, anon, authenticated;
+revoke all on function precio_minimo_de(bigint) from public, anon;
+-- Se otorga a authenticated porque la vista la llama: Postgres comprueba el
+-- permiso de EJECUTAR contra quien llama, no contra el dueno de la vista.
+-- Es seguro: devuelve el piso, no el costo.
+grant execute on function precio_minimo_de(bigint) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 2. EL PISO LLEGA AL MOSTRADOR, EL COSTO NO

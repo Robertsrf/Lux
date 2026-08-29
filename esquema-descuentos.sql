@@ -1,4 +1,4 @@
--- =====================================================================
+creoq-- =====================================================================
 -- Lux by Emory — el mayoreo se cobra por PORCENTAJE DE DESCUENTO
 -- Ejecutar en el SQL Editor DESPUES de esquema-precios-bcv.sql
 --
