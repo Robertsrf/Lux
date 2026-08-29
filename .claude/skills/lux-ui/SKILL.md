@@ -7,7 +7,9 @@ description: >-
   hoja de impresión o pieza visual del sistema de Lux: login, cuadrícula de venta,
   formularios de carga, tablas de inventario, tableros, catálogo PDF o catálogo
   público. Actívala aunque el usuario solo diga "haz la pantalla de X" o "ajusta
-  este componente"; basta con que la tarea toque la interfaz de Lux.
+  este componente"; basta con que la tarea toque la interfaz de Lux. Para trabajo
+  visual de peso, complétala consultando la skill ui-ux-pro-max, como se explica
+  dentro.
 ---
 
 # Lux by Emory — Interfaz
@@ -18,6 +20,42 @@ Este sistema tiene dos caras con necesidades opuestas. Diséñalas distinto.
 - **Cara de escritorio (admin):** densa, tabular, precisa. Prioriza comparar cifras.
 
 No apliques la misma densidad a las dos.
+
+---
+
+## Complementa esta skill con `ui-ux-pro-max`
+
+Esta skill decide **qué es Lux**. No sabe todo sobre oficio de interfaz, así que
+para cualquier trabajo visual de peso, consúltala junto con `ui-ux-pro-max`
+(instalada en `~/.claude/skills/ui-ux-pro-max`):
+
+```bash
+python "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" "<consulta>" --domain ux
+python "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" "<producto> <rubro>" --design-system
+```
+
+**Qué sí tomarle**, porque es donde aporta y esta skill no llega:
+
+- Accesibilidad y objetivos táctiles por plataforma.
+- Formularios: error junto al campo, `aria-describedby`, validación al salir.
+- Estados de carga, confirmaciones de acciones destructivas, patrones de navegación.
+- Su lista de verificación previa a entregar: iconos SVG y no emojis, `cursor: pointer`,
+  transiciones de 150–300 ms, foco visible, contraste 4,5:1, `prefers-reduced-motion`,
+  probar a 375 / 768 / 1024 / 1440 px.
+
+**Qué NO tomarle nunca**, porque aquí ya está decidido:
+
+- Su paleta. La de Lux son cuatro colores y están arriba.
+- Sus pares tipográficos. Aquí son Fraunces, EB Garamond y Jost.
+- Sus estilos de moda (*Liquid Glass*, glassmorphism, degradados). Prohibidos.
+
+Cuando las dos se contradigan, **manda esta**. La otra recomienda; esta define la marca.
+Para una pasada de pulido general también sirve `impeccable`, que aporta el criterio
+de composición y las prohibiciones transversales (nada de tarjetas anidadas ni de
+franjas laterales de color).
+
+Así se hizo el rediseño de agosto de 2026, y de ahí salieron los tonos de texto
+medidos, los iconos SVG y el error de formulario pegado a su campo.
 
 ---
 
@@ -152,11 +190,26 @@ Foto cuadrada arriba ocupando la mayor parte. Debajo: nombre en serif de cuerpo,
 
 Estado de existencia baja (≤2): etiqueta en `--alerta`. Existencia cero: la tarjeta no aparece.
 
-### Botón primario
-Fondo verde profundo, texto crema, Jost mayúsculas con tracking. Sin radio grande, sin sombra. El oro se reserva para el borde fino de confirmación, no para el relleno.
+### Botones
+**Todos son píldoras** (`--radio-pill`). Primario: fondo verde profundo, texto crema, Jost mayúsculas con tracking, `--sombra-1` en reposo. Al pasar por encima sube 1 px y gana `--sombra-2`; al presionar vuelve a su sitio. Secundario: fondo blanco, borde `--linea`, que al hover pasa a fondo `--verde-suave`.
+
+El oro se reserva para el **borde de confirmación** (`.boton--confirmar`, borde de 2 px), nunca para el relleno — salvo sobre verde profundo, donde sí es relleno legítimo: la barra del carrito y el botón de entrar.
 
 ### Tabla de inventario (admin)
-Cabecera en Jost mayúsculas sobre verde profundo. Filas alternas crema y blanco. **Cifras alineadas a la derecha con tabular numerals** (`font-variant-numeric: tabular-nums`). Márgenes negativos en `--error`, positivos en `--tinta`.
+Cabecera en Jost mayúsculas sobre verde profundo, con las esquinas superiores redondeadas por `--radio-lg`. La fila se resalta al pasar por encima con `--verde-suave`; **no** se usan filas alternas, que compiten con el hover. **Cifras alineadas a la derecha con tabular numerals** (`font-variant-numeric: tabular-nums`). Márgenes negativos en `--error`, positivos en `--tinta`.
+
+### Navegación
+En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre por sección. La activa lleva fondo apenas más claro y una barra de oro de 3 px por dentro del borde izquierdo. Caben las ocho secciones del admin sin apretarse.
+
+En móvil la misma barra pasa arriba, se vuelve horizontal y deslizable, y **deja solo los iconos**: la pantalla del mostrador no puede perder alto. La marca de oro pasa al borde inferior.
+
+### Iconos
+Trazo de 1,5, esquinas redondeadas, `viewBox` de 24 y color heredado. Viven en `componentes/Iconos.tsx`.
+
+**Nunca emojis.** Un emoji se dibuja distinto en cada teléfono, y aquí el Android de la tienda y la laptop del dueño tienen que verse igual. Los iconos siempre acompañan a un texto, así que van con `aria-hidden`.
+
+### Superficies
+Tres capas cálidas, de atrás hacia adelante: `--papel` (fondo), `--superficie` (tarjetas, blanco) y `--panel` (bloques de resumen dentro de una tarjeta). Un panel **no lleva borde propio**: se distingue por su fondo. Tarjeta dentro de tarjeta está prohibido.
 
 ### Estados vacíos y errores
 Un estado vacío es una invitación a actuar, no un lamento: "Aún no hay modelos en Vitrina 1. Carga el primero." Los errores dicen qué pasó y cómo arreglarlo, sin disculparse y sin vaguedad: "La venta al mayor requiere 6 piezas o $30. Llevas 4 piezas y $18."
