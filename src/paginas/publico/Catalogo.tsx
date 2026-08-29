@@ -155,7 +155,7 @@ export function Catalogo() {
               <div className="campo__pista">{formatearUsd(resumen.precioPieza)} por pieza</div>
             </div>
             <div>
-              <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa?.tasa_venta ?? null))}</div>
+              <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
               <div className="total-cobro__referencia">{formatearUsd(resumen.totalUsd)}</div>
             </div>
           </div>
@@ -265,7 +265,7 @@ export function Catalogo() {
               <div className="barra-carrito__total">
                 {resumen.totalUsd === null
                   ? 'Te cotizamos'
-                  : formatearBs(precioEnBs(resumen.totalUsd, tasa?.tasa_venta ?? null))}
+                  : formatearBs(precioEnBs(resumen.totalUsd, tasa))}
               </div>
             </div>
             <button type="button" className="boton boton--secundario" onClick={() => setSeleccion(new Map())}>

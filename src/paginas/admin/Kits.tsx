@@ -161,7 +161,7 @@ export function Kits() {
                   <div>
                     <span className="dato__etiqueta">Total del kit</span>
                     <div className="dato__valor">{formatearUsd(total)}</div>
-                    <div className="campo__pista">{formatearBs(precioEnBs(total, tasa?.tasa_venta ?? null))}</div>
+                    <div className="campo__pista">{formatearBs(precioEnBs(total, tasa))}</div>
                   </div>
                 </div>
 

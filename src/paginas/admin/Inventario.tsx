@@ -49,7 +49,9 @@ export function Inventario() {
   const totales = useMemo(() => {
     const piezas = modelos.reduce((n, m) => n + (m.existencia_total ?? 0), 0);
     const costo = sumar(modelos.map((m) => porCantidad(aMonto(m.costo_puesto_usd), m.existencia_total ?? 0)));
-    const venta = sumar(modelos.map((m) => porCantidad(aMonto(m.precio_usd ?? 0), m.existencia_total ?? 0)));
+    // El inventario se valora en dolares REALES, no en etiqueta BCV:
+    // es lo unico comparable contra el costo puesto.
+    const venta = sumar(modelos.map((m) => porCantidad(aMonto(m.precio_usd_real ?? 0), m.existencia_total ?? 0)));
     return { piezas, costoUsd: deMonto(costo), ventaUsd: deMonto(venta), margenUsd: deMonto(venta - costo) };
   }, [modelos]);
 
@@ -122,8 +124,9 @@ export function Inventario() {
                   <th>Lote</th>
                   <th className="num">Peso</th>
                   <th className="num">Costo puesto</th>
-                  <th className="num">Precio $</th>
-                  <th className="num">Precio Bs</th>
+                  <th className="num">Etiqueta $ BCV</th>
+                  <th className="num">Paga en Bs</th>
+                  <th className="num">Te queda $</th>
                   <th className="num">Margen $</th>
                   <th className="num">Margen %</th>
                   <th className="num">Existencia</th>
@@ -153,6 +156,7 @@ export function Inventario() {
                       <td className="num">{formatearUsd(m.costo_puesto_usd, 4)}</td>
                       <td className="num">{formatearUsd(m.precio_usd)}</td>
                       <td className="num precio">{formatearBs(m.precio_bs)}</td>
+                      <td className="num">{formatearUsd(m.precio_usd_real)}</td>
                       <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
                         {formatearUsd(m.margen_usd)}
                       </td>
@@ -181,7 +185,7 @@ export function Inventario() {
                 <tr>
                   <td colSpan={6}>{totales.piezas} piezas en esta pagina</td>
                   <td className="num">{formatearUsd(totales.costoUsd)}</td>
-                  <td className="num" colSpan={2}>{formatearUsd(totales.ventaUsd)}</td>
+                  <td className="num" colSpan={3}>{formatearUsd(totales.ventaUsd)}</td>
                   <td className="num" colSpan={2}>{formatearUsd(totales.margenUsd)}</td>
                   <td colSpan={2}></td>
                 </tr>

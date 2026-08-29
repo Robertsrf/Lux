@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBs, formatearUsd, precioEnBs } from '../../lib/dinero';
+import { aDolaresReales, aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { formatearPeso, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
 import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
-import type { LoteAdmin, ModeloAdmin } from '../../lib/tipos';
+import type { LoteAdmin, ModeloAdmin, PrecioSugerido } from '../../lib/tipos';
 
 const CATEGORIAS = ['anillo', 'pulsera', 'cadena', 'choker', 'arete', 'tobillera', 'set'];
 
@@ -46,7 +46,9 @@ export function FormularioModelo() {
   const [lotes, setLotes] = useState<Pick<LoteAdmin, 'id' | 'codigo' | 'metodo'>[]>([]);
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   const [fotoActual, setFotoActual] = useState<string | null>(null);
-  const [fleteUnitario, setFleteUnitario] = useState<number | null>(null);
+  const [sugerencia, setSugerencia] = useState<PrecioSugerido | null>(null);
+  const [margenObjetivo, setMargenObjetivo] = useState('');
+  const [autoAsignado, setAutoAsignado] = useState(false);
   const [cargando, setCargando] = useState(!esNuevo);
   const [guardando, setGuardando] = useState(false);
   const [procesandoFoto, setProcesandoFoto] = useState(false);
@@ -90,7 +92,7 @@ export function FormularioModelo() {
         precio_override_usd: m.precio_override_usd === null ? '' : String(m.precio_override_usd),
       });
       setFotoActual(urlPublicaFoto(m.foto_thumb_path ?? m.foto_path));
-      setFleteUnitario(Number(m.flete_unitario_usd ?? 0));
+      setAutoAsignado(true);
 
       const { data: ex } = await supabase.from('existencias').select('ubicacion_id, cantidad').eq('modelo_id', Number(id));
       const mapa: Record<number, string> = {};
@@ -102,22 +104,33 @@ export function FormularioModelo() {
     })();
   }, [id, esNuevo]);
 
-  // El flete unitario lo calcula la base con el metodo de prorrateo del lote.
-  // El navegador no repite esa formula: la pregunta.
-  const previsualizarFlete = useCallback(async () => {
-    if (!form.lote_id) { setFleteUnitario(0); return; }
-    const { data, error: err } = await supabase.rpc('admin_previsualizar_flete', {
-      p_lote_id: Number(form.lote_id),
+  // El flete prorrateado, la conversion a dolares BCV y el precio sugerido
+  // los calcula la base. El navegador no repite ninguna de esas formulas:
+  // las pregunta.
+  const pedirSugerencia = useCallback(async () => {
+    const { data, error: err } = await supabase.rpc('admin_sugerir_precio', {
+      p_lote_id: form.lote_id ? Number(form.lote_id) : null,
       p_peso_g: Number(form.peso_unitario_g || 0),
       p_costo_usd: Number(form.costo_unitario_usd || 0),
+      p_margen_pct: margenObjetivo === '' ? null : Number(margenObjetivo),
     });
-    if (!err) setFleteUnitario(Number(data ?? 0));
-  }, [form.lote_id, form.peso_unitario_g, form.costo_unitario_usd]);
+    if (!err) setSugerencia(data as unknown as PrecioSugerido);
+  }, [form.lote_id, form.peso_unitario_g, form.costo_unitario_usd, margenObjetivo]);
 
   useEffect(() => {
-    const t = setTimeout(() => void previsualizarFlete(), 400);
+    const t = setTimeout(() => void pedirSugerencia(), 400);
     return () => clearTimeout(t);
-  }, [previsualizarFlete]);
+  }, [pedirSugerencia]);
+
+  // Asignacion automatica del grupo: solo la primera vez y solo si el
+  // admin no ha elegido nada. Si el elige a mano, no se le vuelve a mover.
+  useEffect(() => {
+    if (autoAsignado || !sugerencia?.grupo_id) return;
+    if (form.grupo_precio_id !== '' || form.precio_override_usd !== '') return;
+    if (Number(form.costo_unitario_usd || 0) <= 0) return;
+    setForm((f) => ({ ...f, grupo_precio_id: String(sugerencia.grupo_id) }));
+    setAutoAsignado(true);
+  }, [sugerencia, autoAsignado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd]);
 
   async function elegirFoto(archivo: File | undefined) {
     if (!archivo) return;
@@ -176,9 +189,13 @@ export function FormularioModelo() {
   }
 
   const grupoElegido = grupos.find((g) => String(g.id) === form.grupo_precio_id);
-  const precioUsd = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
-  const costoPuesto = deMonto(aMonto(form.costo_unitario_usd) + aMonto(fleteUnitario));
-  const margen = precioUsd === null ? null : deMonto(aMonto(precioUsd) - aMonto(costoPuesto));
+  // El precio de etiqueta esta en dolares BCV; el margen se mide contra
+  // los dolares REALES que quedan despues de la brecha.
+  const precioBcv = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
+  const precioReal = aDolaresReales(precioBcv, tasa);
+  const costoPuesto = sugerencia?.costo_puesto_usd ?? 0;
+  const margen = precioReal === null ? null : deMonto(aMonto(precioReal) - aMonto(costoPuesto));
+  const margenPct = precioReal && precioReal > 0 && margen !== null ? (margen / precioReal) * 100 : null;
 
   if (cargando) return <Cargando texto="Cargando modelo" />;
 
@@ -283,25 +300,103 @@ export function FormularioModelo() {
           </div>
 
           <div className="panel">
+            <span className="panel__titulo">De cuanto costo a cuanto se cobra</span>
+
+            <div className="fila">
+              <Campo
+                etiqueta="Margen objetivo %"
+                htmlFor="m-margen"
+                pista={sugerencia ? `Por defecto ${sugerencia.margen_objetivo_pct} %, de la configuracion.` : undefined}
+              >
+                <input
+                  id="m-margen" type="number" min="1" max="99" step="1"
+                  placeholder={sugerencia ? String(sugerencia.margen_objetivo_pct) : ''}
+                  value={margenObjetivo}
+                  onChange={(e) => setMargenObjetivo(e.target.value)}
+                />
+              </Campo>
+            </div>
+
             <div className="rejilla rejilla--3">
               <div>
                 <span className="dato__etiqueta">Flete unitario</span>
-                <div className="cifra">{formatearUsd(fleteUnitario, 4)}</div>
+                <div className="cifra">{formatearUsd(sugerencia?.flete_unitario_usd ?? null, 4)}</div>
               </div>
               <div>
                 <span className="dato__etiqueta">Costo puesto</span>
                 <div className="dato__valor">{formatearUsd(costoPuesto, 4)}</div>
+                <div className="campo__pista">dolares reales</div>
               </div>
               <div>
-                <span className="dato__etiqueta">Precio</span>
-                <div className="dato__valor">{formatearUsd(precioUsd)}</div>
-                <div className="cifra secundario">{formatearBs(precioEnBs(precioUsd, tasa?.tasa_venta ?? null))}</div>
+                <span className="dato__etiqueta">Ese costo en BCV</span>
+                <div className="dato__valor">{formatearUsd(sugerencia?.costo_en_bcv ?? null, 4)}</div>
+                <div className="campo__pista">x {sugerencia?.factor_brecha ?? '—'} por la brecha</div>
+              </div>
+              <div>
+                <span className="dato__etiqueta">Precio sugerido</span>
+                <div className="dato__valor dato__valor--grande">{formatearUsd(sugerencia?.precio_sugerido_bcv ?? null)}</div>
+                <div className="campo__pista">dolares BCV</div>
+              </div>
+            </div>
+
+            {sugerencia?.grupo_id ? (
+              <Aviso tono={sugerencia.grupo_alcanza ? 'exito' : 'alerta'}>
+                {sugerencia.grupo_alcanza ? (
+                  <>
+                    Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
+                    {' '}({formatearUsd(sugerencia.grupo_precio_bcv)} BCV), que deja
+                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen real.
+                    {String(sugerencia.grupo_id) !== form.grupo_precio_id ? (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="boton boton--secundario boton--pequeno"
+                          onClick={() => cambiar('grupo_precio_id', String(sugerencia.grupo_id))}
+                        >
+                          Usar {sugerencia.grupo_nombre}
+                        </button>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    Ningun grupo llega a {formatearUsd(sugerencia.precio_sugerido_bcv)}. El mas caro es
+                    {' '}{sugerencia.grupo_nombre} ({formatearUsd(sugerencia.grupo_precio_bcv)}), que dejaria
+                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
+                  </>
+                )}
+              </Aviso>
+            ) : sugerencia ? (
+              <Aviso tono="alerta">
+                No hay grupos de precio cargados. Crea al menos uno para poder asignar precios.
+              </Aviso>
+            ) : null}
+          </div>
+
+          <div className="panel">
+            <span className="panel__titulo">Lo que queda con el precio elegido</span>
+            <div className="rejilla rejilla--3">
+              <div>
+                <span className="dato__etiqueta">Etiqueta</span>
+                <div className="dato__valor">{formatearUsd(precioBcv)}</div>
+                <div className="campo__pista">dolares BCV</div>
+              </div>
+              <div>
+                <span className="dato__etiqueta">Paga la clienta</span>
+                <div className="dato__valor">{formatearBs(precioEnBs(precioBcv, tasa))}</div>
+              </div>
+              <div>
+                <span className="dato__etiqueta">Te queda</span>
+                <div className="dato__valor">{formatearUsd(precioReal)}</div>
+                <div className="campo__pista">dolares reales</div>
               </div>
               <div>
                 <span className="dato__etiqueta">Margen</span>
                 <div className={margen !== null && margen < 0 ? 'dato__valor negativo' : 'dato__valor'}>
                   {formatearUsd(margen)}
                 </div>
+                <div className="campo__pista">{formatearPorcentaje(margenPct)}</div>
               </div>
             </div>
           </div>

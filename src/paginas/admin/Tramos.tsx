@@ -117,7 +117,7 @@ export function Tramos() {
                   <tr key={t.id}>
                     <td className="num">{t.min_piezas} piezas</td>
                     <td className="num">{formatearUsd(t.precio_por_pieza_usd)}</td>
-                    <td className="num precio">{formatearBs(precioEnBs(t.precio_por_pieza_usd, tasa?.tasa_venta ?? null))}</td>
+                    <td className="num precio">{formatearBs(precioEnBs(t.precio_por_pieza_usd, tasa))}</td>
                     <td className="num">{formatearUsd(ejemplo)}</td>
                     <td>{t.activo ? <span className="etiqueta etiqueta--exito">Activo</span> : <span className="etiqueta">Inactivo</span>}</td>
                     <td>

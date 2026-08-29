@@ -76,10 +76,12 @@ export interface ModeloVenta {
   foto_path: string | null;
   foto_thumb_path: string | null;
   grupo: string | null;
+  /** Precio de etiqueta, en DOLARES BCV. */
   precio_usd: number | null;
   /** null mientras no exista una tasa vigente. */
   precio_bs: number | null;
-  precio_usd_bcv_ref: number | null;
+  /** Lo que el negocio conserva de verdad: precio_bs / tasa_venta. */
+  precio_usd_real: number | null;
   existencia_total: number;
   activo: boolean;
 }
@@ -274,4 +276,22 @@ export interface LineaPedido {
   foto_thumb_path: string | null;
   cantidad: number;
   ubicacion: string;
+}
+
+/** Lo que devuelve admin_sugerir_precio: el resultado y todo el camino. */
+export interface PrecioSugerido {
+  flete_unitario_usd: number;
+  costo_puesto_usd: number;
+  /** tasa_venta / tasa_bcv: cuantos dolares BCV valen un dolar real. */
+  factor_brecha: number;
+  costo_en_bcv: number;
+  margen_objetivo_pct: number;
+  precio_sugerido_bcv: number;
+  grupo_id: number | null;
+  grupo_nombre: string | null;
+  grupo_precio_bcv: number | null;
+  /** false cuando ningun grupo llega al precio sugerido. */
+  grupo_alcanza: boolean;
+  precio_grupo_real: number | null;
+  margen_resultante_pct: number | null;
 }

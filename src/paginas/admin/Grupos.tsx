@@ -112,7 +112,7 @@ export function Grupos() {
                         onChange={(e) => setEdicion((prev) => ({ ...prev, [g.id]: e.target.value }))}
                       />
                     </td>
-                    <td className="num precio">{formatearBs(precioEnBs(Number(enEdicion ?? g.precio_usd), tasa?.tasa_venta ?? null))}</td>
+                    <td className="num precio">{formatearBs(precioEnBs(Number(enEdicion ?? g.precio_usd), tasa))}</td>
                     <td>{g.activo ? <span className="etiqueta etiqueta--exito">Activo</span> : <span className="etiqueta">Inactivo</span>}</td>
                     <td>
                       <div className="grupo-botones">
@@ -133,7 +133,7 @@ export function Grupos() {
               })}
             </tbody>
             <tfoot>
-              <tr><td colSpan={5}>{grupos.length} grupos · el precio unitario mostrado en Bs usa la tasa vigente {formatearUsd(1)} = {formatearBs(tasa?.tasa_venta ?? null)}</td></tr>
+              <tr><td colSpan={5}>{grupos.length} grupos · el precio del grupo esta en dolares BCV; los bolivares salen de la tasa BCV vigente ({formatearUsd(1)} = {formatearBs(1)})</td></tr>
             </tfoot>
           </table>
         </div>

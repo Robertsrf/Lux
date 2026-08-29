@@ -117,7 +117,7 @@ export function Reserva() {
                 <div className="campo__pista">{formatearUsd(reserva.precio_por_pieza_usd)} por pieza</div>
               </div>
               <div>
-                <div className="total-cobro__cifra">{formatearBs(precioEnBs(reserva.total_usd, tasa?.tasa_venta ?? null))}</div>
+                <div className="total-cobro__cifra">{formatearBs(precioEnBs(reserva.total_usd, tasa))}</div>
                 <div className="total-cobro__referencia">{formatearUsd(reserva.total_usd)}</div>
               </div>
             </div>

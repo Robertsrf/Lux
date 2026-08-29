@@ -55,16 +55,46 @@ export function porCantidad(monto: Monto, cantidad: number): Monto {
   return monto * BigInt(Math.trunc(cantidad));
 }
 
+/** Las dos tasas vigentes. Se pasan juntas a proposito. */
+export interface Tasas {
+  tasa_venta: number;
+  tasa_bcv: number;
+}
+
 /**
- * Precio en bolivares. Solo para previsualizar en formularios:
- * el precio que se muestra en catalogo e inventario lo calcula la vista
- * `v_catalogo_venta` en la base, con la tasa vigente.
+ * Bolivares que paga la clienta por un precio de etiqueta.
+ *
+ * El precio de etiqueta esta en DOLARES BCV, asi que se convierte con la
+ * tasa del BCV. Recibe la tasa entera y no un numero suelto a proposito:
+ * pasarle la tasa de venta por error seria cobrar de mas, en silencio.
+ *
+ * Solo para previsualizar en formularios; el precio del catalogo lo
+ * calcula la vista v_catalogo_venta en la base.
  */
-export function precioEnBs(precioUsd: number | null, tasaVenta: number | null): number | null {
-  if (precioUsd === null || tasaVenta === null) return null;
-  const bruto = aMonto(precioUsd) * aMonto(tasaVenta);   // escala 8
-  const centavos = bruto / (FACTOR * 100n);              // escala 2
+export function precioEnBs(
+  precioUsdBcv: number | null,
+  tasa: Pick<Tasas, 'tasa_bcv'> | null | undefined,
+): number | null {
+  if (precioUsdBcv === null || !tasa) return null;
+  const bruto = aMonto(precioUsdBcv) * aMonto(tasa.tasa_bcv);   // escala 8
+  const centavos = bruto / (FACTOR * 100n);                     // escala 2
   return Number(centavos) / 100;
+}
+
+/**
+ * Cuantos dolares BCV hay que cobrar para recuperar un dolar real.
+ * Es la brecha como multiplicador: con 500 / 250 vale 2.
+ */
+export function factorBrecha(tasa: Tasas | null | undefined): number | null {
+  if (!tasa || !tasa.tasa_bcv) return null;
+  return tasa.tasa_venta / tasa.tasa_bcv;
+}
+
+/** Dolares REALES que conserva el negocio de un precio en dolares BCV. */
+export function aDolaresReales(precioUsdBcv: number | null, tasa: Tasas | null | undefined): number | null {
+  const f = factorBrecha(tasa);
+  if (precioUsdBcv === null || f === null || f === 0) return null;
+  return precioUsdBcv / f;
 }
 
 /** Brecha entre la tasa de venta y la del BCV, en tanto por uno. */

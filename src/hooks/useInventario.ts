@@ -24,7 +24,7 @@ export const FILTROS_VACIOS: FiltrosInventario = {
 const COLUMNAS = [
   'id', 'sku', 'nombre', 'categoria', 'variantes_nota',
   'foto_thumb_path', 'foto_path', 'grupo', 'grupo_precio_id',
-  'precio_usd', 'precio_bs', 'precio_override_usd', 'existencia_total',
+  'precio_usd', 'precio_bs', 'precio_usd_real', 'precio_override_usd', 'existencia_total',
   'costo_unitario_usd', 'flete_unitario_usd', 'costo_puesto_usd',
   'peso_unitario_g', 'lote_id', 'lote_codigo', 'margen_usd', 'margen_pct',
   'descripcion', 'activo',

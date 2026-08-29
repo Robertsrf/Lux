@@ -107,7 +107,7 @@ export function Kits() {
                   </div>
                   <div>
                     <span className="dato__etiqueta">Total</span>
-                    <div className="dato__valor">{formatearBs(precioEnBs(total, tasa?.tasa_venta ?? null))}</div>
+                    <div className="dato__valor">{formatearBs(precioEnBs(total, tasa))}</div>
                     <div className="campo__pista">{formatearUsd(total)}</div>
                   </div>
                 </div>
@@ -140,7 +140,7 @@ export function Kits() {
 
           <div className="total-cobro" style={{ marginTop: 'var(--e-5)' }}>
             <span className="util secundario">Total del kit</span>
-            <div className="total-cobro__cifra">{formatearBs(precioEnBs(totalUsd, tasa?.tasa_venta ?? null))}</div>
+            <div className="total-cobro__cifra">{formatearBs(precioEnBs(totalUsd, tasa))}</div>
           </div>
 
           <div className="acciones acciones--sueltas">
