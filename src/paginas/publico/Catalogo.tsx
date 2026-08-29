@@ -7,6 +7,7 @@ import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBs, formatea
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
+import { useTextos } from '../../hooks/useTextos';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible';
@@ -23,6 +24,7 @@ const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_th
 export function Catalogo() {
   const navegar = useNavigate();
   const { tasa } = useTasa();
+  const textos = useTextos();
 
   const [modelos, setModelos] = useState<ModeloPublico[]>([]);
   const [tramos, setTramos] = useState<Tramo[]>([]);
@@ -95,7 +97,11 @@ export function Catalogo() {
   }
 
   function verFoto(m: ModeloPublico) {
-    visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path });
+    visor.abrir({
+      nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
+      path: m.foto_path, thumbPath: m.foto_thumb_path,
+      materiales: textos.materiales_largo ?? null,
+    });
   }
 
   /** Un toque suma la pieza; dos seguidos abren la foto y deshacen el primero. */
@@ -228,6 +234,10 @@ export function Catalogo() {
           </div>
         </div>
 
+        {textos.materiales_largo ? (
+          <p className="sello-materiales">{textos.materiales_largo}</p>
+        ) : null}
+
         {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
 
         <Campo etiqueta="Buscar" htmlFor="buscar-publico">
@@ -275,6 +285,9 @@ export function Catalogo() {
                     : <span className="tarjeta-modelo__foto" />}
                   <span className="tarjeta-modelo__cuerpo">
                     <span className="tarjeta-modelo__nombre">{m.nombre}</span>
+                    {textos.materiales_corto ? (
+                      <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
+                    ) : null}
                     {m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
                     <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
                     <span className="tarjeta-modelo__pie">

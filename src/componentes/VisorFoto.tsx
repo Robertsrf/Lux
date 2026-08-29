@@ -8,6 +8,8 @@ export interface FotoAmpliada {
   /** Ruta de la foto grande; si falta, se cae al thumb. */
   path: string | null;
   thumbPath?: string | null;
+  /** De que esta hecha la pieza. Es cuando mas importa: se esta mirando de cerca. */
+  materiales?: string | null;
 }
 
 /**
@@ -66,6 +68,7 @@ export function VisorFoto({ foto, alCerrar }: { foto: FotoAmpliada | null; alCer
           <span className="visor__nombre">{foto.nombre}</span>
           {foto.sku ? <span className="visor__sku">{foto.sku}</span> : null}
           {foto.nota ? <span className="visor__nota">{foto.nota}</span> : null}
+          {foto.materiales ? <span className="visor__materiales">{foto.materiales}</span> : null}
         </figcaption>
       </figure>
     </div>

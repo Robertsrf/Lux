@@ -34,6 +34,7 @@ export function Mostrador() {
   const [paso, setPaso] = useState<'venta' | 'cobro'>('venta');
   const [metodo, setMetodo] = useState<MetodoPago | null>(null);
   const [exito, setExito] = useState<string | null>(null);
+  const [editando, setEditando] = useState<string | null>(null);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
 
   // El mostrador arranca en la primera vitrina, no en la bodega.
@@ -132,16 +133,48 @@ export function Mostrador() {
         <div className="lineas-cobro">
           {carrito.lineas.map((l) => {
             const foto = urlPublicaFoto(l.foto_thumb_path);
+            const clave = `${l.modelo_id}-${l.ubicacion_id}`;
+            const rebajado = l.precio_bs < l.precio_lista_bs;
             return (
-              <div className="linea-cobro" key={`${l.modelo_id}-${l.ubicacion_id}`}>
+              <div className="linea-cobro" key={clave}>
                 {foto
                   ? <img className="linea-cobro__foto" src={foto} alt="" />
                   : <span className="linea-cobro__foto" />}
                 <div>
                   <div className="linea-cobro__nombre">{l.nombre}</div>
-                  <div className="linea-cobro__precio">
-                    {formatearBs(l.precio_bs)} c/u · quedan {l.disponible}
-                  </div>
+                  {editando === clave ? (
+                    <div className="rebaja">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="1"
+                        min={l.precio_minimo_bs}
+                        max={l.precio_lista_bs}
+                        defaultValue={l.precio_bs}
+                        aria-label={`Precio de ${l.nombre} en bolivares`}
+                        autoFocus
+                        onBlur={(e) => {
+                          carrito.cambiarPrecio(l.modelo_id, l.ubicacion_id, Number(e.target.value), tasa?.tasa_bcv ?? 0);
+                          setEditando(null);
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                      />
+                      <span className="rebaja__piso">
+                        Puedes bajar hasta {formatearBs(l.precio_minimo_bs)}
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="linea-cobro__precio linea-cobro__precio--editable"
+                      onClick={() => setEditando(clave)}
+                      disabled={!tasa || l.precio_minimo_bs >= l.precio_lista_bs}
+                    >
+                      {formatearBs(l.precio_bs)} c/u
+                      {rebajado ? <s>{formatearBs(l.precio_lista_bs)}</s> : null}
+                      {l.precio_minimo_bs < l.precio_lista_bs ? <span className="rebaja__pista">tocar para rebajar</span> : null}
+                    </button>
+                  )}
                 </div>
                 <div className="contador">
                   <button

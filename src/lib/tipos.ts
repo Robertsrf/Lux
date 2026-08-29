@@ -133,6 +133,9 @@ export interface ModeloEnUbicacion {
   precio_usd: number | null;
   precio_bs: number | null;
   cantidad: number;
+  /** Hasta donde puede bajar la vendedora. Nunca revela el costo. */
+  precio_minimo_usd: number | null;
+  precio_minimo_bs: number | null;
 }
 
 /** Una linea del carrito, antes de cobrar. */
@@ -142,8 +145,13 @@ export interface LineaCarrito {
   sku: string;
   nombre: string;
   foto_thumb_path: string | null;
+  /** Lo que se va a cobrar: puede haber bajado por regateo. */
   precio_usd: number;
   precio_bs: number;
+  /** Lo que marca la etiqueta, para saber cuanto se rebajo. */
+  precio_lista_bs: number;
+  /** El piso que fijo el dueno. */
+  precio_minimo_bs: number;
   cantidad: number;
   disponible: number;
 }

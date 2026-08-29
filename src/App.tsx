@@ -18,6 +18,7 @@ import { Tablero } from './paginas/venta/Tablero';
 import { Cierre } from './paginas/venta/Cierre';
 import { ConteoSemanal } from './paginas/venta/ConteoSemanal';
 import { Tramos } from './paginas/admin/Tramos';
+import { Textos } from './paginas/admin/Textos';
 import { Pedidos } from './paginas/venta/Pedidos';
 import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
 import { Reserva } from './paginas/publico/Reserva';
@@ -66,6 +67,7 @@ export function App() {
             <Route path="/admin/grupos" element={soloAdmin(<Grupos />)} />
             <Route path="/admin/kits" element={soloAdmin(<KitsAdmin />)} />
             <Route path="/admin/tramos" element={soloAdmin(<Tramos />)} />
+            <Route path="/admin/textos" element={soloAdmin(<Textos />)} />
             <Route path="/admin/tasas" element={soloAdmin(<Tasas />)} />
             <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
           </Route>

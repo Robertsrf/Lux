@@ -16,6 +16,7 @@ const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/kits',       texto: 'Kits',       icono: 'kits' },
   { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
   { a: '/admin/tasas',      texto: 'Tasas',      icono: 'tasas' },
+  { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
   { a: '/catalogo',         texto: 'Catalogo',   icono: 'catalogo' },
 ];
 

@@ -32,6 +32,8 @@ export function useCarrito() {
         foto_thumb_path: m.foto_thumb_path,
         precio_usd: m.precio_usd ?? 0,
         precio_bs: m.precio_bs ?? 0,
+        precio_lista_bs: m.precio_bs ?? 0,
+        precio_minimo_bs: m.precio_minimo_bs ?? m.precio_bs ?? 0,
         cantidad: 1,
         disponible: m.cantidad,
       }];
@@ -43,6 +45,22 @@ export function useCarrito() {
       if (l.modelo_id !== modeloId || l.ubicacion_id !== ubicacionId) return [l];
       const n = Math.max(0, Math.min(cantidad, l.disponible));
       return n === 0 ? [] : [{ ...l, cantidad: n }];
+    }));
+  }, []);
+
+  /**
+   * Rebaja para cerrar el trato. La vendedora escribe bolivares, que es
+   * como habla con la clienta; el precio ancla sigue siendo el de etiqueta
+   * en dolares BCV, asi que se convierte de vuelta al enviar.
+   *
+   * Este tope es una comodidad, no una proteccion: quien mande la venta
+   * por su cuenta se lo salta. El piso de verdad lo valida la base.
+   */
+  const cambiarPrecio = useCallback((modeloId: number, ubicacionId: number, precioBs: number, tasaBcv: number) => {
+    setLineas((prev) => prev.map((l) => {
+      if (l.modelo_id !== modeloId || l.ubicacion_id !== ubicacionId) return l;
+      const acotado = Math.min(Math.max(precioBs, l.precio_minimo_bs), l.precio_lista_bs);
+      return { ...l, precio_bs: acotado, precio_usd: tasaBcv > 0 ? acotado / tasaBcv : l.precio_usd };
     }));
   }, []);
 
@@ -67,7 +85,13 @@ export function useCarrito() {
     const { data, error: err } = await supabase.rpc('registrar_venta', {
       p_tipo: tipo,
       p_metodo: metodo,
-      p_items: lineas.map((l) => ({ modelo_id: l.modelo_id, ubicacion_id: l.ubicacion_id, cantidad: l.cantidad })),
+      p_items: lineas.map((l) => ({
+        modelo_id: l.modelo_id,
+        ubicacion_id: l.ubicacion_id,
+        cantidad: l.cantidad,
+        // Solo se manda si de verdad se rebajo; si no, manda la etiqueta.
+        precio_unitario_usd: l.precio_bs < l.precio_lista_bs ? Number(l.precio_usd.toFixed(4)) : null,
+      })),
       p_kit_id: null,
       p_cliente_nombre: cliente?.nombre ?? null,
       p_cliente_telefono: cliente?.telefono ?? null,
@@ -84,5 +108,5 @@ export function useCarrito() {
     return { ok: true as const, ventaId: data as number };
   }, [lineas]);
 
-  return { lineas, agregar, cambiarCantidad, vaciar, totales, cobrar, cobrando, error };
+  return { lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, cobrando, error };
 }

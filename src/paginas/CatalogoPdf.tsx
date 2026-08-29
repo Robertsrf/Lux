@@ -4,6 +4,7 @@ import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBs, formatearFecha, formatearUsd } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
+import { useTextos } from '../hooks/useTextos';
 import type { ModeloVenta } from '../lib/tipos';
 import '../estilos/impresion.css';
 
@@ -18,6 +19,7 @@ const TOPE = 4000;
  * documentos privados de respaldo, no material de marca.
  */
 export function CatalogoPdf() {
+  const textos = useTextos();
   const [modelos, setModelos] = useState<ModeloVenta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,13 @@ export function CatalogoPdf() {
           <h1>Catalogo</h1>
           <p>Solo modelos con existencia. Imprime y elige "Guardar como PDF".</p>
         </div>
-        <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>
+        <div>
+          <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>
+          <p className="campo__pista" style={{ marginTop: 'var(--e-2)', maxWidth: '34ch' }}>
+            En el cuadro de impresion, desmarca "Encabezados y pies de pagina" para que
+            no salga la direccion web en el papel.
+          </p>
+        </div>
       </div>
 
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
@@ -70,6 +78,14 @@ export function CatalogoPdf() {
         <Wordmark alto={104} tono="verde" />
         <p className="catalogo__dato">Catalogo del {formatearFecha(new Date().toISOString())}</p>
         <p className="catalogo__dato">{modelos.length} modelos disponibles</p>
+
+        {textos.catalogo_intro ? (
+          <p className="catalogo__intro prosa">{textos.catalogo_intro}</p>
+        ) : null}
+
+        {textos.materiales_largo ? (
+          <p className="catalogo__materiales">{textos.materiales_largo}</p>
+        ) : null}
       </section>
 
       {modelos.length === 0 ? (
@@ -89,16 +105,24 @@ export function CatalogoPdf() {
                   <div className="ficha__sku">{m.sku}</div>
                   <div className="ficha__nombre">{m.nombre}</div>
                   {m.variantes_nota ? <div className="ficha__variantes">{m.variantes_nota}</div> : null}
+                  {textos.materiales_corto ? (
+                    <div className="ficha__material">{textos.materiales_corto}</div>
+                  ) : null}
                   <div>
                     <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
                     <div className="ficha__precio-usd">{formatearUsd(m.precio_usd)}</div>
+                    <div className="ficha__existencia">
+                      {m.existencia_total === 1 ? 'Queda 1 pieza' : `Quedan ${m.existencia_total} piezas`}
+                    </div>
                   </div>
                 </article>
               );
             })}
           </div>
 
-          <p className="catalogo__pie">Lux by Emory · Desde Sabana de Mendoza para toda Venezuela</p>
+          <p className="catalogo__pie">
+            {textos.catalogo_pie ?? 'Lux by Emory · Desde Sabana de Mendoza para toda Venezuela'}
+          </p>
         </>
       )}
     </div>
