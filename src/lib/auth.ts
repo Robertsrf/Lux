@@ -39,12 +39,48 @@ export function contrasenaDesdePin(pin: string): string {
 
 export const LARGO_PIN = 4;
 
-export type ModoAcceso = 'pin' | 'contrasena';
+/**
+ * Entrar con un solo codigo, sin escribir usuario.
+ *
+ * Cada persona tiene su codigo y el sistema deduce quien es probandolo
+ * contra los usuarios en orden. Un codigo de cuatro digitos es el de
+ * mostrador, asi que se prueba primero por ahi; cualquier otra cosa se
+ * prueba primero como administrador. Son dos intentos en el peor caso.
+ *
+ * AVISO IMPORTANTE: quitar el campo de usuario no cambia la seguridad,
+ * pero el LARGO del codigo si. El administrador ve costos, margenes y
+ * puede borrar inventario, y este sitio es estatico: su codigo tiene que
+ * seguir siendo largo y no solo digitos. Un codigo numerico de seis
+ * cifras son un millon de combinaciones, y eso se prueba entero.
+ */
+const CANDIDATOS: { usuario: string; derivar: (codigo: string) => string }[] = [
+  { usuario: 'admin',     derivar: (c) => c },
+  { usuario: 'socio',     derivar: (c) => c },
+  { usuario: 'vendedora', derivar: contrasenaDesdePin },
+];
 
-export async function iniciarSesion(usuario: string, secreto: string, modo: ModoAcceso) {
-  const email = correoDesdeUsuario(usuario);
-  const password = modo === 'pin' ? contrasenaDesdePin(secreto) : secreto;
-  return supabase.auth.signInWithPassword({ email, password });
+export async function entrarConCodigo(codigo: string) {
+  const limpio = codigo.trim();
+  if (!limpio) {
+    return { error: { message: 'Escribe tu codigo.' } as { message: string } };
+  }
+
+  // Un PIN de cuatro digitos es del mostrador: se prueba de primero.
+  const esPin = /^d{4}$/.test(limpio);
+  const orden = esPin
+    ? [...CANDIDATOS].sort((a) => (a.usuario === 'vendedora' ? -1 : 1))
+    : CANDIDATOS;
+
+  let ultimo: { message: string } | null = null;
+  for (const c of orden) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: correoDesdeUsuario(c.usuario),
+      password: c.derivar(limpio),
+    });
+    if (!error) return { error: null };
+    ultimo = error;
+  }
+  return { error: ultimo };
 }
 
 export async function cerrarSesion() {

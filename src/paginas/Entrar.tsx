@@ -1,47 +1,45 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { Aviso, Campo } from '../componentes/Piezas';
-import { iniciarSesion, LARGO_PIN } from '../lib/auth';
+import { entrarConCodigo } from '../lib/auth';
 import { hayConfiguracion } from '../lib/supabase';
 import { useSesion } from '../hooks/useSesion';
 
 const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'borrar', '0', 'entrar'];
 
+/**
+ * Acceso con un solo codigo. No se escribe usuario: cada persona tiene el
+ * suyo y el sistema deduce quien es.
+ *
+ * No se envia solo al llegar a cuatro digitos porque los codigos ya no
+ * tienen todos el mismo largo, y un envio prematuro gastaria un intento
+ * contra el limite de Supabase. Se entra con el boton, que esta bajo el
+ * pulgar.
+ */
 export function Entrar() {
   const { sesion, perfil, cargando: cargandoSesion } = useSesion();
-  const [usuario, setUsuario] = useState('vendedora');
-  const [clave, setClave] = useState('');
-  const [pin, setPin] = useState('');
+  const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
 
-  const usaPin = usuario.trim().toLowerCase() === 'vendedora';
-
-  async function entrar(secreto: string) {
-    if (entrando) return;
+  async function entrar() {
+    if (entrando || !codigo.trim()) return;
     setEntrando(true);
     setError(null);
 
-    const { error: err } = await iniciarSesion(usuario, secreto, usaPin ? 'pin' : 'contrasena');
-
+    const { error: err } = await entrarConCodigo(codigo);
     if (err) {
       setError(
         err.message.toLowerCase().includes('invalid')
-          ? `El usuario o ${usaPin ? 'el PIN' : 'la clave'} no coinciden. Revisa e intenta de nuevo.`
+          ? 'Ese codigo no es de nadie. Revisalo e intenta otra vez.'
           : err.message,
       );
-      setPin('');
+      setCodigo('');
       setEntrando(false);
     }
     // Si entro, el proveedor de sesion redirige solo.
   }
-
-  // El mostrador entra con 4 digitos y sin tocar "Entrar": es mas rapido.
-  useEffect(() => {
-    if (usaPin && pin.length === LARGO_PIN && !entrando) void entrar(pin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin]);
 
   if (sesion && perfil && !cargandoSesion) {
     return <Navigate to={perfil.rol === 'admin' ? '/admin/inventario' : '/venta'} replace />;
@@ -49,17 +47,17 @@ export function Entrar() {
 
   function tecla(t: string) {
     setError(null);
-    if (t === 'borrar') setPin((p) => p.slice(0, -1));
-    else if (t === 'entrar') { if (pin.length === LARGO_PIN) void entrar(pin); }
-    else if (pin.length < LARGO_PIN) setPin((p) => p + t);
+    if (t === 'borrar') setCodigo((c) => c.slice(0, -1));
+    else if (t === 'entrar') void entrar();
+    else setCodigo((c) => c + t);
   }
 
   return (
     <div className="login">
       <div className="login__caja">
         <div className="login__marca">
-          <Monograma tamano={56} />
-          <Wordmark alto={72} />
+          <Monograma tamano={60} />
+          <Wordmark alto={68} />
         </div>
 
         {!hayConfiguracion ? (
@@ -71,60 +69,48 @@ export function Entrar() {
 
         {error ? <Aviso tono="error">{error}</Aviso> : null}
 
-        <form
-          onSubmit={(e) => { e.preventDefault(); void entrar(usaPin ? pin : clave); }}
-        >
-          <Campo etiqueta="Usuario" htmlFor="usuario">
+        <form onSubmit={(e) => { e.preventDefault(); void entrar(); }}>
+          <Campo etiqueta="Tu codigo" htmlFor="codigo">
             <input
-              id="usuario"
-              value={usuario}
-              onChange={(e) => { setUsuario(e.target.value); setError(null); setPin(''); setClave(''); }}
-              autoComplete="username"
+              id="codigo"
+              type="password"
+              inputMode="text"
+              value={codigo}
+              onChange={(e) => { setCodigo(e.target.value); setError(null); }}
+              autoComplete="current-password"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
+              autoFocus
             />
           </Campo>
 
-          {usaPin ? (
-            <>
-              <p className="pin__titulo">PIN de 4 digitos</p>
-              <div className="puntos-pin" aria-hidden="true">
-                {Array.from({ length: LARGO_PIN }, (_, i) => (
-                  <span key={i} className={i < pin.length ? 'lleno' : undefined} />
-                ))}
-              </div>
-              <div className="teclado-pin">
-                {TECLAS.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => tecla(t)}
-                    disabled={entrando}
-                    aria-label={t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : `Digito ${t}`}
-                    style={t === 'borrar' || t === 'entrar' ? { fontFamily: 'var(--fuente-util)', fontSize: 'var(--t-12)', letterSpacing: 'var(--tracking)', textTransform: 'uppercase' } : undefined}
-                  >
-                    {t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : t}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <Campo etiqueta="Clave" htmlFor="clave" pista="Los administradores usan clave larga, no PIN.">
-                <input
-                  id="clave"
-                  type="password"
-                  value={clave}
-                  onChange={(e) => setClave(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </Campo>
-              <button type="submit" className="boton" disabled={entrando || clave.length === 0}>
-                {entrando ? 'Entrando' : 'Entrar'}
+          <div className="puntos-pin" aria-hidden="true">
+            {Array.from({ length: Math.min(codigo.length, 12) }, (_, i) => (
+              <span key={i} className="lleno" />
+            ))}
+          </div>
+
+          <div className="teclado-pin">
+            {TECLAS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => tecla(t)}
+                disabled={entrando}
+                className={t === 'borrar' || t === 'entrar' ? 'tecla-util' : undefined}
+                aria-label={t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : `Digito ${t}`}
+              >
+                {t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : t}
               </button>
-            </>
-          )}
+            ))}
+          </div>
+
+          <div className="acciones">
+            <button type="submit" className="boton" disabled={entrando || codigo.length === 0}>
+              {entrando ? 'Entrando' : 'Entrar'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { aMonto, deMonto, formatearBs, formatearGramos, formatearPorcentaje, for
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
+import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
 
@@ -21,6 +22,7 @@ export function Inventario() {
   const [pagina, setPagina] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [lotes, setLotes] = useState<{ id: number; codigo: string }[]>([]);
+  const visor = useVisorFoto();
 
   useEffect(() => {
     void (async () => {
@@ -66,6 +68,8 @@ export function Inventario() {
         </div>
         <Link className="boton" to="/admin/modelos/nuevo">Agregar producto</Link>
       </div>
+
+      <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
       {errorCarga ? <Aviso tono="error" titulo="No se pudo leer el inventario">{errorCarga}</Aviso> : null}
@@ -144,7 +148,17 @@ export function Inventario() {
 
                   return (
                     <tr key={m.id}>
-                      <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
+                      <td>
+                        {foto ? (
+                          <button
+                            type="button"
+                            className="miniatura miniatura--tocable"
+                            style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                            aria-label={`Ver la foto de ${m.nombre}`}
+                            onClick={() => visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path })}
+                          />
+                        ) : <span className="miniatura" />}
+                      </td>
                       <td className="celda-sku">{m.sku}</td>
                       <td>
                         <div className="celda-nombre">{m.nombre}</div>

@@ -6,6 +6,7 @@ import { Wordmark } from '../../componentes/Marca';
 import { aMonto, deMonto, formatearBs, formatearUsd, porCantidad, precioEnBs, precioPorPiezaPara } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
+import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible';
@@ -33,6 +34,8 @@ export function Catalogo() {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [reservando, setReservando] = useState(false);
+  const visor = useVisorFoto();
+  const esDobleToque = useDobleToque();
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -82,6 +85,21 @@ export function Catalogo() {
       copia.set(m.id, ahora + 1);
       return copia;
     });
+  }
+
+  function verFoto(m: ModeloPublico) {
+    visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path });
+  }
+
+  /** Un toque suma la pieza; dos seguidos abren la foto y deshacen el primero. */
+  function alTocar(m: ModeloPublico) {
+    if (esDobleToque(m.id)) {
+      const puestas = seleccion.get(m.id) ?? 0;
+      if (puestas > 0) cambiar(m.id, puestas - 1);
+      verFoto(m);
+      return;
+    }
+    agregar(m);
   }
 
   function cambiar(modeloId: number, cantidad: number) {
@@ -233,9 +251,21 @@ export function Catalogo() {
                   type="button"
                   className="tarjeta-modelo"
                   disabled={puestas >= m.disponible}
-                  onClick={() => agregar(m)}
+                  onClick={() => alTocar(m)}
                   aria-label={`Agregar ${m.nombre} al pedido`}
                 >
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="lupa"
+                    aria-label={`Ver la foto de ${m.nombre}`}
+                    onClick={(e) => { e.stopPropagation(); verFoto(m); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(m); } }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
+                    </svg>
+                  </span>
                   {foto
                     ? <img className="tarjeta-modelo__foto" src={foto} alt={m.nombre} loading="lazy" />
                     : <span className="tarjeta-modelo__foto" />}
@@ -255,6 +285,8 @@ export function Catalogo() {
             })}
           </div>
         )}
+
+        <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
 
         {resumen.piezas > 0 ? (
           <div className="barra-carrito">

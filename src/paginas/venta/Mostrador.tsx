@@ -6,6 +6,7 @@ import { urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { useCarrito } from '../../hooks/useCarrito';
+import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import { METODOS_PAGO } from '../../lib/tipos';
 import type { MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
@@ -22,6 +23,8 @@ export function Mostrador() {
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
   const carrito = useCarrito();
+  const visor = useVisorFoto();
+  const esDobleToque = useDobleToque();
 
   const [ubicacionId, setUbicacionId] = useState<number | null>(null);
   const [texto, setTexto] = useState('');
@@ -79,6 +82,25 @@ export function Mostrador() {
     for (const l of carrito.lineas) m.set(l.modelo_id, l.cantidad);
     return m;
   }, [carrito.lineas]);
+
+  /**
+   * Un toque agrega la pieza, sin esperar ni un milisegundo: el mostrador
+   * tiene que ser instantaneo. Si llega un segundo toque enseguida, se
+   * entiende que queria ver la foto, y se deshace lo que agrego el primero.
+   */
+  function alTocar(m: ModeloEnUbicacion) {
+    if (esDobleToque(m.modelo_id)) {
+      const puestas = enCarrito.get(m.modelo_id) ?? 0;
+      if (puestas > 0) carrito.cambiarCantidad(m.modelo_id, m.ubicacion_id, puestas - 1);
+      verFoto(m);
+      return;
+    }
+    carrito.agregar(m);
+  }
+
+  function verFoto(m: ModeloEnUbicacion) {
+    visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path });
+  }
 
   async function confirmar() {
     if (!metodo) return;
@@ -250,9 +272,21 @@ export function Mostrador() {
                 type="button"
                 className="tarjeta-modelo"
                 disabled={agotado || !tasa}
-                onClick={() => carrito.agregar(m)}
+                onClick={() => alTocar(m)}
                 aria-label={`Agregar ${m.nombre}, ${formatearBs(m.precio_bs)}`}
               >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="lupa"
+                  aria-label={`Ver la foto de ${m.nombre}`}
+                  onClick={(e) => { e.stopPropagation(); verFoto(m); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(m); } }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
+                  </svg>
+                </span>
                 {foto
                   ? <img className="tarjeta-modelo__foto" src={foto} alt="" loading="lazy" />
                   : <span className="tarjeta-modelo__foto" />}
@@ -271,6 +305,8 @@ export function Mostrador() {
           })}
         </div>
       )}
+
+      <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
 
       {carrito.totales.piezas > 0 ? (
         <div className="barra-carrito">

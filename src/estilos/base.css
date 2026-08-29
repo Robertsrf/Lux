@@ -856,3 +856,93 @@ table.tabla tfoot td {
   .linea-cobro__foto { width: 48px; height: 48px; }
   .linea-cobro .contador { grid-column: 1 / -1; justify-content: flex-end; }
 }
+
+/* --- Visor de foto ---------------------------------------------------- */
+
+.visor {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;
+  padding: var(--e-5);
+  background: color-mix(in srgb, var(--tinta) 88%, transparent);
+  animation: aparecer 160ms var(--salida);
+}
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+
+.visor__marco {
+  margin: 0;
+  max-width: min(760px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column; gap: var(--e-4);
+  animation: subir 220ms var(--salida);
+}
+@keyframes subir { from { transform: translateY(12px) scale(0.98); } to { transform: none; } }
+
+.visor__foto {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  width: auto; height: auto;
+  object-fit: contain;
+  border-radius: var(--radio-lg);
+  background: var(--panel-hondo);
+  box-shadow: var(--sombra-3);
+}
+.visor__sinfoto {
+  display: grid; place-items: center;
+  min-height: 240px; padding: var(--e-6);
+  border: 1px dashed color-mix(in srgb, var(--crema) 40%, transparent);
+  border-radius: var(--radio-lg);
+  color: color-mix(in srgb, var(--crema) 80%, transparent);
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  text-align: center;
+}
+
+.visor__pie { display: grid; gap: var(--e-1); text-align: center; color: var(--crema); }
+.visor__nombre { font-family: var(--fuente-prosa); font-size: var(--t-20); line-height: 1.25; }
+.visor__sku {
+  font-size: var(--t-12); letter-spacing: var(--tracking); text-transform: uppercase;
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
+}
+.visor__nota { font-size: var(--t-14); color: color-mix(in srgb, var(--crema) 78%, transparent); }
+
+.visor__cerrar {
+  position: absolute; top: var(--e-4); right: var(--e-4);
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  color: var(--crema);
+  background: color-mix(in srgb, var(--crema) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--crema) 26%, transparent);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido);
+}
+.visor__cerrar:hover { background: color-mix(in srgb, var(--crema) 24%, transparent); }
+.visor__cerrar svg { width: 22px; height: 22px; }
+.visor :focus-visible { outline-color: var(--oro-arena); }
+
+/* Lupa de la tarjeta: el camino accesible al visor, porque el doble toque
+   no existe para quien navega con teclado. */
+.tarjeta-modelo { position: relative; }
+.lupa {
+  position: absolute; top: var(--e-3); right: var(--e-3); z-index: 1;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  color: var(--texto-fuerte);
+  background: color-mix(in srgb, var(--blanco) 88%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  box-shadow: var(--sombra-1);
+  opacity: 0;
+  transition: opacity var(--rapido), background var(--rapido);
+}
+.lupa svg { width: 18px; height: 18px; }
+.lupa:hover { background: var(--blanco); }
+.tarjeta-modelo:hover .lupa,
+.lupa:focus-visible { opacity: 1; }
+
+/* En pantalla tactil no hay hover: la lupa se queda visible. */
+@media (hover: none) {
+  .lupa { opacity: 1; }
+}
+
+.miniatura--tocable { cursor: zoom-in; transition: transform var(--rapido), border-color var(--rapido); }
+.miniatura--tocable:hover { transform: scale(1.06); border-color: var(--salvia); }
