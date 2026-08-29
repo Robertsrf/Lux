@@ -144,6 +144,52 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
+-- 1b. EL DISPARADOR DE MAYOREO TIENE QUE LEER COMO DUENO
+-- venta_items esta revocada para authenticated (parche de seguridad 01),
+-- asi que sin SECURITY DEFINER este disparador rompe TODA venta al mayor.
+-- ---------------------------------------------------------------------
+
+create or replace function validar_minimo_mayoreo()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_piezas int;
+  v_usd    numeric(12,4);
+  v_min_p  numeric(12,4);
+  v_min_u  numeric(12,4);
+begin
+  if (select tipo from ventas where id = new.venta_id) <> 'mayor' then
+    return new;
+  end if;
+
+  select coalesce(sum(cantidad), 0),
+         coalesce(sum(precio_unitario_usd * cantidad), 0)
+    into v_piezas, v_usd
+    from venta_items where venta_id = new.venta_id;
+
+  select valor into v_min_p from configuracion where clave = 'mayoreo_min_piezas';
+  select valor into v_min_u from configuracion where clave = 'mayoreo_min_usd';
+
+  -- Minimo: 6 piezas O $30, lo que se cumpla primero. Solo se rechaza
+  -- cuando la venta queda por debajo de LOS DOS.
+  if v_piezas < v_min_p and v_usd < v_min_u then
+    raise exception
+      'La venta al mayor requiere % piezas o $%. Llevas % piezas y $%.',
+      v_min_p, v_min_u, v_piezas, v_usd;
+  end if;
+
+  return new;
+end;
+$;
+
+revoke all on function validar_minimo_mayoreo() from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------
 -- 2. VENDER UN KIT FIJO DE UN SOLO MOVIMIENTO
 -- La mayorista no puede costar 50 toques. Se elige el kit y ya.
 -- ---------------------------------------------------------------------
