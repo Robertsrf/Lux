@@ -10,7 +10,7 @@
 export type NombreIcono =
   | 'inventario' | 'reportes' | 'lotes' | 'grupos' | 'kits' | 'tramos'
   | 'tasas' | 'catalogo' | 'mostrador' | 'mayor' | 'dia' | 'cierre'
-  | 'conteo' | 'pedidos' | 'verificacion' | 'salir';
+  | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir';
 
 const TRAZOS: Record<NombreIcono, string> = {
   inventario: 'M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z M3.5 7.5 12 12l8.5-4.5 M12 12v9',
@@ -28,6 +28,7 @@ const TRAZOS: Record<NombreIcono, string> = {
   conteo:     'M3 6.5 4.5 8 7.5 5 M3 12.5 4.5 14l3-3 M3 18.5 4.5 20l3-3 M11 6.5h10 M11 12.5h10 M11 18.5h10',
   pedidos:    'M21 12h-5l-2 3h-4l-2-3H3 M5.5 5h13l2.5 7v6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18v-6l2.5-7Z',
   verificacion: 'M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z M9 12l2 2 4-4',
+  vitrina:    'M3 4.5h18v11H3z M8.5 20h7 M12 15.5V20',
   salir:      'M15 17l5-5-5-5 M20 12H9 M9 3H5.5A1.5 1.5 0 0 0 4 4.5v15A1.5 1.5 0 0 0 5.5 21H9',
 };
 

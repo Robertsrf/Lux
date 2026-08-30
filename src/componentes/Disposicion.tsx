@@ -20,6 +20,7 @@ const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/tasas',      texto: 'Tasas',      icono: 'tasas' },
   { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
   { a: '/catalogo',         texto: 'Catalogo',   icono: 'catalogo' },
+  { a: '/vitrina',          texto: 'Vitrina',    icono: 'vitrina' },
 ];
 
 const ENLACES_VENTA: Enlace[] = [
@@ -30,6 +31,7 @@ const ENLACES_VENTA: Enlace[] = [
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
   { a: '/venta/guia',     texto: 'Guia',      icono: 'catalogo' },
+  { a: '/vitrina',        texto: 'Vitrina',   icono: 'vitrina' },
 ];
 
 /**

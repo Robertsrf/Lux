@@ -1,0 +1,228 @@
+/* =====================================================================
+   Vitrina — el catalogo pasando solo en un televisor de tienda.
+   Se mira de lejos, asi que todo sube de tamano y baja de cantidad: una
+   pieza por pantalla y nada mas. Verde profundo a sangre, como la
+   portada del catalogo, para que la joya sea lo unico que brilla.
+   ===================================================================== */
+
+.vitrina {
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--verde-profundo);
+  color: var(--crema);
+  overflow: hidden;
+}
+
+.vitrina__marca {
+  padding: var(--e-5) var(--e-6) 0;
+  display: flex; justify-content: center;
+  transition: opacity var(--medio);
+}
+/* El componente trae su alto por prop; en televisor grande se sube aqui. */
+.vitrina .wordmark { display: block; }
+
+/* --- La pieza ------------------------------------------------------- */
+
+.vitrina__pieza {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--e-8);
+  padding: var(--e-6) var(--e-8);
+  min-height: 0;
+  animation: vitrina-entra 700ms var(--salida) both;
+}
+
+.vitrina__foto {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; min-height: 0;
+}
+.vitrina__foto img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radio-lg);
+  /* Sobre verde, la sombra gris ensucia: se tine del propio verde. */
+  box-shadow: 0 18px 48px rgba(10, 26, 28, 0.45);
+  background: var(--crema);
+}
+.vitrina__sinfoto {
+  display: grid; place-items: center;
+  width: min(52vh, 100%); aspect-ratio: 1;
+  border-radius: var(--radio-lg);
+  border: 1px solid color-mix(in srgb, var(--crema) 22%, transparent);
+  color: color-mix(in srgb, var(--crema) 40%, transparent);
+}
+.vitrina__sinfoto .monograma { width: 44%; height: auto; aspect-ratio: 1; }
+
+.vitrina__ficha { min-width: 0; }
+
+.vitrina__categoria {
+  margin: 0 0 var(--e-3);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-16);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+
+.vitrina__nombre {
+  margin: 0;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-56);
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--crema);
+}
+
+.vitrina__nota {
+  margin: var(--e-3) 0 0;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20);
+  color: color-mix(in srgb, var(--crema) 70%, transparent);
+}
+
+/* La regla fina con el monograma: el ornamento de la casa, reutilizado. */
+.vitrina__regla {
+  display: flex; align-items: center; gap: var(--e-4);
+  margin: var(--e-6) 0;
+  color: var(--oro-arena);
+}
+.vitrina__regla span {
+  flex: 1; height: 1px;
+  background: color-mix(in srgb, var(--oro-arena) 55%, transparent);
+}
+.vitrina__regla .monograma { flex: none; }
+
+/* El precio es la cifra protagonista: display serif, siempre. */
+.vitrina__precio {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: var(--t-56);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--oro-arena);
+  font-variant-numeric: tabular-nums;
+}
+.vitrina__precio-usd {
+  margin: var(--e-2) 0 0;
+  font-family: var(--fuente-display);
+  font-size: var(--t-28);
+  color: color-mix(in srgb, var(--crema) 78%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.vitrina__materiales {
+  margin: var(--e-6) 0 0;
+  max-width: 46ch;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-16);
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
+}
+
+/* --- Cuanto falta para la siguiente --------------------------------- */
+
+.vitrina__progreso {
+  position: absolute; inset-inline: 0; top: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--crema) 12%, transparent);
+}
+.vitrina__progreso-barra {
+  height: 100%;
+  background: var(--oro-arena);
+  transform-origin: left center;
+  animation: vitrina-avanza linear both;
+}
+
+/* --- Controles: se van solos y vuelven al mover el raton ------------- */
+
+.vitrina__controles {
+  display: flex; flex-wrap: wrap;
+  align-items: center; justify-content: space-between;
+  gap: var(--e-4);
+  padding: var(--e-4) var(--e-6) var(--e-5);
+  background: linear-gradient(to top, rgba(10, 26, 28, 0.55), transparent);
+  transition: opacity var(--medio), transform var(--medio);
+}
+.vitrina__grupo { display: flex; align-items: center; gap: var(--e-2); }
+
+.vitrina__cuenta {
+  font-family: var(--fuente-ui);
+  font-size: var(--t-14);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking);
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
+  font-variant-numeric: tabular-nums;
+  margin-right: var(--e-3);
+}
+
+/* Los botones viven sobre verde: mismo tratamiento que los de la barra
+   lateral, que ya resuelve el contraste sobre este fondo. */
+.vitrina .boton--secundario {
+  background: color-mix(in srgb, var(--crema) 12%, transparent);
+  color: var(--crema);
+  border-color: color-mix(in srgb, var(--crema) 26%, transparent);
+  box-shadow: none;
+}
+.vitrina .boton--secundario:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--crema) 22%, transparent);
+  border-color: var(--crema);
+}
+.vitrina .boton--secundario[aria-pressed='true'] {
+  background: var(--oro-arena);
+  border-color: var(--oro-arena);
+  color: var(--verde-profundo);
+}
+.vitrina .boton--confirmar { color: var(--crema); }
+.vitrina :focus-visible { outline-color: var(--oro-arena); }
+
+/* Con el raton quieto queda solo la pieza. Los controles siguen ahi para
+   el teclado: se ocultan a la vista, no del foco. */
+.vitrina--limpia .vitrina__controles,
+.vitrina--limpia .vitrina__marca { opacity: 0; }
+.vitrina--limpia .vitrina__controles { transform: translateY(6px); }
+.vitrina--limpia:focus-within .vitrina__controles,
+.vitrina--limpia:focus-within .vitrina__marca { opacity: 1; transform: none; }
+.vitrina--limpia { cursor: none; }
+
+@keyframes vitrina-entra {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes vitrina-avanza {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* --- Pantallas angostas: la ficha baja debajo de la foto ------------- */
+
+@media (max-width: 900px) {
+  .vitrina__pieza {
+    grid-template-columns: 1fr;
+    gap: var(--e-5);
+    padding: var(--e-4);
+    align-content: center;
+  }
+  .vitrina__nombre { font-size: var(--t-40); }
+  .vitrina__precio { font-size: var(--t-40); }
+  .vitrina__materiales { display: none; }
+  .vitrina__controles { justify-content: center; }
+}
+
+/* --- Televisores grandes: la escala sube con el ancho ---------------- */
+
+@media (min-width: 1600px) {
+  .vitrina__pieza { gap: 5rem; padding: var(--e-7) 5rem; }
+  .vitrina__nombre,
+  .vitrina__precio { font-size: clamp(var(--t-56), 4.4vw, 92px); }
+  .vitrina__precio-usd { font-size: var(--t-40); }
+  .vitrina__materiales { font-size: var(--t-20); }
+  .vitrina .wordmark { height: 64px !important; }
+}
+
+/* Quien pidio menos movimiento no recibe ni la entrada ni la barra. */
+@media (prefers-reduced-motion: reduce) {
+  .vitrina__pieza { animation: none; }
+  .vitrina__progreso-barra { animation: none; transform: scaleX(1); }
+}

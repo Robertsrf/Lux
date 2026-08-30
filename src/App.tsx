@@ -5,6 +5,7 @@ import { Disposicion } from './componentes/Disposicion';
 import { Entrar } from './paginas/Entrar';
 import { Verificacion } from './paginas/Verificacion';
 import { CatalogoPdf } from './paginas/CatalogoPdf';
+import { Vitrina } from './paginas/Vitrina';
 import { Inventario } from './paginas/admin/Inventario';
 import { FormularioModelo } from './paginas/admin/FormularioModelo';
 import { Lotes } from './paginas/admin/Lotes';
@@ -48,6 +49,10 @@ export function App() {
           {/* Publico: sin sesion. Es el enlace que se comparte. */}
           <Route path="/publico" element={<CatalogoPublico />} />
           <Route path="/reserva/:token" element={<Reserva />} />
+
+          {/* Vitrina: pantalla completa, sin barra lateral. Pide sesion
+              porque se enciende desde la tienda, pero no muestra costos. */}
+          <Route path="/vitrina" element={<RutaProtegida><Vitrina /></RutaProtegida>} />
 
           <Route element={<RutaProtegida><Disposicion /></RutaProtegida>}>
             {/* Mostrador */}

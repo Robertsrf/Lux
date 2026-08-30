@@ -117,10 +117,11 @@ export function Inventario() {
         </Vacio>
       ) : (
         <>
-          <div className="tabla-envoltura">
+          <div className="tabla-envoltura tabla-envoltura--alta">
             <table className="tabla">
               <thead>
                 <tr>
+                  <th className="col-fija"><span className="visualmente-oculto">Acciones</span></th>
                   <th></th>
                   <th>SKU</th>
                   <th>Modelo</th>
@@ -134,7 +135,6 @@ export function Inventario() {
                   <th className="num">Margen $</th>
                   <th className="num">Margen %</th>
                   <th className="num">Existencia</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -148,6 +148,14 @@ export function Inventario() {
 
                   return (
                     <tr key={m.id}>
+                      <td className="col-fija">
+                        <div className="grupo-botones grupo-botones--firme">
+                          <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+                          <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
+                            Retirar
+                          </button>
+                        </div>
+                      </td>
                       <td>
                         {foto ? (
                           <button
@@ -185,14 +193,6 @@ export function Inventario() {
                           <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
                         ) : m.existencia_total}
                         {detalle ? <div className="celda-nota">{detalle}</div> : null}
-                      </td>
-                      <td>
-                        <div className="grupo-botones grupo-botones--firme">
-                          <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
-                          <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
-                            Retirar
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );

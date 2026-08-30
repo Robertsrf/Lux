@@ -129,6 +129,77 @@ a las joyas. Reparto parejo entre bultos, destinos distintos.
 
 ---
 
+## Migraciones SQL — la lista antes de entregar un archivo
+
+Escrita el 30/08/2026 después de mandar dos migraciones que fallaron a mitad.
+Ninguna falló por no saber SQL: fallaron por no revisar qué dependía de lo que
+se estaba borrando. **Recórrela entera antes de decir "corre esto".**
+
+### 1. ¿Qué depende de cada columna que borras?
+
+En Postgres dependen de una columna, y bloquean el `DROP COLUMN`:
+
+- **Vistas** que la nombren, aunque sea con `select *`.
+- **Triggers** que la nombren **en su cláusula `WHEN`** ← el que se olvida.
+- **Columnas generadas** que la usen en su expresión.
+- Índices, constraints `CHECK`, políticas RLS.
+
+```bash
+grep -rn "nombre_columna" *.sql          # incluye la clausula WHEN de los triggers
+grep -n "create trigger" -A 12 *.sql     # leelas: el WHEN no salta a la vista
+```
+
+**El orden correcto siempre es:** borrar vistas → borrar triggers → borrar
+funciones → `ALTER TABLE` → recrear en el orden inverso.
+
+### 2. ¿Se puede volver a correr entero?
+
+Va a fallar a la mitad alguna vez, y entonces hay que poder repetirlo sin
+limpiar nada a mano. `if exists` / `if not exists` en todo. Una columna
+generada nueva se borra justo antes de crearse.
+
+### 3. `create or replace view` no puede quitar ni retipar columnas
+
+Da `ERROR 42P16: cannot drop columns from view`. Si el conjunto de columnas
+cambia, es `drop view ... cascade` y `create view` — y entonces **hay que
+volver a otorgar el `grant select`**, que se fue con la vista.
+
+### 4. Los archivos que quedan obsoletos se sellan
+
+Un `create or replace` viejo no siempre falla: a veces revierte las fórmulas
+en silencio. Al archivo superado se le pone en la primera línea:
+
+```sql
+do $guarda$
+begin
+  raise exception 'Este archivo quedo obsoleto: corre <el nuevo> en su lugar.';
+end
+$guarda$;
+```
+
+### 5. Comprueba contra la base real, no contra la cabeza
+
+Hay acceso con la anon key y el código del admin. Antes de entregar, y otra vez
+después de que el dueño corra el archivo:
+
+```js
+const db = createClient(url, anonKey);
+await db.auth.signInWithPassword({ email: 'admin@lux.local', password: '<codigo>' });
+const { data } = await db.from('v_diagnostico').select('*');
+```
+
+El script va en `prueba-temporal.mjs`, que está en `.gitignore`, y **se borra
+al terminar**. PostgREST solo expone `public`, así que **no se puede consultar
+`pg_depend` ni correr DDL desde aquí**: las dependencias se revisan leyendo los
+`.sql`, no preguntándoselas a la base.
+
+### 6. Dale las cifras esperadas junto con el archivo
+
+"Debería darte margen 44,4 % y ganancia $741,10." Si no cuadra, se descubre en
+minutos y no en un mes de precios mal puestos.
+
+---
+
 ## Seguridad
 
 ### Bloqueo de costos
