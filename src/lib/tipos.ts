@@ -91,6 +91,10 @@ export interface ModeloAdmin extends ModeloVenta {
   costo_unitario_usd: number;
   flete_unitario_usd: number;
   costo_puesto_usd: number;
+  /** Lo que la pieza carga de alquiler, sueldo y empaque. */
+  costo_operativo_usd: number;
+  /** costo puesto + operativo, subido por la merma. */
+  costo_total_usd: number;
   peso_unitario_g: number;
   lote_id: number | null;
   margen_usd: number | null;
