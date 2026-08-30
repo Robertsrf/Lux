@@ -17,6 +17,7 @@ import { Kits as KitsVenta } from './paginas/venta/Kits';
 import { Tablero } from './paginas/venta/Tablero';
 import { Cierre } from './paginas/venta/Cierre';
 import { ConteoSemanal } from './paginas/venta/ConteoSemanal';
+import { Guia } from './paginas/venta/Guia';
 import { Tramos } from './paginas/admin/Tramos';
 import { Textos } from './paginas/admin/Textos';
 import { Pedidos } from './paginas/venta/Pedidos';
@@ -54,6 +55,7 @@ export function App() {
             <Route path="/venta/cierre" element={<Cierre />} />
             <Route path="/venta/conteo" element={<ConteoSemanal />} />
             <Route path="/venta/pedidos" element={<Pedidos />} />
+            <Route path="/venta/guia" element={<Guia />} />
 
             {/* Comunes */}
             <Route path="/verificacion" element={<Verificacion />} />

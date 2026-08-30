@@ -27,6 +27,7 @@ const ENLACES_VENTA: Enlace[] = [
   { a: '/venta/tablero',  texto: 'Mi dia',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
+  { a: '/venta/guia',     texto: 'Guia',      icono: 'catalogo' },
 ];
 
 /**

@@ -319,3 +319,13 @@ export interface KitResumen {
   subtotal_usd: number;
   total_usd: number;
 }
+
+/** Una frase o recordatorio de la guia del colaborador. */
+export interface Consejo {
+  id: number;
+  momento: string;
+  etiqueta: string | null;
+  texto: string;
+  nota: string | null;
+  orden: number;
+}

@@ -996,3 +996,88 @@ table.tabla tfoot td {
   font-size: var(--t-16); line-height: 1.4;
   color: color-mix(in srgb, var(--crema) 88%, transparent);
 }
+
+/* --- La guia del colaborador ----------------------------------------- */
+
+.frase__etiqueta {
+  display: block;
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  margin-bottom: var(--e-2);
+}
+.frase__texto {
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20); line-height: 1.4;
+  color: var(--texto-fuerte);
+  margin: 0;
+  text-wrap: pretty;
+}
+.frase__texto--cita { font-style: italic; }
+.frase__texto--cita::before { content: '\201C'; }
+.frase__texto--cita::after  { content: '\201D'; }
+.frase__nota {
+  margin: var(--e-3) 0 0;
+  font-size: var(--t-12); line-height: 1.45;
+  color: var(--texto-secundario);
+}
+.frase__objecion {
+  margin: 0 0 var(--e-3);
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  font-style: italic; color: var(--texto-secundario);
+}
+
+.nunca { display: flex; gap: var(--e-3); align-items: flex-start; padding: var(--e-3) 0; }
+.nunca + .nunca { border-top: 1px solid var(--linea-suave); }
+.nunca__marca {
+  flex: 0 0 auto; width: 24px; height: 24px;
+  display: grid; place-items: center;
+  border-radius: var(--radio-pill);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  color: var(--error); font-size: var(--t-14); line-height: 1;
+}
+.nunca .frase__texto { font-size: var(--t-16); }
+
+/* --- Recordatorio en el momento justo -------------------------------- */
+
+.recordatorio {
+  padding: var(--e-4) var(--e-5);
+  margin-bottom: var(--e-5);
+  background: var(--verde-suave);
+  border: 1px solid color-mix(in srgb, var(--salvia) 40%, transparent);
+  border-radius: var(--radio-lg);
+}
+.recordatorio__cabecera {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e-3); margin-bottom: var(--e-2);
+}
+.recordatorio__titulo {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.recordatorio__otra {
+  padding: 4px var(--e-3);
+  font-family: var(--fuente-ui); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido);
+}
+.recordatorio__otra:hover { background: var(--panel); }
+.recordatorio__etiqueta {
+  display: block; font-size: 11px;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--salvia-texto); margin-bottom: var(--e-1);
+}
+.recordatorio__frase {
+  margin: 0;
+  font-family: var(--fuente-prosa); font-size: var(--t-20);
+  font-style: italic; line-height: 1.4; color: var(--texto-fuerte);
+  text-wrap: pretty;
+}
+.recordatorio__frase::before { content: '\201C'; }
+.recordatorio__frase::after  { content: '\201D'; }
+.recordatorio__nota { margin: var(--e-2) 0 0; font-size: var(--t-12); color: var(--texto-secundario); }

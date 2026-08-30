@@ -7,6 +7,7 @@ import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { useCarrito } from '../../hooks/useCarrito';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
+import { Recordatorio } from '../../componentes/Recordatorio';
 import { METODOS_PAGO } from '../../lib/tipos';
 import type { MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
@@ -210,6 +211,8 @@ export function Mostrador() {
             ) : null}
           </div>
         </div>
+
+        <Recordatorio momento="cerrar" titulo="Cierra con una pregunta" />
 
         <h2>Como paga</h2>
         <div className="metodos-pago" style={{ marginTop: 'var(--e-3)' }}>
