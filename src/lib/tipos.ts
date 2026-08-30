@@ -371,3 +371,27 @@ export interface Equilibrio {
   contribucion_por_pieza_usd: number | null;
   piezas_para_equilibrio: number | null;
 }
+
+/** Vista v_diagnostico: la salud del negocio en una sola fila. */
+export interface Diagnostico {
+  gastos_mes_usd: number;
+  piezas_cargadas: number;
+  piezas_objetivo: number;
+  meses_rotacion: number;
+  volumen_mes: number;
+  costo_operativo_pieza_usd: number;
+  merma_pct: number;
+  modelos: number;
+  costo_mercancia_promedio_usd: number;
+  costo_total_promedio_usd: number;
+  precio_real_promedio_usd: number;
+  precio_bcv_promedio: number;
+  ganancia_objetivo_mes_usd: number;
+  /** El margen que hace falta para llegar al objetivo mensual. */
+  margen_sugerido_pct: number | null;
+  precio_sugerido_promedio_bcv: number | null;
+  /** Lo que dejan los precios que ya estan puestos. */
+  margen_actual_pct: number | null;
+  ganancia_proyectada_mes_usd: number;
+  piezas_equilibrio: number | null;
+}

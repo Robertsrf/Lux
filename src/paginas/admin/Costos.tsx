@@ -1,159 +1,244 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
-import {
-  factorBrecha, formatearBs, formatearUsd,
-  precioEnBs, previsualizarCostoOperativo, previsualizarPrecio,
-} from '../../lib/dinero';
+import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
+import { formatearBs, formatearEntero, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
+import type { Diagnostico } from '../../lib/tipos';
 
-const CAMPOS = [
-  { clave: 'gasto_alquiler_mes_usd',  etiqueta: 'Alquiler al mes $',  pista: 'Lo que pagas por el local.' },
-  { clave: 'gasto_sueldos_mes_usd',   etiqueta: 'Sueldos al mes $',   pista: 'La vendedora, y tu sueldo si te lo pagas.' },
-  { clave: 'gasto_servicios_mes_usd', etiqueta: 'Servicios al mes $', pista: 'Luz, internet, agua.' },
-  { clave: 'gasto_otros_mes_usd',     etiqueta: 'Otros fijos al mes $', pista: 'Cualquier gasto que se repite todos los meses.' },
-  { clave: 'empaque_por_pieza_usd',   etiqueta: 'Empaque por pieza $', pista: 'La caja, la bolsita y el pano de cada venta.' },
-  { clave: 'piezas_esperadas_mes',    etiqueta: 'Piezas que vendes al mes', pista: 'Un estimado sirve. Sin esto no se puede repartir nada.' },
-  { clave: 'capex_amortizar_meses',   etiqueta: 'Recuperar exhibidores en (meses)', pista: 'En cuanto tiempo quieres que la inversion se pague sola.' },
-  { clave: 'merma_pct',               etiqueta: 'Merma %', pista: 'Piezas que se pierden, se danan o nunca se venden. Las que si se venden las pagan.' },
-  { clave: 'margen_objetivo_pct',     etiqueta: 'Ganancia objetivo %', pista: 'Sobre el precio. Con los gastos ya adentro, esto es ganancia de verdad.' },
+const GASTOS = [
+  { clave: 'gasto_alquiler_mes_usd',  etiqueta: 'Alquiler al mes $' },
+  { clave: 'gasto_sueldos_mes_usd',   etiqueta: 'Sueldos al mes $' },
+  { clave: 'gasto_servicios_mes_usd', etiqueta: 'Servicios al mes $' },
+  { clave: 'gasto_otros_mes_usd',     etiqueta: 'Otros fijos al mes $' },
+  { clave: 'empaque_por_pieza_usd',   etiqueta: 'Empaque por pieza $' },
+];
+
+const METAS = [
+  { clave: 'piezas_inventario_objetivo', etiqueta: 'Piezas con la tienda surtida', paso: '1',
+    pista: 'Cuantas piezas manejas cuando el inventario esta completo.' },
+  { clave: 'meses_rotacion_objetivo', etiqueta: 'Rotarlas en (meses)', paso: '1',
+    pista: 'En cuanto tiempo quieres vender todo ese inventario.' },
+  { clave: 'ganancia_mensual_objetivo_usd', etiqueta: 'Ganancia que quieres al mes $', paso: '1',
+    pista: 'Lo que quieres que te quede libre, ya con todo pagado. De aqui sale el margen.' },
+  { clave: 'capex_amortizar_meses', etiqueta: 'Recuperar exhibidores en (meses)', paso: '1', pista: undefined },
+  { clave: 'merma_pct', etiqueta: 'Merma %', paso: '0.5',
+    pista: 'Piezas que se pierden o nunca se venden. Las que si se venden las pagan.' },
+  { clave: 'margen_objetivo_pct', etiqueta: 'Margen que usas %', paso: '0.5',
+    pista: 'El que aplica el precio sugerido. Abajo el sistema te dice cual deberia ser.' },
 ];
 
 /**
- * Los costos del negocio, que hasta ahora el sistema no conocia.
+ * Los costos del negocio y el diagnostico.
  *
- * `costo_puesto` solo era mercancia y flete. El alquiler, el sueldo, el
- * empaque y los exhibidores quedaban fuera, asi que el margen terminaba
- * siendo un colchon que tapaba costos invisibles. Con esto el margen que
- * fijes es ganancia, no un parche.
+ * El volumen ya no se pregunta: se deduce del inventario y de la rotacion
+ * que se quiera. Y el margen tampoco se adivina: sale de cuanto se quiere
+ * ganar al mes, que es la unica pregunta que el dueno si puede responder.
  */
 export function Costos() {
   const { tasa } = useTasa();
   const [valores, setValores] = useState<Record<string, string>>({});
   const [guardado, setGuardado] = useState<Record<string, number>>({});
-  const [capexTotal, setCapexTotal] = useState(0);
-  const [simCosto, setSimCosto] = useState('11.86');
+  const [dx, setDx] = useState<Diagnostico | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
 
+  const TODOS = useMemo(() => [...GASTOS, ...METAS], []);
+
   const cargar = useCallback(async () => {
     setCargando(true);
-    const [cfg, lotes] = await Promise.all([
+    const [cfg, d] = await Promise.all([
       supabase.from('configuracion').select('clave, valor'),
-      supabase.from('v_lotes_admin').select('capex_total_usd'),
+      supabase.from('v_diagnostico').select('*').maybeSingle(),
     ]);
     if (cfg.error) setError(mensajeDeError(cfg.error));
     const mapa: Record<string, number> = {};
     for (const f of (cfg.data as { clave: string; valor: number }[] | null) ?? []) mapa[f.clave] = Number(f.valor);
     setGuardado(mapa);
-    setValores(Object.fromEntries(CAMPOS.map((c) => [c.clave, String(mapa[c.clave] ?? 0)])));
-    setCapexTotal(((lotes.data as { capex_total_usd: number }[] | null) ?? [])
-      .reduce((n, l) => n + Number(l.capex_total_usd), 0));
+    setValores(Object.fromEntries(TODOS.map((c) => [c.clave, String(mapa[c.clave] ?? 0)])));
+    setDx((d.data as Diagnostico | null) ?? null);
     setCargando(false);
-  }, []);
+  }, [TODOS]);
 
   useEffect(() => { void cargar(); }, [cargar]);
 
   const num = (c: string) => Number(valores[c] ?? 0) || 0;
-
-  const operativo = useMemo(() => previsualizarCostoOperativo({
-    alquiler: num('gasto_alquiler_mes_usd'),
-    sueldos: num('gasto_sueldos_mes_usd'),
-    servicios: num('gasto_servicios_mes_usd'),
-    otros: num('gasto_otros_mes_usd'),
-    empaquePorPieza: num('empaque_por_pieza_usd'),
-    piezasMes: num('piezas_esperadas_mes'),
-    capexTotal,
-    capexMeses: num('capex_amortizar_meses'),
-    mermaPct: num('merma_pct'),
-  }), [valores, capexTotal]);
-
-  const factor = factorBrecha(tasa) ?? 1;
-  const simulacion = useMemo(
-    () => previsualizarPrecio(Number(simCosto) || 0, operativo.porPieza, num('merma_pct'), factor, num('margen_objetivo_pct')),
-    [simCosto, operativo.porPieza, valores, factor],
-  );
-
-  const cambiado = CAMPOS.some((c) => Number(valores[c.clave] ?? 0) !== (guardado[c.clave] ?? 0));
+  const cambiado = TODOS.some((c) => num(c.clave) !== (guardado[c.clave] ?? 0));
 
   async function guardar() {
     setGuardando(true);
     setError(null);
     setExito(null);
-    for (const c of CAMPOS) {
-      const { error: err } = await supabase.from('configuracion')
-        .update({ valor: num(c.clave) }).eq('clave', c.clave);
+    for (const c of TODOS) {
+      const { error: err } = await supabase.from('configuracion').update({ valor: num(c.clave) }).eq('clave', c.clave);
       if (err) { setError(mensajeDeError(err)); setGuardando(false); return; }
     }
-    setExito('Guardado. Los precios sugeridos ya usan estas cifras.');
+    setExito('Guardado. El diagnostico y los precios sugeridos ya usan estas cifras.');
     await cargar();
     setGuardando(false);
   }
 
-  if (cargando) return <Cargando texto="Cargando los costos" />;
+  if (cargando) return <Cargando texto="Calculando el diagnostico" />;
+
+  const faltaObjetivo = num('ganancia_mensual_objetivo_usd') <= 0;
+  const sugerido = dx?.margen_sugerido_pct ?? null;
+  const usaSugerido = sugerido !== null && Math.abs(num('margen_objetivo_pct') - sugerido) < 0.05;
 
   return (
     <div className="pagina pagina--angosta">
       <div className="encabezado-pagina">
         <div>
-          <h1>Costos del negocio</h1>
-          <p>Lo que cuesta tener la tienda abierta. Se reparte igual entre todas las piezas y entra en cada precio sugerido.</p>
+          <h1>Costos y diagnostico</h1>
+          <p>Lo que cuesta tener la tienda abierta, y que margen hace falta para que el negocio de.</p>
         </div>
       </div>
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
-      {!tasa ? <Aviso tono="alerta" titulo="Sin tasa vigente">Fija las tasas para ver los precios.</Aviso> : null}
 
-      {num('piezas_esperadas_mes') <= 0 ? (
-        <Aviso tono="alerta" titulo="Falta lo mas importante">
-          Sin un estimado de cuantas piezas vendes al mes, los gastos no se pueden repartir
-          y cada pieza solo carga su empaque. Pon aunque sea un numero aproximado.
-        </Aviso>
+      <Ayuda titulo="Como lee esta pantalla tu negocio" abierta={faltaObjetivo}>
+        <p>
+          Antes te preguntaba cuantas piezas venderias al mes. Era una pregunta injusta:
+          nadie lo sabe, y de ese numero colgaba todo el calculo.
+        </p>
+        <p>
+          Ahora el sistema lo <strong>deduce</strong>: si manejas 350 piezas y quieres rotarlas
+          en 3 meses, son <code>350 / 3 = 117 piezas al mes</code>. Eso si lo puedes decidir.
+        </p>
+        <p>
+          Y el margen tampoco lo adivinas. Le dices <strong>cuanto quieres ganar al mes</strong> y
+          el sistema despeja el margen que hace falta. Si el numero que sale es imposible de
+          cobrar, el problema no es el margen: es el volumen o los gastos.
+        </p>
+      </Ayuda>
+
+      {dx ? (
+        <>
+          <div className="tablero">
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Vas a vender</span>
+              <div className="tablero__cifra">{formatearEntero(dx.volumen_mes)}</div>
+              <div className="tablero__meta">
+                piezas al mes · {formatearEntero(dx.piezas_objetivo)} rotadas en {dx.meses_rotacion} meses
+              </div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Cada pieza carga</span>
+              <div className="tablero__cifra" style={{ fontSize: 'var(--t-28)' }}>
+                {formatearUsd(dx.costo_operativo_pieza_usd)}
+              </div>
+              <div className="tablero__meta">de {formatearUsd(dx.gastos_mes_usd)} de gastos al mes</div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Punto de equilibrio</span>
+              <div className="tablero__cifra">{dx.piezas_equilibrio ?? '—'}</div>
+              <div className="tablero__meta">piezas al mes para no perder</div>
+            </div>
+          </div>
+
+          {sugerido !== null ? (
+            <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
+              <h2>El margen que necesitas</h2>
+              <hr className="divisor" />
+              <div className="rejilla rejilla--3">
+                <div>
+                  <span className="dato__etiqueta">Sugerido</span>
+                  <div className="dato__valor dato__valor--grande">{formatearPorcentaje(sugerido)}</div>
+                  <div className="campo__pista">para ganar {formatearUsd(dx.ganancia_objetivo_mes_usd)} al mes</div>
+                </div>
+                <div>
+                  <span className="dato__etiqueta">El que usas</span>
+                  <div className="dato__valor">{formatearPorcentaje(num('margen_objetivo_pct'))}</div>
+                </div>
+                <div>
+                  <span className="dato__etiqueta">Pieza promedio</span>
+                  <div className="dato__valor">{formatearUsd(dx.precio_sugerido_promedio_bcv)}</div>
+                  <div className="campo__pista">
+                    {formatearBs(precioEnBs(dx.precio_sugerido_promedio_bcv, tasa))} · hoy la vendes a {formatearUsd(dx.precio_bcv_promedio)}
+                  </div>
+                </div>
+              </div>
+
+              {!usaSugerido ? (
+                <div className="acciones acciones--sueltas" style={{ marginTop: 'var(--e-4)' }}>
+                  <button
+                    type="button"
+                    className="boton boton--confirmar"
+                    onClick={() => setValores((v) => ({ ...v, margen_objetivo_pct: String(sugerido) }))}
+                  >
+                    Usar {formatearPorcentaje(sugerido)}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <Aviso tono={dx.ganancia_proyectada_mes_usd >= dx.ganancia_objetivo_mes_usd && dx.ganancia_objetivo_mes_usd > 0 ? 'exito' : 'alerta'}>
+            Con los precios que tienes puestos ahora, la pieza promedio deja{' '}
+            <strong style={{ display: 'inline' }}>{formatearPorcentaje(dx.margen_actual_pct)}</strong> y a{' '}
+            {formatearEntero(dx.volumen_mes)} piezas al mes te quedarian{' '}
+            <strong style={{ display: 'inline' }}>{formatearUsd(dx.ganancia_proyectada_mes_usd)}</strong> libres.
+            {dx.ganancia_objetivo_mes_usd > 0 && dx.ganancia_proyectada_mes_usd < dx.ganancia_objetivo_mes_usd
+              ? ` Te faltan ${formatearUsd(dx.ganancia_objetivo_mes_usd - dx.ganancia_proyectada_mes_usd)} para tu objetivo.`
+              : ''}
+          </Aviso>
+
+          {dx.piezas_cargadas < dx.piezas_objetivo ? (
+            <Aviso tono="alerta" titulo="Inventario a medio cargar">
+              Tienes {formatearEntero(dx.piezas_cargadas)} piezas cargadas de las{' '}
+              {formatearEntero(dx.piezas_objetivo)} que dices manejar. El diagnostico usa el
+              objetivo, asi que ya te sirve; pero hasta que cargues el resto, los reportes de
+              rotacion y el catalogo se quedan cortos.
+            </Aviso>
+          ) : null}
+        </>
       ) : null}
 
+      <h2 className="seccion-titulo">Tus gastos del mes</h2>
       <div className="tarjeta">
-        <h2>Tus gastos</h2>
-        <hr className="divisor" />
         <div className="fila">
-          {CAMPOS.map((c) => (
-            <Campo key={c.clave} etiqueta={c.etiqueta} htmlFor={c.clave} pista={c.pista}>
+          {GASTOS.map((c) => (
+            <Campo key={c.clave} etiqueta={c.etiqueta} htmlFor={c.clave}>
               <input
-                id={c.clave}
-                type="number"
-                min="0"
-                step={c.clave === 'piezas_esperadas_mes' || c.clave === 'capex_amortizar_meses' ? '1' : '0.01'}
+                id={c.clave} type="number" min="0" step="0.01"
                 value={valores[c.clave] ?? ''}
                 onChange={(e) => setValores((v) => ({ ...v, [c.clave]: e.target.value }))}
               />
             </Campo>
           ))}
         </div>
+      </div>
 
-        <div className="panel">
-          <span className="panel__titulo">Lo que carga cada pieza</span>
-          <div className="rejilla rejilla--3">
-            <div>
-              <span className="dato__etiqueta">Fijos del mes</span>
-              <div className="dato__valor">{formatearUsd(operativo.fijosMes)}</div>
-            </div>
-            <div>
-              <span className="dato__etiqueta">Exhibidores al mes</span>
-              <div className="dato__valor">{formatearUsd(operativo.capexMes)}</div>
-              <div className="campo__pista">de {formatearUsd(capexTotal)} invertidos</div>
-            </div>
-            <div>
-              <span className="dato__etiqueta">Total al mes</span>
-              <div className="dato__valor">{formatearUsd(operativo.totalMes)}</div>
-            </div>
-            <div>
-              <span className="dato__etiqueta">Por cada pieza</span>
-              <div className="dato__valor dato__valor--grande">{formatearUsd(operativo.porPieza)}</div>
-              <div className="campo__pista">antes de la mercancia</div>
-            </div>
-          </div>
+      <h2 className="seccion-titulo">Inventario y metas</h2>
+      <div className="tarjeta">
+        <Ayuda titulo="Que hace cada uno de estos numeros">
+          <p>
+            <strong>Piezas con la tienda surtida</strong> y <strong>rotarlas en</strong> deciden
+            cuantas piezas al mes espera vender el sistema. Bajar la rotacion de 3 a 2 meses
+            sube el volumen y <em>abarata</em> cada pieza, porque los gastos se reparten entre mas.
+          </p>
+          <p>
+            <strong>Ganancia que quieres al mes</strong> es la unica meta de verdad. De ahi sale
+            el margen sugerido. Si pones una cifra ambiciosa y el margen que sale es imposible,
+            eso es informacion valiosa: te esta diciendo que con ese volumen y esos gastos, no da.
+          </p>
+          <p>
+            <strong>Merma</strong> es lo que se pierde o nunca se vende. Las piezas que si se
+            venden lo pagan, asi que sube el costo de todas.
+          </p>
+        </Ayuda>
+
+        <div className="fila">
+          {METAS.map((c) => (
+            <Campo key={c.clave} etiqueta={c.etiqueta} htmlFor={c.clave} pista={c.pista}>
+              <input
+                id={c.clave} type="number" min="0" step={c.paso}
+                value={valores[c.clave] ?? ''}
+                onChange={(e) => setValores((v) => ({ ...v, [c.clave]: e.target.value }))}
+              />
+            </Campo>
+          ))}
         </div>
 
         <div className="acciones">
@@ -166,64 +251,25 @@ export function Costos() {
         </div>
       </div>
 
-      <h2 className="seccion-titulo">Pruebalo con una pieza</h2>
-
-      <div className="tarjeta">
-        <div className="fila">
-          <Campo etiqueta="Costo puesto de la pieza $" htmlFor="sim" pista="Mercancia mas su parte del flete, en dolares reales.">
-            <input id="sim" type="number" min="0" step="0.01" value={simCosto} onChange={(e) => setSimCosto(e.target.value)} />
-          </Campo>
-        </div>
-
-        {simulacion ? (
-          <>
-            <div className="panel">
-              <span className="panel__titulo">Los cuatro pasos</span>
-              <div className="rejilla rejilla--3">
-                <div>
-                  <span className="dato__etiqueta">1 · Costo total</span>
-                  <div className="dato__valor">{formatearUsd(simulacion.costoTotal)}</div>
-                  <div className="campo__pista">mercancia + gastos{num('merma_pct') > 0 ? ' + merma' : ''}</div>
-                </div>
-                <div>
-                  <span className="dato__etiqueta">2 · En dolares BCV</span>
-                  <div className="dato__valor">{formatearUsd(simulacion.costoEnBcv)}</div>
-                  <div className="campo__pista">x {factor.toFixed(4)} por la brecha</div>
-                </div>
-                <div>
-                  <span className="dato__etiqueta">3 · Etiqueta</span>
-                  <div className="dato__valor dato__valor--grande">{formatearUsd(simulacion.precioBcv)}</div>
-                  <div className="campo__pista">{formatearBs(precioEnBs(simulacion.precioBcv, tasa))}</div>
-                </div>
-                <div>
-                  <span className="dato__etiqueta">4 · Te queda</span>
-                  <div className={simulacion.gananciaPorPieza < 0 ? 'dato__valor negativo' : 'dato__valor'}>
-                    {formatearUsd(simulacion.gananciaPorPieza)}
-                  </div>
-                  <div className="campo__pista">dolares reales, libres</div>
-                </div>
-              </div>
-            </div>
-
-            {num('piezas_esperadas_mes') > 0 ? (
-              <Aviso tono={simulacion.gananciaPorPieza <= 0 ? 'error' : 'exito'}>
-                Si vendieras {num('piezas_esperadas_mes')} piezas como esta al mes, te quedarian{' '}
-                <strong style={{ display: 'inline' }}>
-                  {formatearUsd(simulacion.gananciaPorPieza * num('piezas_esperadas_mes'))}
-                </strong>{' '}
-                libres al mes, con todos los gastos y los exhibidores ya pagados.
-              </Aviso>
-            ) : null}
-          </>
-        ) : (
-          <Aviso tono="alerta">Revisa los porcentajes: el margen y la merma tienen que ser menores que 100 %.</Aviso>
-        )}
-      </div>
-
-      <p className="campo__pista" style={{ marginTop: 'var(--e-5)' }}>
-        El reparto es igual por pieza a proposito: atender y empacar un anillo cuesta el mismo
-        tiempo que una cadena, asi que repartir por valor le cargaria a lo caro un trabajo que no causa.
-      </p>
+      <Ayuda titulo="Si el margen sugerido te parece imposible">
+        <p>Solo hay cuatro palancas, y conviene moverlas en este orden:</p>
+        <p>
+          <strong>1 · Vender mas caro por venta.</strong> Una pieza de grupo alto deja varias veces
+          lo que deja una barata, con el mismo tiempo de atencion y el mismo empaque. Es la palanca
+          mas rapida y no cuesta dinero.
+        </p>
+        <p>
+          <strong>2 · Rotar mas rapido.</strong> Los mismos gastos repartidos entre mas piezas
+          bajan el costo de cada una. Aqui es donde el catalogo publico y los kits ayudan.
+        </p>
+        <p>
+          <strong>3 · Bajar gastos fijos.</strong> Cada dolar que sale del alquiler o los servicios
+          baja el costo de todas las piezas a la vez.
+        </p>
+        <p>
+          <strong>4 · Subir precios.</strong> La ultima, no la primera: es la que la clienta si nota.
+        </p>
+      </Ayuda>
     </div>
   );
 }

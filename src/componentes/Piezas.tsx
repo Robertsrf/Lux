@@ -130,3 +130,26 @@ export class LimiteDeError extends Component<{ children: ReactNode }, { error: E
     );
   }
 }
+
+/**
+ * Ayuda de la pantalla. Va cerrada para no estorbar a quien ya sabe, y
+ * abierta a un toque para quien se perdio. Usa <details> nativo: funciona
+ * con teclado y con lector de pantalla sin que haya que programarlo.
+ */
+export function Ayuda({ titulo, children, abierta = false }: {
+  titulo: string;
+  children: ReactNode;
+  abierta?: boolean;
+}) {
+  return (
+    <details className="ayuda" open={abierta}>
+      <summary className="ayuda__titulo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.2 2.4c-.5.2-.7.6-.7 1.1v.5M12 16.5h.01" />
+        </svg>
+        {titulo}
+      </summary>
+      <div className="ayuda__cuerpo">{children}</div>
+    </details>
+  );
+}
