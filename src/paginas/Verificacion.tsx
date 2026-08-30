@@ -10,7 +10,12 @@ interface Prueba {
   bien: boolean;
 }
 
-const PALABRAS_DE_COSTO = ['costo', 'flete', 'margen', 'peso', 'lote'];
+const PALABRAS_DE_COSTO = [
+  'costo', 'flete', 'margen', 'lote',
+  // Nombres que trajo el modelo de dos monedas: si alguno se cuela en la
+  // vista del mostrador, la vendedora deduce el costo.
+  'operativo', 'ganancia', 'merma', 'gasto',
+];
 
 /**
  * Comprueba en vivo el checklist de seguridad de la Fase 1, con la sesion que
@@ -67,12 +72,56 @@ export function Verificacion() {
       bien: esAdmin ? !admin.error : filasAdmin === 0,
     });
 
-    const flete = await supabase.rpc('admin_previsualizar_flete', { p_lote_id: null, p_peso_g: 0, p_costo_usd: 0 });
+    // El flete ya no depende del peso de la pieza: sale del lote y nada mas.
+    const flete = await supabase.rpc('admin_previsualizar_flete', { p_lote_id: null });
     resultados.push({
       nombre: 'Funcion admin_previsualizar_flete',
       esperado: esAdmin ? 'Responde' : 'Rechazada por no ser admin',
       obtenido: flete.error ? `Rechazada: ${flete.error.message}` : `Respondio ${String(flete.data)}`,
       bien: esAdmin ? !flete.error : Boolean(flete.error),
+    });
+
+    // Esta fuga estuvo abierta una vez y casi vuelve al reescribir la vista.
+    // Una vista corre con los privilegios de su dueno, asi que sin filtro se
+    // salta el REVOKE de `lotes` y la vendedora lee el costo de la tienda.
+    const capex = await supabase.from('v_capex_lote').select('id').limit(1);
+    const filasCapex = capex.data?.length ?? 0;
+    resultados.push({
+      nombre: 'Vista v_capex_lote (exhibidores)',
+      esperado: esAdmin ? 'Devuelve filas' : 'Devuelve 0 filas: no es de la vendedora',
+      obtenido: capex.error ? `Rechazada: ${capex.error.message}` : `${filasCapex} fila(s)`,
+      bien: esAdmin ? !capex.error : filasCapex === 0,
+    });
+
+    // Devuelve el alquiler y la nomina. No se otorga a NADIE: solo la llaman
+    // funciones de definidor, donde el permiso se comprueba contra el dueno.
+    // Para EJECUTAR una funcion Postgres mira a quien llama, no a la vista.
+    const nomina = await supabase.rpc('gastos_fijos_mes_bcv');
+    resultados.push({
+      nombre: 'Funcion gastos_fijos_mes_bcv',
+      esperado: 'Rechazada SIEMPRE, tambien para el admin',
+      obtenido: nomina.error ? `Rechazada: ${nomina.error.message}` : `Respondio ${String(nomina.data)}`,
+      bien: Boolean(nomina.error),
+    });
+
+    // El diagnostico lleva costo, margen y objetivo de ganancia.
+    const dx = await supabase.from('v_diagnostico').select('gastos_mes_usd').limit(1);
+    const filasDx = dx.data?.length ?? 0;
+    resultados.push({
+      nombre: 'Vista v_diagnostico',
+      esperado: esAdmin ? 'Devuelve la fila' : 'Devuelve 0 filas',
+      obtenido: dx.error ? `Rechazada: ${dx.error.message}` : `${filasDx} fila(s)`,
+      bien: esAdmin ? !dx.error : filasDx === 0,
+    });
+
+    // El piso de regateo SI es de la vendedora: es un solo numero, el minimo
+    // al que puede cerrar. No revela costo ni margen.
+    const piso = await supabase.from('v_catalogo_venta').select('precio_minimo_usd').limit(1);
+    resultados.push({
+      nombre: 'Piso de regateo en el mostrador',
+      esperado: 'Funciona para los dos: es lo que la vendedora necesita ver',
+      obtenido: piso.error ? `Fallo: ${piso.error.message}` : 'Funciona',
+      bien: !piso.error,
     });
 
     setPruebas(resultados);
@@ -97,7 +146,9 @@ export function Verificacion() {
         <Aviso tono="exito" titulo="Todo en orden">Las {pruebas.length} pruebas pasaron.</Aviso>
       ) : (
         <Aviso tono="error" titulo={`${fallos} prueba(s) sin pasar`}>
-          Revisa que hayas ejecutado esquema.sql y esquema-complemento.sql completos en Supabase.
+          Revisa que hayas ejecutado todos los .sql en orden, hasta
+          esquema-flete-y-gastos.sql. Si falla una de las de fuga, no sigas:
+          la vendedora esta viendo algo que no deberia.
         </Aviso>
       )}
 
