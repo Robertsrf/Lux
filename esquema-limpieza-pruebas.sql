@@ -1,4 +1,26 @@
 -- =====================================================================
+-- YA NO SE CORRE. BORRA TODOS LOS DATOS.
+--
+-- Su parte 3 vacia modelos, lotes, existencias, ventas y reservas. Se
+-- escribio para limpiar los datos de prueba de las tres fases, y eso ya
+-- se hizo. Hoy hay inventario real cargado: correrlo otra vez se lleva
+-- el negocio por delante.
+--
+-- Sus partes 1 y 2 -el mensaje del minimo de mayoreo y las reservas
+-- vencidas- son arreglos permanentes que ya estan aplicados.
+--
+-- Si algun dia hace falta vaciar la base a proposito, se copia la parte
+-- 3 a un archivo nuevo y se corre a conciencia, no desde aqui.
+-- =====================================================================
+
+do $guarda$
+begin
+  raise exception
+    'Este archivo BORRA TODOS LOS DATOS y ya se ejecuto. No se vuelve a correr.';
+end
+$guarda$;
+
+-- =====================================================================
 -- Lux by Emory — cierre de las tres fases
 -- UN SOLO PEGADO. Hace tres cosas:
 --   1. Deja legible el mensaje del minimo de mayoreo.

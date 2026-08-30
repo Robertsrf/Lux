@@ -48,6 +48,3 @@ export function Monograma({ tamano = 40 }: { tamano?: number }) {
 }
 
 /** Las dos lineas finas del wordmark, reutilizadas como divisor. */
-export function Divisor() {
-  return <hr className="divisor" />;
-}

@@ -7,8 +7,6 @@ import type { Perfil } from './tipos';
  */
 export const DOMINIO_SINTETICO = 'lux.local';
 
-export const USUARIOS_CONOCIDOS = ['admin', 'socio', 'vendedora'] as const;
-
 export function correoDesdeUsuario(usuario: string): string {
   return `${usuario.trim().toLowerCase()}@${DOMINIO_SINTETICO}`;
 }
@@ -36,8 +34,6 @@ export function correoDesdeUsuario(usuario: string): string {
 export function contrasenaDesdePin(pin: string): string {
   return `lux.${pin.trim()}.emory`;
 }
-
-export const LARGO_PIN = 4;
 
 /**
  * Entrar con un solo codigo, sin escribir usuario.

@@ -1,3 +1,8 @@
+> **Histórico.** Documento de construcción original, de agosto de 2026. El sistema
+> ya está construido y el modelo de costos cambió varias veces desde entonces.
+> Para poner en marcha una instalación nueva, usa **INSTALACION.md**.
+> Esto se conserva porque explica por qué el sistema es como es.
+
 # Sistema de Inventario y Ventas — Lux by Emory
 
 Documento de construcción para Claude Code. Léelo completo antes de escribir código.

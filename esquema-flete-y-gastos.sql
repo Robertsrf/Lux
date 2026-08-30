@@ -511,6 +511,15 @@ grant select on v_volumen to authenticated;
 -- por ella, no el alquiler del mes, que se paga igual.
 -- =====================================================================
 
+-- Estas tres las creaba esquema-diagnostico.sql, que quedo sellado. Se
+-- repiten aqui para que la cadena viva se baste sola en una instalacion
+-- desde cero. Con `do nothing` no pisan lo que ya haya cargado.
+insert into configuracion (clave, valor, descripcion) values
+  ('piezas_inventario_objetivo', 0, 'Cuántas piezas maneja la tienda cuando está surtida'),
+  ('meses_rotacion_objetivo',    3, 'En cuántos meses quieres vender todo el inventario'),
+  ('ganancia_mensual_objetivo_usd', 0, 'Cuánto quieres que te quede libre al mes, en dólares BCV')
+on conflict (clave) do nothing;
+
 insert into configuracion (clave, valor, descripcion) values
   ('piezas_danadas_mes', 0, 'Cuántas piezas salieron dañadas o defectuosas al mes (0 si ninguna)')
 on conflict (clave) do nothing;

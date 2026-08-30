@@ -46,10 +46,6 @@ export function sumar(montos: Monto[]): Monto {
   return montos.reduce<Monto>((total, m) => total + m, 0n);
 }
 
-export function restar(a: Monto, b: Monto): Monto {
-  return a - b;
-}
-
 /** Multiplica un monto por una cantidad entera de piezas. */
 export function porCantidad(monto: Monto, cantidad: number): Monto {
   return monto * BigInt(Math.trunc(cantidad));
