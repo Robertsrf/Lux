@@ -5,7 +5,7 @@ import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBs, formatearFecha, formatearUsd } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { useTextos } from '../hooks/useTextos';
-import { useConsejos } from '../hooks/useConsejos';
+import { useFrases } from '../hooks/useFrases';
 import type { ModeloVenta } from '../lib/tipos';
 import '../estilos/impresion.css';
 
@@ -23,7 +23,7 @@ const POR_TANDA = 9;
  */
 export function CatalogoPdf() {
   const textos = useTextos();
-  const { por } = useConsejos();
+  const { secuencia: frases } = useFrases('TV');
   const [modelos, setModelos] = useState<ModeloVenta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +65,6 @@ export function CatalogoPdf() {
     for (let i = 0; i < modelos.length; i += POR_TANDA) salida.push(modelos.slice(i, i + POR_TANDA));
     return salida;
   }, [modelos]);
-
-  const frases = useMemo(() => por('vitrina'), [por]);
 
   if (cargando) return <Cargando texto="Armando el catalogo" />;
 

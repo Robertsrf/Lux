@@ -37,7 +37,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 13 | `esquema-inversiones.sql` | Vitrinas, muebles y barras de recuperación |
 | 14 | `esquema-flete-y-gastos.sql` | **El modelo de costos vigente** |
 | 15 | `esquema-grupos-nuevos.sql` | La escalera de siete grupos |
-| 16 | `esquema-frases.sql` | Frases de marca para vitrina y catálogo |
+| 16 | `esquema-frases.sql` | Quita consejos duplicados y pone su llave única |
+| 17 | `esquema-banco-frases.sql` | Las 222 frases del banco de la casa |
 
 ### Los que NO se corren
 

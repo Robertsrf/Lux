@@ -415,3 +415,24 @@ export interface Diagnostico {
   ganancia_proyectada_mes_usd: number;
   piezas_equilibrio: number | null;
 }
+
+/** Superficies donde una frase del banco puede aparecer. */
+export type Superficie = "TV" | "VEND" | "CAPTION";
+
+/** Tabla frases: el banco de la casa. El id es el del documento (SLG-01). */
+export interface FraseCategoria {
+  codigo: string;
+  nombre: string;
+  tono: string | null;
+  /** La nota interna del banco. La de CUI avisa que el IP negro no
+   *  aguanta la misma demostracion que el oro. */
+  nota: string | null;
+}
+
+export interface Frase {
+  id: string;
+  categoria: string;
+  superficie: Superficie[];
+  texto: string;
+  orden: number;
+}

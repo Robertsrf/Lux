@@ -1195,3 +1195,20 @@ table.tabla tfoot td {
   font-family: var(--fuente-ui); font-size: var(--t-14);
   background: var(--panel-hondo); padding: 1px 6px; border-radius: var(--radio-xs);
 }
+
+/* --- Banco de frases dentro de la guia -------------------------------- */
+/* Una lista larga que se lee de pie, con el telefono en una mano. Se le da
+   aire entre renglones y un guion de oro en vez de vineta. */
+
+.banco { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.banco li {
+  position: relative;
+  padding-left: var(--e-5);
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-16);
+  line-height: 1.45;
+}
+.banco li::before {
+  content: ''; position: absolute; left: 0; top: 0.7em;
+  width: 12px; height: 1px; background: var(--oro-arena);
+}

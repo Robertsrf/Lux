@@ -68,6 +68,7 @@
   color: var(--crema);
   text-wrap: balance;
 }
+.vitrina__frase-texto--corta { font-size: clamp(var(--t-56), 8vw, 120px); line-height: 1.05; }
 .vitrina__frase .vitrina__regla { width: min(320px, 60%); margin: 0; }
 
 .vitrina__foto {

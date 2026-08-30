@@ -5,8 +5,8 @@ import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBs, formatearUsd } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { useTextos } from '../hooks/useTextos';
-import { useConsejos } from '../hooks/useConsejos';
-import type { Consejo, ModeloVenta } from '../lib/tipos';
+import { useFrases } from '../hooks/useFrases';
+import type { Frase, ModeloVenta } from '../lib/tipos';
 import '../estilos/vitrina.css';
 
 const TAMANO_PAGINA = 500;
@@ -19,7 +19,7 @@ const SEGUNDOS = [5, 8, 12, 20] as const;
 
 type Diapositiva =
   | { tipo: 'pieza'; modelo: ModeloVenta; n: number }
-  | { tipo: 'frase'; consejo: Consejo };
+  | { tipo: 'frase'; frase: Frase };
 
 /**
  * Vitrina: el catalogo pasando solo, para dejarlo puesto en un televisor.
@@ -39,7 +39,7 @@ type Diapositiva =
  */
 export function Vitrina() {
   const textos = useTextos();
-  const { por } = useConsejos();
+  const { secuencia } = useFrases('TV');
   const [modelos, setModelos] = useState<ModeloVenta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,16 +83,17 @@ export function Vitrina() {
   // El guion: piezas con una frase cada CADA. Si no hay frases cargadas
   // queda solo el catalogo, que es como estaba antes.
   const guion = useMemo<Diapositiva[]>(() => {
-    const frases = por('vitrina');
     const salida: Diapositiva[] = [];
     modelos.forEach((modelo, i) => {
       salida.push({ tipo: 'pieza', modelo, n: i + 1 });
-      if (frases.length > 0 && (i + 1) % CADA === 0 && i + 1 < modelos.length) {
-        salida.push({ tipo: 'frase', consejo: frases[Math.floor(i / CADA) % frases.length]! });
+      if (secuencia.length > 0 && (i + 1) % CADA === 0 && i + 1 < modelos.length) {
+        // La secuencia ya viene alternada por categoria y sin repetir:
+        // recorrerla en orden cumple las dos reglas del banco.
+        salida.push({ tipo: 'frase', frase: secuencia[Math.floor(i / CADA) % secuencia.length]! });
       }
     });
     return salida;
-  }, [modelos, por]);
+  }, [modelos, secuencia]);
 
   const total = guion.length;
   const actual = total > 0 ? guion[indice % total] : null;
@@ -203,10 +204,12 @@ export function Vitrina() {
       <div className="vitrina__escena" key={indice}>
         {actual?.tipo === 'frase' ? (
           <div className="vitrina__frase">
-            {actual.consejo.etiqueta ? (
-              <p className="vitrina__frase-etiqueta">{actual.consejo.etiqueta}</p>
-            ) : null}
-            <p className="vitrina__frase-texto">{actual.consejo.texto}</p>
+            {/* Las micro-frases del banco son de dos a seis palabras y
+                piden mas cuerpo: de lejos, un destello corto tiene que
+                pesar tanto como una frase larga. */}
+            <p className={actual.frase.texto.length <= 24 ? 'vitrina__frase-texto vitrina__frase-texto--corta' : 'vitrina__frase-texto'}>
+              {actual.frase.texto}
+            </p>
             <div className="vitrina__regla" aria-hidden="true">
               <span /><Monograma tamano={30} /><span />
             </div>

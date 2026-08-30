@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Cargando, Vacio } from '../../componentes/Piezas';
 import { useConsejos } from '../../hooks/useConsejos';
+import { useFrases } from '../../hooks/useFrases';
 import type { Consejo } from '../../lib/tipos';
 
 const MOMENTOS = [
@@ -33,6 +34,7 @@ function Frase({ c, comillas = true }: { c: Consejo; comillas?: boolean }) {
 export function Guia() {
   const { por, cargando } = useConsejos();
   const [momento, setMomento] = useState('recibir');
+  const { porCategoria, categorias } = useFrases('VEND');
 
   if (cargando) return <Cargando texto="Abriendo la guia" />;
 
@@ -103,6 +105,29 @@ export function Guia() {
         {por('principio').map((c) => (
           <div className="tarjeta" key={c.id}><Frase c={c} comillas={false} /></div>
         ))}
+      </div>
+
+      <h2 className="seccion-titulo">El banco de la casa</h2>
+      <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
+        Frases listas para usar, por tema. No hay que aprenderselas: se abren
+        cuando hacen falta.
+      </p>
+      <div className="pila">
+        {categorias
+          .filter((c) => porCategoria.has(c.codigo))
+          .map((c) => (
+            <Ayuda key={c.codigo} titulo={`${c.nombre} (${porCategoria.get(c.codigo)!.length})`}>
+              {/* La nota interna va primero y con aviso: la de cuidados
+                  dice que el negro IP no aguanta la demostracion del oro,
+                  y eso hay que saberlo ANTES de hacerla. */}
+              {c.nota ? <Aviso tono="alerta" titulo="Antes de usar estas">{c.nota}</Aviso> : null}
+              <ul className="banco">
+                {porCategoria.get(c.codigo)!.map((f) => (
+                  <li key={f.id}>{f.texto}</li>
+                ))}
+              </ul>
+            </Ayuda>
+          ))}
       </div>
 
       <h2 className="seccion-titulo">Lo que nunca se hace</h2>
