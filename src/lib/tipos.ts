@@ -329,3 +329,41 @@ export interface Consejo {
   nota: string | null;
   orden: number;
 }
+
+/* ------------------------------------------ Inversiones y recuperación */
+
+export interface Inversion {
+  id: number;
+  nombre: string;
+  categoria: string;
+  monto_usd: number;
+  fecha: string;
+  /** null = no entra al precio; solo se recupera de la ganancia. */
+  amortizar_meses: number | null;
+  notas: string | null;
+  activo: boolean;
+}
+
+/** Vista v_recuperacion: cuánto de lo invertido ya volvió. */
+export interface Recuperacion {
+  invertido_mercancia_usd: number;
+  invertido_exhibidores_usd: number;
+  invertido_mobiliario_usd: number;
+  invertido_activos_usd: number;
+  invertido_total_usd: number;
+  mercancia_recuperada_usd: number;
+  mercancia_en_vitrina_usd: number;
+  ganancia_acumulada_usd: number;
+  ingreso_acumulado_usd: number;
+  piezas_vendidas: number;
+  activos_recuperado_pct: number | null;
+  mercancia_recuperada_pct: number | null;
+}
+
+/** Vista v_equilibrio: cuántas piezas al mes tapan los gastos. */
+export interface Equilibrio {
+  gastos_mes_usd: number;
+  piezas_vendidas: number;
+  contribucion_por_pieza_usd: number | null;
+  piezas_para_equilibrio: number | null;
+}
