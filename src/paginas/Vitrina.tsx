@@ -5,14 +5,21 @@ import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBs, formatearUsd } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { useTextos } from '../hooks/useTextos';
-import type { ModeloVenta } from '../lib/tipos';
+import { useConsejos } from '../hooks/useConsejos';
+import type { Consejo, ModeloVenta } from '../lib/tipos';
 import '../estilos/vitrina.css';
 
 const TAMANO_PAGINA = 500;
 const TOPE = 4000;
-const SEGUNDOS = [5, 8, 12, 20] as const;
 /** Tras este rato sin tocar nada, los controles se van y queda solo la pieza. */
 const OCULTAR_MS = 4000;
+/** Cada cuántas piezas entra una frase de marca. */
+const CADA = 4;
+const SEGUNDOS = [5, 8, 12, 20] as const;
+
+type Diapositiva =
+  | { tipo: 'pieza'; modelo: ModeloVenta; n: number }
+  | { tipo: 'frase'; consejo: Consejo };
 
 /**
  * Vitrina: el catalogo pasando solo, para dejarlo puesto en un televisor.
@@ -22,12 +29,17 @@ const OCULTAR_MS = 4000;
  * de nuevo. Un televisor de tienda se mira de lejos, asi que todo lo que se
  * lee esta en tamanos grandes de la escala, no en los de trabajo.
  *
+ * Cada cuatro piezas entra una frase de marca a pantalla completa. Son las
+ * mismas de la Guia del Colaborador, recortadas: lo que la vendedora diria
+ * de viva voz, dicho por la pantalla mientras ella atiende a otra clienta.
+ *
  * No muestra costo ni margen: lee `v_catalogo_venta`, la misma vista del
  * mostrador. Aunque quede encendida de cara al publico, no hay nada que
  * filtrar.
  */
 export function Vitrina() {
   const textos = useTextos();
+  const { por } = useConsejos();
   const [modelos, setModelos] = useState<ModeloVenta[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,15 +80,29 @@ export function Vitrina() {
     })();
   }, []);
 
-  const total = modelos.length;
-  const actual = total > 0 ? modelos[indice % total] : null;
+  // El guion: piezas con una frase cada CADA. Si no hay frases cargadas
+  // queda solo el catalogo, que es como estaba antes.
+  const guion = useMemo<Diapositiva[]>(() => {
+    const frases = por('vitrina');
+    const salida: Diapositiva[] = [];
+    modelos.forEach((modelo, i) => {
+      salida.push({ tipo: 'pieza', modelo, n: i + 1 });
+      if (frases.length > 0 && (i + 1) % CADA === 0 && i + 1 < modelos.length) {
+        salida.push({ tipo: 'frase', consejo: frases[Math.floor(i / CADA) % frases.length]! });
+      }
+    });
+    return salida;
+  }, [modelos, por]);
+
+  const total = guion.length;
+  const actual = total > 0 ? guion[indice % total] : null;
 
   const avanzar = useCallback((paso: number) => {
     setIndice((i) => (total > 0 ? (i + paso + total) % total : 0));
   }, [total]);
 
-  // El avance automatico. Se rearma en cada cambio de pieza, asi que pasar
-  // una a mano tambien reinicia la cuenta: no salta a los dos segundos.
+  // El avance automatico. Se rearma en cada cambio, asi que pasar una a
+  // mano tambien reinicia la cuenta: no salta a los dos segundos.
   useEffect(() => {
     if (pausado || total <= 1) return;
     const id = window.setTimeout(() => avanzar(1), segundos * 1000);
@@ -87,10 +113,11 @@ export function Vitrina() {
   // pieza aparece a medio cargar en la conexion de la tienda.
   useEffect(() => {
     if (total <= 1) return;
-    const siguiente = modelos[(indice + 1) % total];
-    const url = urlPublicaFoto(siguiente?.foto_path ?? siguiente?.foto_thumb_path);
+    const siguiente = guion[(indice + 1) % total];
+    if (siguiente?.tipo !== 'pieza') return;
+    const url = urlPublicaFoto(siguiente.modelo.foto_path ?? siguiente.modelo.foto_thumb_path);
     if (url) { const img = new Image(); img.src = url; }
-  }, [indice, modelos, total]);
+  }, [indice, guion, total]);
 
   // Un televisor puesto toda la tarde se apaga solo. Donde el navegador lo
   // permita se le pide que no lo haga; donde no, no pasa nada.
@@ -144,7 +171,9 @@ export function Vitrina() {
   }, [avanzar, mostrarControles, alternarPantallaCompleta]);
 
   const foto = useMemo(
-    () => urlPublicaFoto(actual?.foto_path ?? actual?.foto_thumb_path),
+    () => (actual?.tipo === 'pieza'
+      ? urlPublicaFoto(actual.modelo.foto_path ?? actual.modelo.foto_thumb_path)
+      : null),
     [actual],
   );
 
@@ -169,29 +198,49 @@ export function Vitrina() {
         <Wordmark alto={48} tono="crema" />
       </div>
 
-      {/* Cada pieza es su propia key: React la reemplaza en vez de reusarla,
-          y asi la animacion de entrada corre en cada cambio. */}
-      <div className="vitrina__pieza" key={actual?.id ?? 'vacia'}>
-        <div className="vitrina__foto">
-          {foto
-            ? <img src={foto} alt={actual?.nombre ?? ''} />
-            : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
-        </div>
+      {/* Cada diapositiva es su propia key: React la reemplaza en vez de
+          reusarla, y asi la animacion de entrada corre en cada cambio. */}
+      <div className="vitrina__escena" key={indice}>
+        {actual?.tipo === 'frase' ? (
+          <div className="vitrina__frase">
+            {actual.consejo.etiqueta ? (
+              <p className="vitrina__frase-etiqueta">{actual.consejo.etiqueta}</p>
+            ) : null}
+            <p className="vitrina__frase-texto">{actual.consejo.texto}</p>
+            <div className="vitrina__regla" aria-hidden="true">
+              <span /><Monograma tamano={30} /><span />
+            </div>
+          </div>
+        ) : actual?.tipo === 'pieza' ? (
+          <div className="vitrina__pieza">
+            <div className="vitrina__foto">
+              {foto
+                ? <img src={foto} alt={actual.modelo.nombre} />
+                : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
+            </div>
 
-        <div className="vitrina__ficha">
-          {actual?.categoria ? <p className="vitrina__categoria">{actual.categoria}</p> : null}
-          <h1 className="vitrina__nombre">{actual?.nombre}</h1>
-          {actual?.variantes_nota ? <p className="vitrina__nota">{actual.variantes_nota}</p> : null}
+            <div className="vitrina__ficha">
+              {actual.modelo.categoria ? (
+                <p className="vitrina__categoria">{actual.modelo.categoria}</p>
+              ) : null}
+              <h1 className="vitrina__nombre">{actual.modelo.nombre}</h1>
+              {actual.modelo.variantes_nota ? (
+                <p className="vitrina__nota">{actual.modelo.variantes_nota}</p>
+              ) : null}
 
-          <div className="vitrina__regla" aria-hidden="true"><span /><Monograma tamano={26} /><span /></div>
+              <div className="vitrina__regla" aria-hidden="true">
+                <span /><Monograma tamano={26} /><span />
+              </div>
 
-          <p className="vitrina__precio">{formatearBs(actual?.precio_bs ?? null)}</p>
-          <p className="vitrina__precio-usd">{formatearUsd(actual?.precio_usd ?? null)}</p>
+              <p className="vitrina__precio">{formatearBs(actual.modelo.precio_bs)}</p>
+              <p className="vitrina__precio-usd">{formatearUsd(actual.modelo.precio_usd)}</p>
 
-          {textos.materiales_corto ? (
-            <p className="vitrina__materiales">{textos.materiales_corto}</p>
-          ) : null}
-        </div>
+              {textos.materiales_corto ? (
+                <p className="vitrina__materiales">{textos.materiales_corto}</p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
@@ -205,14 +254,14 @@ export function Vitrina() {
 
       <div className="vitrina__controles">
         <div className="vitrina__grupo">
-          <button type="button" className="boton boton--secundario" onClick={() => avanzar(-1)} aria-label="Pieza anterior">‹</button>
+          <button type="button" className="boton boton--secundario" onClick={() => avanzar(-1)} aria-label="Anterior">‹</button>
           <button type="button" className="boton boton--secundario" onClick={() => setPausado((p) => !p)}>
             {pausado ? 'Reanudar' : 'Pausar'}
           </button>
-          <button type="button" className="boton boton--secundario" onClick={() => avanzar(1)} aria-label="Pieza siguiente">›</button>
+          <button type="button" className="boton boton--secundario" onClick={() => avanzar(1)} aria-label="Siguiente">›</button>
         </div>
 
-        <div className="vitrina__grupo" role="group" aria-label="Segundos por pieza">
+        <div className="vitrina__grupo" role="group" aria-label="Segundos por pantalla">
           {SEGUNDOS.map((s) => (
             <button
               key={s}
@@ -227,7 +276,9 @@ export function Vitrina() {
         </div>
 
         <div className="vitrina__grupo">
-          <span className="vitrina__cuenta">{indice + 1} de {total}</span>
+          <span className="vitrina__cuenta">
+            {actual?.tipo === 'pieza' ? `Pieza ${actual.n} de ${modelos.length}` : 'Lux by Emory'}
+          </span>
           <button type="button" className="boton boton--confirmar" onClick={alternarPantallaCompleta}>
             {pantallaCompleta ? 'Salir' : 'Pantalla completa'}
           </button>

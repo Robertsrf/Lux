@@ -24,6 +24,12 @@
 
 /* --- La pieza ------------------------------------------------------- */
 
+.vitrina__escena {
+  min-height: 0;
+  display: grid;
+  animation: vitrina-entra 700ms var(--salida) both;
+}
+
 .vitrina__pieza {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -31,8 +37,38 @@
   gap: var(--e-8);
   padding: var(--e-6) var(--e-8);
   min-height: 0;
-  animation: vitrina-entra 700ms var(--salida) both;
 }
+
+/* --- La frase de marca: una sola idea, centrada, y nada mas ---------- */
+
+.vitrina__frase {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  gap: var(--e-5);
+  padding: var(--e-6) var(--e-8);
+  max-width: 22ch;
+  margin: 0 auto;
+}
+.vitrina__frase-etiqueta {
+  margin: 0;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-16);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+/* Serif de lectura, no display: es una frase, no una cifra. */
+.vitrina__frase-texto {
+  margin: 0;
+  font-family: var(--fuente-prosa);
+  font-size: clamp(var(--t-40), 5vw, 76px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--crema);
+  text-wrap: balance;
+}
+.vitrina__frase .vitrina__regla { width: min(320px, 60%); margin: 0; }
 
 .vitrina__foto {
   display: flex; align-items: center; justify-content: center;
@@ -207,6 +243,8 @@
   .vitrina__nombre { font-size: var(--t-40); }
   .vitrina__precio { font-size: var(--t-40); }
   .vitrina__materiales { display: none; }
+  .vitrina__frase { max-width: none; padding: var(--e-4); }
+  .vitrina__frase-texto { font-size: var(--t-28); }
   .vitrina__controles { justify-content: center; }
 }
 
@@ -223,6 +261,6 @@
 
 /* Quien pidio menos movimiento no recibe ni la entrada ni la barra. */
 @media (prefers-reduced-motion: reduce) {
-  .vitrina__pieza { animation: none; }
+  .vitrina__escena { animation: none; }
   .vitrina__progreso-barra { animation: none; transform: scaleX(1); }
 }

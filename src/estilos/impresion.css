@@ -165,3 +165,48 @@
   color: color-mix(in srgb, var(--crema) 66%, transparent);
 }
 .portada__lugar { margin-top: auto; padding-top: var(--e-5); }
+
+/* --- Franja de marca entre tandas de fichas -------------------------- */
+/* Cada nueve fichas entra una frase de la Guia del Colaborador. Rompe la
+   monotonia de la rejilla y dice en voz de la casa lo que la vendedora
+   diria en persona. Verde a sangre como la portada: el catalogo es una
+   pieza digital, asi que el argumento del gasto de tinta no aplica. */
+
+.catalogo__franja {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: var(--e-6) 0;
+  padding: var(--e-6) var(--e-5);
+  border-radius: var(--radio-lg);
+  background: var(--verde-profundo);
+  color: var(--crema);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--e-4);
+}
+
+.franja__texto {
+  margin: 0;
+  max-width: 40ch;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.franja__regla {
+  display: flex; align-items: center; gap: var(--e-3);
+  width: min(260px, 70%);
+  color: var(--oro-arena);
+}
+.franja__regla span { flex: 1 1 auto; height: 1px; background: var(--oro-arena); }
+.franja__regla .monograma { background: transparent; box-shadow: none; flex: none; }
+
+@media print {
+  /* Sin esto el navegador descarta el fondo verde y la franja sale en
+     blanco, igual que la portada. */
+  .catalogo__franja { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .franja__texto { font-size: 12pt; }
+}
