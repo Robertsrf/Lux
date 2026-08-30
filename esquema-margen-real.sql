@@ -1,4 +1,24 @@
 -- =====================================================================
+-- YA NO SE CORRE. Reemplazado por esquema-flete-y-gastos.sql.
+--
+-- Este archivo definia v_catalogo_admin y los reportes con el modelo viejo: flete por peso, gastos
+-- multiplicados por la brecha y una merma fija de 5 %. Todo eso se corrigio.
+--
+-- Volver a correrlo no falla de frente: revierte esas formulas a la version
+-- vieja EN SILENCIO, porque la clave `merma_pct` ya no existe y coalesce la
+-- vuelve 0 sin avisar. Los margenes volverian a estar mal y nada lo diria.
+--
+-- Se queda en el repo como historia de por que el modelo es como es.
+-- =====================================================================
+
+do $guarda$
+begin
+  raise exception
+    'Este archivo quedo obsoleto: corre esquema-flete-y-gastos.sql en su lugar.';
+end
+$guarda$;
+
+-- =====================================================================
 -- Lux by Emory — el margen que se reporta es el margen de verdad
 -- Ejecutar en el SQL Editor DESPUÉS de esquema-inversiones.sql
 --
