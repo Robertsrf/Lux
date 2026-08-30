@@ -19,7 +19,6 @@ const VACIO = {
   variantes_nota: '',
   lote_id: '',
   costo_unitario_usd: '',
-  peso_unitario_g: '',
   grupo_precio_id: '',
   precio_override_usd: '',
 };
@@ -43,7 +42,7 @@ export function FormularioModelo() {
 
   const [form, setForm] = useState(VACIO);
   const [cantidades, setCantidades] = useState<Record<number, string>>({});
-  const [lotes, setLotes] = useState<Pick<LoteAdmin, 'id' | 'codigo' | 'metodo'>[]>([]);
+  const [lotes, setLotes] = useState<Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd'>[]>([]);
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   const [fotoActual, setFotoActual] = useState<string | null>(null);
   const [sugerencia, setSugerencia] = useState<PrecioSugerido | null>(null);
@@ -60,8 +59,8 @@ export function FormularioModelo() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from('v_lotes_admin').select('id, codigo, metodo').order('fecha_llegada', { ascending: false });
-      setLotes((data as Pick<LoteAdmin, 'id' | 'codigo' | 'metodo'>[] | null) ?? []);
+      const { data } = await supabase.from('v_lotes_admin').select('id, codigo, flete_por_unidad_usd').order('fecha_llegada', { ascending: false });
+      setLotes((data as Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd'>[] | null) ?? []);
     })();
   }, []);
 
@@ -71,7 +70,7 @@ export function FormularioModelo() {
       setCargando(true);
       const { data, error: err } = await supabase
         .from('v_catalogo_admin')
-        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, peso_unitario_g, flete_unitario_usd')
+        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd')
         .eq('id', Number(id))
         .maybeSingle();
 
@@ -87,7 +86,6 @@ export function FormularioModelo() {
         variantes_nota: m.variantes_nota ?? '',
         lote_id: m.lote_id ? String(m.lote_id) : '',
         costo_unitario_usd: String(m.costo_unitario_usd ?? ''),
-        peso_unitario_g: String(m.peso_unitario_g ?? ''),
         grupo_precio_id: m.grupo_precio_id ? String(m.grupo_precio_id) : '',
         precio_override_usd: m.precio_override_usd === null ? '' : String(m.precio_override_usd),
       });
@@ -110,12 +108,11 @@ export function FormularioModelo() {
   const pedirSugerencia = useCallback(async () => {
     const { data, error: err } = await supabase.rpc('admin_sugerir_precio', {
       p_lote_id: form.lote_id ? Number(form.lote_id) : null,
-      p_peso_g: Number(form.peso_unitario_g || 0),
       p_costo_usd: Number(form.costo_unitario_usd || 0),
       p_margen_pct: margenObjetivo === '' ? null : Number(margenObjetivo),
     });
     if (!err) setSugerencia(data as unknown as PrecioSugerido);
-  }, [form.lote_id, form.peso_unitario_g, form.costo_unitario_usd, margenObjetivo]);
+  }, [form.lote_id, form.costo_unitario_usd, margenObjetivo]);
 
   useEffect(() => {
     const t = setTimeout(() => void pedirSugerencia(), 400);
@@ -169,7 +166,6 @@ export function FormularioModelo() {
         p_grupo_precio_id: form.grupo_precio_id ? Number(form.grupo_precio_id) : null,
         p_lote_id: form.lote_id ? Number(form.lote_id) : null,
         p_costo_unitario_usd: Number(form.costo_unitario_usd || 0),
-        p_peso_unitario_g: Number(form.peso_unitario_g || 0),
         p_descripcion: form.descripcion || null,
         p_variantes_nota: form.variantes_nota || null,
         p_precio_override_usd: form.precio_override_usd ? Number(form.precio_override_usd) : null,
@@ -274,14 +270,11 @@ export function FormularioModelo() {
             <Campo etiqueta="Lote" htmlFor="m-lote" pista="De el sale el flete que le toca a esta pieza.">
               <select id="m-lote" value={form.lote_id} onChange={(e) => cambiar('lote_id', e.target.value)}>
                 <option value="">Sin lote</option>
-                {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo} ({l.metodo})</option>)}
+                {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearUsd(l.flete_por_unidad_usd, 4)} por pieza`}</option>)}
               </select>
             </Campo>
             <Campo etiqueta="Costo unitario $" htmlFor="m-costo">
               <input id="m-costo" type="number" step="0.0001" min="0" value={form.costo_unitario_usd} onChange={(e) => cambiar('costo_unitario_usd', e.target.value)} />
-            </Campo>
-            <Campo etiqueta="Peso unitario (g)" htmlFor="m-peso">
-              <input id="m-peso" type="number" step="0.01" min="0" value={form.peso_unitario_g} onChange={(e) => cambiar('peso_unitario_g', e.target.value)} />
             </Campo>
           </div>
 

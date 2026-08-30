@@ -103,45 +103,49 @@ export function brecha(tasaVenta: number | null, tasaBcv: number | null): number
   return tasaVenta / tasaBcv - 1;
 }
 
-/** Desglose del prorrateo de flete de un lote (PLAN 4). */
+/** Desglose del prorrateo de flete de un lote. */
 export interface Prorrateo {
   fleteMercanciaUsd: number;
   fleteExhibidoresUsd: number;
   capexTiendaUsd: number;
-  fletePorGramoUsd: number | null;
+  /** Lo que paga de flete cada bulto, joya o exhibidor por igual. */
+  fletePorUnidadUsd: number | null;
 }
 
 export interface DatosLote {
   costoMercanciaUsd: string | number;
   costoExhibidoresUsd: string | number;
   costoFleteUsd: string | number;
-  pesoMercanciaG: string | number;
-  pesoExhibidoresG: string | number;
-  metodo: 'peso' | 'valor';
+  piezasMercancia: string | number;
+  unidadesExhibidores: string | number;
 }
 
 /**
- * Previsualizacion del prorrateo mientras se llena el formulario del lote.
- * La cifra que manda es la que calcula la base (`lotes.flete_mercancia_usd`,
- * columna generada); esto solo evita guardar a ciegas.
+ * Previsualizacion del prorrateo de flete mientras se llena el lote.
  *
- * Los exhibidores no reciben carga de flete en el costo de las joyas: su
- * parte va a CAPEX de tienda.
+ * EL FLETE SE REPARTE POR BULTO. No por peso y no por valor: el flete no
+ * cobra por lo que vale la caja ni por lo que pesa un anillo, cobra por
+ * traerla. Un collar de $11 y un brazalete de $0,92 ocuparon el mismo
+ * espacio y pagan lo mismo.
+ *
+ * Los exhibidores son bultos tambien y pagan su parte, pero esa parte va
+ * a CAPEX de tienda: no encarece las joyas.
+ *
+ * La cifra que manda es la de la base (`lotes.flete_mercancia_usd`,
+ * columna generada); esto solo evita guardar a ciegas.
  */
 export function previsualizarProrrateo(datos: DatosLote): Prorrateo {
   const flete = aMonto(datos.costoFleteUsd);
-  const costoMerc = aMonto(datos.costoMercanciaUsd);
   const costoExh = aMonto(datos.costoExhibidoresUsd);
-  const pesoMerc = aMonto(datos.pesoMercanciaG);
-  const pesoExh = aMonto(datos.pesoExhibidoresG);
+  const piezas = Math.max(Math.trunc(Number(datos.piezasMercancia) || 0), 0);
+  const exhib = Math.max(Math.trunc(Number(datos.unidadesExhibidores) || 0), 0);
+  const bultos = piezas + exhib;
 
   let fleteMercancia = 0n;
-  if (datos.metodo === 'peso') {
-    const pesoTotal = pesoMerc + pesoExh;
-    if (pesoTotal > 0n) fleteMercancia = (flete * pesoMerc) / pesoTotal;
-  } else {
-    const costoTotal = costoMerc + costoExh;
-    if (costoTotal > 0n) fleteMercancia = (flete * costoMerc) / costoTotal;
+  let porUnidad: number | null = null;
+  if (bultos > 0) {
+    fleteMercancia = (flete * BigInt(piezas)) / BigInt(bultos);
+    porUnidad = deMonto(flete / BigInt(bultos));
   }
 
   const fleteExhibidores = flete - fleteMercancia;
@@ -150,7 +154,7 @@ export function previsualizarProrrateo(datos: DatosLote): Prorrateo {
     fleteMercanciaUsd: deMonto(fleteMercancia),
     fleteExhibidoresUsd: deMonto(fleteExhibidores),
     capexTiendaUsd: deMonto(costoExh + fleteExhibidores),
-    fletePorGramoUsd: pesoMerc > 0n ? deMonto((fleteMercancia * FACTOR) / pesoMerc) : null,
+    fletePorUnidadUsd: porUnidad,
   };
 }
 
@@ -180,11 +184,6 @@ export function formatearPorcentaje(valor: number | null | undefined, decimales 
 export function formatearTasa(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
   return NUM(2, 4).format(valor);
-}
-
-export function formatearGramos(valor: number | null | undefined): string {
-  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
-  return NUM(0, 2).format(valor) + ' g';
 }
 
 export function formatearEntero(valor: number | null | undefined): string {
@@ -234,81 +233,4 @@ export function cuentaRegresiva(iso: string | null | undefined): string | null {
   const minutos = Math.floor(faltan / 60000);
   const segundos = Math.floor((faltan % 60000) / 1000);
   return `${minutos}:${String(segundos).padStart(2, '0')}`;
-}
-
-/* ------------------------------------------- costos del negocio (vista previa) */
-
-export interface GastosNegocio {
-  alquiler: number;
-  sueldos: number;
-  servicios: number;
-  otros: number;
-  empaquePorPieza: number;
-  piezasMes: number;
-  /** Lo invertido en exhibidores, que el sistema ya aparta como CAPEX. */
-  capexTotal: number;
-  capexMeses: number;
-  mermaPct: number;
-}
-
-export interface CostoOperativo {
-  fijosMes: number;
-  capexMes: number;
-  totalMes: number;
-  porPieza: number;
-}
-
-/**
- * Cuanto carga cada pieza de gastos del negocio.
- *
- * El reparto es IGUAL POR PIEZA: atender, empacar y despachar un anillo
- * cuesta el mismo tiempo y el mismo empaque que una cadena, asi que
- * repartir por valor le cargaria a lo caro un trabajo que no causa.
- *
- * Es solo para ver el efecto mientras se escriben los numeros. La cifra
- * que manda la calcula `costo_operativo_por_pieza()` en la base.
- */
-export function previsualizarCostoOperativo(g: GastosNegocio): CostoOperativo {
-  const fijos = deMonto(sumar([g.alquiler, g.sueldos, g.servicios, g.otros].map(aMonto)));
-  const capexMes = g.capexMeses > 0 ? deMonto(aMonto(g.capexTotal) / BigInt(Math.trunc(g.capexMeses))) : 0;
-  const totalMes = deMonto(aMonto(fijos) + aMonto(capexMes));
-  const porPieza = g.piezasMes > 0
-    ? deMonto(aMonto(totalMes) / BigInt(Math.trunc(g.piezasMes)) + aMonto(g.empaquePorPieza))
-    : g.empaquePorPieza;
-  return { fijosMes: fijos, capexMes, totalMes, porPieza };
-}
-
-export interface PrecioCalculado {
-  costoTotal: number;
-  costoEnBcv: number;
-  precioBcv: number;
-  gananciaPorPieza: number;
-}
-
-/**
- * De costo a etiqueta, los cuatro pasos:
- *   1. costo total  = mercancia + flete + operativo, subido por la merma
- *   2. a dolares BCV, multiplicando por la brecha
- *   3. precio       = costo BCV / (1 - margen)
- *   4. la ganancia se mide en dolares REALES, que son los recomprables
- */
-export function previsualizarPrecio(
-  costoPuesto: number,
-  operativoPorPieza: number,
-  mermaPct: number,
-  factorBrecha: number,
-  margenPct: number,
-): PrecioCalculado | null {
-  if (margenPct >= 100 || mermaPct >= 100 || factorBrecha <= 0) return null;
-  const base = deMonto(aMonto(costoPuesto) + aMonto(operativoPorPieza));
-  const costoTotal = base / (1 - mermaPct / 100);
-  const costoEnBcv = costoTotal * factorBrecha;
-  const precioBcv = costoEnBcv / (1 - margenPct / 100);
-  const precioReal = precioBcv / factorBrecha;
-  return {
-    costoTotal,
-    costoEnBcv,
-    precioBcv,
-    gananciaPorPieza: precioReal - costoTotal,
-  };
 }

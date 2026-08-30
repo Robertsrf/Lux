@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Campo, Vacio } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBs, formatearGramos, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
+import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -126,12 +126,11 @@ export function Inventario() {
                   <th>Modelo</th>
                   <th>Grupo</th>
                   <th>Lote</th>
-                  <th className="num">Peso</th>
                   <th className="num">Costo puesto</th>
                   <th className="num">Costo total</th>
                   <th className="num">Etiqueta $ BCV</th>
                   <th className="num">Paga en Bs</th>
-                  <th className="num">Te queda $</th>
+                  <th className="num">Ganancia real $</th>
                   <th className="num">Margen $</th>
                   <th className="num">Margen %</th>
                   <th className="num">Existencia</th>
@@ -167,15 +166,14 @@ export function Inventario() {
                       </td>
                       <td className="util">{m.grupo ?? '—'}</td>
                       <td className="util">{m.lote_codigo ?? '—'}</td>
-                      <td className="num">{formatearGramos(m.peso_unitario_g)}</td>
                       <td className="num">{formatearUsd(m.costo_puesto_usd, 4)}</td>
                       <td className="num">
                         {formatearUsd(m.costo_total_usd, 4)}
-                        <div className="celda-nota">+{formatearUsd(m.costo_operativo_usd)} de gastos</div>
+                        <div className="celda-nota">{formatearUsd(m.costo_mercancia_bcv)} mercancia + {formatearUsd(m.costo_operativo_usd)} tienda</div>
                       </td>
                       <td className="num">{formatearUsd(m.precio_usd)}</td>
                       <td className="num precio">{formatearBs(m.precio_bs)}</td>
-                      <td className="num">{formatearUsd(m.precio_usd_real)}</td>
+                      <td className="num">{formatearUsd(m.ganancia_real_usd)}</td>
                       <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
                         {formatearUsd(m.margen_usd)}
                       </td>

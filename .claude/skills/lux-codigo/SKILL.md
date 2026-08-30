@@ -36,7 +36,59 @@ Nunca guardes un precio en Bs en la tabla `modelos`. Si lo haces, mover la tasa 
 
 **Única excepción:** `ventas` y `venta_items` guardan Bs porque son un hecho histórico congelado.
 
-### 3. Tres tasas, tres trabajos — no las confundas
+### 3. Hay DOS monedas en el costo, y la brecha solo toca una
+
+Corregido por el dueño el 30/08/2026, después de que el sistema inflara cada
+pieza unos $0,57 durante toda la fase de pruebas.
+
+| Qué | En qué dólar nace | ¿Se multiplica por la brecha? |
+|---|---|---|
+| Mercancía y su flete | **Binance** (se compra afuera) | **Sí** |
+| Exhibidores importados | **Binance** | **Sí** |
+| Alquiler, sueldos, servicios, empaque | **BCV** (se paga aquí) | **No** |
+| Muebles comprados aquí | **BCV** | **No** |
+
+```
+costo BCV = costo_puesto * brecha * merma  +  gastos_de_tienda
+precio    = costo BCV / (1 - margen)
+```
+
+La brecha responde a **una sola pregunta**: cuántos dólares BCV hacen falta
+para volver a comprar esa pieza a tasa Binance. No es un multiplicador
+general de costos. Aplicársela al alquiler es cobrarle al cliente una
+conversión que nunca ocurre.
+
+**Corolario:** el margen y las ganancias se reportan **en dólares BCV**. Antes
+daba igual —costo y precio vivían en la misma moneda y el porcentaje no cambia
+al dividir arriba y abajo por lo mismo—; ahora el costo es mixto y ya no da
+igual. Aparte se muestra la ganancia en dólares reales, que son los
+recomprables. `inversiones.moneda` dice en cuál se pagó cada una.
+
+### 4. El flete se reparte por bulto, nunca por peso ni por valor
+
+El flete no cobra por lo que vale la caja ni por lo que pesa un anillo: cobra
+por traerla. Se divide entre **todo** lo que vino, exhibidores incluidos.
+
+```
+flete por unidad = costo_flete / (piezas_mercancia + unidades_exhibidores)
+```
+
+El reparto por valor le cargaba $0,89 de flete a un collar de $10,97 y
+$0,07 a un brazalete de $0,92 que viajó en la misma caja. **El peso ya no
+existe en el sistema**: ni columna, ni campo, ni pregunta. No lo reintroduzcas.
+
+### 5. Nunca inventes una merma ni un volumen
+
+Un 5 % de merma supuesto encarece todas las piezas todos los meses aunque no
+se dañe nada. Se cuentan piezas: `piezas_danadas_mes`, y si es 0 el factor es
+1 y no encarece nada.
+
+El volumen tampoco se pregunta ni se supone para siempre: arranca del objetivo
+de inventario entre los meses de rotación, y **en cuanto hay un mes cumplido
+desde la primera venta pasa a medirse de las ventas reales**. `v_volumen.origen`
+dice cuál de las dos está mandando.
+
+### 6. Tres tasas, tres trabajos — no las confundas
 
 | Tasa | Vive en | Se usa para | ¿Cambia? |
 |---|---|---|---|
@@ -46,22 +98,34 @@ Nunca guardes un precio en Bs en la tabla `modelos`. Si lo haces, mover la tasa 
 
 **Nunca recalcules el costo de un lote viejo con una tasa nueva.** Si aparece código que hace eso, es un bug grave: borra la historia real de la inversión.
 
-### 4. Congela al momento del hecho
-Al registrar una venta, guarda en el registro: `tasa_venta_usada`, `tasa_bcv_usada`, `precio_unitario_usd`, `precio_unitario_bs` y `costo_puesto_usd_snap`.
+### 7. Congela al momento del hecho
+Al registrar una venta, guarda en el registro: `tasa_venta_usada`, `tasa_bcv_usada`, `precio_unitario_usd`, `precio_unitario_bs`, `costo_puesto_usd_snap` y `costo_operativo_usd_snap`.
 
 Motivo: el margen histórico debe seguir siendo exacto aunque la tasa cambie mañana. Si el reporte de ganancia de enero cambia porque hoy movieron la tasa, el sistema está mintiendo.
 
-### 5. El margen siempre se mide en dólares
+### 8. El margen se mide en dólares, y son los BCV
 ```
-ganancia_usd = (total_bs / tasa_venta_usada) − Σ(costo_puesto_usd_snap × cantidad)
+ganancia_bcv = (total_bs / tasa_bcv_usada)
+             − Σ((costo_puesto_usd_snap × brecha_congelada + costo_operativo_usd_snap) × cantidad)
 ```
-Nunca reportes ganancia en bolívares como cifra principal. La inflación la vuelve ilegible en semanas.
+donde `brecha_congelada = tasa_venta_usada / tasa_bcv_usada`. La brecha del día
+de la venta, no la de hoy: si el reporte de enero cambia porque hoy movieron la
+tasa, el sistema está mintiendo.
 
-### 6. Costo puesto, no costo pelado
+Nunca reportes ganancia en bolívares como cifra principal: la inflación la
+vuelve ilegible en semanas. Y no mezcles monedas dentro de una resta — es el
+error que estuvo vivo toda la fase de pruebas.
+
+### 9. Costo puesto, no costo pelado
 El costo de una pieza es `costo_unitario_usd + flete_unitario_usd`. Es columna generada en la base; **no la calcules a mano en el frontend**.
 
-### 7. Los exhibidores no son inventario
-Su costo y su parte del flete van a CAPEX de tienda (`v_capex_lote`), **jamás al costo de las joyas**. Si aparece código que reparte flete entre todo por igual, está mal.
+### 10. Los exhibidores no son inventario
+Su costo y su parte del flete van a CAPEX de tienda (`v_capex_lote`), **jamás al
+costo de las joyas**.
+
+Ojo con la sutileza: los exhibidores **sí** pagan flete y lo pagan igual que
+cualquier otro bulto (regla 4). Lo que nunca ocurre es que esa parte se le cargue
+a las joyas. Reparto parejo entre bultos, destinos distintos.
 
 ---
 

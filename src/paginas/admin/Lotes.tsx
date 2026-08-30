@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearFecha, formatearGramos, formatearTasa, formatearUsd, previsualizarProrrateo } from '../../lib/dinero';
-import type { LoteAdmin, MetodoProrrateo } from '../../lib/tipos';
+import { formatearEntero, formatearFecha, formatearTasa, formatearUsd, previsualizarProrrateo } from '../../lib/dinero';
+import type { LoteAdmin } from '../../lib/tipos';
 
 const HOY = () => new Date().toISOString().slice(0, 10);
 
@@ -14,9 +14,8 @@ const FORM_VACIO = {
   costo_mercancia_usd: '',
   costo_exhibidores_usd: '',
   costo_flete_usd: '',
-  peso_mercancia_g: '',
-  peso_exhibidores_g: '',
-  metodo: 'peso' as MetodoProrrateo,
+  piezas_mercancia: '',
+  unidades_exhibidores: '',
   notas: '',
 };
 
@@ -40,7 +39,7 @@ export function Lotes() {
     setCargando(true);
     const { data, error: err } = await supabase
       .from('v_lotes_admin')
-      .select('id, codigo, fecha_llegada, tasa_binance_compra, costo_mercancia_usd, costo_exhibidores_usd, costo_flete_usd, peso_mercancia_g, peso_exhibidores_g, metodo, notas, flete_mercancia_usd, flete_exhibidores_usd, capex_total_usd, flete_por_gramo_usd, modelos_cargados')
+      .select('id, codigo, fecha_llegada, tasa_binance_compra, costo_mercancia_usd, costo_exhibidores_usd, costo_flete_usd, piezas_mercancia, unidades_exhibidores, notas, flete_mercancia_usd, flete_exhibidores_usd, capex_total_usd, flete_por_unidad_usd, modelos_cargados')
       .order('fecha_llegada', { ascending: false });
     if (err) setError(mensajeDeError(err));
     setLotes((data as LoteAdmin[] | null) ?? []);
@@ -53,9 +52,8 @@ export function Lotes() {
     costoMercanciaUsd: form.costo_mercancia_usd,
     costoExhibidoresUsd: form.costo_exhibidores_usd,
     costoFleteUsd: form.costo_flete_usd,
-    pesoMercanciaG: form.peso_mercancia_g,
-    pesoExhibidoresG: form.peso_exhibidores_g,
-    metodo: form.metodo,
+    piezasMercancia: form.piezas_mercancia,
+    unidadesExhibidores: form.unidades_exhibidores,
   }), [form]);
 
   function cambiar<K extends keyof typeof FORM_VACIO>(campo: K, valor: (typeof FORM_VACIO)[K]) {
@@ -71,9 +69,8 @@ export function Lotes() {
       costo_mercancia_usd: String(l.costo_mercancia_usd),
       costo_exhibidores_usd: String(l.costo_exhibidores_usd),
       costo_flete_usd: String(l.costo_flete_usd),
-      peso_mercancia_g: String(l.peso_mercancia_g),
-      peso_exhibidores_g: String(l.peso_exhibidores_g),
-      metodo: l.metodo,
+      piezas_mercancia: String(l.piezas_mercancia),
+      unidades_exhibidores: String(l.unidades_exhibidores),
       notas: l.notas ?? '',
     });
     setExito(null);
@@ -95,9 +92,8 @@ export function Lotes() {
       p_costo_mercancia_usd: Number(form.costo_mercancia_usd || 0),
       p_costo_exhibidores_usd: Number(form.costo_exhibidores_usd || 0),
       p_costo_flete_usd: Number(form.costo_flete_usd || 0),
-      p_peso_mercancia_g: Number(form.peso_mercancia_g || 0),
-      p_peso_exhibidores_g: Number(form.peso_exhibidores_g || 0),
-      p_metodo: form.metodo,
+      p_piezas_mercancia: Math.trunc(Number(form.piezas_mercancia || 0)),
+      p_unidades_exhibidores: Math.trunc(Number(form.unidades_exhibidores || 0)),
       p_notas: form.notas || null,
     });
 
@@ -160,17 +156,11 @@ export function Lotes() {
         </div>
 
         <div className="fila">
-          <Campo etiqueta="Peso de mercancia (g)" htmlFor="l-pm">
-            <input id="l-pm" type="number" step="0.01" min="0" value={form.peso_mercancia_g} onChange={(e) => cambiar('peso_mercancia_g', e.target.value)} />
+          <Campo etiqueta="Piezas de joyeria que vinieron" htmlFor="l-pm" pista="Todas las del envio, aunque todavia no las hayas cargado.">
+            <input id="l-pm" type="number" step="1" min="0" value={form.piezas_mercancia} onChange={(e) => cambiar('piezas_mercancia', e.target.value)} />
           </Campo>
-          <Campo etiqueta="Peso de exhibidores (g)" htmlFor="l-pe">
-            <input id="l-pe" type="number" step="0.01" min="0" value={form.peso_exhibidores_g} onChange={(e) => cambiar('peso_exhibidores_g', e.target.value)} />
-          </Campo>
-          <Campo etiqueta="Metodo de prorrateo" htmlFor="l-metodo" pista="Por peso es el preferido: los exhibidores pesan y las joyas casi no.">
-            <select id="l-metodo" value={form.metodo} onChange={(e) => cambiar('metodo', e.target.value as MetodoProrrateo)}>
-              <option value="peso">Por peso</option>
-              <option value="valor">Por valor</option>
-            </select>
+          <Campo etiqueta="Exhibidores que vinieron" htmlFor="l-pe" pista="Tambien son bultos: pagan su parte del flete.">
+            <input id="l-pe" type="number" step="1" min="0" value={form.unidades_exhibidores} onChange={(e) => cambiar('unidades_exhibidores', e.target.value)} />
           </Campo>
         </div>
 
@@ -194,12 +184,13 @@ export function Lotes() {
               <div className="dato__valor">{formatearUsd(vistaPrevia.capexTiendaUsd)}</div>
             </div>
             <div>
-              <span className="dato__etiqueta">Flete por gramo</span>
-              <div className="cifra">{vistaPrevia.fletePorGramoUsd === null ? '—' : formatearUsd(vistaPrevia.fletePorGramoUsd, 4)}</div>
+              <span className="dato__etiqueta">Flete por bulto</span>
+              <div className="cifra">{vistaPrevia.fletePorUnidadUsd === null ? '—' : formatearUsd(vistaPrevia.fletePorUnidadUsd, 4)}</div>
             </div>
           </div>
           <p className="campo__pista">
-            La cifra que manda es la que calcula la base al guardar. Esto solo evita guardar a ciegas.
+            El flete se divide entre todos los bultos: cada joya y cada exhibidor pagan lo mismo.
+            La cifra que manda es la que calcula la base al guardar.
           </p>
         </div>
 
@@ -231,7 +222,7 @@ export function Lotes() {
                 <th className="num">Tasa sellada</th>
                 <th className="num">Mercancia</th>
                 <th className="num">Flete a mercancia</th>
-                <th className="num">$/g</th>
+                <th className="num">$/bulto</th>
                 <th className="num">CAPEX tienda</th>
                 <th className="num">Modelos</th>
                 <th></th>
@@ -245,7 +236,7 @@ export function Lotes() {
                   <td className="num">{formatearTasa(l.tasa_binance_compra)}</td>
                   <td className="num">{formatearUsd(l.costo_mercancia_usd)}</td>
                   <td className="num">{formatearUsd(l.flete_mercancia_usd)}</td>
-                  <td className="num">{l.flete_por_gramo_usd === null ? '—' : formatearUsd(l.flete_por_gramo_usd, 4)}</td>
+                  <td className="num">{l.flete_por_unidad_usd === null ? '—' : formatearUsd(l.flete_por_unidad_usd, 4)}</td>
                   <td className="num">{formatearUsd(l.capex_total_usd)}</td>
                   <td className="num">{l.modelos_cargados}</td>
                   <td>
@@ -257,7 +248,7 @@ export function Lotes() {
             <tfoot>
               <tr>
                 <td colSpan={9}>
-                  Peso del ultimo lote: {formatearGramos((lotes[0]?.peso_mercancia_g ?? 0) + (lotes[0]?.peso_exhibidores_g ?? 0))} ·
+                  Bultos del ultimo lote: {formatearEntero((lotes[0]?.piezas_mercancia ?? 0) + (lotes[0]?.unidades_exhibidores ?? 0))} ·
                   el CAPEX no se carga al costo de las joyas
                 </td>
               </tr>

@@ -5,12 +5,13 @@ import { formatearBs, formatearEntero, formatearPorcentaje, formatearUsd, precio
 import { useTasa } from '../../hooks/useTasa';
 import type { Diagnostico } from '../../lib/tipos';
 
+// Todos se pagan aqui en bolivares: son dolares BCV, no Binance.
 const GASTOS = [
-  { clave: 'gasto_alquiler_mes_usd',  etiqueta: 'Alquiler al mes $' },
-  { clave: 'gasto_sueldos_mes_usd',   etiqueta: 'Sueldos al mes $' },
-  { clave: 'gasto_servicios_mes_usd', etiqueta: 'Servicios al mes $' },
-  { clave: 'gasto_otros_mes_usd',     etiqueta: 'Otros fijos al mes $' },
-  { clave: 'empaque_por_pieza_usd',   etiqueta: 'Empaque por pieza $' },
+  { clave: 'gasto_alquiler_mes_usd',  etiqueta: 'Alquiler al mes $ BCV' },
+  { clave: 'gasto_sueldos_mes_usd',   etiqueta: 'Sueldos al mes $ BCV' },
+  { clave: 'gasto_servicios_mes_usd', etiqueta: 'Servicios al mes $ BCV' },
+  { clave: 'gasto_otros_mes_usd',     etiqueta: 'Otros fijos al mes $ BCV' },
+  { clave: 'empaque_por_pieza_usd',   etiqueta: 'Empaque por pieza $ BCV' },
 ];
 
 const METAS = [
@@ -21,8 +22,8 @@ const METAS = [
   { clave: 'ganancia_mensual_objetivo_usd', etiqueta: 'Ganancia que quieres al mes $ BCV', paso: '1',
     pista: 'En dolares BCV, los mismos de las etiquetas. De aqui sale el margen sugerido.' },
   { clave: 'capex_amortizar_meses', etiqueta: 'Recuperar exhibidores en (meses)', paso: '1', pista: undefined },
-  { clave: 'merma_pct', etiqueta: 'Merma %', paso: '0.5',
-    pista: 'Piezas que se pierden o nunca se venden. Las que si se venden las pagan.' },
+  { clave: 'piezas_danadas_mes', etiqueta: 'Piezas danadas al mes', paso: '1',
+    pista: 'Cuantas salieron defectuosas o se perdieron. Si no se dano nada deja 0: no encarece nada.' },
   { clave: 'margen_objetivo_pct', etiqueta: 'Margen que usas %', paso: '0.5',
     pista: 'El que aplica el precio sugerido. Abajo el sistema te dice cual deberia ser.' },
 ];
@@ -103,8 +104,19 @@ export function Costos() {
           nadie lo sabe, y de ese numero colgaba todo el calculo.
         </p>
         <p>
-          Ahora el sistema lo <strong>deduce</strong>: si manejas 350 piezas y quieres rotarlas
-          en 3 meses, son <code>350 / 3 = 117 piezas al mes</code>. Eso si lo puedes decidir.
+          Ahora el sistema lo <strong>deduce</strong>: si manejas 360 piezas y quieres rotarlas
+          en 3 meses, son <code>360 / 3 = 120 piezas al mes</code>. Eso si lo puedes decidir.
+        </p>
+        <p>
+          Y en cuanto cumplas <strong>un mes desde tu primera venta</strong>, deja de suponer:
+          empieza a medir lo que de verdad vendiste y se ajusta solo. Si vendes menos de lo
+          previsto, cada pieza carga mas tienda y el precio sugerido sube sin que tengas que
+          acordarte de nada.
+        </p>
+        <p>
+          Ojo con las dos monedas: <strong>la mercancia se compra en Binance</strong> y el
+          alquiler, el sueldo y el empaque <strong>se pagan aqui</strong>. La brecha solo se le
+          aplica a la mercancia, que es lo unico que tienes que volver a comprar afuera.
         </p>
         <p>
           Y el margen tampoco lo adivinas. Le dices <strong>cuanto quieres ganar al mes</strong> y
@@ -120,7 +132,9 @@ export function Costos() {
               <span className="dato__etiqueta">Vas a vender</span>
               <div className="tablero__cifra">{formatearEntero(dx.volumen_mes)}</div>
               <div className="tablero__meta">
-                piezas al mes · {formatearEntero(dx.piezas_objetivo)} rotadas en {dx.meses_rotacion} meses
+                {dx.volumen_origen === 'ventas'
+                  ? 'piezas al mes · medido de tus ventas reales'
+                  : `piezas al mes · ${formatearEntero(dx.piezas_objetivo)} rotadas en ${dx.meses_rotacion} meses`}
               </div>
             </div>
             <div className="tablero__celda">
@@ -128,7 +142,12 @@ export function Costos() {
               <div className="tablero__cifra" style={{ fontSize: 'var(--t-28)' }}>
                 {formatearUsd(dx.costo_operativo_pieza_usd)}
               </div>
-              <div className="tablero__meta">de {formatearUsd(dx.gastos_mes_usd)} de gastos al mes</div>
+              <div className="tablero__meta">
+                de {formatearUsd(dx.gastos_mes_usd)} BCV de gastos al mes
+                {dx.piezas_danadas_mes > 0
+                  ? ` · +${formatearPorcentaje(dx.merma_pct)} por danadas`
+                  : ''}
+              </div>
             </div>
             <div className="tablero__celda">
               <span className="dato__etiqueta">Punto de equilibrio</span>

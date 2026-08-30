@@ -10,7 +10,6 @@
  */
 
 export type Rol = 'admin' | 'vendedora';
-export type MetodoProrrateo = 'peso' | 'valor';
 
 export interface Perfil {
   id: string;
@@ -54,14 +53,16 @@ export interface LoteAdmin {
   costo_mercancia_usd: number;
   costo_exhibidores_usd: number;
   costo_flete_usd: number;
-  peso_mercancia_g: number;
-  peso_exhibidores_g: number;
-  metodo: MetodoProrrateo;
+  /** Cuantas joyas vinieron en el envio, no cuantas se han cargado. */
+  piezas_mercancia: number;
+  /** Los exhibidores tambien son bultos y pagan su flete. */
+  unidades_exhibidores: number;
   notas: string | null;
   flete_mercancia_usd: number;
   flete_exhibidores_usd: number;
   capex_total_usd: number;
-  flete_por_gramo_usd: number | null;
+  /** Lo que paga de flete cada bulto: flete / (joyas + exhibidores). */
+  flete_por_unidad_usd: number | null;
   modelos_cargados: number;
 }
 
@@ -91,14 +92,20 @@ export interface ModeloAdmin extends ModeloVenta {
   costo_unitario_usd: number;
   flete_unitario_usd: number;
   costo_puesto_usd: number;
-  /** Lo que la pieza carga de alquiler, sueldo y empaque. */
+  /** Lo que la pieza carga de alquiler, sueldo y empaque, en BCV. */
   costo_operativo_usd: number;
-  /** costo puesto + operativo, subido por la merma. */
+  /** 1 si no se dano nada; 1,025 si se perdieron 3 de 120. */
+  factor_merma: number;
+  /** La mercancia llevada a BCV con la brecha, ya con la merma. */
+  costo_mercancia_bcv: number;
+  /** mercancia en BCV + gastos. Todo en dolares BCV. */
   costo_total_usd: number;
-  peso_unitario_g: number;
   lote_id: number | null;
+  /** Ganancia en dolares BCV, la moneda de la etiqueta. */
   margen_usd: number | null;
   margen_pct: number | null;
+  /** La misma ganancia en dolares reales: los que se pueden reinvertir. */
+  ganancia_real_usd: number | null;
   grupo_precio_id: number | null;
   precio_override_usd: number | null;
   lote_codigo: string | null;
@@ -300,6 +307,12 @@ export interface PrecioSugerido {
   costo_puesto_usd: number;
   /** tasa_venta / tasa_bcv: cuantos dolares BCV valen un dolar real. */
   factor_brecha: number;
+  /** La mercancia ya en BCV, con la brecha y la merma aplicadas. */
+  costo_mercancia_bcv: number;
+  /** Lo que carga de tienda, ya en BCV: no se multiplica por la brecha. */
+  costo_operativo_usd: number;
+  factor_merma: number;
+  costo_total_usd: number;
   costo_en_bcv: number;
   margen_objetivo_pct: number;
   precio_sugerido_bcv: number;
@@ -344,6 +357,8 @@ export interface Inversion {
   fecha: string;
   /** null = no entra al precio; solo se recupera de la ganancia. */
   amortizar_meses: number | null;
+  /** 'bcv' si se pago aqui en bolivares, 'real' si se compro afuera. */
+  moneda: 'bcv' | 'real';
   notas: string | null;
   activo: boolean;
 }
@@ -379,12 +394,17 @@ export interface Diagnostico {
   piezas_objetivo: number;
   meses_rotacion: number;
   volumen_mes: number;
+  /** 'ventas' cuando ya hay un mes cumplido; 'estimado' antes de eso. */
+  volumen_origen: 'ventas' | 'estimado';
   costo_operativo_pieza_usd: number;
+  piezas_danadas_mes: number;
   merma_pct: number;
   modelos: number;
+  /** El costo de mercancia como se pago: dolares Binance. */
+  costo_mercancia_real_usd: number;
+  /** El mismo costo llevado a BCV, ya con la merma. */
   costo_mercancia_promedio_usd: number;
   costo_total_promedio_usd: number;
-  precio_real_promedio_usd: number;
   precio_bcv_promedio: number;
   ganancia_objetivo_mes_usd: number;
   /** El margen que hace falta para llegar al objetivo mensual. */

@@ -47,6 +47,7 @@ export function Inversiones() {
   const [nombre, setNombre] = useState('');
   const [categoria, setCategoria] = useState('mobiliario');
   const [monto, setMonto] = useState('');
+  const [moneda, setMoneda] = useState<'bcv' | 'real'>('bcv');
   const [amortiza, setAmortiza] = useState(false);
   const [meses, setMeses] = useState('24');
   const [cargando, setCargando] = useState(true);
@@ -75,6 +76,7 @@ export function Inversiones() {
       nombre: nombre.trim(),
       categoria,
       monto_usd: Number(monto),
+      moneda,
       amortizar_meses: amortiza ? Number(meses) : null,
     });
     if (err) setError(mensajeDeError(err));
@@ -178,6 +180,12 @@ export function Inversiones() {
           <Campo etiqueta="Cuanto costo $" htmlFor="i-monto">
             <input id="i-monto" type="number" min="0.01" step="0.01" required value={monto} onChange={(e) => setMonto(e.target.value)} />
           </Campo>
+          <Campo etiqueta="Lo pagaste" htmlFor="i-moneda" pista="Aqui en bolivares son dolares BCV. Traido de afuera es dolar Binance.">
+            <select id="i-moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'bcv' | 'real')}>
+              <option value="bcv">Aqui, en bolivares</option>
+              <option value="real">Afuera, en dolares Binance</option>
+            </select>
+          </Campo>
         </div>
 
         <div className="panel">
@@ -229,7 +237,10 @@ export function Inversiones() {
                 <tr key={i.id}>
                   <td className="celda-nombre">{i.nombre}</td>
                   <td className="util">{i.categoria}</td>
-                  <td className="num">{formatearUsd(i.monto_usd)}</td>
+                  <td className="num">
+                    {formatearUsd(i.monto_usd)}
+                    <div className="celda-nota">{i.moneda === 'real' ? 'Binance' : 'BCV'}</div>
+                  </td>
                   <td>
                     {i.amortizar_meses
                       ? <span className="etiqueta etiqueta--alerta">En el precio · {i.amortizar_meses} meses</span>
