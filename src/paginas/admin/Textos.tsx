@@ -9,6 +9,9 @@ const ETIQUETAS: Record<string, string> = {
   materiales_corto: 'Version corta, para cada ficha',
   catalogo_intro: 'Sobre Lux, en la portada del catalogo',
   catalogo_pie: 'Pie de pagina del catalogo',
+  mensaje_whatsapp: 'Mensaje que acompana el enlace del catalogo',
+  ciudad: 'Ciudad de la tienda (rellena las frases del banco)',
+  estado: 'Estado (rellena las frases del banco; vacio las oculta)',
 };
 
 /**

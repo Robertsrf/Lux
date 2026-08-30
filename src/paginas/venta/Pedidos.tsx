@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
+import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
 import { cuentaRegresiva, formatearFecha, formatearUsd } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import type { LineaPedido } from '../../lib/tipos';
@@ -55,6 +56,8 @@ export function Pedidos() {
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => void cargar()}>Actualizar</button>
       </div>
+
+      <CompartirCatalogo />
 
       {error ? <Aviso tono="error" titulo="No se pudieron leer los pedidos">{error}</Aviso> : null}
 

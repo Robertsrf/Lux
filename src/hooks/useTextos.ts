@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export type ClaveTexto = 'materiales_largo' | 'materiales_corto' | 'catalogo_intro' | 'catalogo_pie';
+export type ClaveTexto =
+  | 'materiales_largo' | 'materiales_corto' | 'catalogo_intro' | 'catalogo_pie'
+  | 'mensaje_whatsapp' | 'ciudad' | 'estado';
 
 /**
  * Textos de marca. Viven en la base para que el dueno los cambie sin tocar

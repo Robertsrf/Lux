@@ -39,6 +39,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 15 | `esquema-grupos-nuevos.sql` | La escalera de siete grupos |
 | 16 | `esquema-frases.sql` | Quita consejos duplicados y pone su llave única |
 | 17 | `esquema-banco-frases.sql` | Las 222 frases del banco de la casa |
+| 18 | `esquema-mensaje-catalogo.sql` | El texto que acompaña al enlace del catálogo |
 
 ### Los que NO se corren
 

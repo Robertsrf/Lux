@@ -1212,3 +1212,25 @@ table.tabla tfoot td {
   content: ''; position: absolute; left: 0; top: 0.7em;
   width: 12px; height: 1px; background: var(--oro-arena);
 }
+
+/* --- Compartir el catalogo -------------------------------------------- */
+/* La vendedora hace esto de pie, con el telefono en una mano y la clienta
+   delante: el boton principal es grande y el enlace se puede tocar para
+   seleccionarlo entero si el portapapeles falla. */
+
+.compartir__enlace { margin: var(--e-3) 0 var(--e-4); }
+.compartir__enlace input {
+  width: 100%;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-14);
+  color: var(--salvia-texto);
+  background: var(--superficie);
+  cursor: text;
+}
+.compartir .grupo-botones { gap: var(--e-3); }
+.compartir .boton { min-height: 48px; }
+
+@media (max-width: 560px) {
+  .compartir .grupo-botones { flex-direction: column; align-items: stretch; }
+  .compartir .boton { min-height: 56px; }
+}
