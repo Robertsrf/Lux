@@ -230,8 +230,24 @@ Español de Venezuela, natural y directo. Nada de "¡Genial!" ni signos de excla
 
 El catálogo se genera con `@media print` y "Guardar como PDF" del navegador. Sin librerías.
 
-- Fondo crema, texto verde profundo. Nada de verde profundo a página completa (gasta tinta y se ve mal impreso).
-- Portada: monograma L, wordmark, fecha del catálogo, total de modelos disponibles.
+**El catálogo es una pieza digital**, un PDF que se comparte por WhatsApp y se
+mira en pantalla. Esa es la razón de las decisiones de abajo — y la razón por la
+que el argumento del gasto de tinta **no aplica aquí**.
+
+- **La portada va en verde profundo a página completa, a sangre.** Es lo que hace
+  que el catálogo se sienta importante desde que se abre, como la portada de la
+  Guía del Colaborador de la casa. Lleva el wordmark **verde sobre un recuadro
+  crema**, no crema sobre verde: así el logotipo respira y se lee como un sello.
+- **Las páginas de fichas sí van en crema con texto verde.** Ahí el verde a
+  sangre estorba la lectura y hace competir el fondo con la foto de la pieza.
+- Si algún día se imprime en papel de verdad, vuelve el argumento del gasto de
+  tinta: entonces la portada se pasa a crema. Mientras sea digital, no.
+- Portada: wordmark en su recuadro, regla de oro con el monograma, texto de marca,
+  materiales, fecha y total de modelos disponibles.
+
+**Al generar el PDF hay que marcar "Gráficos de fondo" en el cuadro de impresión.**
+Sin eso el navegador descarta todos los fondos y la portada sale en blanco. La
+pantalla se lo recuerda al usuario junto al botón.
 - Cuadrícula de 3 columnas por página, cada ficha con foto, nombre, nota de variantes y precio en Bs y $.
 - Pie de página con "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".
 - `@page { margin: 14mm; }` y `break-inside: avoid` en cada ficha.

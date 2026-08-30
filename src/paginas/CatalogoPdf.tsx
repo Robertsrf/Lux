@@ -65,8 +65,9 @@ export function CatalogoPdf() {
         <div>
           <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>
           <p className="campo__pista" style={{ marginTop: 'var(--e-2)', maxWidth: '34ch' }}>
-            En el cuadro de impresion, desmarca "Encabezados y pies de pagina" para que
-            no salga la direccion web en el papel.
+            En el cuadro de impresion: <strong style={{ display: 'inline' }}>marca "Graficos de fondo"</strong>
+            —sin eso la portada sale en blanco— y desmarca "Encabezados y pies de pagina",
+            para que no salga la direccion web en el papel.
           </p>
         </div>
       </div>
@@ -74,18 +75,29 @@ export function CatalogoPdf() {
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
 
       <section className="catalogo__portada">
-        <Monograma tamano={72} />
-        <Wordmark alto={104} tono="verde" />
-        <p className="catalogo__dato">Catalogo del {formatearFecha(new Date().toISOString())}</p>
-        <p className="catalogo__dato">{modelos.length} modelos disponibles</p>
+        <div className="portada__marco">
+          <Wordmark alto={132} tono="verde" />
+        </div>
+
+        <div className="portada__regla" aria-hidden="true">
+          <span /><Monograma tamano={44} /><span />
+        </div>
 
         {textos.catalogo_intro ? (
-          <p className="catalogo__intro prosa">{textos.catalogo_intro}</p>
+          <p className="portada__intro">{textos.catalogo_intro}</p>
         ) : null}
 
         {textos.materiales_largo ? (
-          <p className="catalogo__materiales">{textos.materiales_largo}</p>
+          <p className="portada__materiales">{textos.materiales_largo}</p>
         ) : null}
+
+        <p className="portada__dato">
+          Catalogo del {formatearFecha(new Date().toISOString())} · {modelos.length} modelos disponibles
+        </p>
+
+        <p className="portada__lugar">
+          {textos.catalogo_pie ?? 'Lux by Emory · Desde Sabana de Mendoza para toda Venezuela'}
+        </p>
       </section>
 
       {modelos.length === 0 ? (

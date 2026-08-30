@@ -48,6 +48,9 @@
 
 @page { margin: 14mm; }
 
+/* La portada va a sangre: sin margen de pagina, el verde llega al borde. */
+@page :first { margin: 0; }
+
 @media print {
   /* Nada del armazon de la aplicacion entra al catalogo impreso. */
   .sin-impresion, .lateral, .barra { display: none !important; }
@@ -62,7 +65,18 @@
   }
   .pagina { padding: 0; max-width: none; }
   .catalogo__rejilla { grid-template-columns: repeat(3, 1fr); gap: 6mm; }
-  .catalogo__portada { break-after: page; page-break-after: always; padding: 30mm 0; }
+  .catalogo__portada {
+    background: var(--verde-profundo) !important;
+    color: var(--crema) !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    border-radius: 0;
+    min-height: 100vh;
+    justify-content: center;
+    padding: 24mm 20mm;
+    break-after: page; page-break-after: always;
+  }
+  .portada__marco { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .ficha { border-color: var(--texto-secundario); }
   .ficha__foto { aspect-ratio: 1 / 1; }
   a { text-decoration: none; }
@@ -93,3 +107,61 @@
   letter-spacing: var(--tracking); text-transform: uppercase;
   color: var(--texto-secundario); margin-top: 2px;
 }
+
+/* =====================================================================
+   PORTADA — verde profundo a pagina completa.
+   Es la unica pagina que lo lleva: en las fichas el verde a sangre gasta
+   tinta y estorba la lectura. Aqui es lo contrario: es lo que hace que el
+   catalogo se sienta importante desde que se abre.
+   ===================================================================== */
+
+.catalogo__portada {
+  background: var(--verde-profundo);
+  color: var(--crema);
+  border-radius: var(--radio-lg);
+  padding: var(--e-8) var(--e-6);
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--e-5);
+  text-align: center;
+}
+
+/* El wordmark verde sobre un recuadro crema, como en la Guia de la casa. */
+.portada__marco {
+  background: var(--crema);
+  border-radius: var(--radio);
+  padding: var(--e-7) var(--e-8);
+  display: grid; place-items: center;
+}
+
+.portada__regla {
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--e-4); width: 100%; max-width: 460px;
+}
+.portada__regla span { flex: 1 1 auto; height: 1px; background: var(--oro-arena); }
+.portada__regla .monograma { background: transparent; box-shadow: none; }
+
+.portada__intro {
+  max-width: 54ch; margin: 0;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-16); line-height: 1.55;
+  color: var(--crema);
+  text-wrap: pretty;
+}
+
+.portada__materiales {
+  max-width: 46ch; margin: 0;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: var(--oro-arena);
+}
+
+.portada__dato,
+.portada__lugar {
+  margin: 0;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
+}
+.portada__lugar { margin-top: auto; padding-top: var(--e-5); }
