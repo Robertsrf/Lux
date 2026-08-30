@@ -235,3 +235,80 @@ export function cuentaRegresiva(iso: string | null | undefined): string | null {
   const segundos = Math.floor((faltan % 60000) / 1000);
   return `${minutos}:${String(segundos).padStart(2, '0')}`;
 }
+
+/* ------------------------------------------- costos del negocio (vista previa) */
+
+export interface GastosNegocio {
+  alquiler: number;
+  sueldos: number;
+  servicios: number;
+  otros: number;
+  empaquePorPieza: number;
+  piezasMes: number;
+  /** Lo invertido en exhibidores, que el sistema ya aparta como CAPEX. */
+  capexTotal: number;
+  capexMeses: number;
+  mermaPct: number;
+}
+
+export interface CostoOperativo {
+  fijosMes: number;
+  capexMes: number;
+  totalMes: number;
+  porPieza: number;
+}
+
+/**
+ * Cuanto carga cada pieza de gastos del negocio.
+ *
+ * El reparto es IGUAL POR PIEZA: atender, empacar y despachar un anillo
+ * cuesta el mismo tiempo y el mismo empaque que una cadena, asi que
+ * repartir por valor le cargaria a lo caro un trabajo que no causa.
+ *
+ * Es solo para ver el efecto mientras se escriben los numeros. La cifra
+ * que manda la calcula `costo_operativo_por_pieza()` en la base.
+ */
+export function previsualizarCostoOperativo(g: GastosNegocio): CostoOperativo {
+  const fijos = deMonto(sumar([g.alquiler, g.sueldos, g.servicios, g.otros].map(aMonto)));
+  const capexMes = g.capexMeses > 0 ? deMonto(aMonto(g.capexTotal) / BigInt(Math.trunc(g.capexMeses))) : 0;
+  const totalMes = deMonto(aMonto(fijos) + aMonto(capexMes));
+  const porPieza = g.piezasMes > 0
+    ? deMonto(aMonto(totalMes) / BigInt(Math.trunc(g.piezasMes)) + aMonto(g.empaquePorPieza))
+    : g.empaquePorPieza;
+  return { fijosMes: fijos, capexMes, totalMes, porPieza };
+}
+
+export interface PrecioCalculado {
+  costoTotal: number;
+  costoEnBcv: number;
+  precioBcv: number;
+  gananciaPorPieza: number;
+}
+
+/**
+ * De costo a etiqueta, los cuatro pasos:
+ *   1. costo total  = mercancia + flete + operativo, subido por la merma
+ *   2. a dolares BCV, multiplicando por la brecha
+ *   3. precio       = costo BCV / (1 - margen)
+ *   4. la ganancia se mide en dolares REALES, que son los recomprables
+ */
+export function previsualizarPrecio(
+  costoPuesto: number,
+  operativoPorPieza: number,
+  mermaPct: number,
+  factorBrecha: number,
+  margenPct: number,
+): PrecioCalculado | null {
+  if (margenPct >= 100 || mermaPct >= 100 || factorBrecha <= 0) return null;
+  const base = deMonto(aMonto(costoPuesto) + aMonto(operativoPorPieza));
+  const costoTotal = base / (1 - mermaPct / 100);
+  const costoEnBcv = costoTotal * factorBrecha;
+  const precioBcv = costoEnBcv / (1 - margenPct / 100);
+  const precioReal = precioBcv / factorBrecha;
+  return {
+    costoTotal,
+    costoEnBcv,
+    precioBcv,
+    gananciaPorPieza: precioReal - costoTotal,
+  };
+}
