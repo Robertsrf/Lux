@@ -12,6 +12,8 @@ import type { LineaPedido } from '../../lib/tipos';
  * Cada pieza trae SU UBICACION: la vendedora recorre la tienda una sola vez
  * y despacha en orden, sin ir y volver ni equivocarse de vitrina.
  */
+const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
+
 export function Pedidos() {
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -74,9 +76,13 @@ export function Pedidos() {
               <div className="tarjeta" key={cabecera.reserva_id}>
                 <div className="encabezado-pagina" style={{ marginBottom: 'var(--e-4)' }}>
                   <div>
-                    <h2>{cabecera.cliente_nombre ?? 'Sin nombre'}</h2>
+                    <h2>
+                      {[cabecera.cliente_nombre, cabecera.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre'}
+                    </h2>
                     <p>
-                      {cabecera.cliente_telefono ?? 'Sin telefono'} · {formatearFecha(cabecera.creado_en)} ·
+                      {cabecera.cliente_telefono ?? 'Sin telefono'}
+                      {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''} ·
+                      {' '}{formatearFecha(cabecera.creado_en)} ·
                       {' '}{cabecera.piezas_total} piezas · {formatearUsd(cabecera.total_usd)}
                     </p>
                   </div>
@@ -85,6 +91,61 @@ export function Pedidos() {
                     : restante
                       ? <span className="etiqueta etiqueta--alerta">Apartado {restante}</span>
                       : <span className="etiqueta etiqueta--error">Por vencer</span>}
+                </div>
+
+                <div className="rejilla rejilla--2" style={{ marginBottom: 'var(--e-4)' }}>
+                  <div className="panel">
+                    <span className="panel__titulo">Entrega</span>
+                    {cabecera.entrega === 'envio' ? (
+                      <>
+                        <div className="dato__valor" style={{ textTransform: 'uppercase' }}>
+                          {cabecera.envio_empresa ?? 'Envio'}
+                        </div>
+                        <div className="campo__pista">
+                          {cabecera.envio_agencia}
+                          {cabecera.envio_direccion ? ` · ${cabecera.envio_direccion}` : ''}
+                        </div>
+                        <div className="campo__pista">Cobro a destino: el envio lo paga ella al retirar.</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="dato__valor">Retira en tienda</div>
+                        <div className="campo__pista">Pidele la cedula al entregar.</div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="panel">
+                    <span className="panel__titulo">Pago</span>
+                    {!cabecera.pago_reportado_en ? (
+                      <>
+                        <div className="dato__valor">Sin reportar</div>
+                        <div className="campo__pista">Todavia no ha cargado el pago. No despaches aun.</div>
+                      </>
+                    ) : cabecera.pago_metodo === 'efectivo_bs' || cabecera.pago_metodo === 'efectivo_usd' ? (
+                      <>
+                        <div className="dato__valor">Efectivo al retirar</div>
+                        <div className="campo__pista">Cobra al entregar.</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="dato__valor">Ref. {cabecera.pago_referencia}</div>
+                        <div className="campo__pista">
+                          {cabecera.pago_metodo === 'transferencia' ? 'Transferencia' : 'Pago movil'}
+                          {cabecera.pago_fecha ? ` del ${formatearFecha(cabecera.pago_fecha)}` : ''}
+                        </div>
+                        <div className="campo__pista">
+                          Pago: C.I. {cabecera.pago_cedula ?? '—'} · {cabecera.pago_telefono ?? '—'}
+                        </div>
+                        {/* Si quien pago no es quien pidio, se avisa: es lo
+                            primero que confunde al comprobar en el banco. */}
+                        {cabecera.pago_cedula && cabecera.cliente_cedula
+                          && soloDigitos(cabecera.pago_cedula) !== soloDigitos(cabecera.cliente_cedula)
+                          ? <div className="campo__pista"><strong>Pago un tercero.</strong></div>
+                          : null}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="tabla-envoltura">

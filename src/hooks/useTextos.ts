@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 export type ClaveTexto =
   | 'materiales_largo' | 'materiales_corto' | 'catalogo_intro' | 'catalogo_pie'
-  | 'mensaje_whatsapp' | 'ciudad' | 'estado';
+  | 'mensaje_whatsapp' | 'ciudad' | 'estado' | 'datos_pago';
 
 /**
  * Textos de marca. Viven en la base para que el dueno los cambie sin tocar

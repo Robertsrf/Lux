@@ -269,7 +269,20 @@ export interface ItemReserva {
 }
 
 /** Lo que devuelve ver_reserva(token). Sin una sola cifra de costo. */
+export type FormaEntrega = 'tienda' | 'envio';
+export type EmpresaEnvio = 'domesa' | 'mrw';
+
 export interface ReservaVista {
+  cliente_apellido?: string | null;
+  cliente_telefono?: string | null;
+  entrega?: FormaEntrega;
+  envio_empresa?: EmpresaEnvio | null;
+  envio_agencia?: string | null;
+  envio_direccion?: string | null;
+  pago_metodo?: MetodoPago | null;
+  pago_referencia?: string | null;
+  pago_fecha?: string | null;
+  pago_reportado_en?: string | null;
   estado: EstadoReserva;
   creado_en: string;
   expira_en: string;
@@ -289,7 +302,19 @@ export interface LineaPedido {
   creado_en: string;
   expira_en: string;
   cliente_nombre: string | null;
+  cliente_apellido: string | null;
+  cliente_cedula: string | null;
   cliente_telefono: string | null;
+  entrega: FormaEntrega;
+  envio_empresa: EmpresaEnvio | null;
+  envio_agencia: string | null;
+  envio_direccion: string | null;
+  pago_metodo: MetodoPago | null;
+  pago_referencia: string | null;
+  pago_fecha: string | null;
+  pago_cedula: string | null;
+  pago_telefono: string | null;
+  pago_reportado_en: string | null;
   piezas_total: number | null;
   total_usd: number | null;
   modelo_id: number;

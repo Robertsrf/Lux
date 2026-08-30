@@ -30,11 +30,19 @@ export function Catalogo() {
   const [tramos, setTramos] = useState<Tramo[]>([]);
   const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
   const [texto, setTexto] = useState('');
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [categoria, setCategoria] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paso, setPaso] = useState<'catalogo' | 'pedido'>('catalogo');
   const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [cedula, setCedula] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [entrega, setEntrega] = useState<'tienda' | 'envio'>('tienda');
+  const [empresa, setEmpresa] = useState<'domesa' | 'mrw'>('domesa');
+  const [agencia, setAgencia] = useState('');
+  const [direccion, setDireccion] = useState('');
   const [reservando, setReservando] = useState(false);
   const visor = useVisorFoto();
   const esDobleToque = useDobleToque();
@@ -47,6 +55,8 @@ export function Catalogo() {
       .order('categoria', { ascending: true })
       .order('nombre', { ascending: true })
       .limit(400);
+
+    if (categoria) consulta = consulta.eq('categoria', categoria);
 
     if (texto.trim()) {
       const t = texto.trim().replace(/[%,]/g, ' ');
@@ -62,12 +72,25 @@ export function Catalogo() {
     setModelos((cat.data as unknown as ModeloPublico[] | null) ?? []);
     setTramos((tr.data as Tramo[] | null) ?? []);
     setCargando(false);
-  }, [texto]);
+  }, [texto, categoria]);
 
   useEffect(() => {
     const t = setTimeout(() => void cargar(), texto ? 300 : 0);
     return () => clearTimeout(t);
   }, [cargar, texto]);
+
+  // Las categorias se piden una sola vez y sin filtrar: si salieran de lo
+  // que ya esta en pantalla, elegir una haria desaparecer a las demas.
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from('v_disponible_publico').select('categoria').limit(1000);
+      const vistas = new Set<string>();
+      for (const x of (data as { categoria: string | null }[] | null) ?? []) {
+        if (x.categoria) vistas.add(x.categoria);
+      }
+      setCategorias([...vistas].sort());
+    })();
+  }, []);
 
   const porId = useMemo(() => new Map(modelos.map((m) => [m.id, m])), [modelos]);
 
@@ -132,8 +155,14 @@ export function Catalogo() {
 
     const { data, error: err } = await supabase.rpc('crear_reserva', {
       p_items: items,
-      p_cliente_nombre: nombre.trim() || null,
-      p_cliente_telefono: telefono.trim() || null,
+      p_cliente_nombre: nombre,
+      p_cliente_apellido: apellido,
+      p_cliente_cedula: cedula,
+      p_cliente_telefono: telefono,
+      p_entrega: entrega,
+      p_envio_empresa: entrega === 'envio' ? empresa : null,
+      p_envio_agencia: entrega === 'envio' ? agencia : null,
+      p_envio_direccion: entrega === 'envio' ? direccion : null,
     });
 
     if (err) { setError(mensajeDeError(err)); setReservando(false); return; }
@@ -189,14 +218,64 @@ export function Catalogo() {
           </div>
         </div>
 
+        <h2 className="seccion-titulo">Tus datos</h2>
         <div className="fila">
-          <Campo etiqueta="Tu nombre" htmlFor="r-nombre">
-            <input id="r-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="name" />
+          <Campo etiqueta="Nombre" htmlFor="r-nombre">
+            <input id="r-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="given-name" required />
           </Campo>
-          <Campo etiqueta="Tu telefono" htmlFor="r-tel" pista="Para que la tienda te escriba y cerrar el pedido.">
-            <input id="r-tel" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} autoComplete="tel" />
+          <Campo etiqueta="Apellido" htmlFor="r-apellido">
+            <input id="r-apellido" value={apellido} onChange={(e) => setApellido(e.target.value)} autoComplete="family-name" required />
           </Campo>
         </div>
+        <div className="fila">
+          <Campo etiqueta="Cedula" htmlFor="r-cedula" pista="Va en la guia de envio.">
+            <input id="r-cedula" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value)} required />
+          </Campo>
+          <Campo etiqueta="Telefono" htmlFor="r-tel" pista="Con el codigo. Por ejemplo 0412 1234567.">
+            <input id="r-tel" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} autoComplete="tel" required />
+          </Campo>
+        </div>
+
+        <h2 className="seccion-titulo">Como lo recibes</h2>
+        <div className="panel">
+          <div className="metodos-pago">
+            <button type="button" aria-pressed={entrega === 'tienda'} onClick={() => setEntrega('tienda')}>
+              Retiro en tienda
+            </button>
+            <button type="button" aria-pressed={entrega === 'envio'} onClick={() => setEntrega('envio')}>
+              Envio a mi ciudad
+            </button>
+          </div>
+
+          {entrega === 'envio' ? (
+            <>
+              <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
+                El envio se paga al retirarlo en la agencia, no ahora.
+              </p>
+              <div className="metodos-pago" style={{ marginTop: 'var(--e-4)' }}>
+                <button type="button" aria-pressed={empresa === 'domesa'} onClick={() => setEmpresa('domesa')}>Domesa</button>
+                <button type="button" aria-pressed={empresa === 'mrw'} onClick={() => setEmpresa('mrw')}>MRW</button>
+              </div>
+              <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
+                <Campo etiqueta="Agencia" htmlFor="r-agencia" pista="La sucursal donde lo vas a retirar.">
+                  <input id="r-agencia" value={agencia} onChange={(e) => setAgencia(e.target.value)} required />
+                </Campo>
+                <Campo etiqueta="Direccion de la agencia" htmlFor="r-dir">
+                  <input id="r-dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} required />
+                </Campo>
+              </div>
+            </>
+          ) : (
+            <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
+              Te esperamos en la tienda con tu cedula.
+            </p>
+          )}
+        </div>
+
+        <p className="campo__pista">
+          Al apartar, las piezas quedan tuyas mientras pagas. El pago lo cargas
+          en la pantalla siguiente.
+        </p>
 
         <div className="acciones">
           <button
@@ -205,7 +284,7 @@ export function Catalogo() {
             disabled={reservando || resumen.piezas === 0}
             onClick={() => void reservar()}
           >
-            {reservando ? 'Apartando' : 'Apartar mi pedido'}
+            {reservando ? 'Apartando' : 'Apartar mis piezas'}
           </button>
           <button type="button" className="boton boton--secundario" onClick={() => setPaso('catalogo')}>
             Seguir viendo
@@ -247,6 +326,19 @@ export function Catalogo() {
             placeholder="Cadena, anillo, choker..." autoComplete="off"
           />
         </Campo>
+
+        {categorias.length > 1 ? (
+          <div className="filtros-categoria" role="group" aria-label="Filtrar por categoria">
+            <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>
+              Todo
+            </button>
+            {categorias.map((c) => (
+              <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
+                {c}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {cargando ? (
           <Cargando texto="Trayendo el catalogo" />

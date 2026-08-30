@@ -1234,3 +1234,39 @@ table.tabla tfoot td {
   .compartir .grupo-botones { flex-direction: column; align-items: stretch; }
   .compartir .boton { min-height: 56px; }
 }
+
+/* --- Filtros de categoria del catalogo publico ------------------------ */
+/* Una fila de pildoras que se desliza a lo ancho en el telefono. La barra
+   de desplazamiento se esconde: aqui estorba mas de lo que informa, porque
+   se ve de un vistazo que hay mas a la derecha. */
+
+.filtros-categoria {
+  display: flex; gap: var(--e-2);
+  overflow-x: auto;
+  margin-bottom: var(--e-5);
+  padding-bottom: var(--e-2);
+  scrollbar-width: none;
+}
+.filtros-categoria::-webkit-scrollbar { display: none; }
+
+.filtros-categoria button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--e-4);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  background: var(--superficie);
+  color: var(--verde-profundo);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-14);
+  text-transform: capitalize;
+  letter-spacing: var(--tracking);
+  cursor: pointer;
+  transition: background var(--rapido), border-color var(--rapido);
+}
+.filtros-categoria button:hover { background: var(--verde-suave); }
+.filtros-categoria button[aria-pressed='true'] {
+  background: var(--verde-profundo);
+  border-color: var(--verde-profundo);
+  color: var(--crema);
+}
