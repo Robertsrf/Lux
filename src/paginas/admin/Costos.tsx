@@ -18,8 +18,8 @@ const METAS = [
     pista: 'Cuantas piezas manejas cuando el inventario esta completo.' },
   { clave: 'meses_rotacion_objetivo', etiqueta: 'Rotarlas en (meses)', paso: '1',
     pista: 'En cuanto tiempo quieres vender todo ese inventario.' },
-  { clave: 'ganancia_mensual_objetivo_usd', etiqueta: 'Ganancia que quieres al mes $', paso: '1',
-    pista: 'Lo que quieres que te quede libre, ya con todo pagado. De aqui sale el margen.' },
+  { clave: 'ganancia_mensual_objetivo_usd', etiqueta: 'Ganancia que quieres al mes $ BCV', paso: '1',
+    pista: 'En dolares BCV, los mismos de las etiquetas. De aqui sale el margen sugerido.' },
   { clave: 'capex_amortizar_meses', etiqueta: 'Recuperar exhibidores en (meses)', paso: '1', pista: undefined },
   { clave: 'merma_pct', etiqueta: 'Merma %', paso: '0.5',
     pista: 'Piezas que se pierden o nunca se venden. Las que si se venden las pagan.' },
@@ -145,7 +145,7 @@ export function Costos() {
                 <div>
                   <span className="dato__etiqueta">Sugerido</span>
                   <div className="dato__valor dato__valor--grande">{formatearPorcentaje(sugerido)}</div>
-                  <div className="campo__pista">para ganar {formatearUsd(dx.ganancia_objetivo_mes_usd)} al mes</div>
+                  <div className="campo__pista">para ganar {formatearUsd(dx.ganancia_objetivo_mes_usd)} BCV al mes</div>
                 </div>
                 <div>
                   <span className="dato__etiqueta">El que usas</span>
