@@ -40,6 +40,11 @@ drop view if exists v_ventas_por_dia cascade;
 drop view if exists v_mezcla_grupo   cascade;
 drop view if exists v_rotacion_modelo cascade;
 
+-- El trigger nombra peso_mercancia_g y metodo en su condicion WHEN: depende
+-- de esas columnas igual que una vista y bloquea el DROP COLUMN. Se recrea
+-- mas abajo con la condicion nueva.
+drop trigger if exists trg_recalcular_flete_de_lote on lotes;
+
 drop function if exists admin_guardar_lote(bigint, text, date, numeric, numeric, numeric, numeric, numeric, numeric, text, text);
 drop function if exists calcular_flete_unitario(bigint, numeric, numeric);
 drop function if exists admin_previsualizar_flete(bigint, numeric, numeric);
