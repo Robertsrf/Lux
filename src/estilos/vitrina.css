@@ -47,8 +47,7 @@
   text-align: center;
   gap: var(--e-5);
   padding: var(--e-6) var(--e-8);
-  max-width: 22ch;
-  margin: 0 auto;
+  width: 100%;
 }
 .vitrina__frase-etiqueta {
   margin: 0;
@@ -66,10 +65,18 @@
   font-weight: 500;
   line-height: 1.2;
   color: var(--crema);
+  /* Aqui si vale la unidad ch: se mide contra la propia letra grande, asi
+     que son de verdad unos 18 caracteres por linea. Y text-wrap balance
+     reparte las lineas parejas en vez de dejar una palabra suelta. */
+  max-width: 18ch;
   text-wrap: balance;
 }
-.vitrina__frase-texto--corta { font-size: clamp(var(--t-56), 8vw, 120px); line-height: 1.05; }
-.vitrina__frase .vitrina__regla { width: min(320px, 60%); margin: 0; }
+.vitrina__frase-texto--corta {
+  font-size: clamp(var(--t-56), 8vw, 120px);
+  line-height: 1.05;
+  max-width: 14ch;
+}
+.vitrina__frase .vitrina__regla { width: min(360px, 70%); margin: 0; }
 
 .vitrina__foto {
   display: flex; align-items: center; justify-content: center;
@@ -244,8 +251,9 @@
   .vitrina__nombre { font-size: var(--t-40); }
   .vitrina__precio { font-size: var(--t-40); }
   .vitrina__materiales { display: none; }
-  .vitrina__frase { max-width: none; padding: var(--e-4); }
-  .vitrina__frase-texto { font-size: var(--t-28); }
+  .vitrina__frase { padding: var(--e-4); }
+  .vitrina__frase-texto { font-size: var(--t-28); max-width: 20ch; }
+  .vitrina__frase-texto--corta { font-size: var(--t-40); max-width: 14ch; }
   .vitrina__controles { justify-content: center; }
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
@@ -34,7 +34,12 @@ export function Catalogo() {
   const [categoria, setCategoria] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paso, setPaso] = useState<'catalogo' | 'pedido'>('catalogo');
+  const [parametros, setParametros] = useSearchParams();
+  const paso: 'catalogo' | 'pedido' = parametros.get('paso') === 'pedido' ? 'pedido' : 'catalogo';
+  const setPaso = (p: 'catalogo' | 'pedido') => {
+    // Sin replace: cada cambio deja su huella en el historial.
+    setParametros(p === 'pedido' ? { paso: 'pedido' } : {});
+  };
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [cedula, setCedula] = useState('');
@@ -170,6 +175,12 @@ export function Catalogo() {
   }
 
   /* ------------------------------------------------------------ pedido */
+
+  // Volver atras despues de apartar deja la seleccion vacia: en vez de un
+  // formulario de pedido sin piezas, se regresa al catalogo.
+  if (paso === 'pedido' && seleccion.size === 0) {
+    return <Navigate to="/publico" replace />;
+  }
 
   if (paso === 'pedido') {
     const elegidos = [...seleccion.entries()].map(([id, cantidad]) => ({ m: porId.get(id), cantidad }));

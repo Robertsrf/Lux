@@ -204,6 +204,10 @@ export function Vitrina() {
       <div className="vitrina__escena" key={indice}>
         {actual?.tipo === 'frase' ? (
           <div className="vitrina__frase">
+            <div className="vitrina__regla" aria-hidden="true">
+              <span /><Monograma tamano={30} /><span />
+            </div>
+
             {/* Las micro-frases del banco son de dos a seis palabras y
                 piden mas cuerpo: de lejos, un destello corto tiene que
                 pesar tanto como una frase larga. */}
