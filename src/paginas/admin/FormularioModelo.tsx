@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 import { aDolaresReales, aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
-import { formatearPeso, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
+import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
 import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -226,7 +226,7 @@ export function FormularioModelo() {
           {procesandoFoto ? <p className="campo__pista">Comprimiendo</p> : null}
 
           {foto ? (
-            <Aviso tono={foto.pesoGrande <= 200 * 1024 ? 'exito' : 'alerta'} titulo="Foto lista">
+            <Aviso tono={foto.pesoGrande <= OBJETIVO_GRANDE ? 'exito' : 'alerta'} titulo="Foto lista">
               Original {formatearPeso(foto.pesoOriginal)} · catalogo {formatearPeso(foto.pesoGrande)} ·
               miniatura {formatearPeso(foto.pesoThumb)}
             </Aviso>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { formatearBs, formatearUsd } from '../../lib/dinero';
-import { urlPublicaFoto } from '../../lib/fotos';
+import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { useCarrito } from '../../hooks/useCarrito';
@@ -299,7 +299,7 @@ export function Mostrador() {
       ) : (
         <div className="rejilla-venta">
           {modelos.map((m) => {
-            const foto = urlPublicaFoto(m.foto_thumb_path);
+            const foto = fuenteFoto(m.foto_path, m.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
             const puestas = enCarrito.get(m.modelo_id) ?? 0;
             const agotado = puestas >= m.cantidad;
             return (
@@ -324,7 +324,7 @@ export function Mostrador() {
                   </svg>
                 </span>
                 {foto
-                  ? <img className="tarjeta-modelo__foto" src={foto} alt="" loading="lazy" />
+                  ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
                   : <span className="tarjeta-modelo__foto" />}
                 <span className="tarjeta-modelo__cuerpo">
                   <span className="tarjeta-modelo__nombre">{m.nombre}</span>

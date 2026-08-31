@@ -4,7 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
 import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
-import { urlPublicaFoto } from '../../lib/fotos';
+import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import { useTextos } from '../../hooks/useTextos';
@@ -360,7 +360,7 @@ export function Catalogo() {
         ) : (
           <div className="rejilla-venta">
             {modelos.map((m) => {
-              const foto = urlPublicaFoto(m.foto_thumb_path ?? m.foto_path);
+              const foto = fuenteFoto(m.foto_path, m.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
               const puestas = seleccion.get(m.id) ?? 0;
               return (
                 <button
@@ -384,7 +384,7 @@ export function Catalogo() {
                     </svg>
                   </span>
                   {foto
-                    ? <img className="tarjeta-modelo__foto" src={foto} alt={m.nombre} loading="lazy" />
+                    ? <img className="tarjeta-modelo__foto" {...foto} alt={m.nombre} loading="lazy" />
                     : <span className="tarjeta-modelo__foto" />}
                   <span className="tarjeta-modelo__cuerpo">
                     <span className="tarjeta-modelo__nombre">{m.nombre}</span>
