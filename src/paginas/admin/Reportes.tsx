@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, sumar } from '../../lib/dinero';
-import type { MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
+import { BarrasApiladas, BarrasHorizontales } from '../../componentes/Graficos';
+import type { GastoPartida, MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
 
 const PERIODOS = [
   { dias: 7, texto: 'Ultimos 7 dias' },
@@ -23,6 +24,7 @@ export function Reportes() {
   const [ventas, setVentas] = useState<VentaPorDia[]>([]);
   const [mezcla, setMezcla] = useState<MezclaGrupo[]>([]);
   const [rotacion, setRotacion] = useState<RotacionModelo[]>([]);
+  const [gastos, setGastos] = useState<GastoPartida[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,11 +34,13 @@ export function Reportes() {
       setError(null);
       const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
 
-      const [v, m, r] = await Promise.all([
+      const [v, m, r, g] = await Promise.all([
         supabase.from('v_ventas_por_dia').select('*').gte('dia', desde).order('dia', { ascending: false }),
         supabase.from('v_mezcla_grupo').select('*').order('orden'),
         supabase.from('v_rotacion_modelo').select('*').order('piezas_vendidas', { ascending: false }).limit(500),
+        supabase.from('v_gastos_desglose').select('*'),
       ]);
+      setGastos((g.data as GastoPartida[] | null) ?? []);
 
       const fallo = v.error ?? m.error ?? r.error;
       if (fallo) setError(mensajeDeError(fallo));
@@ -64,6 +68,26 @@ export function Reportes() {
   if (cargando) return <Cargando texto="Calculando reportes" />;
 
   const margenPct = totales.usd > 0 ? (totales.ganancia / totales.usd) * 100 : null;
+
+  const porDia = useMemo(() => [...ventas].reverse().map((v) => ({
+    clave: v.dia,
+    etiqueta: formatearFecha(v.dia).slice(0, 5),
+    costo: Number(v.costo_usd) || 0,
+    ganancia: Math.max(Number(v.ganancia_usd) || 0, 0),
+    detalle: v.piezas + ' piezas en ' + v.ventas + ' venta' + (v.ventas === 1 ? '' : 's'),
+  })), [ventas]);
+
+  const partidasGasto = useMemo(() => gastos.map((g) => ({
+    clave: g.partida,
+    etiqueta: g.partida,
+    valor: Number(g.monto_usd) || 0,
+    nota: g.porcentaje === null ? undefined : formatearPorcentaje(g.porcentaje) + ' del total',
+  })), [gastos]);
+
+  const totalGastos = useMemo(
+    () => partidasGasto.reduce((a, p) => a + p.valor, 0),
+    [partidasGasto],
+  );
 
   return (
     <div className="pagina">
@@ -99,7 +123,21 @@ export function Reportes() {
         </div>
       </div>
 
-      <h2 className="seccion-titulo">Por dia</h2>
+      <h2 className="seccion-titulo">Costo y ganancia, dia a dia</h2>
+      <div className="tarjeta">
+        <BarrasApiladas
+          columnas={porDia}
+          formato={formatearUsd}
+          vacio={
+            <>
+              <p>Todavia no hay ventas en este periodo.</p>
+              <p>Cuando el mostrador registre la primera, el grafico se llena solo.</p>
+            </>
+          }
+        />
+      </div>
+
+      <h2 className="seccion-titulo">El detalle, dia por dia</h2>
       {ventas.length === 0 ? (
         <Vacio titulo="Todavia no hay ventas en este periodo">
           <p>Cuando el mostrador registre la primera venta, aparecera aqui.</p>
@@ -153,6 +191,21 @@ export function Reportes() {
           </table>
         </div>
       )}
+
+      <h2 className="seccion-titulo">A donde se va el dinero cada mes</h2>
+      <div className="tarjeta">
+        <BarrasHorizontales
+          partidas={partidasGasto}
+          formato={formatearUsd}
+          vacio={<p>Carga tus gastos en Costos y apareceran aqui, partida por partida.</p>}
+        />
+        {partidasGasto.length > 0 ? (
+          <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+            {formatearUsd(totalGastos)} BCV al mes. Esto es lo que hay que cubrir
+            antes de que la primera pieza deje ganancia.
+          </p>
+        ) : null}
+      </div>
 
       <h2 className="seccion-titulo">Modelos dormidos</h2>
       <div className="tarjeta" style={{ marginBottom: 'var(--e-4)' }}>

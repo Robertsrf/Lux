@@ -461,3 +461,11 @@ export interface Frase {
   texto: string;
   orden: number;
 }
+
+/** Vista v_gastos_desglose: los gastos del mes, partida por partida, en BCV. */
+export interface GastoPartida {
+  partida: string;
+  orden: number;
+  monto_usd: number;
+  porcentaje: number | null;
+}

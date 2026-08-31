@@ -1265,3 +1265,140 @@ table.tabla tfoot td {
   border-color: var(--verde-profundo);
   color: var(--crema);
 }
+
+/* --- Graficos ---------------------------------------------------------- */
+/* Los dos colores de serie estan MEDIDOS con el validador de paletas: pasan
+   separacion por daltonismo, umbral de vision normal y contraste contra el
+   blanco. No se cambian a ojo. El oro se descarto por esto: contra la salvia
+   se confunde incluso con vista perfecta. */
+
+:root {
+  --serie-costo:    #7F9492;
+  --serie-ganancia: #2E5A61;
+}
+
+.grafico { margin: 0; }
+
+.leyenda {
+  display: flex; align-items: center; gap: var(--e-2);
+  margin-bottom: var(--e-4);
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  /* El texto lleva tinta, nunca el color de la serie: el punto de al lado
+     es quien carga la identidad. */
+  color: var(--salvia-texto);
+}
+.leyenda__punto { width: 10px; height: 10px; border-radius: var(--radio-pill); }
+.leyenda__punto--costo    { background: var(--serie-costo); }
+.leyenda__punto--ganancia { background: var(--serie-ganancia); margin-left: var(--e-3); }
+
+.grafico__lienzo {
+  display: flex; align-items: flex-end; gap: var(--e-2);
+  height: 220px;
+  padding-top: var(--e-4);
+  overflow-x: auto;
+}
+
+.columna {
+  position: relative;
+  flex: 1 0 34px; min-width: 34px;
+  display: flex; flex-direction: column; align-items: center;
+  height: 100%;
+  cursor: default;
+}
+.columna__pila {
+  width: 100%; min-height: 2px;
+  display: flex; flex-direction: column;
+  margin-top: auto;
+  /* Las puntas del dato se redondean; la base queda anclada al eje. */
+  border-radius: var(--radio-xs) var(--radio-xs) 0 0;
+  overflow: hidden;
+}
+.columna__parte { min-height: 2px; }
+.columna__parte--ganancia { background: var(--serie-ganancia); }
+/* La rendija de 2px separa los tramos sin inventar un tercer color. */
+.columna__parte--costo {
+  background: var(--serie-costo);
+  box-shadow: inset 0 2px 0 var(--superficie);
+}
+.columna__etiqueta {
+  margin-top: var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--salvia-texto); white-space: nowrap;
+}
+
+.globo {
+  position: absolute; bottom: calc(100% + var(--e-2)); left: 50%;
+  transform: translateX(-50%);
+  display: none; flex-direction: column; gap: 2px;
+  min-width: 150px; padding: var(--e-3);
+  background: var(--verde-profundo); color: var(--crema);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-3);
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  white-space: nowrap; z-index: 5;
+}
+.columna:hover .globo, .columna:focus-visible .globo { display: flex; }
+.globo strong { font-size: var(--t-14); }
+
+/* --- Barras horizontales por partida ----------------------------------- */
+
+.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.barra {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) 2fr auto;
+  align-items: center; gap: var(--e-3);
+}
+.barra__etiqueta {
+  font-family: var(--fuente-ui); font-size: var(--t-14);
+  color: var(--texto);
+}
+.barra__pista {
+  height: 12px; border-radius: var(--radio-pill);
+  background: var(--verde-suave);
+}
+.barra__relleno {
+  display: block; height: 100%; min-width: 4px;
+  border-radius: var(--radio-pill);
+  background: var(--serie-ganancia);
+}
+.barra__valor {
+  font-family: var(--fuente-display); font-size: var(--t-16);
+  font-variant-numeric: tabular-nums;
+  text-align: right; white-space: nowrap;
+}
+.barra__nota {
+  display: block;
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--salvia-texto);
+}
+
+/* --- Cifra protagonista ------------------------------------------------- */
+
+.cifra { display: flex; flex-direction: column; gap: var(--e-1); }
+.cifra__etiqueta {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--salvia-texto);
+}
+.cifra__valor {
+  font-family: var(--fuente-display); font-size: var(--t-28);
+  font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+.cifra__valor--positivo { color: var(--exito); }
+.cifra__valor--negativo { color: var(--error); }
+.cifra__nota { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--salvia-texto); }
+
+.gráfico-vacio {
+  padding: var(--e-6) var(--e-4);
+  text-align: center;
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  color: var(--salvia-texto);
+}
+
+@media (max-width: 560px) {
+  .barra { grid-template-columns: 1fr auto; }
+  .barra__pista { grid-column: 1 / -1; }
+}
