@@ -581,14 +581,12 @@ table.tabla tfoot td {
 .mostrador { padding-bottom: 116px; }
 
 .selector-ubicacion {
-  display: flex; gap: var(--e-2);
-  overflow-x: auto; padding: var(--e-1) 0 var(--e-3);
+  display: flex; flex-wrap: wrap; gap: var(--e-2);
+  padding: var(--e-1) 0 var(--e-3);
   margin-bottom: var(--e-4);
-  scrollbar-width: none;
 }
-.selector-ubicacion::-webkit-scrollbar { display: none; }
 .selector-ubicacion button {
-  flex: 0 0 auto; min-height: 46px; padding: 0 var(--e-5);
+  flex: 0 1 auto; min-height: 46px; padding: 0 var(--e-5);
   font-family: var(--fuente-ui);
   font-size: var(--t-12); font-weight: 500;
   text-transform: uppercase; letter-spacing: var(--tracking);
@@ -1241,16 +1239,13 @@ table.tabla tfoot td {
    se ve de un vistazo que hay mas a la derecha. */
 
 .filtros-categoria {
-  display: flex; gap: var(--e-2);
-  overflow-x: auto;
+  display: flex; flex-wrap: wrap; gap: var(--e-2);
   margin-bottom: var(--e-5);
   padding-bottom: var(--e-2);
-  scrollbar-width: none;
 }
-.filtros-categoria::-webkit-scrollbar { display: none; }
 
 .filtros-categoria button {
-  flex: none;
+  flex: 0 1 auto;
   min-height: 44px;
   padding: 0 var(--e-4);
   border: 1px solid var(--linea);

@@ -203,6 +203,24 @@ En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre
 
 En móvil la misma barra pasa arriba, se vuelve horizontal y deslizable, y **deja solo los iconos**: la pantalla del mostrador no puede perder alto. La marca de oro pasa al borde inferior.
 
+### Filas de pestañas y filtros
+
+**Un juego pequeño y fijo se envuelve; no se desliza a escondidas.** Los siete
+momentos de la guía y las categorías del catálogo caben en dos líneas: que bajen
+de línea. Deslizarlos escondía la mitad, y como la barra iba oculta
+(`scrollbar-width: none`) nada avisaba de que hubiera más.
+
+Lo reportó el dueño el 31/08/2026: «estos botones no tienen deslizador y no se
+ven completos». Tenía razón — sí se deslizaban, pero eso no se veía, que para el
+caso es lo mismo.
+
+**La excepción es la navegación en móvil**, que sigue deslizándose: son doce
+secciones y sólo iconos, y envolverla le robaría alto a la pantalla del
+mostrador, que es lo único que ahí no sobra.
+
+Regla corta: si el juego cabe en dos líneas, envuélvelo. Si no cabe, deslízalo
+**pero deja ver la barra**.
+
 ### Iconos
 Trazo de 1,5, esquinas redondeadas, `viewBox` de 24 y color heredado. Viven en `componentes/Iconos.tsx`.
 
