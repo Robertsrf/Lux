@@ -1343,12 +1343,17 @@ table.tabla tfoot td {
 
 /* --- Barras horizontales por partida ----------------------------------- */
 
-.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-4); }
+/* Dos renglones: arriba el nombre y la cifra, abajo la barra a todo lo
+   ancho. Con la barra en medio, la rejilla partia cada partida en cuatro
+   lineas sueltas y no se leia como una barra. */
 .barra {
   display: grid;
-  grid-template-columns: minmax(96px, 1fr) 2fr auto;
-  align-items: center; gap: var(--e-3);
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--e-2) var(--e-3);
 }
+.barra__pista { grid-column: 1 / -1; }
 .barra__etiqueta {
   font-family: var(--fuente-ui); font-size: var(--t-14);
   color: var(--texto);
@@ -1363,13 +1368,16 @@ table.tabla tfoot td {
   background: var(--serie-ganancia);
 }
 .barra__valor {
-  font-family: var(--fuente-display); font-size: var(--t-16);
+  font-family: var(--fuente-display); font-size: var(--t-20);
   font-variant-numeric: tabular-nums;
   text-align: right; white-space: nowrap;
 }
+/* El porcentaje acompana al monto en la misma linea: es un matiz de la
+   misma cifra, no un dato aparte que merezca su renglon. */
 .barra__nota {
-  display: block;
+  margin-left: var(--e-2);
   font-family: var(--fuente-ui); font-size: var(--t-12);
+  letter-spacing: var(--tracking);
   color: var(--salvia-texto);
 }
 
@@ -1399,6 +1407,5 @@ table.tabla tfoot td {
 }
 
 @media (max-width: 560px) {
-  .barra { grid-template-columns: 1fr auto; }
-  .barra__pista { grid-column: 1 / -1; }
+  .barra__valor { font-size: var(--t-16); }
 }

@@ -42,7 +42,9 @@ export function Reportes() {
       ]);
       setGastos((g.data as GastoPartida[] | null) ?? []);
 
-      const fallo = v.error ?? m.error ?? r.error;
+      // Si falla la de gastos hay que decirlo igual: al agregarla se me
+      // quedo fuera de esta linea y su error se perdia en silencio.
+      const fallo = v.error ?? m.error ?? r.error ?? g.error;
       if (fallo) setError(mensajeDeError(fallo));
       setVentas((v.data as VentaPorDia[] | null) ?? []);
       setMezcla((m.data as MezclaGrupo[] | null) ?? []);
@@ -77,7 +79,7 @@ export function Reportes() {
     clave: g.partida,
     etiqueta: g.partida,
     valor: Number(g.monto_usd) || 0,
-    nota: g.porcentaje === null ? undefined : formatearPorcentaje(g.porcentaje) + ' del total',
+    nota: g.porcentaje === null ? undefined : formatearPorcentaje(g.porcentaje),
   })), [gastos]);
 
   const totalGastos = useMemo(

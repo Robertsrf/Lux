@@ -140,12 +140,12 @@ export function BarrasHorizontales({ partidas, formato, vacio }: {
       {partidas.map((p) => (
         <li className="barra" key={p.clave}>
           <span className="barra__etiqueta">{p.etiqueta}</span>
-          <span className="barra__pista">
-            <span className="barra__relleno" style={{ width: `${(p.valor / tope) * 100}%` }} />
-          </span>
           <span className="barra__valor">
             {formato(p.valor)}
             {p.nota ? <small className="barra__nota">{p.nota}</small> : null}
+          </span>
+          <span className="barra__pista">
+            <span className="barra__relleno" style={{ width: `${(p.valor / tope) * 100}%` }} />
           </span>
         </li>
       ))}
