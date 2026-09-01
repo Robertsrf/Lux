@@ -65,10 +65,6 @@ export function Reportes() {
     [rotacion, umbral],
   );
 
-  if (cargando) return <Cargando texto="Calculando reportes" />;
-
-  const margenPct = totales.usd > 0 ? (totales.ganancia / totales.usd) * 100 : null;
-
   const porDia = useMemo(() => [...ventas].reverse().map((v) => ({
     clave: v.dia,
     etiqueta: formatearFecha(v.dia).slice(0, 5),
@@ -88,6 +84,10 @@ export function Reportes() {
     () => partidasGasto.reduce((a, p) => a + p.valor, 0),
     [partidasGasto],
   );
+
+  if (cargando) return <Cargando texto="Calculando reportes" />;
+
+  const margenPct = totales.usd > 0 ? (totales.ganancia / totales.usd) * 100 : null;
 
   return (
     <div className="pagina">

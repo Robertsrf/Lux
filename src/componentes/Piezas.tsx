@@ -116,8 +116,9 @@ export class LimiteDeError extends Component<{ children: ReactNode }, { error: E
       <div className="pagina pagina--angosta">
         <Aviso tono="error" titulo="Esta pantalla fallo">
           <p>
-            No se pudo dibujar esta parte del sistema. El resto sigue funcionando:
-            usa el menu para irte a otra seccion.
+            No se pudo dibujar esta parte del sistema. El resto sigue en pie:
+            entra a otra seccion por el menu y esta se rearma sola cuando
+            vuelvas.
           </p>
           <p className="campo__pista">Detalle tecnico: {this.state.error.message}</p>
         </Aviso>

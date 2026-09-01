@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Monograma, Wordmark } from './Marca';
 import { Icono } from './Iconos';
 import type { NombreIcono } from './Iconos';
@@ -43,6 +43,7 @@ const ENLACES_VENTA: Enlace[] = [
 export function Disposicion() {
   const { perfil, esAdmin } = useSesion();
   const navegar = useNavigate();
+  const donde = useLocation();
   const enlaces = esAdmin ? ENLACES_ADMIN : ENLACES_VENTA;
 
   async function salir() {
@@ -91,8 +92,13 @@ export function Disposicion() {
       </aside>
 
       <main className="contenido">
-        {/* Si una pantalla falla, la navegacion sigue en pie. */}
-        <LimiteDeError>
+        {/*
+          Si una pantalla falla, la navegacion sigue en pie. Y la clave por
+          ruta hace que el limite se rearme al cambiar de seccion: sin ella,
+          una pantalla rota dejaba TODO el sistema mostrando el error hasta
+          recargar, aunque el aviso invitara a irse por el menu.
+        */}
+        <LimiteDeError key={donde.pathname}>
           <Outlet />
         </LimiteDeError>
       </main>
