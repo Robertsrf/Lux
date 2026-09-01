@@ -1326,6 +1326,8 @@ table.tabla tfoot td {
   font-family: var(--fuente-ui); font-size: var(--t-12);
   color: var(--salvia-texto); white-space: nowrap;
 }
+/* La leyenda dice que es cada verde; el nombre de la partida no lo
+   necesita, porque su barra esta pegada debajo. */
 
 .globo {
   position: absolute; bottom: calc(100% + var(--e-2)); left: 50%;
@@ -1355,11 +1357,11 @@ table.tabla tfoot td {
 }
 .barra__pista { grid-column: 1 / -1; }
 .barra__etiqueta {
-  font-family: var(--fuente-ui); font-size: var(--t-14);
-  color: var(--texto);
+  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 500;
+  color: var(--tinta);
 }
 .barra__pista {
-  height: 12px; border-radius: var(--radio-pill);
+  height: 14px; border-radius: var(--radio-pill);
   background: var(--verde-suave);
 }
 .barra__relleno {
@@ -1370,6 +1372,7 @@ table.tabla tfoot td {
 .barra__valor {
   font-family: var(--fuente-display); font-size: var(--t-20);
   font-variant-numeric: tabular-nums;
+  color: var(--tinta);
   text-align: right; white-space: nowrap;
 }
 /* El porcentaje acompana al monto en la misma linea: es un matiz de la
