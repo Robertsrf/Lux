@@ -24,6 +24,10 @@ import {
  */
 
 const COSTO = '#7F9492';
+/* Lo que falta por cubrir: separa del verde por delta-E 34 y contrasta mejor
+   que un gris mas claro. Va con etiqueta visible al lado, que es lo que el
+   oficio exige cuando un color queda bajo 3:1 contra el fondo. */
+const POR_CUBRIR = '#B0BFBD';
 const GANANCIA = '#2E5A61';
 /* El texto lleva tinta, nunca el color de la serie: el color lo carga la
    barra. Esa confusión fue justo lo que hizo ilegible la versión anterior. */
@@ -35,18 +39,19 @@ const LETRA = { fontFamily: 'Jost, system-ui, sans-serif', fontSize: 12 };
 const EJE = { tick: { fill: SECUNDARIO, ...LETRA }, stroke: LINEA, tickLine: false };
 
 /** El globo de la casa: verde profundo con texto crema, como la barra del carrito. */
-function Globo({ active, payload, label, formato }: {
+function Globo({ active, payload, label, formato, totalEtiqueta = 'Total' }: {
   active?: boolean;
   payload?: { name?: string; value?: number; color?: string; dataKey?: string }[];
   label?: string;
   formato: (n: number) => string;
+  totalEtiqueta?: string;
 }) {
   if (!active || !payload?.length) return null;
   const total = payload.reduce((a, p) => a + (Number(p.value) || 0), 0);
   return (
     <div className="globo-grafico">
       <strong>{label}</strong>
-      {payload.length > 1 ? <span className="globo-grafico__total">Cobrado {formato(total)}</span> : null}
+      {payload.length > 1 ? <span className="globo-grafico__total">{totalEtiqueta} {formato(total)}</span> : null}
       {payload.map((p) => (
         <span key={p.dataKey ?? p.name} className="globo-grafico__linea">
           <i style={{ background: p.color }} aria-hidden="true" />
@@ -93,7 +98,7 @@ export function GraficoDiario({ datos, formato, vacio }: {
         <YAxis {...EJE} width={54} tickFormatter={(v) => formato(Number(v))} />
         <Tooltip
           cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }}
-          content={<Globo formato={formato} />}
+          content={<Globo formato={formato} totalEtiqueta="Cobrado" />}
         />
         <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
         {/* La ganancia va arriba de la pila: es lo que se busca al mirar. */}
@@ -108,15 +113,22 @@ export function GraficoDiario({ datos, formato, vacio }: {
 
 export interface PartidaGrafico {
   partida: string;
-  monto: number;
+  /** Lo que ya taparon las ventas del mes. */
+  cubierto: number;
+  /** Lo que falta. Los dos suman el gasto del mes de esa partida. */
+  porCubrir: number;
 }
 
 /**
- * Gastos por partida, en barras horizontales.
+ * Gastos por partida, y cuánto de cada uno ya cubrieron las ventas.
  *
- * Un solo color a propósito: lo que dice cuánto es el LARGO de la barra, y
- * pintarlas de seis colores obliga a mirar una leyenda para leer lo que ya
- * está escrito al lado.
+ * El largo entero de la barra es lo que cuesta esa partida al mes; la parte
+ * verde es lo que ya está pagado. Así el gráfico deja de ser una foto de lo
+ * que se debe y pasa a ser una barra que se llena.
+ *
+ * La cobertura se reparte a prorrata entre todas las partidas. El dinero no
+ * viene etiquetado —una venta no paga "el alquiler"— así que fingir que una
+ * partida se cubre antes que otra seria inventarse un orden que no existe.
  *
  * Horizontales porque las etiquetas son palabras: en vertical hay que torcer
  * la cabeza o el texto.
@@ -129,7 +141,7 @@ export function GraficoGastos({ datos, formato, vacio }: {
   if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
 
   return (
-    <ResponsiveContainer width="100%" height={Math.max(datos.length * 46 + 24, 160)}>
+    <ResponsiveContainer width="100%" height={Math.max(datos.length * 46 + 56, 190)}>
       <BarChart data={datos} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={LINEA} strokeDasharray="3 3" horizontal={false} />
         <XAxis type="number" {...EJE} tickFormatter={(v) => formato(Number(v))} />
@@ -143,8 +155,13 @@ export function GraficoGastos({ datos, formato, vacio }: {
              medio peso, no el verde de la barra. */
           tick={{ fill: TINTA, fontFamily: LETRA.fontFamily, fontSize: 14, fontWeight: 500 }}
         />
-        <Tooltip cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }} content={<Globo formato={formato} />} />
-        <Bar dataKey="monto" name="Al mes" fill={GANANCIA} radius={[0, 4, 4, 0]} barSize={18} />
+        <Tooltip
+          cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }}
+          content={<Globo formato={formato} totalEtiqueta="Al mes" />}
+        />
+        <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
+        <Bar dataKey="cubierto" name="Cubierto" stackId="g" fill={GANANCIA} barSize={18} />
+        <Bar dataKey="porCubrir" name="Por cubrir" stackId="g" fill={POR_CUBRIR} radius={[0, 4, 4, 0]} barSize={18} />
       </BarChart>
     </ResponsiveContainer>
   );

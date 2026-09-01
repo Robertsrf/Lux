@@ -3,7 +3,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, sumar } from '../../lib/dinero';
 import { GraficoDiario, GraficoGastos } from '../../componentes/Graficos';
-import type { GastoPartida, MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
+import type { CoberturaMes, GastoPartida, MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
 
 const PERIODOS = [
   { dias: 7, texto: 'Ultimos 7 dias' },
@@ -25,6 +25,7 @@ export function Reportes() {
   const [mezcla, setMezcla] = useState<MezclaGrupo[]>([]);
   const [rotacion, setRotacion] = useState<RotacionModelo[]>([]);
   const [gastos, setGastos] = useState<GastoPartida[]>([]);
+  const [cobertura, setCobertura] = useState<CoberturaMes | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,17 +35,19 @@ export function Reportes() {
       setError(null);
       const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
 
-      const [v, m, r, g] = await Promise.all([
+      const [v, m, r, g, c] = await Promise.all([
         supabase.from('v_ventas_por_dia').select('*').gte('dia', desde).order('dia', { ascending: false }),
         supabase.from('v_mezcla_grupo').select('*').order('orden'),
         supabase.from('v_rotacion_modelo').select('*').order('piezas_vendidas', { ascending: false }).limit(500),
         supabase.from('v_gastos_desglose').select('*'),
+        supabase.from('v_cobertura_mes').select('*').maybeSingle(),
       ]);
       setGastos((g.data as GastoPartida[] | null) ?? []);
+      setCobertura((c.data as CoberturaMes | null) ?? null);
 
       // Si falla la de gastos hay que decirlo igual: al agregarla se me
       // quedo fuera de esta linea y su error se perdia en silencio.
-      const fallo = v.error ?? m.error ?? r.error ?? g.error;
+      const fallo = v.error ?? m.error ?? r.error ?? g.error ?? c.error;
       if (fallo) setError(mensajeDeError(fallo));
       setVentas((v.data as VentaPorDia[] | null) ?? []);
       setMezcla((m.data as MezclaGrupo[] | null) ?? []);
@@ -75,13 +78,17 @@ export function Reportes() {
     ganancia: Math.max(Number(v.ganancia_usd) || 0, 0),
   })), [ventas]);
 
-  const partidasGasto = useMemo(() => gastos.map((g) => ({
-    partida: g.partida,
-    monto: Number(g.monto_usd) || 0,
-  })), [gastos]);
+  const partidasGasto = useMemo(() => {
+    const fraccion = Math.min(Math.max((cobertura?.cubierto_pct ?? 0) / 100, 0), 1);
+    return gastos.map((g) => {
+      const monto = Number(g.monto_usd) || 0;
+      const cubierto = monto * fraccion;
+      return { partida: g.partida, cubierto, porCubrir: monto - cubierto };
+    });
+  }, [gastos, cobertura]);
 
   const totalGastos = useMemo(
-    () => partidasGasto.reduce((a, p) => a + p.monto, 0),
+    () => partidasGasto.reduce((a, p) => a + p.cubierto + p.porCubrir, 0),
     [partidasGasto],
   );
 
@@ -192,7 +199,30 @@ export function Reportes() {
         </div>
       )}
 
-      <h2 className="seccion-titulo">A donde se va el dinero cada mes</h2>
+      <h2 className="seccion-titulo">El mes, cubriendose</h2>
+      {cobertura ? (
+        <Aviso tono={cobertura.ganancia_usd > 0 ? 'exito' : 'alerta'}>
+          {cobertura.ganancia_usd > 0 ? (
+            <>
+              <strong style={{ display: 'inline' }}>El mes ya esta pagado.</strong>{' '}
+              Las {formatearEntero(cobertura.piezas_vendidas)} piezas vendidas cubrieron
+              los {formatearUsd(cobertura.gastos_mes_usd)} de gastos, y por encima
+              llevas <strong style={{ display: 'inline' }}>{formatearUsd(cobertura.ganancia_usd)}</strong> de
+              ganancia limpia. Todo lo que entre de aqui al fin de mes se suma ahi.
+            </>
+          ) : (
+            <>
+              Llevas <strong style={{ display: 'inline' }}>{formatearUsd(cobertura.cubierto_usd)}</strong> de
+              los {formatearUsd(cobertura.gastos_mes_usd)} que cuesta el mes
+              ({formatearPorcentaje(cobertura.cubierto_pct)}).
+              {cobertura.piezas_faltantes
+                ? ` Al ritmo de estas ${cobertura.piezas_vendidas} piezas, te faltan ${cobertura.piezas_faltantes} mas para no perder.`
+                : ' Cada pieza que vendas deja, por encima de lo que costo reponerla, un pedazo de estos gastos.'}
+            </>
+          )}
+        </Aviso>
+      ) : null}
+
       <div className="tarjeta">
         <GraficoGastos
           datos={partidasGasto}
@@ -201,8 +231,9 @@ export function Reportes() {
         />
         {partidasGasto.length > 0 ? (
           <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
-            {formatearUsd(totalGastos)} BCV al mes. Esto es lo que hay que cubrir
-            antes de que la primera pieza deje ganancia.
+            {formatearUsd(totalGastos)} BCV al mes, contados desde el dia 1. Lo verde
+            es lo que las ventas ya taparon; se reparte a prorrata porque el dinero
+            no viene etiquetado por partida.
           </p>
         ) : null}
       </div>

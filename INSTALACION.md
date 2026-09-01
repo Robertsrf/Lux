@@ -41,6 +41,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 17 | `esquema-banco-frases.sql` | Las 222 frases del banco de la casa |
 | 18 | `esquema-mensaje-catalogo.sql` | El texto que acompaña al enlace del catálogo |
 | 19 | `esquema-pedido-completo.sql` | Datos del cliente, envío y pago en el pedido |
+| 20 | `esquema-gastos-desglose.sql` | Los gastos del mes, partida por partida |
+| 21 | `esquema-cobertura-mes.sql` | Cuánto del mes ya cubrieron las ventas |
 
 ### Los que NO se corren
 

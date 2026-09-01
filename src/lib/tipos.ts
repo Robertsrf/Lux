@@ -469,3 +469,19 @@ export interface GastoPartida {
   monto_usd: number;
   porcentaje: number | null;
 }
+
+/** Vista v_cobertura_mes: cuanto de los gastos del mes ya taparon las ventas. */
+export interface CoberturaMes {
+  gastos_mes_usd: number;
+  piezas_vendidas: number;
+  contribucion_usd: number;
+  cubierto_usd: number;
+  por_cubrir_usd: number;
+  /** Lo que sobra una vez cubierto el mes. Cero mientras falte. */
+  ganancia_usd: number;
+  cubierto_pct: number;
+  contribucion_por_pieza_usd: number | null;
+  /** null si todavia no hay ventas con que estimar el ritmo. */
+  piezas_faltantes: number | null;
+  desde: string;
+}
