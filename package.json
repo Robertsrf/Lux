@@ -19,7 +19,8 @@
     "browser-image-compression": "^2.0.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.1"
+    "react-router-dom": "^7.9.1",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@types/react": "^19.1.13",

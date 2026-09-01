@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ProveedorSesion, useSesion } from './hooks/useSesion';
 import { RutaProtegida } from './componentes/RutaProtegida';
@@ -12,7 +13,7 @@ import { Lotes } from './paginas/admin/Lotes';
 import { Grupos } from './paginas/admin/Grupos';
 import { Tasas } from './paginas/admin/Tasas';
 import { Kits as KitsAdmin } from './paginas/admin/Kits';
-import { Reportes } from './paginas/admin/Reportes';
+const Reportes = lazy(() => import('./paginas/admin/Reportes').then((m) => ({ default: m.Reportes })));
 import { Mostrador } from './paginas/venta/Mostrador';
 import { Kits as KitsVenta } from './paginas/venta/Kits';
 import { Tablero } from './paginas/venta/Tablero';
@@ -80,7 +81,14 @@ export function App() {
             <Route path="/admin/costos" element={soloAdmin(<Costos />)} />
             <Route path="/admin/inversiones" element={soloAdmin(<Inversiones />)} />
             <Route path="/admin/tasas" element={soloAdmin(<Tasas />)} />
-            <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
+            <Route
+              path="/admin/reportes"
+              element={soloAdmin(
+                <Suspense fallback={<Cargando texto="Cargando los graficos" />}>
+                  <Reportes />
+                </Suspense>,
+              )}
+            />
           </Route>
 
           <Route path="/" element={<Inicio />} />

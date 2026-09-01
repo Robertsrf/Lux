@@ -1,154 +1,151 @@
 import type { ReactNode } from 'react';
+import {
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
 
 /**
- * Los gráficos del sistema, en HTML y CSS. Sin librería.
+ * Los gráficos del sistema, con Recharts.
  *
- * Una librería de gráficos pesa más que todo el resto del paquete junto, y
- * aquí hacen falta dos formas: barras apiladas y barras horizontales. En
- * CSS son cuarenta líneas, se ven igual en el Android de la tienda, y la
- * paleta es la de la casa sin pelear con la de nadie.
+ * La primera versión fue en HTML y CSS para no sumar peso. Se leía mal —el
+ * dueño lo dijo dos veces— y arreglarla a base de parches CSS era pelear
+ * contra un problema que una librería ya tiene resuelto: ejes, escalas,
+ * globos que no se salen de la pantalla, y redibujar al girar el teléfono.
+ *
+ * LO QUE SE LE IMPONE A LA LIBRERÍA
+ * Recharts trae su propia paleta y su propia tipografía. Ninguna entra: los
+ * colores son los de la casa, ya medidos, y las letras son Jost y Fraunces.
+ * La librería pone la geometría; la marca sigue siendo de Lux.
  *
  * LOS COLORES ESTÁN MEDIDOS, NO ELEGIDOS A OJO
- * Salvia (#7F9492) para el costo y verde (#2E5A61) para la ganancia pasan
+ * Salvia #7F9492 para el costo y verde #2E5A61 para la ganancia pasan
  * separación por daltonismo (ΔE 20,2 protan), umbral de visión normal y
- * contraste contra el blanco. El oro se descartó por esto mismo: contra la
+ * contraste contra el blanco. El oro se descartó por medición: contra la
  * salvia da ΔE 14,5, o sea que se confunden incluso con vista perfecta.
- *
- * Lo único que no cumple la regla general es la saturación, y es a
- * propósito: la paleta de Lux es apagada porque el lujo aquí no se grita.
  */
 
-/* ------------------------------------------------------------ cifra suelta */
+const COSTO = '#7F9492';
+const GANANCIA = '#2E5A61';
+/* El texto lleva tinta, nunca el color de la serie: el color lo carga la
+   barra. Esa confusión fue justo lo que hizo ilegible la versión anterior. */
+const TINTA = '#14292C';
+const SECUNDARIO = '#506664';
+const LINEA = '#E0D8C7';
 
-/** Un número protagonista. Cuando el dato es uno solo, un gráfico estorba. */
-export function Cifra({ etiqueta, valor, nota, tono }: {
-  etiqueta: string;
-  valor: string;
-  nota?: string;
-  tono?: 'positivo' | 'negativo';
+const LETRA = { fontFamily: 'Jost, system-ui, sans-serif', fontSize: 12 };
+const EJE = { tick: { fill: SECUNDARIO, ...LETRA }, stroke: LINEA, tickLine: false };
+
+/** El globo de la casa: verde profundo con texto crema, como la barra del carrito. */
+function Globo({ active, payload, label, formato }: {
+  active?: boolean;
+  payload?: { name?: string; value?: number; color?: string; dataKey?: string }[];
+  label?: string;
+  formato: (n: number) => string;
 }) {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((a, p) => a + (Number(p.value) || 0), 0);
   return (
-    <div className="cifra">
-      <span className="cifra__etiqueta">{etiqueta}</span>
-      <div className={`cifra__valor${tono ? ` cifra__valor--${tono}` : ''}`}>{valor}</div>
-      {nota ? <div className="cifra__nota">{nota}</div> : null}
+    <div className="globo-grafico">
+      <strong>{label}</strong>
+      {payload.length > 1 ? <span className="globo-grafico__total">Cobrado {formato(total)}</span> : null}
+      {payload.map((p) => (
+        <span key={p.dataKey ?? p.name} className="globo-grafico__linea">
+          <i style={{ background: p.color }} aria-hidden="true" />
+          {p.name} {formato(Number(p.value) || 0)}
+        </span>
+      ))}
     </div>
   );
 }
 
-/* ------------------------------------------------- barras apiladas por día */
+function Vacio({ children }: { children: ReactNode }) {
+  return <div className="grafico-vacio">{children}</div>;
+}
 
-export interface Columna {
-  clave: string;
-  etiqueta: string;
+/* ------------------------------------------------- costo y ganancia por día */
+
+export interface DiaGrafico {
+  dia: string;
   costo: number;
   ganancia: number;
-  /** Lo que se lee al pasar por encima. */
-  detalle: string;
 }
 
 /**
- * Costo y ganancia apilados: juntos son el ingreso del día.
+ * Costo y ganancia apilados: juntos son lo cobrado ese día.
  *
- * Apilarlos y no ponerlos lado a lado es a propósito. Así el alto total de
- * la columna ES lo cobrado, y de un vistazo se ve la proporción entre lo
- * que costó y lo que quedó. Dos ejes distintos para dos medidas —el error
- * clásico— aquí ni se plantea: las dos son dólares.
+ * Apilados y no lado a lado a propósito. Así el alto de la columna ES el
+ * ingreso, y de un vistazo se ve qué parte se quedó. Dos ejes distintos para
+ * dos medidas —el error clásico de los tableros— aquí ni se plantea: las dos
+ * son dólares y comparten escala.
  */
-export function BarrasApiladas({ columnas, formato, vacio }: {
-  columnas: Columna[];
+export function GraficoDiario({ datos, formato, vacio }: {
+  datos: DiaGrafico[];
   formato: (n: number) => string;
   vacio: ReactNode;
 }) {
-  if (columnas.length === 0) return <div className="gráfico-vacio">{vacio}</div>;
-
-  const tope = Math.max(...columnas.map((c) => c.costo + c.ganancia), 0);
-  if (tope <= 0) return <div className="gráfico-vacio">{vacio}</div>;
+  if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
 
   return (
-    <figure className="grafico">
-      <div className="leyenda">
-        <span className="leyenda__punto leyenda__punto--costo" aria-hidden="true" />
-        <span>Costo</span>
-        <span className="leyenda__punto leyenda__punto--ganancia" aria-hidden="true" />
-        <span>Ganancia</span>
-      </div>
-
-      <div className="grafico__lienzo" role="list">
-        {columnas.map((c) => {
-          const total = c.costo + c.ganancia;
-          return (
-            <div className="columna" key={c.clave} role="listitem" tabIndex={0}>
-              <div className="columna__pila" style={{ height: `${(total / tope) * 100}%` }}>
-                {/* La ganancia va arriba: es lo que se busca al mirar. */}
-                <div
-                  className="columna__parte columna__parte--ganancia"
-                  style={{ flexBasis: `${total > 0 ? (c.ganancia / total) * 100 : 0}%` }}
-                />
-                <div
-                  className="columna__parte columna__parte--costo"
-                  style={{ flexBasis: `${total > 0 ? (c.costo / total) * 100 : 0}%` }}
-                />
-              </div>
-              <span className="columna__etiqueta">{c.etiqueta}</span>
-              <div className="globo" role="tooltip">
-                <strong>{c.etiqueta}</strong>
-                <span>Cobrado {formato(total)}</span>
-                <span>Ganancia {formato(c.ganancia)}</span>
-                <span>Costo {formato(c.costo)}</span>
-                {c.detalle ? <span>{c.detalle}</span> : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </figure>
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={datos} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        {/* Rejilla recesiva: guía la lectura sin competir con el dato. */}
+        <CartesianGrid stroke={LINEA} strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="dia" {...EJE} />
+        <YAxis {...EJE} width={54} tickFormatter={(v) => formato(Number(v))} />
+        <Tooltip
+          cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }}
+          content={<Globo formato={formato} />}
+        />
+        <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
+        {/* La ganancia va arriba de la pila: es lo que se busca al mirar. */}
+        <Bar dataKey="costo" name="Costo" stackId="a" fill={COSTO} />
+        <Bar dataKey="ganancia" name="Ganancia" stackId="a" fill={GANANCIA} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
-/* ------------------------------------------ barras horizontales por partida */
+/* -------------------------------------------------- magnitudes por partida */
 
-export interface Partida {
-  clave: string;
-  etiqueta: string;
-  valor: number;
-  nota?: string;
+export interface PartidaGrafico {
+  partida: string;
+  monto: number;
 }
 
 /**
- * Magnitudes por categoría: gastos, ganancia por grupo, lo que sea.
+ * Gastos por partida, en barras horizontales.
  *
- * Un solo color a propósito. Lo que dice cuánto es el LARGO de la barra;
- * pintarlas de siete colores distintos no añade nada y obliga a mirar una
- * leyenda para leer lo que ya está escrito al lado.
+ * Un solo color a propósito: lo que dice cuánto es el LARGO de la barra, y
+ * pintarlas de seis colores obliga a mirar una leyenda para leer lo que ya
+ * está escrito al lado.
  *
- * Horizontales y no verticales porque las etiquetas son palabras, y en
- * vertical hay que torcer la cabeza o el texto.
+ * Horizontales porque las etiquetas son palabras: en vertical hay que torcer
+ * la cabeza o el texto.
  */
-export function BarrasHorizontales({ partidas, formato, vacio }: {
-  partidas: Partida[];
+export function GraficoGastos({ datos, formato, vacio }: {
+  datos: PartidaGrafico[];
   formato: (n: number) => string;
   vacio: ReactNode;
 }) {
-  if (partidas.length === 0) return <div className="gráfico-vacio">{vacio}</div>;
-
-  const tope = Math.max(...partidas.map((p) => p.valor), 0);
-  if (tope <= 0) return <div className="gráfico-vacio">{vacio}</div>;
+  if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
 
   return (
-    <ul className="barras">
-      {partidas.map((p) => (
-        <li className="barra" key={p.clave}>
-          <span className="barra__etiqueta">{p.etiqueta}</span>
-          <span className="barra__valor">
-            {formato(p.valor)}
-            {p.nota ? <small className="barra__nota">{p.nota}</small> : null}
-          </span>
-          <span className="barra__pista">
-            <span className="barra__relleno" style={{ width: `${(p.valor / tope) * 100}%` }} />
-          </span>
-        </li>
-      ))}
-    </ul>
+    <ResponsiveContainer width="100%" height={Math.max(datos.length * 46 + 24, 160)}>
+      <BarChart data={datos} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }}>
+        <CartesianGrid stroke={LINEA} strokeDasharray="3 3" horizontal={false} />
+        <XAxis type="number" {...EJE} tickFormatter={(v) => formato(Number(v))} />
+        <YAxis
+          type="category"
+          dataKey="partida"
+          width={112}
+          tickLine={false}
+          stroke={LINEA}
+          /* El nombre de la partida es lo primero que se busca: tinta y
+             medio peso, no el verde de la barra. */
+          tick={{ fill: TINTA, fontFamily: LETRA.fontFamily, fontSize: 14, fontWeight: 500 }}
+        />
+        <Tooltip cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }} content={<Globo formato={formato} />} />
+        <Bar dataKey="monto" name="Al mes" fill={GANANCIA} radius={[0, 4, 4, 0]} barSize={18} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

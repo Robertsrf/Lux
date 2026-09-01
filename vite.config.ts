@@ -12,6 +12,9 @@ export default defineConfig({
       output: {
         manualChunks: {
           supabase: ['@supabase/supabase-js'],
+          // Los graficos solo los abre el admin en Reportes: en trozo aparte
+          // para que el mostrador no cargue lo que nunca va a mirar.
+          graficos: ['recharts'],
           fotos: ['browser-image-compression'],
         },
       },

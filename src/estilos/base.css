@@ -1266,149 +1266,44 @@ table.tabla tfoot td {
   color: var(--crema);
 }
 
-/* --- Graficos ---------------------------------------------------------- */
-/* Los dos colores de serie estan MEDIDOS con el validador de paletas: pasan
-   separacion por daltonismo, umbral de vision normal y contraste contra el
-   blanco. No se cambian a ojo. El oro se descarto por esto: contra la salvia
-   se confunde incluso con vista perfecta. */
+/* --- Graficos (Recharts) ----------------------------------------------- */
+/* La libreria pone ejes, escalas y el redibujado al girar el telefono. Aqui
+   solo se le impone lo de la casa: el globo y el estado vacio. Los colores
+   de serie viven en Graficos.tsx, donde se usan. */
 
-:root {
-  --serie-costo:    #7F9492;
-  --serie-ganancia: #2E5A61;
-}
-
-.grafico { margin: 0; }
-
-.leyenda {
-  display: flex; align-items: center; gap: var(--e-2);
-  margin-bottom: var(--e-4);
-  font-family: var(--fuente-ui); font-size: var(--t-12);
-  text-transform: uppercase; letter-spacing: var(--tracking);
-  /* El texto lleva tinta, nunca el color de la serie: el punto de al lado
-     es quien carga la identidad. */
+.grafico-vacio {
+  padding: var(--e-7) var(--e-4);
+  text-align: center;
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  line-height: 1.5;
   color: var(--salvia-texto);
 }
-.leyenda__punto { width: 10px; height: 10px; border-radius: var(--radio-pill); }
-.leyenda__punto--costo    { background: var(--serie-costo); }
-.leyenda__punto--ganancia { background: var(--serie-ganancia); margin-left: var(--e-3); }
+.grafico-vacio p { margin: 0 0 var(--e-2); }
+.grafico-vacio p:last-child { margin: 0; }
 
-.grafico__lienzo {
-  display: flex; align-items: flex-end; gap: var(--e-2);
-  height: 220px;
-  padding-top: var(--e-4);
-  overflow-x: auto;
-}
-
-.columna {
-  position: relative;
-  flex: 1 0 34px; min-width: 34px;
-  display: flex; flex-direction: column; align-items: center;
-  height: 100%;
-  cursor: default;
-}
-.columna__pila {
-  width: 100%; min-height: 2px;
-  display: flex; flex-direction: column;
-  margin-top: auto;
-  /* Las puntas del dato se redondean; la base queda anclada al eje. */
-  border-radius: var(--radio-xs) var(--radio-xs) 0 0;
-  overflow: hidden;
-}
-.columna__parte { min-height: 2px; }
-.columna__parte--ganancia { background: var(--serie-ganancia); }
-/* La rendija de 2px separa los tramos sin inventar un tercer color. */
-.columna__parte--costo {
-  background: var(--serie-costo);
-  box-shadow: inset 0 2px 0 var(--superficie);
-}
-.columna__etiqueta {
-  margin-top: var(--e-2);
-  font-family: var(--fuente-ui); font-size: var(--t-12);
-  color: var(--salvia-texto); white-space: nowrap;
-}
-/* La leyenda dice que es cada verde; el nombre de la partida no lo
-   necesita, porque su barra esta pegada debajo. */
-
-.globo {
-  position: absolute; bottom: calc(100% + var(--e-2)); left: 50%;
-  transform: translateX(-50%);
-  display: none; flex-direction: column; gap: 2px;
-  min-width: 150px; padding: var(--e-3);
-  background: var(--verde-profundo); color: var(--crema);
+/* El globo es la barra del carrito en pequeno: verde profundo, texto crema. */
+.globo-grafico {
+  display: flex; flex-direction: column; gap: var(--e-1);
+  padding: var(--e-3) var(--e-4);
+  background: var(--verde-profundo);
+  color: var(--crema);
   border-radius: var(--radio);
   box-shadow: var(--sombra-3);
   font-family: var(--fuente-ui); font-size: var(--t-12);
-  white-space: nowrap; z-index: 5;
+  font-variant-numeric: tabular-nums;
 }
-.columna:hover .globo, .columna:focus-visible .globo { display: flex; }
-.globo strong { font-size: var(--t-14); }
-
-/* --- Barras horizontales por partida ----------------------------------- */
-
-.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-4); }
-/* Dos renglones: arriba el nombre y la cifra, abajo la barra a todo lo
-   ancho. Con la barra en medio, la rejilla partia cada partida en cuatro
-   lineas sueltas y no se leia como una barra. */
-.barra {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: var(--e-2) var(--e-3);
+.globo-grafico strong { font-size: var(--t-14); font-weight: 500; }
+.globo-grafico__total {
+  padding-bottom: var(--e-1);
+  border-bottom: 1px solid color-mix(in srgb, var(--crema) 24%, transparent);
+  margin-bottom: var(--e-1);
 }
-.barra__pista { grid-column: 1 / -1; }
-.barra__etiqueta {
-  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 500;
-  color: var(--tinta);
-}
-.barra__pista {
-  height: 14px; border-radius: var(--radio-pill);
-  background: var(--verde-suave);
-}
-.barra__relleno {
-  display: block; height: 100%; min-width: 4px;
+.globo-grafico__linea { display: flex; align-items: center; gap: var(--e-2); }
+.globo-grafico__linea i {
+  width: 8px; height: 8px; flex: none;
   border-radius: var(--radio-pill);
-  background: var(--serie-ganancia);
-}
-.barra__valor {
-  font-family: var(--fuente-display); font-size: var(--t-20);
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta);
-  text-align: right; white-space: nowrap;
-}
-/* El porcentaje acompana al monto en la misma linea: es un matiz de la
-   misma cifra, no un dato aparte que merezca su renglon. */
-.barra__nota {
-  margin-left: var(--e-2);
-  font-family: var(--fuente-ui); font-size: var(--t-12);
-  letter-spacing: var(--tracking);
-  color: var(--salvia-texto);
 }
 
-/* --- Cifra protagonista ------------------------------------------------- */
-
-.cifra { display: flex; flex-direction: column; gap: var(--e-1); }
-.cifra__etiqueta {
-  font-family: var(--fuente-ui); font-size: var(--t-12);
-  text-transform: uppercase; letter-spacing: var(--tracking);
-  color: var(--salvia-texto);
-}
-.cifra__valor {
-  font-family: var(--fuente-display); font-size: var(--t-28);
-  font-weight: 600; line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta);
-}
-.cifra__valor--positivo { color: var(--exito); }
-.cifra__valor--negativo { color: var(--error); }
-.cifra__nota { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--salvia-texto); }
-
-.gráfico-vacio {
-  padding: var(--e-6) var(--e-4);
-  text-align: center;
-  font-family: var(--fuente-prosa); font-size: var(--t-16);
-  color: var(--salvia-texto);
-}
-
-@media (max-width: 560px) {
-  .barra__valor { font-size: var(--t-16); }
-}
+/* Recharts dibuja el foco con un rectangulo propio que no respeta la
+   paleta; se le pone el anillo de la casa. */
+.recharts-wrapper :focus-visible { outline: 2px solid var(--oro-arena); outline-offset: 2px; }

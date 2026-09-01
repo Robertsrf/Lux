@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, sumar } from '../../lib/dinero';
-import { BarrasApiladas, BarrasHorizontales } from '../../componentes/Graficos';
+import { GraficoDiario, GraficoGastos } from '../../componentes/Graficos';
 import type { GastoPartida, MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
 
 const PERIODOS = [
@@ -67,23 +67,21 @@ export function Reportes() {
     [rotacion, umbral],
   );
 
+  // Al reves: la consulta trae lo mas nuevo primero porque la tabla se lee
+  // asi, pero un grafico de tiempo va de izquierda a derecha.
   const porDia = useMemo(() => [...ventas].reverse().map((v) => ({
-    clave: v.dia,
-    etiqueta: formatearFecha(v.dia).slice(0, 5),
+    dia: formatearFecha(v.dia).slice(0, 5),
     costo: Number(v.costo_usd) || 0,
     ganancia: Math.max(Number(v.ganancia_usd) || 0, 0),
-    detalle: v.piezas + ' piezas en ' + v.ventas + ' venta' + (v.ventas === 1 ? '' : 's'),
   })), [ventas]);
 
   const partidasGasto = useMemo(() => gastos.map((g) => ({
-    clave: g.partida,
-    etiqueta: g.partida,
-    valor: Number(g.monto_usd) || 0,
-    nota: g.porcentaje === null ? undefined : formatearPorcentaje(g.porcentaje),
+    partida: g.partida,
+    monto: Number(g.monto_usd) || 0,
   })), [gastos]);
 
   const totalGastos = useMemo(
-    () => partidasGasto.reduce((a, p) => a + p.valor, 0),
+    () => partidasGasto.reduce((a, p) => a + p.monto, 0),
     [partidasGasto],
   );
 
@@ -127,8 +125,8 @@ export function Reportes() {
 
       <h2 className="seccion-titulo">Costo y ganancia, dia a dia</h2>
       <div className="tarjeta">
-        <BarrasApiladas
-          columnas={porDia}
+        <GraficoDiario
+          datos={porDia}
           formato={formatearUsd}
           vacio={
             <>
@@ -196,8 +194,8 @@ export function Reportes() {
 
       <h2 className="seccion-titulo">A donde se va el dinero cada mes</h2>
       <div className="tarjeta">
-        <BarrasHorizontales
-          partidas={partidasGasto}
+        <GraficoGastos
+          datos={partidasGasto}
           formato={formatearUsd}
           vacio={<p>Carga tus gastos en Costos y apareceran aqui, partida por partida.</p>}
         />
