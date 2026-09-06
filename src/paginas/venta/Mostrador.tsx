@@ -5,6 +5,7 @@ import { formatearBs, formatearUsd } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
+import { useTextos } from '../../hooks/useTextos';
 import { useCarrito } from '../../hooks/useCarrito';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import { Recordatorio } from '../../componentes/Recordatorio';
@@ -26,6 +27,7 @@ const COLUMNAS = 'ubicacion_id, modelo_id, sku, nombre, categoria, variantes_not
 export function Mostrador() {
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
+  const textos = useTextos();
   const carrito = useCarrito();
   const visor = useVisorFoto();
   const esDobleToque = useDobleToque();
@@ -104,7 +106,11 @@ export function Mostrador() {
   }
 
   function verFoto(m: ModeloEnUbicacion) {
-    visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path });
+    visor.abrir({
+      nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
+      path: m.foto_path, thumbPath: m.foto_thumb_path,
+      categoria: m.categoria, materiales: textos.materiales_corto ?? null,
+    });
   }
 
   async function confirmar() {
@@ -293,6 +299,13 @@ export function Mostrador() {
         />
       </Campo>
 
+      {/* Los materiales van UNA vez y arriba, no en cada tarjeta: son de la
+          casa entera, no de una pieza. La vendedora los tiene a la vista
+          para decirlos, que es de lo que sirven en el mostrador. */}
+      {textos.materiales_corto ? (
+        <p className="sello-materiales">{textos.materiales_corto}</p>
+      ) : null}
+
       {cargando ? (
         <Cargando texto="Buscando piezas" />
       ) : modelos.length === 0 ? (
@@ -330,6 +343,7 @@ export function Mostrador() {
                   ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
                   : <span className="tarjeta-modelo__foto" />}
                 <span className="tarjeta-modelo__cuerpo">
+                  {m.categoria ? <span className="tarjeta-modelo__categoria">{m.categoria}</span> : null}
                   <span className="tarjeta-modelo__nombre">{m.nombre}</span>
                   <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
                   <span className="tarjeta-modelo__pie">

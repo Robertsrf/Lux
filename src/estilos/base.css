@@ -1325,3 +1325,24 @@ table.tabla tfoot td {
 /* Recharts dibuja el foco con un rectangulo propio que no respeta la
    paleta; se le pone el anillo de la casa. */
 .recharts-wrapper :focus-visible { outline: 2px solid var(--oro-arena); outline-offset: 2px; }
+
+/* --- Categoria en la tarjeta y en el visor ----------------------------- */
+/* Al recorrer treinta piezas, saber si es anillo o cadena antes de leer el
+   nombre ahorra el viaje. Va arriba y pequena: orienta, no compite. */
+
+.tarjeta-modelo__categoria {
+  font-family: var(--fuente-ui);
+  font-size: 10px; line-height: 1;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--salvia-texto);
+  margin-bottom: 2px;
+}
+
+.visor__categoria {
+  display: block;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+  margin-bottom: var(--e-1);
+}

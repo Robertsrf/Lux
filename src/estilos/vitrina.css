@@ -273,3 +273,21 @@
   .vitrina__escena { animation: none; }
   .vitrina__progreso-barra { animation: none; transform: scaleX(1); }
 }
+
+/* Los materiales dejan de ser un pie de pagina.
+   En un televisor de tienda son media razon por la que alguien se acerca a
+   preguntar, asi que suben de tamano, se despegan del precio con la regla de
+   oro y se quedan visibles tambien en pantallas angostas. */
+.vitrina__materiales {
+  margin-top: var(--e-5);
+  padding-top: var(--e-4);
+  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
+  font-size: var(--t-20);
+  color: color-mix(in srgb, var(--crema) 82%, transparent);
+}
+@media (max-width: 900px) {
+  .vitrina__materiales { display: block; font-size: var(--t-16); margin-top: var(--e-4); }
+}
+@media (min-width: 1600px) {
+  .vitrina__materiales { font-size: var(--t-28); }
+}

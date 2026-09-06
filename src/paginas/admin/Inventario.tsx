@@ -4,6 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Campo, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
+import { useTextos } from '../../hooks/useTextos';
 import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
@@ -18,6 +19,7 @@ const CATEGORIAS = ['anillo', 'pulsera', 'cadena', 'choker', 'arete', 'tobillera
  * La vendedora no llega aqui: la vista v_catalogo_admin filtra con es_admin().
  */
 export function Inventario() {
+  const textos = useTextos();
   const [filtros, setFiltros] = useState<FiltrosInventario>(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +165,11 @@ export function Inventario() {
                             className="miniatura miniatura--tocable"
                             style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                             aria-label={`Ver la foto de ${m.nombre}`}
-                            onClick={() => visor.abrir({ nombre: m.nombre, sku: m.sku, nota: m.variantes_nota, path: m.foto_path, thumbPath: m.foto_thumb_path })}
+                            onClick={() => visor.abrir({
+                              nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
+                              path: m.foto_path, thumbPath: m.foto_thumb_path,
+                              categoria: m.categoria, materiales: textos.materiales_corto ?? null,
+                            })}
                           />
                         ) : <span className="miniatura" />}
                       </td>
