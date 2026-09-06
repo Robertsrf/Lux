@@ -857,24 +857,42 @@ table.tabla tfoot td {
   /* La barra lateral se convierte en barra superior. */
   .armazon { grid-template-columns: 1fr; }
   .lateral {
-    position: sticky; top: 0; z-index: var(--z-barra);
+    position: static;
     height: auto;
-    flex-direction: row; align-items: center; gap: var(--e-3);
+    flex-direction: row; flex-wrap: wrap; align-items: center;
+    gap: var(--e-2) var(--e-3);
     padding: var(--e-3) var(--e-4);
     overflow: visible;
   }
+  /* La marca y la salida comparten el primer renglon; las secciones se
+     llevan el ancho entero del segundo y asi caben cinco por fila. */
+  .lateral__marca { margin-right: auto; }
+  .navegacion { flex-basis: 100%; }
   .lateral__marca { padding: 0; }
   .lateral__marca .wordmark { display: none; }
   .lateral__marca .monograma { display: inline-grid; }
   .navegacion {
-    flex-direction: row; gap: var(--e-1);
-    overflow-x: auto; scrollbar-width: none;
+    flex-direction: row; flex-wrap: wrap; gap: var(--e-1);
+    justify-content: flex-start;
     padding-bottom: 2px;
   }
-  .navegacion::-webkit-scrollbar { display: none; }
-  .navegacion a { flex: 0 0 auto; padding: 0 var(--e-3); }
+  .navegacion a {
+    flex: 0 0 auto;
+    flex-direction: column; gap: 2px;
+    /* 60 px de ancho y 52 de alto: entra el pulgar y caben cuatro por
+       renglon en un telefono de 375 px. */
+    width: 60px; min-height: 52px;
+    padding: var(--e-2) 0;
+    justify-content: center; align-items: center;
+    border-radius: var(--radio);
+  }
   .navegacion a.activo { box-shadow: inset 0 -3px 0 var(--oro-arena); }
-  .navegacion a .texto-nav { display: none; }
+  .navegacion a .texto-nav {
+    display: block;
+    font-size: 10px; line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: none;
+  }
   .sesion { padding: 0; background: transparent; }
   .sesion__quien { display: none; }
 
@@ -885,7 +903,7 @@ table.tabla tfoot td {
 }
 
 @media (max-width: 560px) {
-  .rejilla-venta { grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); }
+  .rejilla-venta { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .barra-carrito { padding: var(--e-3); gap: var(--e-2); }
   .barra-carrito__total { font-size: var(--t-20); }
   .barra-carrito .boton { min-height: 48px; padding: 0 var(--e-4); }
@@ -895,7 +913,7 @@ table.tabla tfoot td {
   .pagina { padding: var(--e-4) var(--e-3) var(--e-7); }
   .fila { grid-template-columns: 1fr; }
   .acciones .boton { flex: 1 1 100%; }
-  .rejilla-venta { grid-template-columns: 1fr; }
+  .rejilla-venta { grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
   .linea-cobro { grid-template-columns: 48px 1fr; row-gap: var(--e-3); }
   .linea-cobro__foto { width: 48px; height: 48px; }
   .linea-cobro .contador { grid-column: 1 / -1; justify-content: flex-end; }

@@ -46,3 +46,38 @@ export function useUbicaciones() {
   useEffect(() => { void recargar(); }, [recargar]);
   return { ubicaciones, cargando, error, recargar };
 }
+
+/**
+ * Las categorias que ya existen, para no escribirlas a mano cada vez.
+ *
+ * Se unifican por minusculas y sin espacios sobrantes: "Anillo", "anillo" y
+ * " Anillo " son la misma cosa, y verlas tres veces en una lista es lo que
+ * hace que terminen siendo tres cosas distintas en la base. La base tambien
+ * las normaliza al guardar (`lower(trim())` en admin_guardar_modelo), asi
+ * que esto es la misma regla contada de este lado.
+ *
+ * La semilla asegura que una tienda recien instalada no arranque con la
+ * lista vacia.
+ */
+const SEMILLA = [
+  'anillo', 'arete', 'brazalete', 'cadena', 'collar',
+  'pulsera', 'set', 'tobillera', 'cabello',
+];
+
+export function useCategorias() {
+  const [categorias, setCategorias] = useState<string[]>(SEMILLA);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from('v_catalogo_admin').select('categoria').limit(1000);
+      const vistas = new Set(SEMILLA);
+      for (const x of (data as { categoria: string | null }[] | null) ?? []) {
+        const limpia = (x.categoria ?? '').trim().toLowerCase();
+        if (limpia) vistas.add(limpia);
+      }
+      setCategorias([...vistas].sort());
+    })();
+  }, []);
+
+  return categorias;
+}

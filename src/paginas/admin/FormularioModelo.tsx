@@ -5,11 +5,10 @@ import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 import { aDolaresReales, aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
-import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
+import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import type { LoteAdmin, ModeloAdmin, PrecioSugerido } from '../../lib/tipos';
 
-const CATEGORIAS = ['anillo', 'pulsera', 'cadena', 'choker', 'arete', 'tobillera', 'set'];
 
 const VACIO = {
   nombre: '',
@@ -37,6 +36,7 @@ export function FormularioModelo() {
   const esNuevo = !id;
 
   const { grupos } = useGrupos();
+  const categorias = useCategorias();
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
 
@@ -47,6 +47,7 @@ export function FormularioModelo() {
   const [fotoActual, setFotoActual] = useState<string | null>(null);
   const [sugerencia, setSugerencia] = useState<PrecioSugerido | null>(null);
   const [margenObjetivo, setMargenObjetivo] = useState('');
+  const [categoriaNueva, setCategoriaNueva] = useState(false);
   const [autoAsignado, setAutoAsignado] = useState(false);
   const [cargando, setCargando] = useState(!esNuevo);
   const [guardando, setGuardando] = useState(false);
@@ -243,15 +244,43 @@ export function FormularioModelo() {
 
           <div className="fila">
             <Campo etiqueta="Categoria" htmlFor="m-categoria">
-              <input id="m-categoria" list="categorias" required value={form.categoria} onChange={(e) => cambiar('categoria', e.target.value)} />
-              <datalist id="categorias">
-                {CATEGORIAS.map((c) => <option key={c} value={c} />)}
-              </datalist>
+              {/* Lista y no campo libre: escribiendola a mano terminan
+                  conviviendo "Collar", "collar" y "collares", y despues no
+                  hay forma de filtrar por categoria sin fallar. */}
+              <select
+                id="m-categoria"
+                required
+                value={categoriaNueva ? '__nueva' : form.categoria}
+                onChange={(e) => {
+                  if (e.target.value === '__nueva') { setCategoriaNueva(true); cambiar('categoria', ''); }
+                  else { setCategoriaNueva(false); cambiar('categoria', e.target.value); }
+                }}
+              >
+                <option value="">Elige una</option>
+                {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__nueva">Otra, la escribo yo</option>
+              </select>
             </Campo>
             <Campo etiqueta="SKU" htmlFor="m-sku" pista={esNuevo ? 'Si lo dejas vacio se genera: CAD-G13-007.' : undefined}>
               <input id="m-sku" value={form.sku} onChange={(e) => cambiar('sku', e.target.value)} />
             </Campo>
           </div>
+
+          {categoriaNueva ? (
+            <Campo
+              etiqueta="Nombre de la categoria nueva"
+              htmlFor="m-categoria-nueva"
+              pista="En singular y en minuscula, como las demas: pulsera, no Pulseras."
+            >
+              <input
+                id="m-categoria-nueva"
+                required
+                autoFocus
+                value={form.categoria}
+                onChange={(e) => cambiar('categoria', e.target.value.trimStart().toLowerCase())}
+              />
+            </Campo>
+          ) : null}
 
           <Campo etiqueta="Nota de variantes" htmlFor="m-variantes" pista="Grosores y largos que hay del mismo modelo, para no ir a mirar la vitrina.">
             <textarea id="m-variantes" value={form.variantes_nota} onChange={(e) => cambiar('variantes_nota', e.target.value)} />

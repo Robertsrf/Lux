@@ -11,7 +11,10 @@ import { Recordatorio } from '../../componentes/Recordatorio';
 import { METODOS_PAGO } from '../../lib/tipos';
 import type { MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
-const COLUMNAS = 'ubicacion_id, modelo_id, sku, nombre, categoria, variantes_nota, foto_thumb_path, grupo, precio_usd, precio_bs, cantidad';
+// foto_path va aqui a proposito: sin ella el mostrador solo tenia el thumb
+// de 300 px y las piezas se veian borrosas, mientras el catalogo publico -que
+// si la pedia- se veia bien. Era el mismo componente con distintos datos.
+const COLUMNAS = 'ubicacion_id, modelo_id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, cantidad';
 
 /**
  * Cuadricula de venta. Disenada para TOCAR, no para leer: foto grande,
