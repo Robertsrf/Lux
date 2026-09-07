@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tipos": "supabase gen types typescript --project-id %SUPABASE_PROJECT_ID% > src/lib/basedatos.tipos.ts",
     "pin": "node scripts/derivar-pin.mjs",
-    "logos": "node scripts/preparar-logos.mjs"
+    "logos": "node scripts/preparar-logos.mjs",
+    "respaldo": "node scripts/respaldar.mjs"
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.2.5",

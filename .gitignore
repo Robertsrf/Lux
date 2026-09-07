@@ -10,3 +10,9 @@ prueba-temporal.mjs
 
 # Los originales de marca SI se versionan: son la fuente de los assets.
 # (npm run logos los regenera en src/marca y public/marca)
+
+# El respaldo se escribe FUERA del repositorio, en una carpeta hermana.
+# Esta linea es el cinturon por si alguien cambia el destino: lleva cedulas
+# y telefonos de clientas, y este repositorio es publico.
+respaldos/
+Respaldos Lux/
