@@ -395,7 +395,10 @@ export interface Inversion {
 
 /** Vista v_recuperacion: cuánto de lo invertido ya volvió. */
 export interface Recuperacion {
+  /** Todas las cifras van en dolares BCV, para que las partes sumen el total. */
   invertido_mercancia_usd: number;
+  /** Lo que hace falta juntar en Binance para reponer toda la mercancia. */
+  invertido_mercancia_real_usd: number;
   invertido_exhibidores_usd: number;
   invertido_mobiliario_usd: number;
   invertido_activos_usd: number;

@@ -131,13 +131,19 @@ export function Inversiones() {
           <h2>Cuanto has recuperado</h2>
           <hr className="divisor" />
 
+          <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
+            Todo en dolares BCV, para que las dos barras se puedan comparar y
+            sumar. La mercancia se compro en Binance: reponerla entera cuesta
+            {' '}{formatearUsd(rec.invertido_mercancia_real_usd)} de aquellos.
+          </p>
+
           <div className="pila">
             <Progreso
               titulo="Mercancia"
               hecho={Number(rec.mercancia_recuperada_usd)}
               total={Number(rec.invertido_mercancia_usd)}
               pct={rec.mercancia_recuperada_pct}
-              pie={`quedan ${formatearUsd(rec.mercancia_en_vitrina_usd)} en vitrina`}
+              pie={`quedan ${formatearUsd(rec.mercancia_en_vitrina_usd)} en vitrina · se recupera al venderla`}
             />
             <Progreso
               titulo="Muebles y exhibidores"

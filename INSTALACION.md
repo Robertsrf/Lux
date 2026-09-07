@@ -46,6 +46,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 22 | `esquema-valor-inventario.sql` | Cuánto vale lo que hay en vitrina |
 | 23 | `esquema-parche-valor.sql` | Cierra una fila que se le escapaba a la vendedora |
 | 24 | `esquema-reasignar-grupos.sql` | Botón para reacomodar precios tras cargar un lote |
+| 25 | `esquema-piso-precio.sql` | El grupo se elige por el margen que deja |
+| 26 | `esquema-recuperacion-bcv.sql` | La recuperación, toda en la misma moneda |
 
 ### Los que NO se corren
 
