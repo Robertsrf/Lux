@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { aplicarDescuento, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
 import type { Tramo } from '../../lib/tipos';
 
@@ -86,6 +86,25 @@ export function Tramos() {
           <p>Desde cuantas piezas aplica cada descuento. Se calcula sobre lo que ya valen las piezas elegidas.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Como funciona el descuento por cantidad">
+        <p>
+          Un tramo dice: <em>desde tantas piezas, tanto por ciento de
+          descuento</em>. Se aplica sobre lo que valen las piezas que la
+          mayorista eligio, no sobre un precio fijo por pieza.
+        </p>
+        <p>
+          Es a proposito. Con precio fijo por pieza, un pedido de puras piezas
+          baratas y otro de puras caras pagarian lo mismo, y uno de los dos te
+          deja perdiendo.
+        </p>
+        <p>
+          <strong>Sin tramos activos el armador se apaga</strong> y nadie puede
+          pedir al mayor. Es la red de seguridad: mejor no vender que vender a
+          un precio que no existe.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 

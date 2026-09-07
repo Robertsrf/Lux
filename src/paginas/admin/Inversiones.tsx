@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearFecha, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
 import type { Equilibrio, Inversion, Recuperacion } from '../../lib/tipos';
 
@@ -99,6 +99,30 @@ export function Inversiones() {
           <p>Lo que pusiste en el negocio y cuanto ha vuelto. Se recupera de la ganancia, no del precio de las piezas.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Solo seguirla o meterla al precio">
+        <p>
+          Cada inversion se puede llevar de dos maneras, y la diferencia es
+          grande.
+        </p>
+        <p>
+          <strong>Solo seguirla.</strong> No toca los precios. Se recupera de la
+          ganancia que ya dejan las ventas, y la barra de arriba te dice cuanto
+          va. Es lo sensato para lo que se compra una vez.
+        </p>
+        <p>
+          <strong>Meterla al precio.</strong> Se reparte entre las piezas que
+          vendas durante los meses que digas, asi que sube el precio de todo.
+          Se paga sola, pero te hace mas caro que la competencia mientras dure.
+        </p>
+        <p>
+          <strong>Donde la pagaste importa.</strong> Si la compraste aqui en
+          bolivares es un dolar BCV; si la trajiste de afuera es un dolar
+          Binance y hay que convertirla. El sistema pregunta cual es porque son
+          cantidades de dinero distintas.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 

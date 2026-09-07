@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
 import type { KitResumen } from '../../lib/tipos';
@@ -98,6 +98,24 @@ export function Kits() {
           <p>Elige las piezas y cuantas van, y ponle un descuento. El total sale de lo que valen esas piezas.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Que es un kit y como se cobra">
+        <p>
+          Un kit es una seleccion armada por ti: estas piezas, estas cantidades.
+          El precio no se escribe a mano: sale de lo que valen esas piezas hoy,
+          menos el porcentaje que le pongas.
+        </p>
+        <p>
+          Asi el kit se repricia solo cuando cambian los grupos o la tasa. Un
+          precio escrito a mano se queda viejo sin avisar, y termina vendiendose
+          por debajo del costo.
+        </p>
+        <p>
+          Si una pieza del kit se queda sin existencia, el kit deja de ofrecerse
+          hasta que vuelva.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 

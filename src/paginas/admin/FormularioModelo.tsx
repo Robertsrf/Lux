@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
 import { aDolaresReales, aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
@@ -45,6 +45,7 @@ export function FormularioModelo() {
   const [lotes, setLotes] = useState<Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd'>[]>([]);
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   const [fotoActual, setFotoActual] = useState<string | null>(null);
+  const [previa, setPrevia] = useState<string | null>(null);
   const [sugerencia, setSugerencia] = useState<PrecioSugerido | null>(null);
   const [margenObjetivo, setMargenObjetivo] = useState('');
   const [categoriaNueva, setCategoriaNueva] = useState(false);
@@ -102,6 +103,16 @@ export function FormularioModelo() {
       setCargando(false);
     })();
   }, [id, esNuevo]);
+
+  // La vista previa de la foto nueva. El URL de objeto se libera al cambiar
+  // de foto o al salir: si no, el navegador se queda con la imagen en memoria
+  // hasta recargar, y aqui se cargan piezas de cincuenta en cincuenta.
+  useEffect(() => {
+    if (!foto) { setPrevia(null); return; }
+    const url = URL.createObjectURL(foto.grande);
+    setPrevia(url);
+    return () => URL.revokeObjectURL(url);
+  }, [foto]);
 
   // El flete prorrateado, la conversion a dolares BCV y el precio sugerido
   // los calcula la base. El navegador no repite ninguna de esas formulas:
@@ -186,13 +197,19 @@ export function FormularioModelo() {
   }
 
   const grupoElegido = grupos.find((g) => String(g.id) === form.grupo_precio_id);
-  // El precio de etiqueta esta en dolares BCV; el margen se mide contra
-  // los dolares REALES que quedan despues de la brecha.
   const precioBcv = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
-  const precioReal = aDolaresReales(precioBcv, tasa);
-  const costoPuesto = sugerencia?.costo_puesto_usd ?? 0;
-  const margen = precioReal === null ? null : deMonto(aMonto(precioReal) - aMonto(costoPuesto));
-  const margenPct = precioReal && precioReal > 0 && margen !== null ? (margen / precioReal) * 100 : null;
+
+  // Todo se compara en DOLARES BCV, que es la moneda de la etiqueta. El
+  // costo total ya viene asi de la base: mercancia convertida con la brecha
+  // mas lo que la pieza carga de tienda. Calcularlo aqui a mano fue lo que
+  // hizo que esta pantalla mostrara un margen distinto al del inventario.
+  const costoTotalBcv = sugerencia?.costo_total_usd ?? null;
+  const ganancia = precioBcv !== null && costoTotalBcv !== null
+    ? deMonto(aMonto(precioBcv) - aMonto(costoTotalBcv))
+    : null;
+  const margenPct = precioBcv && precioBcv > 0 && ganancia !== null ? (ganancia / precioBcv) * 100 : null;
+  // La misma ganancia en los dolares que se recompran en Binance.
+  const gananciaReal = aDolaresReales(ganancia, tasa);
 
   if (cargando) return <Cargando texto="Cargando producto" />;
 
@@ -212,14 +229,27 @@ export function FormularioModelo() {
           <h2>Foto</h2>
           <hr className="divisor" />
 
-          {fotoActual && !foto ? (
-            <img src={fotoActual} alt="Foto actual del modelo" className="foto-actual" />
+          {fotoActual || previa ? (
+            <div className="fotos-comparadas">
+              {fotoActual ? (
+                <figure>
+                  <img src={fotoActual} alt="Foto actual del modelo" className="foto-actual" />
+                  <figcaption>{previa ? 'La que esta puesta' : 'Foto actual'}</figcaption>
+                </figure>
+              ) : null}
+              {previa ? (
+                <figure>
+                  <img src={previa} alt="Foto nueva, sin guardar" className="foto-actual" />
+                  <figcaption>La nueva · se guarda al confirmar</figcaption>
+                </figure>
+              ) : null}
+            </div>
           ) : null}
 
           <Campo
             etiqueta="Archivo"
             htmlFor="m-foto"
-            pista="Se comprime aqui mismo antes de subir: 1200 px en WebP, mas un thumb de 300 px."
+            pista="Se comprime aqui mismo antes de subir: 1800 px en WebP, mas una miniatura de 600 px."
           >
             <input id="m-foto" type="file" accept="image/*" onChange={(e) => void elegirFoto(e.target.files?.[0])} />
           </Campo>
@@ -322,7 +352,24 @@ export function FormularioModelo() {
           </div>
 
           <div className="panel">
-            <span className="panel__titulo">De cuanto costo a cuanto se cobra</span>
+            <span className="panel__titulo">Como sale el precio</span>
+
+            <Ayuda titulo="Los dos dolares, en una frase">
+              <p>
+                <strong>Dolar Binance</strong> es con el que COMPRAS afuera. Hoy esta
+                mas caro que el del BCV, y esa diferencia se llama la brecha.
+              </p>
+              <p>
+                <strong>Dolar BCV</strong> es con el que VENDES aqui: es el de la
+                etiqueta y el que la clienta convierte a bolivares.
+              </p>
+              <p>
+                Por eso la mercancia se multiplica por la brecha antes de ponerle
+                precio: hace falta mas dolares BCV para juntar los Binance con los
+                que vas a reponer esa misma pieza. El alquiler y el sueldo NO se
+                multiplican, porque esos ya los pagas aqui.
+              </p>
+            </Ayuda>
 
             <div className="fila">
               <Campo
@@ -339,27 +386,40 @@ export function FormularioModelo() {
               </Campo>
             </div>
 
-            <div className="rejilla rejilla--3">
-              <div>
-                <span className="dato__etiqueta">Flete unitario</span>
-                <div className="cifra">{formatearUsd(sugerencia?.flete_unitario_usd ?? null, 4)}</div>
-              </div>
-              <div>
-                <span className="dato__etiqueta">Costo puesto</span>
-                <div className="dato__valor">{formatearUsd(costoPuesto, 4)}</div>
-                <div className="campo__pista">dolares reales</div>
-              </div>
-              <div>
-                <span className="dato__etiqueta">Ese costo en BCV</span>
-                <div className="dato__valor">{formatearUsd(sugerencia?.costo_en_bcv ?? null, 4)}</div>
-                <div className="campo__pista">x {sugerencia?.factor_brecha ?? '—'} por la brecha</div>
-              </div>
-              <div>
-                <span className="dato__etiqueta">Precio sugerido</span>
+            <ol className="cadena">
+              <li>
+                <span className="dato__etiqueta">1 · La pieza te costo</span>
+                <div className="dato__valor">{formatearUsd(sugerencia?.costo_puesto_usd ?? null, 4)}</div>
+                <div className="campo__pista">
+                  dolares Binance · {formatearUsd(sugerencia?.flete_unitario_usd ?? null, 4)} de eso es flete
+                </div>
+              </li>
+              <li>
+                <span className="dato__etiqueta">2 · En dolares BCV</span>
+                <div className="dato__valor">{formatearUsd(sugerencia?.costo_mercancia_bcv ?? null, 4)}</div>
+                <div className="campo__pista">
+                  x {sugerencia?.factor_brecha ?? '—'} de brecha: lo que hace falta aqui para
+                  volver a comprarla alla
+                </div>
+              </li>
+              <li>
+                <span className="dato__etiqueta">3 · Mas lo que carga de tienda</span>
+                <div className="dato__valor">{formatearUsd(sugerencia?.costo_operativo_usd ?? null, 4)}</div>
+                <div className="campo__pista">alquiler, sueldo y empaque · ya en BCV, no se convierte</div>
+              </li>
+              <li>
+                <span className="dato__etiqueta">4 · Te sale en</span>
+                <div className="dato__valor">{formatearUsd(sugerencia?.costo_total_usd ?? null, 4)}</div>
+                <div className="campo__pista">dolares BCV · este es el costo de verdad</div>
+              </li>
+              <li className="cadena__final">
+                <span className="dato__etiqueta">5 · Precio sugerido</span>
                 <div className="dato__valor dato__valor--grande">{formatearUsd(sugerencia?.precio_sugerido_bcv ?? null)}</div>
-                <div className="campo__pista">dolares BCV</div>
-              </div>
-            </div>
+                <div className="campo__pista">
+                  dolares BCV · el costo entre (100 − {sugerencia?.margen_objetivo_pct ?? '—'} %)
+                </div>
+              </li>
+            </ol>
 
             {sugerencia?.grupo_id ? (
               <Aviso tono={sugerencia.grupo_alcanza ? 'exito' : 'alerta'}>
@@ -367,7 +427,8 @@ export function FormularioModelo() {
                   <>
                     Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
                     {' '}({formatearUsd(sugerencia.grupo_precio_bcv)} BCV), que deja
-                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen real.
+                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen
+                    {' '}ya contando la tienda.
                     {String(sugerencia.grupo_id) !== form.grupo_precio_id ? (
                       <>
                         {' '}
@@ -407,18 +468,27 @@ export function FormularioModelo() {
               <div>
                 <span className="dato__etiqueta">Paga la clienta</span>
                 <div className="dato__valor">{formatearBs(precioEnBs(precioBcv, tasa))}</div>
+                <div className="campo__pista">a la tasa BCV de hoy</div>
               </div>
               <div>
-                <span className="dato__etiqueta">Te queda</span>
-                <div className="dato__valor">{formatearUsd(precioReal)}</div>
-                <div className="campo__pista">dolares reales</div>
+                <span className="dato__etiqueta">Menos el costo</span>
+                <div className="dato__valor">{formatearUsd(costoTotalBcv)}</div>
+                <div className="campo__pista">el del paso 4</div>
               </div>
               <div>
-                <span className="dato__etiqueta">Margen</span>
-                <div className={margen !== null && margen < 0 ? 'dato__valor negativo' : 'dato__valor'}>
-                  {formatearUsd(margen)}
+                {/* Antes esta casilla decia "Te queda" y mostraba el PRECIO en
+                    dolares reales, no la ganancia. Se leia como si cada pieza
+                    dejara siete dolares limpios. */}
+                <span className="dato__etiqueta">Ganancia</span>
+                <div className={ganancia !== null && ganancia < 0 ? 'dato__valor dato__valor--grande negativo' : 'dato__valor dato__valor--grande positivo'}>
+                  {formatearUsd(ganancia)}
                 </div>
-                <div className="campo__pista">{formatearPorcentaje(margenPct)}</div>
+                <div className="campo__pista">dolares BCV · {formatearPorcentaje(margenPct)} del precio</div>
+              </div>
+              <div>
+                <span className="dato__etiqueta">Eso, en Binance</span>
+                <div className="dato__valor">{formatearUsd(gananciaReal)}</div>
+                <div className="campo__pista">lo que puedes cambiar y reinvertir</div>
               </div>
             </div>
           </div>

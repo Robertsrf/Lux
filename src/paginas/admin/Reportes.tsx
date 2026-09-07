@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, precioEnBs, sumar } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
 import { GraficoDiario, GraficoGastos, GraficoValor } from '../../componentes/Graficos';
@@ -118,7 +118,7 @@ export function Reportes() {
       <div className="encabezado-pagina">
         <div>
           <h1>Reportes</h1>
-          <p>La ganancia se mide en dolares reales, con la tasa congelada de cada venta.</p>
+          <p>Todo en dolares BCV, con las tasas congeladas de cada venta.</p>
         </div>
         <Campo etiqueta="Periodo" htmlFor="periodo">
           <select id="periodo" value={dias} onChange={(e) => setDias(Number(e.target.value))}>
@@ -126,6 +126,32 @@ export function Reportes() {
           </select>
         </Campo>
       </div>
+
+      <Ayuda titulo="Que contesta cada parte de esta pantalla">
+        <p>
+          <strong>Lo que tienes en vitrina.</strong> Cuantas piezas hay, cuanto
+          costaron y cuanto valen en etiqueta. El margen ahi es BRUTO: de esa
+          diferencia salen todavia los gastos del mes.
+        </p>
+        <p>
+          <strong>El mes, cubriendose.</strong> Cada pieza vendida deja, por
+          encima de lo que costo reponerla, un pedazo del alquiler y del sueldo.
+          Cuando la barra se llena, la tienda se pago sola y lo que entra
+          despues es ganancia limpia.
+        </p>
+        <p>
+          <strong>Costo y ganancia dia a dia.</strong> El alto de cada columna
+          es lo que cobraste ese dia; el verde de arriba es lo que quedo.
+        </p>
+        <p>
+          <strong>Modelos dormidos.</strong> Piezas que llevan tiempo sin
+          venderse. Son dinero parado en la vitrina.
+        </p>
+        <p>
+          Las cifras usan las tasas del dia de cada venta, no las de hoy. Si el
+          reporte de un mes cambiara porque hoy movio la tasa, estaria mintiendo.
+        </p>
+      </Ayuda>
 
       {error ? <Aviso tono="error" titulo="No se pudieron leer los reportes">{error}</Aviso> : null}
 

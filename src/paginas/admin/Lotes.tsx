@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearEntero, formatearFecha, formatearTasa, formatearUsd, previsualizarProrrateo } from '../../lib/dinero';
 import type { LoteAdmin } from '../../lib/tipos';
 
@@ -114,6 +114,33 @@ export function Lotes() {
           <p>Cada lote sella la tasa Binance del dia de compra. Ese costo queda congelado en dolares para siempre.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Que es un lote y por que importa tanto">
+        <p>
+          Un lote es una compra: lo que trajiste de una vez, con su flete y sus
+          exhibidores. De aqui sale el costo de cada pieza, asi que si esto
+          esta mal, todos los precios estan mal.
+        </p>
+        <p>
+          <strong>El flete se reparte por bulto</strong>, no por lo que vale
+          cada pieza. Si vinieron 300 joyas y 20 exhibidores, son 320 bultos y
+          cada uno paga lo mismo: al flete le da igual si la caja trae un
+          collar caro o un brazalete barato.
+        </p>
+        <p>
+          <strong>Los exhibidores no son mercancia.</strong> Su costo y su
+          parte del flete van aparte, como inversion de tienda, y se recuperan
+          poco a poco de la ganancia. Cargarselos a las joyas encareceria cada
+          pieza por un mueble que no se vende.
+        </p>
+        <p>
+          <strong>La tasa Binance se sella y no se toca.</strong> Es el precio
+          real que pagaste ese dia. Si se recalculara con la tasa de hoy, el
+          costo de un lote viejo cambiaria solo y no sabrias cuanto ganaste de
+          verdad.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar el lote">{error}</Aviso> : null}
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}

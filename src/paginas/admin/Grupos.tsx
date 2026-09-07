@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearBs, formatearUsd, precioEnBs } from '../../lib/dinero';
 import { useGrupos } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -58,6 +58,29 @@ export function Grupos() {
           <p>El precio se ancla en dolares. Los bolivares se calculan con la tasa vigente.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Por que hay grupos y no un precio por pieza">
+        <p>
+          Un grupo es un punto de precio: G14 son catorce dolares BCV. Cada
+          pieza cae en el grupo mas barato que cubra su costo mas el margen,
+          redondeando hacia arriba.
+        </p>
+        <p>
+          Sirve para dos cosas. La clienta reconoce los precios en vez de ver
+          cifras sueltas, y tu cambias un grupo y se mueven todas sus piezas de
+          una vez.
+        </p>
+        <p>
+          <strong>Los escalones suben como un 25 %</strong>, no de dos en dos.
+          La diferencia entre 9 y 12 se nota igual que la que hay entre 25 y 30;
+          en cambio 14, 15 y 16 se leen como el mismo precio y no aportan nada.
+        </p>
+        <p>
+          Si una pieza no cabe en ninguno, el sistema avisa: hace falta un grupo
+          mas alto, o esa pieza lleva precio propio.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
       {!tasa ? (

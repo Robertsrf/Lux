@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { brecha, formatearFecha, formatearPorcentaje, formatearTasa } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
 import type { Tasa } from '../../lib/tipos';
@@ -72,6 +72,31 @@ export function Tasas() {
           <p>Dos numeros con trabajos distintos: uno cobra y el otro mide. Cambiarlos repricia el catalogo completo, sin tocar un solo producto.</p>
         </div>
       </div>
+
+      <Ayuda titulo="Para que sirve cada tasa" abierta>
+        <p>
+          <strong>Tasa de compra de dolares (Binance).</strong> Lo que te
+          cuesta un dolar cuando vas a comprar mercancia afuera. Es la mas
+          alta de las dos.
+        </p>
+        <p>
+          <strong>Tasa BCV.</strong> A la que le cobras a la clienta. El
+          precio de la etiqueta esta en dolares BCV, y esta tasa lo convierte
+          a bolivares.
+        </p>
+        <p>
+          La diferencia entre las dos es <strong>la brecha</strong>. El sistema
+          la usa para una sola cosa: saber cuantos dolares BCV hacen falta para
+          juntar los Binance con los que vas a reponer la pieza. Por eso la
+          mercancia se multiplica por la brecha y el alquiler no.
+        </p>
+        <p>
+          Cambiar estas dos cifras <strong>repricia el catalogo entero</strong>
+          {' '}sin tocar un producto. Las ventas ya hechas no se mueven: cada una
+          guarda las tasas del dia en que se cobro.
+        </p>
+      </Ayuda>
+
 
       {error ? <Aviso tono="error" titulo="No se pudo fijar la tasa">{error}</Aviso> : null}
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Cargando, Campo, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Cargando, Campo, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTextos } from '../../hooks/useTextos';
@@ -70,6 +70,31 @@ export function Inventario() {
         </div>
         <Link className="boton" to="/admin/modelos/nuevo">Agregar producto</Link>
       </div>
+
+      <Ayuda titulo="Que dice cada columna">
+        <p>
+          <strong>Costo puesto</strong> es lo que pagaste por la pieza mas su
+          flete, en dolares Binance. <strong>Costo total</strong> es esa
+          mercancia ya convertida a BCV mas lo que la pieza carga de tienda
+          -alquiler, sueldo, empaque-, y contra ese numero se mide el margen
+          de verdad.
+        </p>
+        <p>
+          <strong>Etiqueta</strong> es el precio en dolares BCV y
+          {' '}<strong>Paga en Bs</strong> lo mismo a la tasa de hoy.
+          {' '}<strong>Ganancia real</strong> es lo que te queda en dolares
+          Binance: lo que puedes cambiar y volver a invertir en mercancia.
+        </p>
+        <p>
+          Toca dos veces una foto para verla en grande, con su categoria y sus
+          materiales. Los botones de editar y retirar van anclados a la
+          izquierda, asi que siguen ahi aunque corras la tabla a lo ancho.
+        </p>
+        <p>
+          Los precios en bolivares no estan guardados: se calculan con la tasa
+          vigente cada vez que abres la pantalla.
+        </p>
+      </Ayuda>
 
       <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
 

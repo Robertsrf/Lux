@@ -452,7 +452,7 @@ select {
    filas hay que bajar hasta el fondo para mover las columnas. Acotada, la
    barra queda pegada al borde de abajo de lo que se ve, siempre a mano. */
 .tabla-envoltura--alta {
-  max-height: calc(100vh - 15rem);
+  max-height: calc(100vh - 9rem);
   overflow: auto;
 }
 
@@ -1345,4 +1345,42 @@ table.tabla tfoot td {
   text-transform: uppercase; letter-spacing: var(--tracking);
   color: var(--oro-arena);
   margin-bottom: var(--e-1);
+}
+
+/* --- La cadena de pasos del precio ------------------------------------ */
+/* Cinco casillas en fila, cada una con su numero, para que se lea como una
+   cuenta y no como cuatro datos sueltos. La ultima -el precio- se separa
+   con una linea de oro: es el resultado, no un paso mas. */
+
+.cadena {
+  list-style: none; margin: var(--e-4) 0 0; padding: 0;
+  display: grid; gap: var(--e-4);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.cadena li { min-width: 0; }
+.cadena .campo__pista { margin-top: 2px; }
+.cadena__final {
+  padding-left: var(--e-4);
+  border-left: 2px solid var(--oro-arena);
+}
+
+@media (max-width: 720px) {
+  .cadena { grid-template-columns: 1fr; gap: var(--e-3); }
+  .cadena__final { padding-left: 0; padding-top: var(--e-3); border-left: 0; border-top: 2px solid var(--oro-arena); }
+}
+
+/* --- Foto actual contra foto nueva ------------------------------------ */
+/* Antes se subia a ciegas: se veia el peso del archivo, no la imagen. Con
+   las dos al lado se decide mirando, que es como se decide una foto. */
+
+.fotos-comparadas {
+  display: grid; gap: var(--e-4);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 200px));
+  margin-bottom: var(--e-4);
+}
+.fotos-comparadas figure { margin: 0; }
+.fotos-comparadas figcaption {
+  margin-top: var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--salvia-texto);
 }
