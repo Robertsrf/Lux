@@ -158,11 +158,22 @@ Va a fallar a la mitad alguna vez, y entonces hay que poder repetirlo sin
 limpiar nada a mano. `if exists` / `if not exists` en todo. Una columna
 generada nueva se borra justo antes de crearse.
 
-### 3. `create or replace view` no puede quitar ni retipar columnas
+### 3. `create or replace view` solo sabe añadir columnas AL FINAL
 
-Da `ERROR 42P16: cannot drop columns from view`. Si el conjunto de columnas
-cambia, es `drop view ... cascade` y `create view` — y entonces **hay que
-volver a otorgar el `grant select`**, que se fue con la vista.
+Tres cosas le están prohibidas, y las tres dan error:
+
+- **Quitar** una columna → `ERROR 42P16: cannot drop columns from view`.
+- **Cambiar el tipo** de una que ya existe.
+- **Meter una nueva en medio.** Al correr las demás de sitio, Postgres lo lee
+  como un renombrado: `cannot change name of view column "x" to "y"`.
+
+Una columna nueva va **al final del select**, siempre, aunque quede lejos de
+sus compañeras temáticas. Ese es el precio de poder añadirla sin borrar la
+vista.
+
+Si de verdad hay que reordenar o quitar, es `drop view ... cascade` y
+`create view` — y entonces **hay que volver a otorgar el `grant select`**,
+que se fue con la vista.
 
 ### 4. Los archivos que quedan obsoletos se sellan
 

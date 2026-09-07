@@ -61,10 +61,6 @@ select
         + (i.exhibidores_real + i.mobiliario_real) * f.factor
         + i.mobiliario_bcv, 2)                           as invertido_total_usd,
 
-  -- Y aparte, con su propio nombre: lo que hace falta juntar en Binance
-  -- para volver a comprar toda la mercancía. Es otra pregunta.
-  round(i.mercancia_real, 2)                             as invertido_mercancia_real_usd,
-
   round(d.costo_mercancia_bcv, 2)                        as mercancia_recuperada_usd,
   round(greatest(i.mercancia_real * f.factor - d.costo_mercancia_bcv, 0), 2) as mercancia_en_vitrina_usd,
 
@@ -79,7 +75,15 @@ select
   -- El porcentaje no cambia: arriba y abajo llevan la misma brecha.
   case when i.mercancia_real > 0
        then least(round((d.costo_mercancia_real / i.mercancia_real) * 100, 1), 100)
-       end                                               as mercancia_recuperada_pct
+       end                                               as mercancia_recuperada_pct,
+
+  -- Va AL FINAL a proposito. `create or replace view` solo sabe anadir
+  -- columnas al final: si se mete en medio, corre las demas de sitio y
+  -- Postgres lo lee como un renombrado y se niega.
+  --
+  -- Lo que dice: cuanto hay que juntar en Binance para reponer toda la
+  -- mercancia. Es otra pregunta que la de arriba, y por eso no se convierte.
+  round(i.mercancia_real, 2)                             as invertido_mercancia_real_usd
 from invertido i
 cross join vendido d
 cross join f
