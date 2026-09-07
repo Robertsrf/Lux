@@ -71,6 +71,7 @@ function pedirCodigo() {
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
 
 async function main() {
+  const arranque = Date.now();
   const conFotos = process.argv.includes('--fotos');
   const env = leerEnv();
   const codigo = process.env.LUX_ADMIN || await pedirCodigo();
@@ -144,6 +145,8 @@ async function main() {
     console.log('\n  descargando fotos...');
     fs.mkdirSync(path.join(carpeta, 'fotos'), { recursive: true });
     const { data: carpetas } = await db.storage.from('fotos').list('modelos', { limit: 2000 });
+    const total = (carpetas ?? []).length;
+    let hechas = 0;
     for (const c of carpetas ?? []) {
       const { data: archivos } = await db.storage.from('fotos').list('modelos/' + c.name, { limit: 100 });
       for (const a of archivos ?? []) {
@@ -157,7 +160,10 @@ async function main() {
         bytes += buf.length;
         fotos++;
       }
-      process.stdout.write('\r  fotos: ' + fotos);
+      hechas++;
+      const barra = '#'.repeat(Math.round(hechas / total * 20)).padEnd(20, '.');
+      process.stdout.write('\r  [' + barra + '] ' + hechas + '/' + total
+        + ' modelos · ' + fotos + ' fotos   ');
     }
     console.log('');
   }
@@ -174,7 +180,9 @@ async function main() {
     + Object.entries(resumen).map(([k, v]) => '  ' + k.padEnd(20) + v).join('\n') + '\n'
     + (fallos.length ? '\nFALLOS:\n  ' + fallos.join('\n  ') + '\n' : ''));
 
-  console.log('\n' + filasTotal + ' filas' + (conFotos ? ', ' + fotos + ' fotos' : '') + ', ' + kb(bytes));
+  const seg = Math.round((Date.now() - arranque) / 1000);
+  console.log('\n' + filasTotal + ' filas' + (conFotos ? ', ' + fotos + ' fotos' : '')
+    + ', ' + kb(bytes) + ', en ' + (seg < 60 ? seg + ' s' : Math.floor(seg / 60) + ' min ' + (seg % 60) + ' s'));
   if (fallos.length) {
     console.log('\nCON ' + fallos.length + ' FALLO(S) — el respaldo esta INCOMPLETO:');
     for (const f of fallos) console.log('  ' + f);
