@@ -24,7 +24,10 @@ function Progreso({ titulo, hecho, total, pct, pie }: {
         aria-valuemax={100}
         aria-label={titulo}
       >
-        <div className={p >= 100 ? 'progreso__relleno progreso__relleno--completo' : 'progreso__relleno'} style={{ width: `${p}%` }} />
+        <div
+          className={p >= 100 ? 'progreso__relleno progreso__relleno--completo' : 'progreso__relleno'}
+          style={{ transform: `scaleX(${p / 100})` }}
+        />
       </div>
       <div className="progreso__pie">
         {formatearUsd(hecho)} de {formatearUsd(total)}{pie ? ` · ${pie}` : ''}

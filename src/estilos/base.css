@@ -368,7 +368,7 @@ select {
 }
 .boton--peligro:hover:not(:disabled) { background: var(--error); border-color: var(--error); color: var(--crema); }
 
-.boton--pequeno { min-height: 34px; padding: 0 var(--e-4); font-size: 11px; }
+.boton--pequeno { min-height: 36px; padding: 0 var(--e-4); font-size: 11px; }
 .boton--icono { padding: 0; width: var(--alto-control); }
 
 .acciones {
@@ -1024,7 +1024,13 @@ table.tabla tfoot td {
   color: var(--salvia-texto); opacity: 0.85;
 }
 .rebaja { display: grid; gap: var(--e-1); margin-top: var(--e-1); }
-.rebaja input { max-width: 160px; min-height: 40px; font-size: var(--t-16); }
+.rebaja input {
+  max-width: 160px;
+  /* Hereda los 56 px del mostrador como todo lo demas. Tenia 40 escritos a
+     mano, y es justo el control que se usa con la clienta regateando. */
+  min-height: var(--alto-control);
+  font-size: var(--t-16);
+}
 .rebaja__piso { font-size: var(--t-12); color: var(--alerta-texto); }
 
 /* --- Lo que hace especial a Lux -------------------------------------- */
@@ -1167,9 +1173,13 @@ table.tabla tfoot td {
 }
 .progreso__relleno {
   height: 100%;
+  width: 100%;
   background: var(--verde-profundo);
   border-radius: inherit;
-  transition: width var(--medio);
+  /* Se escala en vez de estirarse: animar `width` recalcula la disposicion
+     en cada cuadro y en un telefono de gama baja se nota. */
+  transform-origin: left center;
+  transition: transform var(--medio);
 }
 .progreso__relleno--completo { background: var(--exito); }
 .progreso__pie { font-size: var(--t-12); color: var(--texto-secundario); }
