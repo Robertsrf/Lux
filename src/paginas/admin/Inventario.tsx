@@ -5,13 +5,12 @@ import { Aviso, Ayuda, Cargando, Campo, Vacio } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTextos } from '../../hooks/useTextos';
-import { useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
+import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
 
-const CATEGORIAS = ['anillo', 'pulsera', 'cadena', 'choker', 'arete', 'tobillera', 'set'];
 
 /**
  * Vista de inventario del administrador: densa, tabular, para comparar cifras.
@@ -20,6 +19,10 @@ const CATEGORIAS = ['anillo', 'pulsera', 'cadena', 'choker', 'arete', 'tobillera
  */
 export function Inventario() {
   const textos = useTextos();
+  const [objetivo, setObjetivo] = useState<number | null>(null);
+  const [reasignando, setReasignando] = useState(false);
+  const [reasignado, setReasignado] = useState<string | null>(null);
+  const categorias = useCategorias();
   const [filtros, setFiltros] = useState<FiltrosInventario>(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +40,44 @@ export function Inventario() {
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
   const { modelos, existencias, total, cargando, error: errorCarga, recargar } = useInventario(filtros, pagina);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from('configuracion').select('valor')
+        .eq('clave', 'margen_objetivo_pct').maybeSingle();
+      setObjetivo(data ? Number((data as { valor: number }).valor) : null);
+    })();
+  }, []);
+
+  /**
+   * Vuelve a poner cada pieza en el grupo que le toca segun su costo.
+   *
+   * El grupo se elige al cargar la pieza, y ahi es facil que quede mal: se
+   * escoge antes de teclear el costo final, o a mano guiandose por el SKU.
+   * Nada avisaba despues, asi que las piezas se quedaban baratas -o
+   * infladas- sin que nadie lo notara.
+   */
+  async function reasignar() {
+    setReasignando(true);
+    setReasignado(null);
+    const { data, error: err } = await supabase.rpc('admin_reasignar_grupos');
+    if (err) { setError(mensajeDeError(err)); setReasignando(false); return; }
+    const r = data as { piezas_movidas: number; sin_grupo_que_alcance: number };
+    setReasignado(
+      r.piezas_movidas === 0
+        ? 'Todas estaban en su sitio: no hubo nada que mover.'
+        : `Se movieron ${r.piezas_movidas} piezas al grupo que les toca.`
+        + (r.sin_grupo_que_alcance > 0
+          ? ` Ojo: ${r.sin_grupo_que_alcance} no llegan ni con el grupo mas alto; hace falta crear uno por encima.`
+          : ''),
+    );
+    setReasignando(false);
+    await recargar();
+  }
+
+  // Las que se quedaron cortas de margen, para avisarlo sin que haya que
+  // ir a auditar la tabla a mano.
+  const bajas = objetivo === null ? [] : modelos.filter((m) => m.margen_pct !== null && m.margen_pct < objetivo - 0.5);
 
   function cambiarFiltro<K extends keyof FiltrosInventario>(campo: K, valor: string) {
     setFiltros((f) => ({ ...f, [campo]: valor }));
@@ -70,6 +111,26 @@ export function Inventario() {
         </div>
         <Link className="boton" to="/admin/modelos/nuevo">Agregar producto</Link>
       </div>
+
+      {bajas.length > 0 && objetivo !== null ? (
+        <Aviso tono="alerta" titulo={`${bajas.length} piezas por debajo del ${objetivo} % objetivo`}>
+          <p>
+            Estan en un grupo mas barato del que les toca por su costo, asi que
+            se venden dejando menos de lo que deberian. Pasa cuando el grupo se
+            elige antes de teclear el costo final.
+          </p>
+          <p className="campo__pista">
+            Las mas flojas: {bajas.slice(0, 3).map((m) => `${m.sku} (${formatearPorcentaje(m.margen_pct)})`).join(' · ')}
+          </p>
+          <div className="acciones acciones--sueltas" style={{ marginTop: 'var(--e-3)' }}>
+            <button type="button" className="boton boton--confirmar" disabled={reasignando} onClick={() => void reasignar()}>
+              {reasignando ? 'Reasignando' : 'Ponerlas en su grupo'}
+            </button>
+          </div>
+        </Aviso>
+      ) : null}
+
+      {reasignado ? <Aviso tono="exito">{reasignado}</Aviso> : null}
 
       <Ayuda titulo="Que dice cada columna">
         <p>
@@ -114,7 +175,7 @@ export function Inventario() {
           <Campo etiqueta="Categoria" htmlFor="f-cat">
             <select id="f-cat" value={filtros.categoria} onChange={(e) => cambiarFiltro('categoria', e.target.value)}>
               <option value="">Todas</option>
-              {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Campo>
           <Campo etiqueta="Grupo" htmlFor="f-grupo">

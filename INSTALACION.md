@@ -44,6 +44,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 20 | `esquema-gastos-desglose.sql` | Los gastos del mes, partida por partida |
 | 21 | `esquema-cobertura-mes.sql` | Cuánto del mes ya cubrieron las ventas |
 | 22 | `esquema-valor-inventario.sql` | Cuánto vale lo que hay en vitrina |
+| 23 | `esquema-parche-valor.sql` | Cierra una fila que se le escapaba a la vendedora |
+| 24 | `esquema-reasignar-grupos.sql` | Botón para reacomodar precios tras cargar un lote |
 
 ### Los que NO se corren
 
