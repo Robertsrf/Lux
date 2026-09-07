@@ -339,6 +339,11 @@ export interface PrecioSugerido {
   factor_merma: number;
   costo_total_usd: number;
   costo_en_bcv: number;
+  /** Lo minimo que puede cobrar el mostrador sin pedir permiso. */
+  precio_minimo_bcv: number | null;
+  margen_en_el_piso_pct: number | null;
+  /** El margen mas bajo que se acepta al meter la pieza en un grupo. */
+  margen_piso_pct: number;
   margen_objetivo_pct: number;
   precio_sugerido_bcv: number;
   grupo_id: number | null;

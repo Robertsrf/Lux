@@ -428,7 +428,9 @@ export function FormularioModelo() {
                     Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
                     {' '}({formatearUsd(sugerencia.grupo_precio_bcv)} BCV), que deja
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen
-                    {' '}ya contando la tienda.
+                    {' '}ya contando la tienda. Se elige el grupo mas barato que llegue
+                    {' '}al {formatearPorcentaje(sugerencia.margen_piso_pct)} de piso, para no
+                    {' '}inflar el precio por unos centavos.
                     {String(sugerencia.grupo_id) !== form.grupo_precio_id ? (
                       <>
                         {' '}
@@ -491,6 +493,17 @@ export function FormularioModelo() {
                 <div className="campo__pista">lo que puedes cambiar y reinvertir</div>
               </div>
             </div>
+
+            {sugerencia?.precio_minimo_bcv ? (
+              <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+                <strong style={{ display: 'inline' }}>Para negociar:</strong> la vendedora
+                puede bajar hasta {formatearUsd(sugerencia.precio_minimo_bcv)} BCV
+                {' '}({formatearBs(precioEnBs(sugerencia.precio_minimo_bcv, tasa))}) sin pedirte
+                permiso, y ahi la pieza todavia deja
+                {' '}{formatearPorcentaje(sugerencia.margen_en_el_piso_pct)}. Por debajo de eso
+                el mostrador no la deja cobrar.
+              </p>
+            ) : null}
           </div>
         </div>
 
