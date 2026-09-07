@@ -485,3 +485,28 @@ export interface CoberturaMes {
   piezas_faltantes: number | null;
   desde: string;
 }
+
+/** Vista v_valor_inventario: cuanto vale lo que hay guardado. */
+export interface ValorInventario {
+  modelos_con_existencia: number;
+  modelos_activos: number;
+  piezas: number;
+  /** Lo que costo traerlas, ya en BCV y con la merma dentro. */
+  costo_bcv: number;
+  /** Lo mismo en dolares Binance: lo que hay que juntar para reponer todo. */
+  costo_real_usd: number;
+  precio_bcv: number;
+  /** Precio menos costo. BRUTO: de aqui salen los gastos del mes. */
+  margen_bruto_bcv: number;
+  margen_bruto_pct: number | null;
+  piezas_sin_precio: number;
+}
+
+/** Vista v_valor_por_categoria: el mismo valor, abierto. */
+export interface ValorCategoriaFila {
+  categoria: string;
+  piezas: number;
+  costo_bcv: number;
+  margen_bruto_bcv: number;
+  precio_bcv: number;
+}

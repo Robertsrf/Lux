@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, sumar } from '../../lib/dinero';
-import { GraficoDiario, GraficoGastos } from '../../componentes/Graficos';
-import type { CoberturaMes, GastoPartida, MezclaGrupo, RotacionModelo, VentaPorDia } from '../../lib/tipos';
+import { aMonto, deMonto, formatearBs, formatearEntero, formatearFecha, formatearPorcentaje, formatearUsd, precioEnBs, sumar } from '../../lib/dinero';
+import { useTasa } from '../../hooks/useTasa';
+import { GraficoDiario, GraficoGastos, GraficoValor } from '../../componentes/Graficos';
+import type {
+  CoberturaMes, GastoPartida, MezclaGrupo, RotacionModelo,
+  ValorCategoriaFila, ValorInventario, VentaPorDia,
+} from '../../lib/tipos';
 
 const PERIODOS = [
   { dias: 7, texto: 'Ultimos 7 dias' },
@@ -19,6 +23,7 @@ const DORMIDOS = [30, 60, 90];
  * movieron la tasa, el sistema estaria mintiendo.
  */
 export function Reportes() {
+  const { tasa } = useTasa();
   const [dias, setDias] = useState(30);
   const [umbral, setUmbral] = useState(30);
   const [ventas, setVentas] = useState<VentaPorDia[]>([]);
@@ -26,6 +31,8 @@ export function Reportes() {
   const [rotacion, setRotacion] = useState<RotacionModelo[]>([]);
   const [gastos, setGastos] = useState<GastoPartida[]>([]);
   const [cobertura, setCobertura] = useState<CoberturaMes | null>(null);
+  const [valor, setValor] = useState<ValorInventario | null>(null);
+  const [valorCat, setValorCat] = useState<ValorCategoriaFila[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,19 +42,23 @@ export function Reportes() {
       setError(null);
       const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
 
-      const [v, m, r, g, c] = await Promise.all([
+      const [v, m, r, g, c, iv, ic] = await Promise.all([
         supabase.from('v_ventas_por_dia').select('*').gte('dia', desde).order('dia', { ascending: false }),
         supabase.from('v_mezcla_grupo').select('*').order('orden'),
         supabase.from('v_rotacion_modelo').select('*').order('piezas_vendidas', { ascending: false }).limit(500),
         supabase.from('v_gastos_desglose').select('*'),
         supabase.from('v_cobertura_mes').select('*').maybeSingle(),
+        supabase.from('v_valor_inventario').select('*').maybeSingle(),
+        supabase.from('v_valor_por_categoria').select('*'),
       ]);
+      setValor((iv.data as ValorInventario | null) ?? null);
+      setValorCat((ic.data as ValorCategoriaFila[] | null) ?? []);
       setGastos((g.data as GastoPartida[] | null) ?? []);
       setCobertura((c.data as CoberturaMes | null) ?? null);
 
       // Si falla la de gastos hay que decirlo igual: al agregarla se me
       // quedo fuera de esta linea y su error se perdia en silencio.
-      const fallo = v.error ?? m.error ?? r.error ?? g.error ?? c.error;
+      const fallo = v.error ?? m.error ?? r.error ?? g.error ?? c.error ?? iv.error ?? ic.error;
       if (fallo) setError(mensajeDeError(fallo));
       setVentas((v.data as VentaPorDia[] | null) ?? []);
       setMezcla((m.data as MezclaGrupo[] | null) ?? []);
@@ -77,6 +88,12 @@ export function Reportes() {
     costo: Number(v.costo_usd) || 0,
     ganancia: Math.max(Number(v.ganancia_usd) || 0, 0),
   })), [ventas]);
+
+  const porCategoria = useMemo(() => valorCat.map((c) => ({
+    categoria: c.categoria,
+    costo: Number(c.costo_bcv) || 0,
+    margen: Number(c.margen_bruto_bcv) || 0,
+  })), [valorCat]);
 
   const partidasGasto = useMemo(() => {
     const fraccion = Math.min(Math.max((cobertura?.cubierto_pct ?? 0) / 100, 0), 1);
@@ -129,6 +146,57 @@ export function Reportes() {
           <div className="tablero__meta">Margen {formatearPorcentaje(margenPct)}</div>
         </div>
       </div>
+
+      <h2 className="seccion-titulo">Lo que tienes en vitrina</h2>
+      {valor ? (
+        <>
+          <div className="tablero">
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Piezas</span>
+              <div className="tablero__cifra">{formatearEntero(valor.piezas)}</div>
+              <div className="tablero__meta">
+                en {formatearEntero(valor.modelos_con_existencia)} de {formatearEntero(valor.modelos_activos)} modelos
+              </div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Te costaron</span>
+              <div className="tablero__cifra" style={{ fontSize: 'var(--t-28)' }}>{formatearUsd(valor.costo_bcv)}</div>
+              <div className="tablero__meta">{formatearUsd(valor.costo_real_usd)} para reponerlas en Binance</div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Valen en etiqueta</span>
+              <div className="tablero__cifra" style={{ fontSize: 'var(--t-28)' }}>{formatearUsd(valor.precio_bcv)}</div>
+              <div className="tablero__meta">{formatearBs(precioEnBs(valor.precio_bcv, tasa))}</div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Margen bruto</span>
+              <div className="tablero__cifra" style={{ fontSize: 'var(--t-28)' }}>{formatearUsd(valor.margen_bruto_bcv)}</div>
+              <div className="tablero__meta">{formatearPorcentaje(valor.margen_bruto_pct)} del precio</div>
+            </div>
+          </div>
+
+          {valor.piezas_sin_precio > 0 ? (
+            <Aviso tono="alerta" titulo="Hay piezas sin precio">
+              {formatearEntero(valor.piezas_sin_precio)} piezas no tienen precio puesto, asi que
+              no entran en estos totales. Ponles grupo en Inventario para que cuenten.
+            </Aviso>
+          ) : null}
+
+          <div className="tarjeta">
+            <GraficoValor
+              datos={porCategoria}
+              formato={formatearUsd}
+              vacio={<p>Carga piezas con existencia y aqui veras en que esta metido el dinero.</p>}
+            />
+            <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+              El margen es BRUTO: si vendieras todo hoy te quedarian{' '}
+              {formatearUsd(valor.margen_bruto_bcv)}, y de ahi salen los gastos del mes.
+              A cada pieza guardada no se le carga su parte de alquiler porque ese gasto
+              todavia no ocurrio.
+            </p>
+          </div>
+        </>
+      ) : null}
 
       <h2 className="seccion-titulo">Costo y ganancia, dia a dia</h2>
       <div className="tarjeta">

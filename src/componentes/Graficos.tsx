@@ -166,3 +166,54 @@ export function GraficoGastos({ datos, formato, vacio }: {
     </ResponsiveContainer>
   );
 }
+
+/* ------------------------------------------ valor del inventario por categoria */
+
+export interface ValorCategoria {
+  categoria: string;
+  costo: number;
+  margen: number;
+}
+
+/**
+ * En que esta metido el dinero, por categoria.
+ *
+ * Misma forma que el grafico del dia: lo que costo y lo que dejaria,
+ * apilados, de modo que el largo entero es el precio de etiqueta. Si hay
+ * diez mil en collares y nada en aretes, eso no se ve en un total.
+ *
+ * El margen es BRUTO: de ahi salen despues los gastos del mes. Meterle a
+ * cada pieza guardada su parte de alquiler seria contar un gasto que
+ * todavia no ocurrio.
+ */
+export function GraficoValor({ datos, formato, vacio }: {
+  datos: ValorCategoria[];
+  formato: (n: number) => string;
+  vacio: ReactNode;
+}) {
+  if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
+
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(datos.length * 44 + 56, 190)}>
+      <BarChart data={datos} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }}>
+        <CartesianGrid stroke={LINEA} strokeDasharray="3 3" horizontal={false} />
+        <XAxis type="number" {...EJE} tickFormatter={(v) => formato(Number(v))} />
+        <YAxis
+          type="category"
+          dataKey="categoria"
+          width={100}
+          tickLine={false}
+          stroke={LINEA}
+          tick={{ fill: TINTA, fontFamily: LETRA.fontFamily, fontSize: 14, fontWeight: 500 }}
+        />
+        <Tooltip
+          cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }}
+          content={<Globo formato={formato} totalEtiqueta="A precio de etiqueta" />}
+        />
+        <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
+        <Bar dataKey="costo" name="Lo que costo" stackId="v" fill={COSTO} barSize={18} />
+        <Bar dataKey="margen" name="Margen bruto" stackId="v" fill={GANANCIA} radius={[0, 4, 4, 0]} barSize={18} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
