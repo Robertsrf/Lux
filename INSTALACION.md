@@ -48,6 +48,10 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 24 | `esquema-reasignar-grupos.sql` | Botón para reacomodar precios tras cargar un lote |
 | 25 | `esquema-piso-precio.sql` | El grupo se elige por el margen que deja |
 | 26 | `esquema-recuperacion-bcv.sql` | La recuperación, toda en la misma moneda |
+| 27 | `esquema-respaldo.sql` | Poder sacar un respaldo completo por HTTPS |
+| 28 | `esquema-costos-cerrados.sql` | Cierra las funciones de costo a la vendedora |
+| 29 | `esquema-indices-fk.sql` | Los índices que las claves foráneas no traen |
+| 30 | `esquema-correcciones-datos.sql` | Arregla datos concretos; en base nueva no hace nada |
 
 ### Los que NO se corren
 
