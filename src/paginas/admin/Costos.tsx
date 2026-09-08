@@ -279,7 +279,7 @@ export function Costos() {
         </p>
         <p>
           <strong>2 · Rotar más rápido.</strong> Los mismos gastos repartidos entre más piezas
-          bajan el costo de cada una. Aquí es donde el catálogo publico y los kits ayudan.
+          bajan el costo de cada una. Aquí es donde ayudan el catálogo público y el descuento por cantidad.
         </p>
         <p>
           <strong>3 · Bajar gastos fijos.</strong> Cada dolar que sale del alquiler o los servicios

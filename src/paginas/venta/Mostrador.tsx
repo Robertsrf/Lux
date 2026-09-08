@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { formatearBs, formatearUsd } from '../../lib/dinero';
+import { formatearBs, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -132,7 +132,16 @@ export function Mostrador() {
         <div className="encabezado-pagina">
           <div>
             <h1 tabIndex={-1} ref={tituloCobro}>Cobrar</h1>
-            <p>{carrito.totales.piezas} pieza{carrito.totales.piezas === 1 ? '' : 's'}</p>
+            <p>
+              {carrito.totales.piezas} pieza{carrito.totales.piezas === 1 ? '' : 's'}
+              {/* Dicho aqui para que ella pueda decirselo a la clienta con
+                  la cifra delante, no de memoria. */}
+              {carrito.totales.descuento
+                ? ` · ${formatearPorcentaje(carrito.totales.descuento)} de descuento por cantidad, ahorra ${formatearBs(carrito.totales.ahorroBs)}`
+                : carrito.totales.siguiente
+                  ? ` · con ${carrito.totales.siguiente.faltan} más baja ${formatearPorcentaje(carrito.totales.siguiente.pct)}`
+                  : ''}
+            </p>
           </div>
         </div>
 
@@ -141,10 +150,14 @@ export function Mostrador() {
         ) : null}
 
         <div className="lineas-cobro">
-          {carrito.lineas.map((l) => {
+          {/* Las lineas salen de `totales`, no de `lineas` crudas: ahi ya
+              viene aplicado el descuento por cantidad. Si no, cada renglon
+              diria el precio de lista y el total de abajo seria otro, y ella
+              tendria que explicarle a la clienta una resta que no cuadra. */}
+          {carrito.totales.lineas.map((l) => {
             const foto = urlPublicaFoto(l.foto_thumb_path);
             const clave = `${l.modelo_id}-${l.ubicacion_id}`;
-            const rebajado = l.precio_bs < l.precio_lista_bs;
+            const rebajado = l.precio_final_bs < l.precio_lista_bs;
             return (
               <div className="linea-cobro" key={clave}>
                 {foto
@@ -160,7 +173,7 @@ export function Mostrador() {
                         step="1"
                         min={l.precio_minimo_bs}
                         max={l.precio_lista_bs}
-                        defaultValue={l.precio_bs}
+                        defaultValue={l.precio_final_bs}
                         aria-label={`Precio de ${l.nombre} en bolivares`}
                         autoFocus
                         onBlur={(e) => {
@@ -180,7 +193,7 @@ export function Mostrador() {
                       onClick={() => setEditando(clave)}
                       disabled={!tasa || l.precio_minimo_bs >= l.precio_lista_bs}
                     >
-                      {formatearBs(l.precio_bs)} c/u
+                      {formatearBs(l.precio_final_bs)} c/u
                       {rebajado ? <s>{formatearBs(l.precio_lista_bs)}</s> : null}
                       {l.precio_minimo_bs < l.precio_lista_bs ? <span className="rebaja__pista">tocar para rebajar</span> : null}
                     </button>
@@ -275,6 +288,21 @@ export function Mostrador() {
         </Aviso>
       ) : null}
 
+      {/* En el telefono, una lista desplegable: cinco fichas envueltas se
+          llevaban tres renglones y ~330 px de la pantalla donde ella vende.
+          En escritorio siguen las fichas, que son un toque en vez de dos. */}
+      <div className="selector-ubicacion__movil">
+        <Campo etiqueta="Ubicación" htmlFor="u-movil">
+          <select
+            id="u-movil"
+            value={ubicacionId ?? ''}
+            onChange={(e) => setUbicacionId(Number(e.target.value))}
+          >
+            {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+          </select>
+        </Campo>
+      </div>
+
       <div className="selector-ubicacion" role="group" aria-label="Ubicación">
         {ubicaciones.map((u) => (
           <button
@@ -366,8 +394,25 @@ export function Mostrador() {
           <div className="barra-carrito__resumen">
             <div className="barra-carrito__piezas">
               {carrito.totales.piezas} pieza{carrito.totales.piezas === 1 ? '' : 's'}
+              {/* Lo que ya se gano, y lo que falta para lo siguiente. Se
+                  dice aqui y no en una pantalla aparte porque es justo
+                  cuando sirve: con la clienta delante y el carrito armado. */}
+              {carrito.totales.descuento ? (
+                <span className="barra-carrito__tramo">
+                  · {formatearPorcentaje(carrito.totales.descuento)} menos
+                </span>
+              ) : carrito.totales.siguiente ? (
+                <span className="barra-carrito__falta">
+                  · {carrito.totales.siguiente.faltan} más y baja {formatearPorcentaje(carrito.totales.siguiente.pct)}
+                </span>
+              ) : null}
             </div>
-            <div className="barra-carrito__total">{formatearBs(carrito.totales.totalBs)}</div>
+            <div className="barra-carrito__total">
+              {formatearBs(carrito.totales.totalBs)}
+              {carrito.totales.ahorroBs > 0 ? (
+                <span className="barra-carrito__ahorro">ahorra {formatearBs(carrito.totales.ahorroBs)}</span>
+              ) : null}
+            </div>
           </div>
           <button type="button" className="boton boton--secundario" onClick={carrito.vaciar}>
             Vaciar

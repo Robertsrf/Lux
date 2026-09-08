@@ -1,4 +1,4 @@
-import { Children, cloneElement, Component, isValidElement, useEffect, useRef } from 'react';
+import { Children, cloneElement, Component, isValidElement, useEffect, useRef, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import type { ReactNode } from 'react';
 
@@ -151,6 +151,41 @@ export function Ayuda({ titulo, children, abierta = false }: {
         {titulo}
       </summary>
       <div className="ayuda__cuerpo">{children}</div>
+    </details>
+  );
+}
+
+/**
+ * Panel de filtros que se pliega.
+ *
+ * En el telefono los cinco campos del inventario ocupaban 478 px antes de
+ * que apareciera la primera pieza, y encima empujaban la paginacion a
+ * 12.400 px del borde: para ver la pagina 2 habia que deslizar la lista
+ * entera. Plegado son 56 px.
+ *
+ * Abierto por defecto en escritorio, donde el espacio sobra y se filtra a
+ * cada rato; cerrado en el telefono, donde cada pixel de alto es una pieza
+ * que no se ve. `details` es del navegador: se pliega, se anuncia y
+ * responde al teclado sin que haya que programarlo.
+ */
+export function Filtros({ activos = 0, children }: { activos?: number; children: ReactNode }) {
+  const [abierto, setAbierto] = useState(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 901px)').matches,
+  );
+
+  return (
+    <details className="filtros" open={abierto} onToggle={(e) => setAbierto(e.currentTarget.open)}>
+      <summary className="filtros__titulo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
+          <path d="M4 6h16 M7 12h10 M10 18h4" />
+        </svg>
+        Filtrar
+        {/* Cuantos hay puestos, para que plegado no esconda que la lista
+            esta recortada. Sin esto, cerrar el panel deja a alguien
+            buscando una pieza que un filtro olvidado le esta tapando. */}
+        {activos > 0 ? <span className="filtros__cuenta">{activos}</span> : null}
+      </summary>
+      <div className="filtros__cuerpo">{children}</div>
     </details>
   );
 }

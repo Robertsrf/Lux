@@ -31,7 +31,6 @@ import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
 import { Reserva } from './paginas/publico/Reserva';
 
 import { Mostrador } from './paginas/venta/Mostrador';
-import { Kits as KitsVenta } from './paginas/venta/Kits';
 import { Tablero } from './paginas/venta/Tablero';
 import { Cierre } from './paginas/venta/Cierre';
 import { ConteoSemanal } from './paginas/venta/ConteoSemanal';
@@ -43,7 +42,6 @@ const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').t
 const Lotes = lazy(() => import('./paginas/admin/Lotes').then((m) => ({ default: m.Lotes })));
 const Grupos = lazy(() => import('./paginas/admin/Grupos').then((m) => ({ default: m.Grupos })));
 const Tasas = lazy(() => import('./paginas/admin/Tasas').then((m) => ({ default: m.Tasas })));
-const KitsAdmin = lazy(() => import('./paginas/admin/Kits').then((m) => ({ default: m.Kits })));
 const Tramos = lazy(() => import('./paginas/admin/Tramos').then((m) => ({ default: m.Tramos })));
 const Textos = lazy(() => import('./paginas/admin/Textos').then((m) => ({ default: m.Textos })));
 const Costos = lazy(() => import('./paginas/admin/Costos').then((m) => ({ default: m.Costos })));
@@ -93,7 +91,6 @@ export function App() {
           <Route element={<RutaProtegida><Disposicion /></RutaProtegida>}>
             {/* Mostrador */}
             <Route path="/venta" element={<Mostrador />} />
-            <Route path="/venta/mayor" element={<KitsVenta />} />
             <Route path="/venta/tablero" element={<Tablero />} />
             <Route path="/venta/cierre" element={<Cierre />} />
             <Route path="/venta/conteo" element={<ConteoSemanal />} />
@@ -112,7 +109,6 @@ export function App() {
             <Route path="/admin/modelos/:id" element={soloAdmin(<FormularioModelo />)} />
             <Route path="/admin/lotes" element={soloAdmin(<Lotes />)} />
             <Route path="/admin/grupos" element={soloAdmin(<Grupos />)} />
-            <Route path="/admin/kits" element={soloAdmin(<KitsAdmin />)} />
             <Route path="/admin/tramos" element={soloAdmin(<Tramos />)} />
             <Route path="/admin/textos" element={soloAdmin(<Textos />)} />
             <Route path="/admin/costos" element={soloAdmin(<Costos />)} />

@@ -105,6 +105,8 @@ Ningún otro color. Si necesitas uno nuevo, no lo necesitas.
 - Verde profundo sobre crema para todo lo que se lea de corrido.
 - **La salvia no es un color de texto.** Da 2,56:1 sobre crema: sirve para líneas y bordes de control, no para leer. Para texto secundario existe `--salvia-texto` (#506664), la misma familia oscurecida hasta 4,89:1.
 - Lo mismo con `--alerta`: como texto se usa `--alerta-texto` (#875C2D), 4,65:1.
+- **Y lo mismo con el oro.** `--oro-arena` da 5,38:1 sobre el verde profundo, que es donde se usa: barra lateral, vitrina, portada del catálogo. Sobre claro da **2,08 en blanco y 1,66 en crema**. Para texto sobre fondo claro existe `--oro-texto` (#835D35): el mismo tono (31°) y la misma saturación (43 %), a 36 % de luminosidad en vez de 68. Da 4,68 sobre crema y 5,86 sobre blanco.
+- La regla detrás de las tres: **un color de marca no es automáticamente un color de texto.** Antes de usar uno para leer, se mide contra el fondo real. Medido, no estimado.
 - Todo texto debe pasar contraste 4.5:1, **medido, no estimado**. La tienda tiene luz fuerte y el teléfono es de gama baja.
 - El borde de un control necesita 3:1 para verse. La salvia da 3,20 sobre blanco y por eso sí sirve ahí.
 
@@ -198,10 +200,44 @@ El oro se reserva para el **borde de confirmación** (`.boton--confirmar`, borde
 ### Tabla de inventario (admin)
 Cabecera en Jost mayúsculas sobre verde profundo, con las esquinas superiores redondeadas por `--radio-lg`. La fila se resalta al pasar por encima con `--verde-suave`; **no** se usan filas alternas, que compiten con el hover. **Cifras alineadas a la derecha con tabular numerals** (`font-variant-numeric: tabular-nums`). Márgenes negativos en `--error`, positivos en `--tinta`.
 
-### Navegación
-En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre por sección. La activa lleva fondo apenas más claro y una barra de oro de 3 px por dentro del borde izquierdo. Caben las ocho secciones del admin sin apretarse.
+**En el teléfono la tabla no se reacomoda: se cambia por fichas.** Trece columnas deslizándose a lo ancho enseñaban dos botones y media SKU, o sea nada. La ficha lleva foto, SKU y grupo, nombre, precio en bolívares con los dólares al lado, margen, existencia y las dos acciones. Siete datos, no trece.
 
-En móvil la misma barra pasa arriba, se vuelve horizontal y deslizable, y **deja solo los iconos**: la pantalla del mostrador no puede perder alto. La marca de oro pasa al borde inferior.
+La regla general, que vale para cualquier tabla que llegue: **en una pantalla estrecha lo correcto no es enseñar lo mismo reacomodado, es enseñar menos.** Se decide qué se cae, no cómo se dobla.
+
+### Navegación
+En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre por sección. La activa lleva fondo apenas más claro y una barra de oro de 3 px por dentro del borde izquierdo. Caben todas las secciones del admin sin apretarse.
+
+**En el teléfono la navegación va ABAJO.** Cambiado en septiembre de 2026, medido antes y después: arriba ocupaba 222 px de 844, el 26 % de la pantalla, en todas las pantallas y antes de que apareciera un solo dato. Abajo son 69 px, y el título de cada pantalla pasó de estar a 246 px del borde a estar a 24.
+
+- Cuatro columnas: **tres secciones y un botón "Más"**. Objetivo táctil de 52 px, que entra hasta en un teléfono de 320 px.
+- Las tres no son las tres primeras de la lista: son **las que se tocan a diario**. Mostrador, Pedidos y Mi día para la vendedora; Inventario, Reportes y Lotes para el admin.
+- "Más" abre una **hoja desde abajo** con TODAS las secciones, incluidas esas tres. Esconder las que ya están en la barra ahorra cuatro renglones y a cambio obliga a recordar dónde quedó cada cosa.
+- La hoja cierra con Escape, con el fondo y al elegir sección, y **devuelve el foco al botón que la abrió**.
+
+**No es una hamburguesa arriba a la izquierda, y no por moda.** Esa esquina es la que peor alcanza el pulgar de quien sostiene el teléfono con una mano y joyas con la otra. Esto es un punto de venta, no una web que se lee. Si alguna vez se propone moverla arriba, la respuesta está medida aquí.
+
+El contenido reserva su sitio con `padding-bottom`, y la barra del carrito flota **por encima** de la de navegación, no sobre sus botones.
+
+### Filtros: plegados en el teléfono
+
+**Un bloque de filtros no puede comerse la pantalla antes del primer dato.** Componente `Filtros`, que es un `<details>` con el número de filtros activos en el título. Abierto por defecto en escritorio, cerrado en el teléfono.
+
+Medido en septiembre de 2026, y por eso está aquí:
+
+- Inventario: cinco campos ocupaban **478 px** antes de la primera pieza. Plegados, 45.
+- Catálogo público: doce categorías dejaban la primera joya a **743 px de una pantalla de 844**. Una clienta abría el enlace y no veía mercancía. Ahora está a 483.
+
+El número en el título no es adorno: plegado, es lo único que avisa de que la lista está recortada. Sin él, alguien busca una pieza que un filtro olvidado le está tapando.
+
+### Elegir entre pocas opciones en el teléfono
+
+**Lista desplegable, no fichas envueltas ni tira deslizable.** Las cinco ubicaciones del mostrador ocupaban tres renglones y ~330 px; en un `<select>` son 56.
+
+Se probó la tira deslizable y **fue un error**: es justo lo que prohíbe la sección siguiente. En escritorio se quedan las fichas, que son un toque en vez de dos.
+
+### Paginación: alcanzable sin viajar
+
+Si la lista es larga, **la paginación va también arriba**. En el inventario, cincuenta fichas miden 12.500 px: el botón de la página 2 estaba a 12.366 px del borde, o sea inalcanzable en la práctica. La de arriba se alcanza sin deslizar nada. La de abajo se queda para quien llegó al final leyendo.
 
 ### Filas de pestañas y filtros
 

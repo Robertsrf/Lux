@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
+import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
 import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
@@ -339,26 +339,37 @@ export function Catalogo() {
 
         {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
-        <Campo etiqueta="Buscar" htmlFor="buscar-publico">
-          <input
-            id="buscar-publico" type="search" value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Cadena, anillo, choker..." autoComplete="off"
-          />
-        </Campo>
+        {/*
+          Plegado en el telefono. Doce categorias ocupaban 208 px y dejaban
+          la primera pieza a 743 px de una pantalla de 844: la clienta abria
+          el enlace del catalogo y no veia ni una joya. En una tienda, lo
+          primero que se enseña es la mercancia, no el buscador.
 
-        {categorias.length > 1 ? (
-          <div className="filtros-categoria" role="group" aria-label="Filtrar por categoría">
-            <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>
-              Todo
-            </button>
-            {categorias.map((c) => (
-              <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
-                {c}
+          El numero en el titulo dice cuantos filtros hay puestos, para que
+          plegar no esconda que la lista esta recortada.
+        */}
+        <Filtros activos={[texto, categoria].filter(Boolean).length}>
+          <Campo etiqueta="Buscar" htmlFor="buscar-publico">
+            <input
+              id="buscar-publico" type="search" value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Cadena, anillo, choker..." autoComplete="off"
+            />
+          </Campo>
+
+          {categorias.length > 1 ? (
+            <div className="filtros-categoria" role="group" aria-label="Filtrar por categoría">
+              <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>
+                Todo
               </button>
-            ))}
-          </div>
+              {categorias.map((c) => (
+                <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
         ) : null}
+        </Filtros>
 
         {cargando ? (
           <Cargando texto="Trayendo el catálogo" />

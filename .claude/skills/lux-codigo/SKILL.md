@@ -127,6 +127,32 @@ Ojo con la sutileza: los exhibidores **sí** pagan flete y lo pagan igual que
 cualquier otro bulto (regla 4). Lo que nunca ocurre es que esa parte se le cargue
 a las joyas. Reparto parejo entre bultos, destinos distintos.
 
+### 11. El mayoreo es una regla, no una lista
+
+**Los kits ya no existen.** Se quitaron en septiembre de 2026, con sus dos
+pantallas. La única forma de vender al mayor son los **tramos**: 6 piezas 5 %,
+12 piezas 10 %, 20 piezas 15 %, configurables desde la pantalla de Tramos.
+
+La escalera vive en `tramos_mayoreo` y la resuelve `descuento_para(piezas)`. Se
+aplica en tres sitios y **los tres tienen que decir lo mismo**:
+
+- `registrar_venta` — la que manda. Calcula el tramo por el **total de piezas de
+  la venta**, no por línea, así que hay que sumarlas antes de recorrer nada.
+- El carrito del mostrador — solo para que la vendedora vea lo que va a cobrar.
+- El catálogo público — para que la clienta vea su precio al armar el pedido.
+
+Tres reglas que no se negocian:
+
+1. **El tramo nunca baja del piso.** `greatest(lista * (1 - desc/100), precio_minimo_de(modelo))`.
+   Sin ese `greatest`, un 15 % sobre una pieza de margen fino vende a pérdida y
+   nadie se entera hasta el cierre del mes.
+2. **Si la vendedora ya regateó, manda su precio** y el tramo no se le suma
+   encima. Sumar los dos es descontar dos veces la misma pieza.
+3. **El navegador no decide el precio.** El mostrador manda
+   `precio_unitario_usd` solo cuando ella rebajó a mano; el descuento por
+   cantidad lo calcula la base. Si lo mandara el navegador, el precio lo estaría
+   fijando el cliente.
+
 ---
 
 ## Migraciones SQL — la lista antes de entregar un archivo
@@ -208,6 +234,65 @@ al terminar**. PostgREST solo expone `public`, así que **no se puede consultar
 
 "Debería darte margen 44,4 % y ganancia $741,10." Si no cuadra, se descubre en
 minutos y no en un mes de precios mal puestos.
+
+### 7. Nunca cambies la FIRMA de una función que el navegador ya llama
+
+Escrita el 08/09/2026, antes de romperlo.
+
+El SQL corre en un segundo. El despliegue de GitHub Pages tarda minutos. En esos
+minutos la tienda está abierta y el navegador que hay en el teléfono de la
+vendedora es el **viejo**. Si le quitas un parámetro a una función, esa versión
+vieja la llama con un parámetro que ya no existe, PostgREST no encuentra ninguna
+función que encaje, y ella no puede cobrar. Con una clienta delante.
+
+Así que un parámetro que sobra **se queda y se ignora**, con un comentario que
+diga por qué. Cuesta una línea. La ventana costaría ventas. Se limpia otro día,
+con la tienda cerrada.
+
+De ahí sale el orden de siempre: **primero el SQL, después el navegador.** Al
+revés la pantalla enseña algo que la base todavía no hace, y en este sistema
+"algo" suele ser un precio.
+
+### 8. Antes de publicar, `npm run verificar`
+
+37 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
+catálogo. Sale con código 1 si algo se abrió.
+
+Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
+`where es_admin()` que alguien quita al reescribir una vista, un `having` que
+vuelve a ser `where`. Nada de eso rompe el build.
+
+---
+
+## Trampas que ya mordieron
+
+Ninguna da error al escribirla. Por eso están aquí.
+
+**Una vista no te presta su permiso para ejecutar funciones.** Postgres comprueba
+el `EXECUTE` contra **quien consulta**. Dentro de una función `security definer`,
+en cambio, lo comprueba contra **el dueño**. De ahí sale el patrón de
+`costo_operativo_admin()`: revocar la función cruda a secas habría dejado al
+administrador sin sus propias pantallas, porque él también es `authenticated`.
+
+**`es_admin()` mira `auth.uid()`, no el rol de Postgres.** Sigue dando falso
+dentro de una función de definidor. Poner el guardián dentro de una función que
+usa la venta rompe la venta.
+
+**Un agregado sin `GROUP BY` devuelve una fila aunque no entre ninguna.** Un
+`where es_admin()` no alcanza: hace falta `having es_admin()`. Así se le escapaba
+una fila a la vendedora en `v_valor_inventario`.
+
+**Los heredoc de Bash se comen las barras invertidas.** Así entró `/^d{4}$/`
+donde iba `/^\d{4}$/`: un patrón que busca la palabra "dddd" y jamás coincide con
+un PIN. Para editar código con barras invertidas, la herramienta de edición, no
+un heredoc.
+
+**Todos los `useMemo` van antes del primer `return` temprano.** Si no, React
+lanza el error 310 en producción y no en desarrollo.
+
+**Los ficheros del repo están en CRLF.** Un reemplazo que busque `\n` no
+encuentra nada. Trabaja por líneas.
 
 ---
 
@@ -294,14 +379,22 @@ src/
 - Guardar precios en bolívares por modelo.
 - Recalcular costos históricos con la tasa de hoy.
 - Cargar flete a los exhibidores dentro del costo de las joyas.
-- ~~Definir el precio de kit como porcentaje de descuento sobre el detal.~~
-  **Revertido en agosto de 2026.** La objeción original era que "al mover la tasa el
-  descuento se descuadra solo", y era cierta mientras el precio se anclaba en dólares
-  reales y se convertía con la tasa de venta. Con el precio anclado en **dólares BCV**
-  el porcentaje se aplica sobre un subtotal que no se mueve al cambiar la tasa, así que
-  el descuadre ya no existe. Kits y tramos usan **porcentaje de descuento**.
+- **Los kits.** Retirados en septiembre de 2026 con sus dos pantallas. Un kit era
+  una lista que había que armar y mantener a mano, y solo servía para la
+  combinación exacta que alguien hubiera previsto. Los tramos son una regla:
+  valen para cualquier carrito, no hay nada que mantener, y la vendedora no
+  cambia de pantalla para que la clienta reciba lo que le toca. Ver la regla 11.
 
-  Lo que sí hay que vigilar: un porcentaje no conoce el costo. Un descuento grande sobre
-  una pieza de margen fino la deja por debajo del costo y la base no lo impide. La
-  pantalla de Tramos calcula el peor margen del catálogo y avisa.
+  Lo que sobrevivió del razonamiento de los kits, y sigue vigente: el descuento
+  se expresa en **porcentaje**, no en precio fijo. Con el precio anclado en
+  dólares BCV, un porcentaje se aplica sobre un subtotal que no se mueve al
+  cambiar la tasa. Y lo que había que vigilar sigue siendo verdad: un porcentaje
+  no conoce el costo. Por eso `registrar_venta` lo corta contra
+  `precio_minimo_de` y la pantalla de Tramos avisa del peor margen del catálogo.
 - Confiar en validación del navegador para reglas de negocio.
+- **Mirar el error de una sola consulta cuando lanzas varias.** El catálogo
+  público pedía dos cosas en paralelo y solo comprobaba el error de la primera.
+  La segunda —los tramos— llevaba una columna que no existía, devolvía 400, y el
+  `?? []` la dejaba en una lista vacía. Resultado: **ninguna clienta al mayor
+  recibió su descuento**, durante semanas, y la página se veía perfecta. Si
+  lanzas N consultas, miras N errores.

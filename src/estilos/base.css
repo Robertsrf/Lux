@@ -637,6 +637,56 @@ table.tabla tfoot td {
   color: var(--crema); box-shadow: var(--sombra-1);
 }
 
+/* --- Filtros plegables ---------------------------------------------- */
+/* Cinco campos ocupaban 478 px antes de la primera pieza, y empujaban la
+   paginacion a 12.400 px del borde: para ver la pagina 2 habia que
+   deslizar la lista entera. Plegado son 56. Toma la ropa de `.ayuda`, que
+   ya es el plegable de la casa. */
+
+.filtros {
+  border: 1px solid var(--linea);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+  margin-bottom: var(--e-5);
+}
+.filtros__titulo {
+  display: flex; align-items: center; gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  min-height: var(--alto-control);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  list-style: none;
+  border-radius: inherit;
+  transition: color var(--rapido), background var(--rapido);
+}
+.filtros__titulo::-webkit-details-marker { display: none; }
+.filtros__titulo:hover { color: var(--texto); }
+.filtros__titulo svg { width: 16px; height: 16px; flex: none; }
+/* Cuantos filtros hay puestos. Plegado, esto es lo unico que avisa de que
+   la lista esta recortada. */
+.filtros__cuenta {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: var(--radio-pill);
+  background: var(--verde-profundo); color: var(--crema);
+  font-size: 11px; letter-spacing: 0;
+}
+.filtros__cuerpo { padding: 0 var(--e-4) var(--e-4); }
+.filtros[open] .filtros__titulo {
+  border-bottom: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md) var(--radio-md) 0 0;
+}
+
+/* La paginacion de arriba solo existe en el telefono. En escritorio la de
+   abajo se alcanza sin drama. */
+.paginacion--arriba { display: none; }
+
+/* La ubicacion como lista desplegable: solo en el telefono. En escritorio
+   mandan las fichas, que son un toque en vez de dos. */
+.selector-ubicacion__movil { display: none; }
+
 /* --- Inventario en el telefono: fichas en vez de tabla -------------- */
 /* En escritorio manda la tabla, que es donde las trece columnas caben y
    sirven para comparar de un vistazo. Esta lista solo existe en el movil. */
@@ -740,9 +790,21 @@ table.tabla tfoot td {
   color: color-mix(in srgb, var(--crema) 72%, transparent);
 }
 .barra-carrito__total {
+  display: flex; align-items: baseline; gap: var(--e-3);
   font-family: var(--fuente-display);
   font-size: var(--t-28); font-weight: 600;
   font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+/* El descuento por cantidad, dicho donde ella lo necesita: con la clienta
+   delante y el carrito armado. El oro para lo que ya se gano, la crema
+   apagada para lo que falta; a nadie hay que gritarle un "casi". */
+.barra-carrito__tramo { color: var(--oro-arena); }
+.barra-carrito__falta { color: color-mix(in srgb, var(--crema) 66%, transparent); }
+.barra-carrito__ahorro {
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
 }
 .barra-carrito .boton { min-height: 52px; flex: 0 0 auto; box-shadow: none; }
 .barra-carrito .boton:not(.boton--secundario) {
@@ -1020,25 +1082,18 @@ table.tabla tfoot td {
   .hoja :focus-visible { outline-color: var(--oro-arena); }
   .hoja__salir { width: 100%; margin-top: var(--e-4); }
 
-  /* Las cinco ubicaciones envolvian a tres renglones y se llevaban unos
-     330 px de la pantalla donde ella vende. En una tira que se desliza son
-     uno.
+  /* LAS UBICACIONES SE ENVUELVEN, NO SE DESLIZAN.
 
-     SIN SANGRAR HASTA EL BORDE. El primer intento llevaba
-     `margin-inline: -16px` para que la ficha cortada asomara pegada al
-     canto, y eso daba por hecho que la pagina tiene 16 px de padding. Por
-     debajo de 380 px baja a 12, asi que la tira quedaba 8 px mas ancha que
-     la pantalla y el documento entero se deslizaba 4 px a lo ancho. El
-     aviso de "hay mas a la derecha" ya lo da la ficha cortada: no hacia
-     falta pelearse con el padding para conseguirlo. */
-  .selector-ubicacion {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-  .selector-ubicacion::-webkit-scrollbar { display: none; }
-  .selector-ubicacion button { flex: 0 0 auto; scroll-snap-align: start; }
+     Se probo pasarlas a una tira deslizable, para ahorrar los ~330 px que
+     ocupan en tres renglones. Es exactamente lo que prohibe la skill
+     lux-ui desde el 31/08/2026, y lo prohibe porque el dueño lo reporto:
+     una tira con la barra oculta esconde la mitad y nada avisa de que haya
+     mas. Un juego pequeño y fijo, cinco ubicaciones que no cambian, se
+     envuelve.
+
+     Y el ahorro que la justificaba ya no hace falta: la navegacion bajo de
+     222 px a 69 y devolvio 158. El alto se lo comia el menu, no las
+     fichas. */
 
   /* El inventario deja de ser tabla y pasa a fichas. */
   .tabla-envoltura--alta { display: none; }
@@ -1073,6 +1128,15 @@ table.tabla tfoot td {
     color: var(--texto-secundario);
   }
   .ficha-inv .grupo-botones { margin-top: var(--e-1); }
+
+  /* Las cinco fichas de ubicacion se llevaban tres renglones y ~330 px de
+     la pantalla donde ella vende. En el telefono pasan a una lista
+     desplegable: un control de 56 px. Deslizarlas a lo ancho no era opcion,
+     que es lo que prohibe lux-ui desde que el dueño reporto que una tira con
+     la barra oculta esconde la mitad sin avisar. */
+  .selector-ubicacion { display: none; }
+  .selector-ubicacion__movil { display: block; }
+  .paginacion--arriba { display: flex; margin-top: 0; margin-bottom: var(--e-4); }
 
   /* El contenido termina por encima de la barra, no debajo. */
   .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 76px + env(safe-area-inset-bottom, 0px)); }

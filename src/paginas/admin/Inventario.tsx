@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Ayuda, Cargando, Campo, Vacio } from '../../componentes/Piezas';
+import { Aviso, Ayuda, Cargando, Campo, Vacio, Filtros } from '../../componentes/Piezas';
 import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTextos } from '../../hooks/useTextos';
@@ -167,7 +167,7 @@ export function Inventario() {
         </Aviso>
       ) : null}
 
-      <div className="tarjeta" style={{ marginBottom: 'var(--e-5)' }}>
+      <Filtros activos={[filtros.texto, filtros.categoria, filtros.grupoId, filtros.ubicacionId, filtros.loteId].filter(Boolean).length}>
         <div className="fila">
           <Campo etiqueta="Buscar" htmlFor="f-texto">
             <input id="f-texto" value={filtros.texto} onChange={(e) => cambiarFiltro('texto', e.target.value)} placeholder="Nombre o SKU" />
@@ -197,7 +197,7 @@ export function Inventario() {
             </select>
           </Campo>
         </div>
-      </div>
+      </Filtros>
 
       {cargando ? <Cargando /> : modelos.length === 0 ? (
         <Vacio titulo="No hay productos con esos filtros">
@@ -300,6 +300,19 @@ export function Inventario() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+
+          {/* En el telefono la lista mide 12.500 px, asi que la paginacion
+              de abajo esta a un viaje de distancia. Esta de arriba es la
+              misma, alcanzable sin deslizar nada. */}
+          <div className="paginacion paginacion--arriba">
+            <button type="button" className="boton boton--secundario boton--pequeno" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>
+              Anterior
+            </button>
+            <span className="paginacion__cuenta">Página {pagina + 1} de {paginas}</span>
+            <button type="button" className="boton boton--secundario boton--pequeno" disabled={pagina + 1 >= paginas} onClick={() => setPagina((p) => p + 1)}>
+              Siguiente
+            </button>
           </div>
 
           {/*

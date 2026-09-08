@@ -14,7 +14,6 @@ const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
   { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
   { a: '/admin/grupos',     texto: 'Grupos',     icono: 'grupos' },
-  { a: '/admin/kits',       texto: 'Kits',       icono: 'kits' },
   { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
   { a: '/admin/costos',     texto: 'Costos',     icono: 'reportes' },
   { a: '/admin/inversiones', texto: 'Inversiones', icono: 'lotes' },
@@ -26,7 +25,6 @@ const ENLACES_ADMIN: Enlace[] = [
 
 const ENLACES_VENTA: Enlace[] = [
   { a: '/venta',          texto: 'Mostrador', icono: 'mostrador' },
-  { a: '/venta/mayor',    texto: 'Mayor',     icono: 'mayor' },
   { a: '/venta/pedidos',  texto: 'Pedidos',   icono: 'pedidos' },
   { a: '/venta/tablero',  texto: 'Mi día',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
