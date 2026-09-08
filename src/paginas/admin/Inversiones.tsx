@@ -205,12 +205,12 @@ export function Inversiones() {
           <Campo etiqueta="Que compraste" htmlFor="i-nombre" pista="Vitrina 1, mueble del mostrador, aire acondicionado...">
             <input id="i-nombre" required value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </Campo>
-          <Campo etiqueta="Categoria" htmlFor="i-cat">
+          <Campo etiqueta="Categoría" htmlFor="i-cat">
             <select id="i-cat" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
               {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta="Cuanto costo $" htmlFor="i-monto">
+          <Campo etiqueta="Cuánto costo $" htmlFor="i-monto">
             <input id="i-monto" type="number" min="0.01" step="0.01" required value={monto} onChange={(e) => setMonto(e.target.value)} />
           </Campo>
           <Campo etiqueta="Lo pagaste" htmlFor="i-moneda" pista="Aquí en bolivares son dolares BCV. Traido de afuera es dolar Binance.">
@@ -253,7 +253,7 @@ export function Inversiones() {
       <h2 className="seccion-titulo">Lo que llevas invertido</h2>
 
       {lista.length === 0 ? (
-        <Vacio titulo="Aún no has anotado ninguna inversion">
+        <Vacio titulo="Aún no has anotado ninguna inversión">
           <p>Agrega las vitrinas, los muebles y los equipos. Los exhibidores que vinieron en los lotes ya se cuentan solos.</p>
         </Vacio>
       ) : (

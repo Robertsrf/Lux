@@ -104,7 +104,7 @@ export function Reserva() {
               </Aviso>
             ) : null}
             {reserva.estado === 'abierta' && !restante ? (
-              <Aviso tono="error" titulo="El apartado vencio">
+              <Aviso tono="error" titulo="El apartado venció">
                 Las piezas volvieron al catálogo. Arma el pedido otra vez.
               </Aviso>
             ) : null}
@@ -114,7 +114,7 @@ export function Reserva() {
               </Aviso>
             ) : null}
             {reserva.estado === 'vencida' ? (
-              <Aviso tono="error" titulo="El apartado vencio">Las piezas volvieron al catálogo.</Aviso>
+              <Aviso tono="error" titulo="El apartado venció">Las piezas volvieron al catálogo.</Aviso>
             ) : null}
             {reserva.estado === 'cancelada' ? (
               <Aviso tono="neutro" titulo="Pedido cancelado">Puedes armar otro cuando quieras.</Aviso>
@@ -196,7 +196,7 @@ export function Reserva() {
                 ) : (
                   <>
                     <div className="fila">
-                      <Campo etiqueta="Numero de referencia" htmlFor="p-ref">
+                      <Campo etiqueta="Número de referencia" htmlFor="p-ref">
                         <input id="p-ref" inputMode="numeric" value={referencia} onChange={(e) => setReferencia(e.target.value)} required />
                       </Campo>
                       <Campo etiqueta="Fecha del pago" htmlFor="p-fecha">
@@ -204,10 +204,10 @@ export function Reserva() {
                       </Campo>
                     </div>
                     <div className="fila">
-                      <Campo etiqueta="Cedula de quien pago" htmlFor="p-ced" pista="Puede ser otra persona, no hay problema.">
+                      <Campo etiqueta="Cédula de quien pago" htmlFor="p-ced" pista="Puede ser otra persona, no hay problema.">
                         <input id="p-ced" inputMode="numeric" value={cedulaPago} onChange={(e) => setCedulaPago(e.target.value)} required />
                       </Campo>
-                      <Campo etiqueta="Telefono de quien pago" htmlFor="p-tel">
+                      <Campo etiqueta="Teléfono de quien pago" htmlFor="p-tel">
                         <input id="p-tel" type="tel" value={telPago} onChange={(e) => setTelPago(e.target.value)} required />
                       </Campo>
                     </div>

@@ -68,7 +68,7 @@ export function Inventario() {
         ? 'Todas estaban en su sitio: no hubo nada que mover.'
         : `Se movieron ${r.piezas_movidas} piezas al grupo que les toca.`
         + (r.sin_grupo_que_alcance > 0
-          ? ` Ojo: ${r.sin_grupo_que_alcance} no llegan ni con el grupo mas alto; hace falta crear uno por encima.`
+          ? ` Ojo: ${r.sin_grupo_que_alcance} no llegan ni con el grupo más alto; hace falta crear uno por encima.`
           : ''),
     );
     setReasignando(false);
@@ -85,7 +85,7 @@ export function Inventario() {
   }
 
   async function desactivar(id: number, nombre: string) {
-    if (!window.confirm(`Retirar "${nombre}" del catalogo? Sus ventas pasadas se conservan.`)) return;
+    if (!window.confirm(`Retirar "${nombre}" del catálogo? Sus ventas pasadas se conservan.`)) return;
     const { error: err } = await supabase.rpc('admin_desactivar_modelo', { p_id: id });
     if (err) setError(mensajeDeError(err));
     else await recargar();
@@ -172,7 +172,7 @@ export function Inventario() {
           <Campo etiqueta="Buscar" htmlFor="f-texto">
             <input id="f-texto" value={filtros.texto} onChange={(e) => cambiarFiltro('texto', e.target.value)} placeholder="Nombre o SKU" />
           </Campo>
-          <Campo etiqueta="Categoria" htmlFor="f-cat">
+          <Campo etiqueta="Categoría" htmlFor="f-cat">
             <select id="f-cat" value={filtros.categoria} onChange={(e) => cambiarFiltro('categoria', e.target.value)}>
               <option value="">Todas</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -184,7 +184,7 @@ export function Inventario() {
               {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta="Ubicacion" htmlFor="f-ubi">
+          <Campo etiqueta="Ubicación" htmlFor="f-ubi">
             <select id="f-ubi" value={filtros.ubicacionId} onChange={(e) => cambiarFiltro('ubicacionId', e.target.value)}>
               <option value="">Todas</option>
               {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
@@ -269,7 +269,7 @@ export function Inventario() {
                       <td className="num">{formatearUsd(m.costo_puesto_usd, 4)}</td>
                       <td className="num">
                         {formatearUsd(m.costo_total_usd, 4)}
-                        <div className="celda-nota">{formatearUsd(m.costo_mercancia_bcv)} mercancia + {formatearUsd(m.costo_operativo_usd)} tienda</div>
+                        <div className="celda-nota">{formatearUsd(m.costo_mercancia_bcv)} mercancía + {formatearUsd(m.costo_operativo_usd)} tienda</div>
                       </td>
                       <td className="num">{formatearUsd(m.precio_usd)}</td>
                       <td className="num precio">{formatearBs(m.precio_bs)}</td>
@@ -302,11 +302,71 @@ export function Inventario() {
             </table>
           </div>
 
+          {/*
+            LO MISMO, PERO EN EL TELEFONO.
+
+            La tabla tiene trece columnas. En un telefono se deslizaba a lo
+            ancho y solo se veian los dos botones y media SKU: no servia
+            para nada. Aqui van las siete cosas por las que de verdad se
+            entra al inventario desde el telefono, y las dos acciones.
+
+            Es una lista aparte y no la misma tabla reflotada con CSS a
+            proposito: en un telefono lo correcto no es enseñar lo mismo
+            reacomodado, es enseñar menos.
+          */}
+          <ul className="fichas-inv">
+            {modelos.map((m) => {
+              const foto = urlPublicaFoto(m.foto_thumb_path);
+              return (
+                <li className="ficha-inv" key={m.id}>
+                  {foto ? (
+                    <button
+                      type="button"
+                      className="miniatura miniatura--tocable ficha-inv__foto"
+                      style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      aria-label={`Ver la foto de ${m.nombre}`}
+                      onClick={() => visor.abrir({
+                        nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
+                        path: m.foto_path, thumbPath: m.foto_thumb_path,
+                        categoria: m.categoria, materiales: textos.materiales_corto ?? null,
+                      })}
+                    />
+                  ) : <span className="miniatura ficha-inv__foto" />}
+
+                  <div className="ficha-inv__cuerpo">
+                    <div className="ficha-inv__sku">{m.sku} · {m.grupo ?? 'sin grupo'}</div>
+                    <div className="ficha-inv__nombre">{m.nombre}</div>
+                    <div className="ficha-inv__precio">
+                      {formatearBs(m.precio_bs)}
+                      <span className="ficha-inv__usd">{formatearUsd(m.precio_usd)}</span>
+                    </div>
+                    <div className="ficha-inv__datos">
+                      <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
+                        Margen {formatearPorcentaje(m.margen_pct)}
+                      </span>
+                      <span>
+                        {m.existencia_total <= 2
+                          ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
+                          : m.existencia_total} en tienda
+                      </span>
+                    </div>
+                    <div className="grupo-botones">
+                      <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+                      <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
+                        Retirar
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
           <div className="paginacion">
             <button type="button" className="boton boton--secundario" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>
               Anterior
             </button>
-            <span className="paginacion__cuenta">Pagina {pagina + 1} de {paginas}</span>
+            <span className="paginacion__cuenta">Página {pagina + 1} de {paginas}</span>
             <button type="button" className="boton boton--secundario" disabled={pagina + 1 >= paginas} onClick={() => setPagina((p) => p + 1)}>
               Siguiente
             </button>

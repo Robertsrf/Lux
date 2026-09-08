@@ -87,7 +87,7 @@ export function Tramos() {
         </div>
       </div>
 
-      <Ayuda titulo="Como funciona el descuento por cantidad">
+      <Ayuda titulo="Cómo funciona el descuento por cantidad">
         <p>
           Un tramo dice: <em>desde tantas piezas, tanto por ciento de
           descuento</em>. Se aplica sobre lo que valen las piezas que la
@@ -109,7 +109,7 @@ export function Tramos() {
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 
       {tramos.filter((t) => t.activo).length === 0 ? (
-        <Aviso tono="alerta" titulo="El armador esta apagado">
+        <Aviso tono="alerta" titulo="El armador está apagado">
           Sin ningun tramo activo, quien arme un pedido en el catálogo publico paga
           el precio de detal completo. Carga al menos uno.
         </Aviso>

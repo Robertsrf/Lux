@@ -248,10 +248,10 @@ export function Catalogo() {
           </Campo>
         </div>
         <div className="fila">
-          <Campo etiqueta="Cedula" htmlFor="r-cedula" pista="Va en la guia de envio.">
+          <Campo etiqueta="Cédula" htmlFor="r-cedula" pista="Va en la guia de envio.">
             <input id="r-cedula" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value)} required />
           </Campo>
-          <Campo etiqueta="Telefono" htmlFor="r-tel" pista="Con el código. Por ejemplo 0412 1234567.">
+          <Campo etiqueta="Teléfono" htmlFor="r-tel" pista="Con el código. Por ejemplo 0412 1234567.">
             <input id="r-tel" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} autoComplete="tel" required />
           </Campo>
         </div>
@@ -280,7 +280,7 @@ export function Catalogo() {
                 <Campo etiqueta="Agencia" htmlFor="r-agencia" pista="La sucursal donde lo vas a retirar.">
                   <input id="r-agencia" value={agencia} onChange={(e) => setAgencia(e.target.value)} required />
                 </Campo>
-                <Campo etiqueta="Direccion de la agencia" htmlFor="r-dir">
+                <Campo etiqueta="Dirección de la agencia" htmlFor="r-dir">
                   <input id="r-dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} required />
                 </Campo>
               </div>

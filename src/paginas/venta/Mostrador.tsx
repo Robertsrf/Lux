@@ -309,7 +309,7 @@ export function Mostrador() {
       {cargando ? (
         <Cargando texto="Buscando piezas" />
       ) : modelos.length === 0 ? (
-        <Vacio titulo={texto ? 'Ninguna pieza coincide' : `Aun no hay piezas en ${ubicacion?.nombre ?? 'esta ubicacion'}`}>
+        <Vacio titulo={texto ? 'Ninguna pieza coincide' : `Aún no hay piezas en ${ubicacion?.nombre ?? 'esta ubicación'}`}>
           <p>{texto ? 'Prueba con otro nombre o borra la busqueda.' : 'Un administrador tiene que cargarlas primero.'}</p>
         </Vacio>
       ) : (

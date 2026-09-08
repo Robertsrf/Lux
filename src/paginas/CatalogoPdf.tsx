@@ -89,7 +89,7 @@ export function CatalogoPdf() {
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
       <div className="sin-impresion">
-        <CompartirCatalogo titulo="Enlace del catálogo en linea" />
+        <CompartirCatalogo titulo="Enlace del catálogo en línea" />
       </div>
 
       <section className="catalogo__portada">

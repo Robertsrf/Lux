@@ -48,11 +48,24 @@ button:disabled { cursor: not-allowed; }
 ::placeholder { color: var(--texto-secundario); opacity: 1; }
 ::selection { background: var(--verde-profundo); color: var(--crema); }
 
+/*
+  Quien pide menos movimiento pide eso: menos MOVIMIENTO. No pide quedarse
+  sin saber si el sistema lo leyo.
+
+  Antes esto apagaba todo por igual, incluida la respuesta de color al
+  pulsar un boton, que es la unica senal de que el toque entro. Ahora lo que
+  se desplaza entra ya colocado, y lo que solo cambia de color lo sigue
+  haciendo, un poco mas rapido.
+*/
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    transition-duration: 1ms !important;
     animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+    /* Se conservan color, fondo, borde, sombra y opacidad. Se cae
+       `transform`, que es lo unico que de verdad se mueve. */
+    transition-property: color, background-color, border-color, box-shadow, opacity !important;
+    transition-duration: 120ms !important;
   }
 }
 
@@ -102,6 +115,10 @@ button:disabled { cursor: not-allowed; }
 /* --- Armazon: barra lateral en escritorio, superior en movil --------- */
 
 .armazon { display: grid; grid-template-columns: 244px 1fr; min-height: 100%; }
+
+/* La barra de abajo y su hoja son solo del telefono. En escritorio manda la
+   barra lateral, donde caben las trece secciones con su nombre entero. */
+.barra-nav, .hoja-fondo { display: none; }
 
 .lateral {
   position: sticky; top: 0; align-self: start;
@@ -306,6 +323,24 @@ input[type='file'] {
   border-style: dashed;
   border-radius: var(--radio-md);
 }
+/* El boton de dentro lo dibuja el navegador, y venia con la cara del
+   sistema operativo en medio de una pantalla donde todo lo demas es de la
+   casa. Se le pone la misma ropa que a `.boton--secundario`. */
+input[type='file']::file-selector-button {
+  margin-right: var(--e-3);
+  padding: 0 var(--e-4);
+  min-height: 36px;
+  font-family: var(--fuente-ui);
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  cursor: pointer;
+  transition: border-color var(--rapido), background var(--rapido);
+}
+input[type='file']::file-selector-button:hover { border-color: var(--salvia); }
 textarea { padding: var(--e-3) var(--e-4); min-height: 88px; line-height: 1.45; resize: vertical; }
 
 select {
@@ -602,6 +637,34 @@ table.tabla tfoot td {
   color: var(--crema); box-shadow: var(--sombra-1);
 }
 
+/* --- Inventario en el telefono: fichas en vez de tabla -------------- */
+/* En escritorio manda la tabla, que es donde las trece columnas caben y
+   sirven para comparar de un vistazo. Esta lista solo existe en el movil. */
+
+.fichas-inv { display: none; }
+
+/* --- Cuadre del cierre: cinco renglones y un boton ------------------ */
+/* Antes cada ubicacion era una tarjeta entera con su propio boton de
+   guardar. Cinco tarjetas eran casi 2.000 px de deslizamiento para
+   escribir cinco numeros. */
+
+.cuadre { list-style: none; margin: 0; padding: 0; }
+.cuadre__fila {
+  display: grid;
+  grid-template-columns: 1fr 108px;
+  align-items: center;
+  gap: var(--e-4);
+  padding: var(--e-3) 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.cuadre__fila:last-child { border-bottom: 0; }
+.cuadre__quien { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cuadre__nombre { font-family: var(--fuente-display); font-size: var(--t-16); color: var(--texto); }
+.cuadre__nota { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); }
+.cuadre__nota--mal { color: var(--error); }
+.cuadre__campo { text-align: right; }
+.cuadre__guardar { width: 100%; margin-top: var(--e-5); }
+
 .rejilla-venta {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
@@ -848,56 +911,173 @@ table.tabla tfoot td {
 /* --- Responsive ------------------------------------------------------ */
 
 @media (max-width: 900px) {
-  /* La barra lateral se convierte en barra superior.
-     `grid-template-rows` no es decoracion: sin el, el grid pasa a una
-     columna y dos filas automaticas, y el `min-height: 100%` reparte el
-     alto sobrante entre ambas. La mitad se la quedaba el menu, que abria
-     un hueco de 80 px entre la navegacion y el titulo en toda pantalla
-     mas corta que el telefono: el tablero, la venta al mayor, cualquier
-     estado vacio. Con `auto 1fr` el menu ocupa lo suyo y el sobrante se
-     lo lleva el contenido, que es donde tiene sentido. */
-  .armazon { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .lateral {
-    position: static;
-    height: auto;
-    flex-direction: row; flex-wrap: wrap; align-items: center;
-    gap: var(--e-2) var(--e-3);
-    padding: var(--e-3) var(--e-4);
-    overflow: visible;
+  /*
+    LA NAVEGACION SE VA ABAJO
+
+    Antes esta barra se volvia superior y ocupaba 222 px de los 844 de un
+    telefono: el 26 % de la pantalla, en TODAS las pantallas, antes de que
+    apareciera un solo dato. Y arriba es justo donde peor llega el pulgar
+    de quien sostiene el telefono con una mano y joyas con la otra.
+
+    Ahora la lateral no se dibuja y manda `.barra-nav`, fija abajo, con
+    tres secciones y un boton que abre el resto. Se recuperan 158 px netos
+    y lo que mas se toca queda bajo el dedo.
+  */
+  .armazon { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .lateral { display: none; }
+
+  .barra-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--e-1);
+    position: fixed; z-index: var(--z-barra);
+    left: 0; right: 0; bottom: 0;
+    padding: var(--e-2) var(--e-2) calc(var(--e-2) + env(safe-area-inset-bottom, 0px));
+    background: var(--verde-profundo);
+    border-top: 1px solid color-mix(in srgb, var(--oro-arena) 22%, transparent);
   }
-  /* La marca y la salida comparten el primer renglon; las secciones se
-     llevan el ancho entero del segundo y asi caben cinco por fila. */
-  .lateral__marca { margin-right: auto; }
-  .navegacion { flex-basis: 100%; }
-  .lateral__marca { padding: 0; }
-  .lateral__marca .wordmark { display: none; }
-  .lateral__marca .monograma { display: inline-grid; }
-  .navegacion {
-    flex-direction: row; flex-wrap: wrap; gap: var(--e-1);
-    justify-content: flex-start;
-    padding-bottom: 2px;
-  }
-  .navegacion a {
-    flex: 0 0 auto;
-    flex-direction: column; gap: 2px;
-    /* 60 px de ancho y 52 de alto: entra el pulgar y caben cuatro por
-       renglon en un telefono de 375 px. */
-    width: 60px; min-height: 52px;
+  .barra-nav a,
+  .barra-nav__mas {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    /* 52 px de alto: el objetivo tactil que pide el mostrador, y con cuatro
+       columnas entra de sobra hasta en un telefono de 320 px. */
+    min-height: 52px;
     padding: var(--e-2) 0;
-    justify-content: center; align-items: center;
+    border: 0; background: none; cursor: pointer;
     border-radius: var(--radio);
+    font-family: var(--fuente-ui);
+    color: color-mix(in srgb, var(--crema) 74%, transparent);
+    text-decoration: none;
+    transition: background var(--rapido), color var(--rapido);
   }
-  .navegacion a.activo { box-shadow: inset 0 -3px 0 var(--oro-arena); }
-  .navegacion a .texto-nav {
+  .barra-nav a .texto-nav,
+  .barra-nav__mas .texto-nav {
     display: block;
-    font-size: 10px; line-height: 1;
-    letter-spacing: 0.04em;
+    font-size: 10px; line-height: 1; letter-spacing: 0.04em;
     text-transform: none;
   }
-  .sesion { padding: 0; background: transparent; }
-  .sesion__quien { display: none; }
+  .barra-nav a.activo,
+  .barra-nav__mas.activo {
+    color: var(--crema);
+    background: color-mix(in srgb, var(--crema) 12%, transparent);
+  }
+  .barra-nav a.activo .icono { color: var(--oro-arena); }
+  .barra-nav :focus-visible { outline-color: var(--oro-arena); }
 
-  .pagina { padding: var(--e-5) var(--e-4) var(--e-7); }
+  /* --- La hoja con todas las secciones --- */
+  .hoja-fondo {
+    display: block;
+    position: fixed; inset: 0; z-index: var(--z-flotante);
+    background: color-mix(in srgb, var(--tinta) 58%, transparent);
+    animation: aparecer 160ms var(--salida);
+  }
+  .hoja {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    max-height: 84vh; overflow-y: auto;
+    padding: var(--e-2) var(--e-4) calc(var(--e-5) + env(safe-area-inset-bottom, 0px));
+    background: var(--verde-profundo);
+    color: var(--texto-sobre-verde);
+    border-radius: var(--radio-lg) var(--radio-lg) 0 0;
+    box-shadow: var(--sombra-3);
+    animation: hoja-sube 260ms var(--salida);
+  }
+  .hoja__asa {
+    width: 40px; height: 4px; margin: var(--e-2) auto var(--e-4);
+    border-radius: var(--radio-pill);
+    background: color-mix(in srgb, var(--crema) 30%, transparent);
+  }
+  .hoja__quien {
+    display: flex; align-items: baseline; gap: var(--e-2);
+    padding: 0 var(--e-2) var(--e-4);
+  }
+  .hoja__nombre { font-family: var(--fuente-display); font-size: var(--t-20); }
+  .hoja__rol {
+    font-family: var(--fuente-ui); font-size: var(--t-12);
+    text-transform: uppercase; letter-spacing: var(--tracking);
+    color: var(--oro-arena);
+  }
+  /* Dos columnas: con trece secciones, una lista vertical obliga a
+     deslizar dentro de la hoja para llegar a las ultimas. */
+  .hoja__secciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
+  .hoja__secciones a {
+    display: flex; flex-direction: row; align-items: center; gap: var(--e-3);
+    min-height: 52px; padding: 0 var(--e-3);
+    border-radius: var(--radio);
+    color: color-mix(in srgb, var(--crema) 82%, transparent);
+    text-decoration: none;
+    background: color-mix(in srgb, var(--crema) 6%, transparent);
+  }
+  .hoja__secciones a .texto-nav {
+    font-family: var(--fuente-ui); font-size: var(--t-14);
+    letter-spacing: 0.02em; text-transform: none;
+  }
+  .hoja__secciones a.activo {
+    color: var(--crema);
+    background: color-mix(in srgb, var(--crema) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--oro-arena);
+  }
+  .hoja :focus-visible { outline-color: var(--oro-arena); }
+  .hoja__salir { width: 100%; margin-top: var(--e-4); }
+
+  /* Las cinco ubicaciones envolvian a tres renglones y se llevaban unos
+     330 px de la pantalla donde ella vende. En una tira que se desliza son
+     uno.
+
+     SIN SANGRAR HASTA EL BORDE. El primer intento llevaba
+     `margin-inline: -16px` para que la ficha cortada asomara pegada al
+     canto, y eso daba por hecho que la pagina tiene 16 px de padding. Por
+     debajo de 380 px baja a 12, asi que la tira quedaba 8 px mas ancha que
+     la pantalla y el documento entero se deslizaba 4 px a lo ancho. El
+     aviso de "hay mas a la derecha" ya lo da la ficha cortada: no hacia
+     falta pelearse con el padding para conseguirlo. */
+  .selector-ubicacion {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .selector-ubicacion::-webkit-scrollbar { display: none; }
+  .selector-ubicacion button { flex: 0 0 auto; scroll-snap-align: start; }
+
+  /* El inventario deja de ser tabla y pasa a fichas. */
+  .tabla-envoltura--alta { display: none; }
+  .fichas-inv {
+    display: grid; gap: var(--e-3);
+    list-style: none; margin: 0; padding: 0;
+  }
+  .ficha-inv {
+    display: grid; grid-template-columns: 72px 1fr; gap: var(--e-4);
+    padding: var(--e-4);
+    background: var(--superficie);
+    border: 1px solid var(--linea-suave);
+    border-radius: var(--radio-md);
+    box-shadow: var(--sombra-1);
+  }
+  .ficha-inv__foto { width: 72px; height: 72px; border-radius: var(--radio); }
+  .ficha-inv__cuerpo { display: flex; flex-direction: column; gap: var(--e-2); min-width: 0; }
+  .ficha-inv__sku {
+    font-family: var(--fuente-ui); font-size: var(--t-12);
+    text-transform: uppercase; letter-spacing: var(--tracking);
+    color: var(--texto-secundario);
+  }
+  .ficha-inv__nombre { font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.3; }
+  .ficha-inv__precio {
+    display: flex; align-items: baseline; gap: var(--e-3);
+    font-family: var(--fuente-display); font-size: var(--t-20);
+  }
+  .ficha-inv__usd { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); }
+  .ficha-inv__datos {
+    display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4);
+    font-family: var(--fuente-ui); font-size: var(--t-12);
+    color: var(--texto-secundario);
+  }
+  .ficha-inv .grupo-botones { margin-top: var(--e-1); }
+
+  /* El contenido termina por encima de la barra, no debajo. */
+  .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 76px + env(safe-area-inset-bottom, 0px)); }
+  /* Y el carrito flota por encima de la barra, no encima de sus botones. */
+  .barra-carrito { bottom: calc(var(--e-3) + 76px + env(safe-area-inset-bottom, 0px)); }
   .encabezado-pagina { flex-direction: column; align-items: flex-start; }
   h1 { font-size: var(--t-20); }
   .tarjeta { padding: var(--e-4); border-radius: var(--radio-md); }
@@ -939,6 +1119,11 @@ table.tabla tfoot td {
   animation: subir 220ms var(--salida);
 }
 @keyframes subir { from { transform: translateY(12px) scale(0.98); } to { transform: none; } }
+
+/* La hoja sube desde el borde, que es de donde viene. Es el unico momento
+   con movimiento de verdad en el sistema, y por eso se permite: dice de
+   donde salio y a donde vuelve al cerrarse. */
+@keyframes hoja-sube { from { transform: translateY(100%); } to { transform: none; } }
 
 .visor__foto {
   display: block;

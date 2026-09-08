@@ -54,18 +54,16 @@ export function Pedidos() {
       <div className="encabezado-pagina">
         <div>
           <h1>Pedidos</h1>
-          <p>Lo que armaron desde el catálogo. Cada pieza dice donde esta.</p>
+          <p>Lo que armaron desde el catálogo. Cada pieza dice dónde está.</p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => void cargar()}>Actualizar</button>
       </div>
-
-      <CompartirCatalogo />
 
       {error ? <Aviso tono="error" titulo="No se pudieron leer los pedidos">{error}</Aviso> : null}
 
       {pedidos.length === 0 ? (
         <Vacio titulo="No hay pedidos pendientes">
-          <p>Cuando alguien arme un pedido desde el catálogo publico, aparecera aquí con la ubicación de cada pieza.</p>
+          <p>Cuando alguien arme un pedido desde el catálogo público, aparecerá aquí con la ubicación de cada pieza.</p>
         </Vacio>
       ) : (
         <div className="pila">
@@ -176,6 +174,28 @@ export function Pedidos() {
           })}
         </div>
       )}
+
+      {/*
+        El compartir va DESPUES de los pedidos, y plegado.
+
+        Ocupaba unos 600 px arriba del todo, asi que en un telefono habia
+        que pasarlo entero para ver si habia encargos. Ella entra aqui a ver
+        que le pidieron, no a copiar un enlace.
+
+        Se abre solo cuando no hay ningun pedido, que es justo cuando
+        mandar el catalogo si es lo siguiente que conviene hacer. `details`
+        es del navegador: se pliega y se anuncia solo, sin estado ni codigo.
+
+        Reusa el estilo de `Ayuda` en vez de estrenar uno. Lo unico que no
+        toma de alli es el icono de interrogacion, porque esto no explica
+        nada: es algo que se hace.
+      */}
+      <details className="ayuda" open={pedidos.length === 0}>
+        <summary className="ayuda__titulo">Enviar el catálogo a una clienta</summary>
+        <div className="ayuda__cuerpo">
+          <CompartirCatalogo />
+        </div>
+      </details>
     </div>
   );
 }

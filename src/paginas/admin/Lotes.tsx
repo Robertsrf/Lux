@@ -150,7 +150,7 @@ export function Lotes() {
         <hr className="divisor" />
 
         <div className="fila">
-          <Campo etiqueta="Codigo" htmlFor="l-codigo" pista="Si lo dejas vacio, el sistema lo genera.">
+          <Campo etiqueta="Código" htmlFor="l-codigo" pista="Si lo dejas vacio, el sistema lo genera.">
             <input id="l-codigo" value={form.codigo} onChange={(e) => cambiar('codigo', e.target.value)} maxLength={30} />
           </Campo>
           <Campo etiqueta="Fecha de llegada" htmlFor="l-fecha">
@@ -171,7 +171,7 @@ export function Lotes() {
         </div>
 
         <div className="fila">
-          <Campo etiqueta="Costo de mercancia $" htmlFor="l-cm">
+          <Campo etiqueta="Costo de mercancía $" htmlFor="l-cm">
             <input id="l-cm" type="number" step="0.0001" min="0" value={form.costo_mercancia_usd} onChange={(e) => cambiar('costo_mercancia_usd', e.target.value)} />
           </Campo>
           <Campo etiqueta="Costo de exhibidores $" htmlFor="l-ce" pista="Inversion de tienda. No entra al costo de las joyas.">

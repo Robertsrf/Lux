@@ -25,7 +25,7 @@ function enlacePublico(): string {
   return `${origin}${base}#/publico`;
 }
 
-export function CompartirCatalogo({ titulo = 'Enviar el catalogo' }: { titulo?: string }) {
+export function CompartirCatalogo({ titulo = 'Enviar el catálogo' }: { titulo?: string }) {
   const textos = useTextos();
   const [copiado, setCopiado] = useState(false);
   const [fallo, setFallo] = useState(false);

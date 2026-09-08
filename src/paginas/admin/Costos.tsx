@@ -98,7 +98,7 @@ export function Costos() {
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
 
-      <Ayuda titulo="Como lee esta pantalla tu negocio" abierta={faltaObjetivo}>
+      <Ayuda titulo="Cómo lee esta pantalla tu negocio" abierta={faltaObjetivo}>
         <p>
           Antes te preguntaba cuantas piezas venderias al mes. Era una pregunta injusta:
           nadie lo sabe, y de ese número colgaba todo el calculo.

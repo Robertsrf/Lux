@@ -114,7 +114,7 @@ export class LimiteDeError extends Component<{ children: ReactNode }, { error: E
     if (!this.state.error) return this.props.children;
     return (
       <div className="pagina pagina--angosta">
-        <Aviso tono="error" titulo="Esta pantalla fallo">
+        <Aviso tono="error" titulo="Esta pantalla falló">
           <p>
             No se pudo dibujar esta parte del sistema. El resto sigue en pie:
             entra a otra seccion por el menu y esta se rearma sola cuando

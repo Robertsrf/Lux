@@ -258,7 +258,7 @@ export function FormularioModelo() {
 
           {foto ? (
             <Aviso tono={foto.pesoGrande <= OBJETIVO_GRANDE ? 'exito' : 'alerta'} titulo="Foto lista">
-              Original {formatearPeso(foto.pesoOriginal)} · catalogo {formatearPeso(foto.pesoGrande)} ·
+              Original {formatearPeso(foto.pesoOriginal)} · catálogo {formatearPeso(foto.pesoGrande)} ·
               miniatura {formatearPeso(foto.pesoThumb)}
             </Aviso>
           ) : null}
@@ -273,7 +273,7 @@ export function FormularioModelo() {
           </Campo>
 
           <div className="fila">
-            <Campo etiqueta="Categoria" htmlFor="m-categoria">
+            <Campo etiqueta="Categoría" htmlFor="m-categoria">
               {/* Lista y no campo libre: escribiendola a mano terminan
                   conviviendo "Collar", "collar" y "collares", y despues no
                   hay forma de filtrar por categoria sin fallar. */}
@@ -298,7 +298,7 @@ export function FormularioModelo() {
 
           {categoriaNueva ? (
             <Campo
-              etiqueta="Nombre de la categoria nueva"
+              etiqueta="Nombre de la categoría nueva"
               htmlFor="m-categoria-nueva"
               pista="En singular y en minuscula, como las demas: pulsera, no Pulseras."
             >
@@ -428,7 +428,7 @@ export function FormularioModelo() {
                     Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
                     {' '}({formatearUsd(sugerencia.grupo_precio_bcv)} BCV), que deja
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen
-                    {' '}ya contando la tienda. Se elige el grupo mas barato que llegue
+                    {' '}ya contando la tienda. Se elige el grupo más barato que llegue
                     {' '}al {formatearPorcentaje(sugerencia.margen_piso_pct)} de piso, para no
                     {' '}inflar el precio por unos centavos.
                     {String(sugerencia.grupo_id) !== form.grupo_precio_id ? (
@@ -446,7 +446,7 @@ export function FormularioModelo() {
                   </>
                 ) : (
                   <>
-                    Ningun grupo llega a {formatearUsd(sugerencia.precio_sugerido_bcv)}. El mas caro es
+                    Ningun grupo llega a {formatearUsd(sugerencia.precio_sugerido_bcv)}. El más caro es
                     {' '}{sugerencia.grupo_nombre} ({formatearUsd(sugerencia.grupo_precio_bcv)}), que dejaria
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
                   </>

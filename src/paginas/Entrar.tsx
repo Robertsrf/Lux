@@ -70,7 +70,7 @@ export function Entrar() {
         {error ? <Aviso tono="error">{error}</Aviso> : null}
 
         <form onSubmit={(e) => { e.preventDefault(); void entrar(); }}>
-          <Campo etiqueta="Tu codigo" htmlFor="codigo">
+          <Campo etiqueta="Tu código" htmlFor="codigo">
             <input
               id="codigo"
               type="password"
