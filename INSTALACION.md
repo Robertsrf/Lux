@@ -52,6 +52,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 28 | `esquema-costos-cerrados.sql` | Cierra las funciones de costo a la vendedora |
 | 29 | `esquema-indices-fk.sql` | Los índices que las claves foráneas no traen |
 | 30 | `esquema-correcciones-datos.sql` | Arregla datos concretos; en base nueva no hace nada |
+| 31 | `esquema-categorias-publicas.sql` | El filtro del catálogo, sin traerse mil filas |
 
 ### Los que NO se corren
 
