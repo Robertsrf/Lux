@@ -96,6 +96,22 @@ npm run logos             # regenera los assets de marca
 npm run dev
 ```
 
+## 5.1 Los dos comandos que hay que acordarse de correr
+
+```bash
+npm run respaldo          # saca los datos. Escribe FUERA del repositorio.
+npm run verificar         # comprueba que la vendedora sigue sin ver costos.
+```
+
+`verificar` pide los dos códigos y no escribe nada: son todo lecturas. Córrelo
+**después de tocar una vista, un permiso, una función o una política**, y antes
+de publicar. Sale con código 1 si algo se abrió, así que sirve igual dentro de
+un hook o de un workflow.
+
+Lo que vigila no lo protege el compilador: un `revoke` que se cae, un
+`where es_admin()` que alguien quita al reescribir una vista, un `having` que
+vuelve a ser `where`. Esas cosas no rompen el build. Se rompen calladas.
+
 ## 6. GitHub Pages
 
 En **Settings → Secrets and variables → Actions → Variables**:
