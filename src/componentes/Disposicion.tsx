@@ -1,8 +1,9 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Monograma, Wordmark } from './Marca';
 import { Icono } from './Iconos';
 import type { NombreIcono } from './Iconos';
-import { LimiteDeError } from './Piezas';
+import { Cargando, LimiteDeError } from './Piezas';
 import { useSesion } from '../hooks/useSesion';
 import { cerrarSesion } from '../lib/auth';
 
@@ -98,8 +99,16 @@ export function Disposicion() {
           una pantalla rota dejaba TODO el sistema mostrando el error hasta
           recargar, aunque el aviso invitara a irse por el menu.
         */}
+        {/*
+          Las pantallas de administracion llegan en su propio archivo, aparte
+          del programa principal. El Suspense va AQUI DENTRO y no arriba del
+          todo a proposito: asi el menu lateral no parpadea mientras la
+          pantalla viaja, solo cambia el area de contenido.
+        */}
         <LimiteDeError key={donde.pathname}>
-          <Outlet />
+          <Suspense fallback={<Cargando texto="Abriendo la pantalla" />}>
+            <Outlet />
+          </Suspense>
         </LimiteDeError>
       </main>
     </div>

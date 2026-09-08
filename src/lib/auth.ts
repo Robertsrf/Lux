@@ -62,7 +62,13 @@ export async function entrarConCodigo(codigo: string) {
   }
 
   // Un PIN de cuatro digitos es del mostrador: se prueba de primero.
-  const esPin = /^d{4}$/.test(limpio);
+  //
+  // OJO CON LA BARRA INVERTIDA. Aqui decia /^d{4}$/, que busca la palabra
+  // literal "dddd" y jamas coincide con un PIN. El efecto no era una pantalla
+  // rota sino algo peor de ver: la vendedora entraba igual, pero su codigo se
+  // probaba primero como contrasena de admin y de socio. Tres viajes en vez de
+  // uno, y dos cuentas de administrador acumulando intentos fallidos.
+  const esPin = /^\d{4}$/.test(limpio);
   const orden = esPin
     ? [...CANDIDATOS].sort((a) => (a.usuario === 'vendedora' ? -1 : 1))
     : CANDIDATOS;

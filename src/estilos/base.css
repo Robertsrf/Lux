@@ -800,12 +800,6 @@ table.tabla tfoot td {
 }
 .login :focus-visible { outline-color: var(--oro-arena); }
 
-.pin__titulo {
-  text-align: center; font-size: var(--t-12); font-weight: 500;
-  text-transform: uppercase; letter-spacing: var(--tracking);
-  color: color-mix(in srgb, var(--crema) 72%, transparent);
-  margin: var(--e-5) 0 0;
-}
 .puntos-pin { display: flex; gap: var(--e-3); justify-content: center; margin: var(--e-4) 0 var(--e-5); }
 .puntos-pin span {
   width: 12px; height: 12px; border-radius: 50%;
