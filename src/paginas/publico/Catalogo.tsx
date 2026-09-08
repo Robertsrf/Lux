@@ -86,14 +86,15 @@ export function Catalogo() {
 
   // Las categorias se piden una sola vez y sin filtrar: si salieran de lo
   // que ya esta en pantalla, elegir una haria desaparecer a las demas.
+  //
+  // Antes esto se traia hasta mil filas de una columna para quedarse con
+  // once. Ahora las cuenta la base, que es donde estan los datos: la
+  // clienta baja once filas en vez de ochenta y ocho, y el dia que el
+  // catalogo tenga mil piezas seguira bajando once.
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from('v_disponible_publico').select('categoria').limit(1000);
-      const vistas = new Set<string>();
-      for (const x of (data as { categoria: string | null }[] | null) ?? []) {
-        if (x.categoria) vistas.add(x.categoria);
-      }
-      setCategorias([...vistas].sort());
+      const { data } = await supabase.rpc('categorias_publicas');
+      setCategorias(((data as { categoria: string }[] | null) ?? []).map((x) => x.categoria));
     })();
   }, []);
 
