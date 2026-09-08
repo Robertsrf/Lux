@@ -68,7 +68,7 @@ function Vacio({ children }: { children: ReactNode }) {
 
 /* ------------------------------------------------- costo y ganancia por día */
 
-export interface DiaGrafico {
+interface DiaGrafico {
   dia: string;
   costo: number;
   ganancia: number;
@@ -111,7 +111,7 @@ export function GraficoDiario({ datos, formato, vacio }: {
 
 /* -------------------------------------------------- magnitudes por partida */
 
-export interface PartidaGrafico {
+interface PartidaGrafico {
   partida: string;
   /** Lo que ya taparon las ventas del mes. */
   cubierto: number;
@@ -169,7 +169,7 @@ export function GraficoGastos({ datos, formato, vacio }: {
 
 /* ------------------------------------------ valor del inventario por categoria */
 
-export interface ValorCategoria {
+interface ValorCategoria {
   categoria: string;
   costo: number;
   margen: number;

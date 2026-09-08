@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export type ClaveTexto =
+type ClaveTexto =
   | 'materiales_largo' | 'materiales_corto' | 'catalogo_intro' | 'catalogo_pie'
   | 'mensaje_whatsapp' | 'ciudad' | 'estado' | 'datos_pago';
 

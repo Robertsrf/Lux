@@ -17,7 +17,7 @@ import selloUrl from '../marca/sello-arena.webp';
  * verde es el unico permitido sobre papel.
  */
 
-export type TonoMarca = 'crema' | 'verde' | 'arena';
+type TonoMarca = 'crema' | 'verde' | 'arena';
 
 const FUENTES: Record<TonoMarca, string> = {
   crema: cremaUrl,

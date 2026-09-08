@@ -5,9 +5,9 @@ import type { Perfil } from './tipos';
  * Supabase Auth trabaja con correo + contrasena. Aqui se arma un correo
  * sintetico a partir del nombre de usuario que la gente escribe en la tienda.
  */
-export const DOMINIO_SINTETICO = 'lux.local';
+const DOMINIO_SINTETICO = 'lux.local';
 
-export function correoDesdeUsuario(usuario: string): string {
+function correoDesdeUsuario(usuario: string): string {
   return `${usuario.trim().toLowerCase()}@${DOMINIO_SINTETICO}`;
 }
 
@@ -31,7 +31,7 @@ export function correoDesdeUsuario(usuario: string): string {
  * OJO: si cambias esta receta, cambia tambien scripts/derivar-pin.mjs, que es
  * lo que usa el admin para saber que contrasena ponerle al usuario en Supabase.
  */
-export function contrasenaDesdePin(pin: string): string {
+function contrasenaDesdePin(pin: string): string {
   return `lux.${pin.trim()}.emory`;
 }
 

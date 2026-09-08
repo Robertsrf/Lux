@@ -30,6 +30,31 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <!-- Datos estructurados. Lo que hace: que cuando alguien busque joyería
+         en la zona, Google sepa que esto es una tienda y dónde queda, en vez
+         de adivinarlo del texto.
+
+         LO QUE NO LLEVA, Y ES A PROPÓSITO: teléfono, dirección exacta,
+         horario y rango de precios. Son campos que Google premia, pero
+         ponerlos con datos inventados es peor que no ponerlos: la clienta
+         llega a una hora que no abrimos. Cuando quieras, me los das y los
+         agrego. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "JewelryStore",
+        "name": "Lux by Emory",
+        "description": "Joyería hipoalergénica: piezas que no manchan ni irritan la piel.",
+        "url": "https://robertsrf.github.io/Lux/#/publico",
+        "image": "https://robertsrf.github.io/Lux/marca/og.png",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Sabana de Mendoza",
+          "addressCountry": "VE"
+        }
+      }
+    </script>
+
     <title>Lux by Emory</title>
   </head>
   <body>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { urlPublicaFoto } from '../lib/fotos';
 
-export interface FotoAmpliada {
+interface FotoAmpliada {
   nombre: string;
   sku?: string;
   nota?: string | null;

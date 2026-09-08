@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
  * dice que paso y como arreglarlo, sin disculparse.
  */
 
-export type TonoAviso = 'neutro' | 'exito' | 'alerta' | 'error';
+type TonoAviso = 'neutro' | 'exito' | 'alerta' | 'error';
 
 export function Aviso({ tono = 'neutro', titulo, children }: {
   tono?: TonoAviso;

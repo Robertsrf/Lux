@@ -9,7 +9,7 @@ import { supabase } from './supabase';
  * Se comprime SIEMPRE en el navegador antes de subir. Sin excepcion.
  */
 
-export const BUCKET = 'fotos';
+const BUCKET = 'fotos';
 
 /*
  * Los tamanos de antes -1200 px con tope de 200 KB, thumb de 300 px- se
@@ -21,8 +21,8 @@ export const BUCKET = 'fotos';
  * de un gigabyte. El limite nunca fue el problema.
  */
 export const OBJETIVO_GRANDE = 500 * 1024; // 500 KB, lado mayor 1800 px
-export const OBJETIVO_THUMB = 70 * 1024;   // 70 KB, lado mayor 600 px
-export const LIMITE_DURO = 900 * 1024;     // por encima de esto, se rechaza
+const OBJETIVO_THUMB = 70 * 1024;   // 70 KB, lado mayor 600 px
+const LIMITE_DURO = 900 * 1024;     // por encima de esto, se rechaza
 
 export interface FotoProcesada {
   grande: File;
@@ -79,7 +79,7 @@ export async function procesarFoto(archivo: File): Promise<FotoProcesada> {
   };
 }
 
-export interface RutasFoto {
+interface RutasFoto {
   foto_path: string;
   foto_thumb_path: string;
 }

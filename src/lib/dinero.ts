@@ -81,7 +81,7 @@ export function precioEnBs(
  * Cuantos dolares BCV hay que cobrar para recuperar un dolar real.
  * Es la brecha como multiplicador: con 500 / 250 vale 2.
  */
-export function factorBrecha(tasa: Tasas | null | undefined): number | null {
+function factorBrecha(tasa: Tasas | null | undefined): number | null {
   if (!tasa || !tasa.tasa_bcv) return null;
   return tasa.tasa_venta / tasa.tasa_bcv;
 }
@@ -100,7 +100,7 @@ export function brecha(tasaVenta: number | null, tasaBcv: number | null): number
 }
 
 /** Desglose del prorrateo de flete de un lote. */
-export interface Prorrateo {
+interface Prorrateo {
   fleteMercanciaUsd: number;
   fleteExhibidoresUsd: number;
   capexTiendaUsd: number;
@@ -108,7 +108,7 @@ export interface Prorrateo {
   fletePorUnidadUsd: number | null;
 }
 
-export interface DatosLote {
+interface DatosLote {
   costoMercanciaUsd: string | number;
   costoExhibidoresUsd: string | number;
   costoFleteUsd: string | number;

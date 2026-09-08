@@ -9,7 +9,7 @@
  * pasar a derivar de el en vez de declarar campos a mano.
  */
 
-export type Rol = 'admin' | 'vendedora';
+type Rol = 'admin' | 'vendedora';
 
 export interface Perfil {
   id: string;
@@ -233,7 +233,7 @@ export interface RotacionModelo {
 
 /* ------------------------------------------------------------ Fase 3 */
 
-export type EstadoReserva = 'abierta' | 'confirmada' | 'vencida' | 'cancelada';
+type EstadoReserva = 'abierta' | 'confirmada' | 'vencida' | 'cancelada';
 
 /** Vista v_disponible_publico: lo unico que ve quien abre el enlace. */
 export interface ModeloPublico {
@@ -258,7 +258,7 @@ export interface Tramo {
   activo: boolean;
 }
 
-export interface ItemReserva {
+interface ItemReserva {
   modelo_id: number;
   cantidad: number;
   sku: string;
@@ -269,8 +269,8 @@ export interface ItemReserva {
 }
 
 /** Lo que devuelve ver_reserva(token). Sin una sola cifra de costo. */
-export type FormaEntrega = 'tienda' | 'envio';
-export type EmpresaEnvio = 'domesa' | 'mrw';
+type FormaEntrega = 'tienda' | 'envio';
+type EmpresaEnvio = 'domesa' | 'mrw';
 
 export interface ReservaVista {
   cliente_apellido?: string | null;
