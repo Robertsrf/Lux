@@ -20,9 +20,18 @@
   /* --- Variantes legibles (medidas, no estimadas) -------------------
        --salvia-texto  4,89 sobre crema · 6,13 sobre blanco
        --alerta-texto  4,65 sobre crema · 5,84 sobre blanco
-     La salvia original da 2,56 sobre crema: sirve de linea, no de texto. */
+       --oro-texto     4,68 sobre crema · 5,86 sobre blanco · 5,11 sobre papel
+     La salvia original da 2,56 sobre crema: sirve de linea, no de texto.
+
+     El oro de marca es igual: 5,38 sobre el verde profundo, que es donde
+     se usa en la barra lateral y en la vitrina, pero 2,08 sobre blanco y
+     1,66 sobre crema. En la ficha del catalogo impreso el material salia
+     en oro sobre fondo claro, a 10 px y en mayusculas, y no se leia.
+     --oro-texto es el mismo tono (31°) y la misma saturacion (43 %), solo
+     que a 36 % de luminosidad en vez de 68 %. */
   --salvia-texto: #506664;
   --alerta-texto: #875C2D;
+  --oro-texto:    #835D35;
 
   /* --- Superficies, en capas calidas --- */
   --papel:       #F4EFE4;

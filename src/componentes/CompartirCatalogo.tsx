@@ -61,7 +61,7 @@ export function CompartirCatalogo({ titulo = 'Enviar el catalogo' }: { titulo?: 
           readOnly
           value={enlace}
           onFocus={(e) => e.currentTarget.select()}
-          aria-label="Enlace del catalogo"
+          aria-label="Enlace del catálogo"
         />
       </p>
 
@@ -87,7 +87,7 @@ export function CompartirCatalogo({ titulo = 'Enviar el catalogo' }: { titulo?: 
       ) : (
         <p className="campo__pista">
           La clienta ve las piezas disponibles y aparta las que quiera. Lo que
-          aparte te aparece aqui, en Pedidos.
+          aparte te aparece aquí, en Pedidos.
         </p>
       )}
     </section>

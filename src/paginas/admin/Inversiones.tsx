@@ -115,8 +115,8 @@ export function Inversiones() {
         </p>
         <p>
           <strong>Meterla al precio.</strong> Se reparte entre las piezas que
-          vendas durante los meses que digas, asi que sube el precio de todo.
-          Se paga sola, pero te hace mas caro que la competencia mientras dure.
+          vendas durante los meses que digas, así que sube el precio de todo.
+          Se paga sola, pero te hace más caro que la competencia mientras dure.
         </p>
         <p>
           <strong>Donde la pagaste importa.</strong> Si la compraste aqui en
@@ -131,7 +131,7 @@ export function Inversiones() {
 
       {rec ? (
         <div className="tarjeta">
-          <h2>Cuanto has recuperado</h2>
+          <h2>Cuánto has recuperado</h2>
           <hr className="divisor" />
 
           <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
@@ -142,7 +142,7 @@ export function Inversiones() {
 
           <div className="pila">
             <Progreso
-              titulo="Mercancia"
+              titulo="Mercancía"
               hecho={Number(rec.mercancia_recuperada_usd)}
               total={Number(rec.invertido_mercancia_usd)}
               pct={rec.mercancia_recuperada_pct}
@@ -181,7 +181,7 @@ export function Inversiones() {
 
       {eq ? (
         <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
-          <h2>Cuanto hay que vender al mes</h2>
+          <h2>Cuánto hay que vender al mes</h2>
           <hr className="divisor" />
           {eq.piezas_para_equilibrio ? (
             <Aviso tono="neutro">
@@ -213,9 +213,9 @@ export function Inversiones() {
           <Campo etiqueta="Cuanto costo $" htmlFor="i-monto">
             <input id="i-monto" type="number" min="0.01" step="0.01" required value={monto} onChange={(e) => setMonto(e.target.value)} />
           </Campo>
-          <Campo etiqueta="Lo pagaste" htmlFor="i-moneda" pista="Aqui en bolivares son dolares BCV. Traido de afuera es dolar Binance.">
+          <Campo etiqueta="Lo pagaste" htmlFor="i-moneda" pista="Aquí en bolivares son dolares BCV. Traido de afuera es dolar Binance.">
             <select id="i-moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'bcv' | 'real')}>
-              <option value="bcv">Aqui, en bolivares</option>
+              <option value="bcv">Aquí, en bolivares</option>
               <option value="real">Afuera, en dolares Binance</option>
             </select>
           </Campo>
@@ -253,7 +253,7 @@ export function Inversiones() {
       <h2 className="seccion-titulo">Lo que llevas invertido</h2>
 
       {lista.length === 0 ? (
-        <Vacio titulo="Aun no has anotado ninguna inversion">
+        <Vacio titulo="Aún no has anotado ninguna inversion">
           <p>Agrega las vitrinas, los muebles y los equipos. Los exhibidores que vinieron en los lotes ya se cuentan solos.</p>
         </Vacio>
       ) : (
@@ -261,7 +261,7 @@ export function Inversiones() {
           <table className="tabla">
             <thead>
               <tr>
-                <th>Que</th><th>Categoria</th><th className="num">Monto</th>
+                <th>Que</th><th>Categoría</th><th className="num">Monto</th>
                 <th>Como se paga</th><th>Fecha</th><th></th>
               </tr>
             </thead>

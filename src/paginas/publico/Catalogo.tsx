@@ -70,10 +70,18 @@ export function Catalogo() {
 
     const [cat, tr] = await Promise.all([
       consulta,
-      supabase.from('tramos_mayoreo').select('id, min_piezas, precio_por_pieza_usd, activo').order('min_piezas'),
+      // La columna es descuento_pct. Aqui decia precio_por_pieza_usd, que no
+      // existe: PostgREST devolvia 400, tramos quedaba vacio y descuentoPara()
+      // no encontraba ningun tramo. Resultado: ninguna clienta al mayor
+      // recibia su descuento, ni el 5 % a las 6 piezas ni el 15 % a las 20.
+      supabase.from('tramos_mayoreo').select('id, min_piezas, descuento_pct, activo').order('min_piezas'),
     ]);
 
+    // Se miran las dos. Antes solo se miraba la del catalogo, asi que la de
+    // tramos podia fallar durante semanas sin que nadie lo supiera: la
+    // pagina se veia perfecta, solo que sin descuentos al mayor.
     if (cat.error) setError(mensajeDeError(cat.error));
+    else if (tr.error) setError(mensajeDeError(tr.error));
     setModelos((cat.data as unknown as ModeloPublico[] | null) ?? []);
     setTramos((tr.data as Tramo[] | null) ?? []);
     setCargando(false);
@@ -243,7 +251,7 @@ export function Catalogo() {
           <Campo etiqueta="Cedula" htmlFor="r-cedula" pista="Va en la guia de envio.">
             <input id="r-cedula" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value)} required />
           </Campo>
-          <Campo etiqueta="Telefono" htmlFor="r-tel" pista="Con el codigo. Por ejemplo 0412 1234567.">
+          <Campo etiqueta="Telefono" htmlFor="r-tel" pista="Con el código. Por ejemplo 0412 1234567.">
             <input id="r-tel" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} autoComplete="tel" required />
           </Campo>
         </div>
@@ -279,7 +287,7 @@ export function Catalogo() {
             </>
           ) : (
             <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-              Te esperamos en la tienda con tu cedula.
+              Te esperamos en la tienda con tu cédula.
             </p>
           )}
         </div>
@@ -320,7 +328,7 @@ export function Catalogo() {
       <div className="pagina mostrador">
         <div className="encabezado-pagina">
           <div>
-            <h1>Catalogo</h1>
+            <h1>Catálogo</h1>
             <p>Toca las piezas que te gusten y armamos tu pedido al mayor.</p>
           </div>
         </div>
@@ -329,7 +337,7 @@ export function Catalogo() {
           <p className="sello-materiales">{textos.materiales_largo}</p>
         ) : null}
 
-        {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
+        {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
         <Campo etiqueta="Buscar" htmlFor="buscar-publico">
           <input
@@ -340,7 +348,7 @@ export function Catalogo() {
         </Campo>
 
         {categorias.length > 1 ? (
-          <div className="filtros-categoria" role="group" aria-label="Filtrar por categoria">
+          <div className="filtros-categoria" role="group" aria-label="Filtrar por categoría">
             <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>
               Todo
             </button>
@@ -353,7 +361,7 @@ export function Catalogo() {
         ) : null}
 
         {cargando ? (
-          <Cargando texto="Trayendo el catalogo" />
+          <Cargando texto="Trayendo el catálogo" />
         ) : modelos.length === 0 ? (
           <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
             <p>{texto ? 'Prueba con otra palabra.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>

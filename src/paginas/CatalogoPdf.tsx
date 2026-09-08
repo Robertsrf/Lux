@@ -67,29 +67,29 @@ export function CatalogoPdf() {
     return salida;
   }, [modelos]);
 
-  if (cargando) return <Cargando texto="Armando el catalogo" />;
+  if (cargando) return <Cargando texto="Armando el catálogo" />;
 
   return (
     <div className="pagina catalogo">
       <div className="encabezado-pagina sin-impresion">
         <div>
-          <h1>Catalogo</h1>
+          <h1>Catálogo</h1>
           <p>Solo modelos con existencia. Imprime y elige "Guardar como PDF".</p>
         </div>
         <div>
           <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>
           <p className="campo__pista" style={{ marginTop: 'var(--e-2)', maxWidth: '34ch' }}>
             En el cuadro de impresion: <strong style={{ display: 'inline' }}>marca "Graficos de fondo"</strong>
-            —sin eso la portada sale en blanco— y desmarca "Encabezados y pies de pagina",
-            para que no salga la direccion web en el papel.
+            —sin eso la portada sale en blanco— y desmarca "Encabezados y pies de página",
+            para que no salga la dirección web en el papel.
           </p>
         </div>
       </div>
 
-      {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
+      {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
       <div className="sin-impresion">
-        <CompartirCatalogo titulo="Enlace del catalogo en linea" />
+        <CompartirCatalogo titulo="Enlace del catálogo en linea" />
       </div>
 
       <section className="catalogo__portada">
@@ -120,7 +120,7 @@ export function CatalogoPdf() {
 
       {modelos.length === 0 ? (
         <Vacio titulo="Todavia no hay modelos con existencia">
-          <p>Carga modelos con cantidad en alguna ubicacion y vuelve aqui.</p>
+          <p>Carga modelos con cantidad en alguna ubicación y vuelve aquí.</p>
         </Vacio>
       ) : (
         <>

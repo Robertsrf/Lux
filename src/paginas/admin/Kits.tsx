@@ -106,7 +106,7 @@ export function Kits() {
           menos el porcentaje que le pongas.
         </p>
         <p>
-          Asi el kit se repricia solo cuando cambian los grupos o la tasa. Un
+          Así el kit se repricia solo cuando cambian los grupos o la tasa. Un
           precio escrito a mano se queda viejo sin avisar, y termina vendiendose
           por debajo del costo.
         </p>
@@ -141,8 +141,8 @@ export function Kits() {
       <h2 className="seccion-titulo">Kits armados</h2>
 
       {kits.length === 0 ? (
-        <Vacio titulo="Aun no hay kits">
-          <p>Crea el primero arriba y despues agregale las piezas que lo componen.</p>
+        <Vacio titulo="Aún no hay kits">
+          <p>Crea el primero arriba y después agregale las piezas que lo componen.</p>
         </Vacio>
       ) : (
         <div className="pila">

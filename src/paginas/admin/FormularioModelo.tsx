@@ -249,7 +249,7 @@ export function FormularioModelo() {
           <Campo
             etiqueta="Archivo"
             htmlFor="m-foto"
-            pista="Se comprime aqui mismo antes de subir: 1800 px en WebP, mas una miniatura de 600 px."
+            pista="Se comprime aquí mismo antes de subir: 1800 px en WebP, más una miniatura de 600 px."
           >
             <input id="m-foto" type="file" accept="image/*" onChange={(e) => void elegirFoto(e.target.files?.[0])} />
           </Campo>
@@ -357,17 +357,17 @@ export function FormularioModelo() {
             <Ayuda titulo="Los dos dolares, en una frase">
               <p>
                 <strong>Dolar Binance</strong> es con el que COMPRAS afuera. Hoy esta
-                mas caro que el del BCV, y esa diferencia se llama la brecha.
+                más caro que el del BCV, y esa diferencia se llama la brecha.
               </p>
               <p>
-                <strong>Dolar BCV</strong> es con el que VENDES aqui: es el de la
+                <strong>Dolar BCV</strong> es con el que VENDES aquí: es el de la
                 etiqueta y el que la clienta convierte a bolivares.
               </p>
               <p>
-                Por eso la mercancia se multiplica por la brecha antes de ponerle
-                precio: hace falta mas dolares BCV para juntar los Binance con los
+                Por eso la mercancía se multiplica por la brecha antes de ponerle
+                precio: hace falta más dolares BCV para juntar los Binance con los
                 que vas a reponer esa misma pieza. El alquiler y el sueldo NO se
-                multiplican, porque esos ya los pagas aqui.
+                multiplican, porque esos ya los pagas aquí.
               </p>
             </Ayuda>
 
@@ -403,7 +403,7 @@ export function FormularioModelo() {
                 </div>
               </li>
               <li>
-                <span className="dato__etiqueta">3 · Mas lo que carga de tienda</span>
+                <span className="dato__etiqueta">3 · Más lo que carga de tienda</span>
                 <div className="dato__valor">{formatearUsd(sugerencia?.costo_operativo_usd ?? null, 4)}</div>
                 <div className="campo__pista">alquiler, sueldo y empaque · ya en BCV, no se convierte</div>
               </li>
@@ -508,9 +508,9 @@ export function FormularioModelo() {
         </div>
 
         <div className="tarjeta">
-          <h2>Existencia por ubicacion</h2>
+          <h2>Existencia por ubicación</h2>
           <hr className="divisor" />
-          <p className="campo__pista">No hay un total guardado: la existencia siempre es por ubicacion y se suma.</p>
+          <p className="campo__pista">No hay un total guardado: la existencia siempre es por ubicación y se suma.</p>
 
           <div className="fila">
             {ubicaciones.map((u) => (

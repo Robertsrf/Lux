@@ -20,7 +20,7 @@ const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/inversiones', texto: 'Inversiones', icono: 'lotes' },
   { a: '/admin/tasas',      texto: 'Tasas',      icono: 'tasas' },
   { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
-  { a: '/catalogo',         texto: 'Catalogo',   icono: 'catalogo' },
+  { a: '/catalogo',         texto: 'Catálogo',   icono: 'catalogo' },
   { a: '/vitrina',          texto: 'Vitrina',    icono: 'vitrina' },
 ];
 
@@ -28,10 +28,10 @@ const ENLACES_VENTA: Enlace[] = [
   { a: '/venta',          texto: 'Mostrador', icono: 'mostrador' },
   { a: '/venta/mayor',    texto: 'Mayor',     icono: 'mayor' },
   { a: '/venta/pedidos',  texto: 'Pedidos',   icono: 'pedidos' },
-  { a: '/venta/tablero',  texto: 'Mi dia',    icono: 'dia' },
+  { a: '/venta/tablero',  texto: 'Mi día',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
-  { a: '/venta/guia',     texto: 'Guia',      icono: 'catalogo' },
+  { a: '/venta/guia',     texto: 'Guía',      icono: 'catalogo' },
   { a: '/vitrina',        texto: 'Vitrina',   icono: 'vitrina' },
 ];
 
@@ -69,10 +69,16 @@ export function Disposicion() {
               <span className="texto-nav">{e.texto}</span>
             </NavLink>
           ))}
-          <NavLink to="/verificacion" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
-            <Icono nombre="verificacion" />
-            <span className="texto-nav">Verificacion</span>
-          </NavLink>
+          {/* Solo al administrador. La pantalla paso a ser suya porque enseña
+              el nombre de cada vista y cada funcion protegida. A la vendedora
+              le seguia apareciendo el enlace y la llevaba a un rechazo: un
+              callejon sin salida dentro de su propio menu. */}
+          {esAdmin && (
+            <NavLink to="/verificacion" className={({ isActive }) => (isActive ? 'activo' : undefined)}>
+              <Icono nombre="verificacion" />
+              <span className="texto-nav">Verificación</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="sesion">
@@ -84,8 +90,8 @@ export function Disposicion() {
             type="button"
             className="boton boton--secundario boton--pequeno boton--icono"
             onClick={() => void salir()}
-            aria-label="Cerrar sesion"
-            title="Cerrar sesion"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
           >
             <Icono nombre="salir" className="icono icono--sm" />
           </button>

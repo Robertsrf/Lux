@@ -111,15 +111,15 @@ export function Lotes() {
       <div className="encabezado-pagina">
         <div>
           <h1>Lotes</h1>
-          <p>Cada lote sella la tasa Binance del dia de compra. Ese costo queda congelado en dolares para siempre.</p>
+          <p>Cada lote sella la tasa Binance del día de compra. Ese costo queda congelado en dolares para siempre.</p>
         </div>
       </div>
 
       <Ayuda titulo="Que es un lote y por que importa tanto">
         <p>
           Un lote es una compra: lo que trajiste de una vez, con su flete y sus
-          exhibidores. De aqui sale el costo de cada pieza, asi que si esto
-          esta mal, todos los precios estan mal.
+          exhibidores. De aquí sale el costo de cada pieza, así que si esto
+          esta mal, todos los precios están mal.
         </p>
         <p>
           <strong>El flete se reparte por bulto</strong>, no por lo que vale
@@ -128,14 +128,14 @@ export function Lotes() {
           collar caro o un brazalete barato.
         </p>
         <p>
-          <strong>Los exhibidores no son mercancia.</strong> Su costo y su
+          <strong>Los exhibidores no son mercancía.</strong> Su costo y su
           parte del flete van aparte, como inversion de tienda, y se recuperan
           poco a poco de la ganancia. Cargarselos a las joyas encareceria cada
           pieza por un mueble que no se vende.
         </p>
         <p>
           <strong>La tasa Binance se sella y no se toca.</strong> Es el precio
-          real que pagaste ese dia. Si se recalculara con la tasa de hoy, el
+          real que pagaste ese día. Si se recalculara con la tasa de hoy, el
           costo de un lote viejo cambiaria solo y no sabrias cuanto ganaste de
           verdad.
         </p>
@@ -186,7 +186,7 @@ export function Lotes() {
           <Campo etiqueta="Piezas de joyeria que vinieron" htmlFor="l-pm" pista="Todas las del envio, aunque todavia no las hayas cargado.">
             <input id="l-pm" type="number" step="1" min="0" value={form.piezas_mercancia} onChange={(e) => cambiar('piezas_mercancia', e.target.value)} />
           </Campo>
-          <Campo etiqueta="Exhibidores que vinieron" htmlFor="l-pe" pista="Tambien son bultos: pagan su parte del flete.">
+          <Campo etiqueta="Exhibidores que vinieron" htmlFor="l-pe" pista="También son bultos: pagan su parte del flete.">
             <input id="l-pe" type="number" step="1" min="0" value={form.unidades_exhibidores} onChange={(e) => cambiar('unidades_exhibidores', e.target.value)} />
           </Campo>
         </div>
@@ -199,7 +199,7 @@ export function Lotes() {
           <span className="panel__titulo">Reparto del flete (previsualizacion)</span>
           <div className="rejilla rejilla--3">
             <div>
-              <span className="dato__etiqueta">A mercancia</span>
+              <span className="dato__etiqueta">A mercancía</span>
               <div className="dato__valor">{formatearUsd(vistaPrevia.fleteMercanciaUsd)}</div>
             </div>
             <div>
@@ -236,7 +236,7 @@ export function Lotes() {
       <h2 className="seccion-titulo">Lotes registrados</h2>
 
       {cargando ? <Cargando /> : lotes.length === 0 ? (
-        <Vacio titulo="Aun no hay lotes">
+        <Vacio titulo="Aún no hay lotes">
           <p>Registra el primero arriba. Sin lote, un modelo no puede repartir flete.</p>
         </Vacio>
       ) : (
@@ -244,11 +244,11 @@ export function Lotes() {
           <table className="tabla">
             <thead>
               <tr>
-                <th>Codigo</th>
+                <th>Código</th>
                 <th>Llegada</th>
                 <th className="num">Tasa sellada</th>
-                <th className="num">Mercancia</th>
-                <th className="num">Flete a mercancia</th>
+                <th className="num">Mercancía</th>
+                <th className="num">Flete a mercancía</th>
                 <th className="num">$/bulto</th>
                 <th className="num">CAPEX tienda</th>
                 <th className="num">Modelos</th>

@@ -101,7 +101,7 @@ export function Costos() {
       <Ayuda titulo="Como lee esta pantalla tu negocio" abierta={faltaObjetivo}>
         <p>
           Antes te preguntaba cuantas piezas venderias al mes. Era una pregunta injusta:
-          nadie lo sabe, y de ese numero colgaba todo el calculo.
+          nadie lo sabe, y de ese número colgaba todo el calculo.
         </p>
         <p>
           Ahora el sistema lo <strong>deduce</strong>: si manejas 360 piezas y quieres rotarlas
@@ -110,17 +110,17 @@ export function Costos() {
         <p>
           Y en cuanto cumplas <strong>un mes desde tu primera venta</strong>, deja de suponer:
           empieza a medir lo que de verdad vendiste y se ajusta solo. Si vendes menos de lo
-          previsto, cada pieza carga mas tienda y el precio sugerido sube sin que tengas que
+          previsto, cada pieza carga más tienda y el precio sugerido sube sin que tengas que
           acordarte de nada.
         </p>
         <p>
-          Ojo con las dos monedas: <strong>la mercancia se compra en Binance</strong> y el
-          alquiler, el sueldo y el empaque <strong>se pagan aqui</strong>. La brecha solo se le
-          aplica a la mercancia, que es lo unico que tienes que volver a comprar afuera.
+          Ojo con las dos monedas: <strong>la mercancía se compra en Binance</strong> y el
+          alquiler, el sueldo y el empaque <strong>se pagan aquí</strong>. La brecha solo se le
+          aplica a la mercancía, que es lo unico que tienes que volver a comprar afuera.
         </p>
         <p>
           Y el margen tampoco lo adivinas. Le dices <strong>cuanto quieres ganar al mes</strong> y
-          el sistema despeja el margen que hace falta. Si el numero que sale es imposible de
+          el sistema despeja el margen que hace falta. Si el número que sale es imposible de
           cobrar, el problema no es el margen: es el volumen o los gastos.
         </p>
       </Ayuda>
@@ -235,16 +235,16 @@ export function Costos() {
           <p>
             <strong>Piezas con la tienda surtida</strong> y <strong>rotarlas en</strong> deciden
             cuantas piezas al mes espera vender el sistema. Bajar la rotacion de 3 a 2 meses
-            sube el volumen y <em>abarata</em> cada pieza, porque los gastos se reparten entre mas.
+            sube el volumen y <em>abarata</em> cada pieza, porque los gastos se reparten entre más.
           </p>
           <p>
             <strong>Ganancia que quieres al mes</strong> es la unica meta de verdad. De ahi sale
             el margen sugerido. Si pones una cifra ambiciosa y el margen que sale es imposible,
-            eso es informacion valiosa: te esta diciendo que con ese volumen y esos gastos, no da.
+            eso es información valiosa: te esta diciendo que con ese volumen y esos gastos, no da.
           </p>
           <p>
             <strong>Merma</strong> es lo que se pierde o nunca se vende. Las piezas que si se
-            venden lo pagan, asi que sube el costo de todas.
+            venden lo pagan, así que sube el costo de todas.
           </p>
         </Ayuda>
 
@@ -273,20 +273,20 @@ export function Costos() {
       <Ayuda titulo="Si el margen sugerido te parece imposible">
         <p>Solo hay cuatro palancas, y conviene moverlas en este orden:</p>
         <p>
-          <strong>1 · Vender mas caro por venta.</strong> Una pieza de grupo alto deja varias veces
+          <strong>1 · Vender más caro por venta.</strong> Una pieza de grupo alto deja varias veces
           lo que deja una barata, con el mismo tiempo de atencion y el mismo empaque. Es la palanca
-          mas rapida y no cuesta dinero.
+          más rápida y no cuesta dinero.
         </p>
         <p>
-          <strong>2 · Rotar mas rapido.</strong> Los mismos gastos repartidos entre mas piezas
-          bajan el costo de cada una. Aqui es donde el catalogo publico y los kits ayudan.
+          <strong>2 · Rotar más rápido.</strong> Los mismos gastos repartidos entre más piezas
+          bajan el costo de cada una. Aquí es donde el catálogo publico y los kits ayudan.
         </p>
         <p>
           <strong>3 · Bajar gastos fijos.</strong> Cada dolar que sale del alquiler o los servicios
           baja el costo de todas las piezas a la vez.
         </p>
         <p>
-          <strong>4 · Subir precios.</strong> La ultima, no la primera: es la que la clienta si nota.
+          <strong>4 · Subir precios.</strong> La última, no la primera: es la que la clienta si nota.
         </p>
       </Ayuda>
     </div>

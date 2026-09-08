@@ -110,7 +110,7 @@ export function Tramos() {
 
       {tramos.filter((t) => t.activo).length === 0 ? (
         <Aviso tono="alerta" titulo="El armador esta apagado">
-          Sin ningun tramo activo, quien arme un pedido en el catalogo publico paga
+          Sin ningun tramo activo, quien arme un pedido en el catálogo publico paga
           el precio de detal completo. Carga al menos uno.
         </Aviso>
       ) : null}
@@ -143,7 +143,7 @@ export function Tramos() {
       <h2 className="seccion-titulo">Tramos cargados</h2>
 
       {tramos.length === 0 ? (
-        <Vacio titulo="Aun no hay tramos">
+        <Vacio titulo="Aún no hay tramos">
           <p>Carga el primero arriba. Por ejemplo: desde 6 piezas, tanto por ciento de descuento.</p>
         </Vacio>
       ) : (
@@ -153,7 +153,7 @@ export function Tramos() {
               <tr>
                 <th className="num">Desde</th>
                 <th className="num">Descuento</th>
-                <th className="num">Peor margen del catalogo</th>
+                <th className="num">Peor margen del catálogo</th>
                 <th>Estado</th>
                 <th></th>
               </tr>

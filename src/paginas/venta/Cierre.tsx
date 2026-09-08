@@ -57,8 +57,8 @@ export function Cierre() {
     <div className="pagina pagina--angosta mostrador">
       <div className="encabezado-pagina">
         <div>
-          <h1>Cierre del dia</h1>
-          <p>Cuenta las piezas de cada ubicacion y anota el numero.</p>
+          <h1>Cierre del día</h1>
+          <p>Cuenta las piezas de cada ubicación y anota el número.</p>
         </div>
       </div>
 

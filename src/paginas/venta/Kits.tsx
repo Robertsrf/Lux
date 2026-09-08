@@ -82,7 +82,7 @@ export function Kits() {
       {error ? <ResumenErrores titulo="No se registro la venta">{error}</ResumenErrores> : null}
 
       {kits.length === 0 ? (
-        <Vacio titulo="Aun no hay kits armados">
+        <Vacio titulo="Aún no hay kits armados">
           <p>Un administrador tiene que crear los kits antes de poder venderlos.</p>
         </Vacio>
       ) : (

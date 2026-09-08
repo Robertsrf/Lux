@@ -49,7 +49,7 @@ export function Tablero() {
     <div className="pagina pagina--angosta mostrador">
       <div className="encabezado-pagina">
         <div>
-          <h1>Tu dia</h1>
+          <h1>Tu día</h1>
           <p>{perfil?.nombre ?? ''} · lo que llevas vendido hoy.</p>
         </div>
       </div>

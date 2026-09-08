@@ -12,7 +12,7 @@ export function RutaProtegida({ soloAdmin = false, children }: { soloAdmin?: boo
   const { sesion, perfil, cargando, esAdmin, errorPerfil } = useSesion();
   const ubicacion = useLocation();
 
-  if (cargando) return <Cargando texto="Verificando sesion" />;
+  if (cargando) return <Cargando texto="Verificando sesión" />;
   if (!sesion) return <Navigate to="/entrar" replace state={{ desde: ubicacion.pathname }} />;
 
   if (errorPerfil) {

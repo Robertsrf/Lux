@@ -82,7 +82,7 @@ export function ConteoSemanal() {
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
       {error ? <Aviso tono="error" titulo="No se pudo guardar el conteo">{error}</Aviso> : null}
 
-      <div className="selector-ubicacion" role="group" aria-label="Ubicacion">
+      <div className="selector-ubicacion" role="group" aria-label="Ubicación">
         {ubicaciones.map((u) => (
           <button key={u.id} type="button" aria-pressed={u.id === ubicacionId} onClick={() => setUbicacionId(u.id)}>
             {u.nombre}
@@ -91,8 +91,8 @@ export function ConteoSemanal() {
       </div>
 
       {cargando ? <Cargando texto="Cargando modelos" /> : modelos.length === 0 ? (
-        <Vacio titulo="No hay modelos registrados en esta ubicacion">
-          <p>Elige otra ubicacion o pide que carguen el inventario primero.</p>
+        <Vacio titulo="No hay modelos registrados en esta ubicación">
+          <p>Elige otra ubicación o pide que carguen el inventario primero.</p>
         </Vacio>
       ) : (
         <>

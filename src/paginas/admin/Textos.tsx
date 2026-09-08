@@ -64,7 +64,7 @@ export function Textos() {
     <div className="pagina pagina--angosta">
       <div className="encabezado-pagina">
         <div>
-          <h1>Textos del catalogo</h1>
+          <h1>Textos del catálogo</h1>
           <p>Lo que hace especial a Lux. Se escribe una vez y sale en todas las piezas.</p>
         </div>
       </div>

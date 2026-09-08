@@ -129,7 +129,7 @@ export function Reportes() {
 
       <Ayuda titulo="Que contesta cada parte de esta pantalla">
         <p>
-          <strong>Lo que tienes en vitrina.</strong> Cuantas piezas hay, cuanto
+          <strong>Lo que tienes en vitrina.</strong> Cuántas piezas hay, cuanto
           costaron y cuanto valen en etiqueta. El margen ahi es BRUTO: de esa
           diferencia salen todavia los gastos del mes.
         </p>
@@ -137,10 +137,10 @@ export function Reportes() {
           <strong>El mes, cubriendose.</strong> Cada pieza vendida deja, por
           encima de lo que costo reponerla, un pedazo del alquiler y del sueldo.
           Cuando la barra se llena, la tienda se pago sola y lo que entra
-          despues es ganancia limpia.
+          después es ganancia limpia.
         </p>
         <p>
-          <strong>Costo y ganancia dia a dia.</strong> El alto de cada columna
+          <strong>Costo y ganancia día a día.</strong> El alto de cada columna
           es lo que cobraste ese dia; el verde de arriba es lo que quedo.
         </p>
         <p>
@@ -148,7 +148,7 @@ export function Reportes() {
           venderse. Son dinero parado en la vitrina.
         </p>
         <p>
-          Las cifras usan las tasas del dia de cada venta, no las de hoy. Si el
+          Las cifras usan las tasas del día de cada venta, no las de hoy. Si el
           reporte de un mes cambiara porque hoy movio la tasa, estaria mintiendo.
         </p>
       </Ayuda>
@@ -212,7 +212,7 @@ export function Reportes() {
             <GraficoValor
               datos={porCategoria}
               formato={formatearUsd}
-              vacio={<p>Carga piezas con existencia y aqui veras en que esta metido el dinero.</p>}
+              vacio={<p>Carga piezas con existencia y aquí veras en que esta metido el dinero.</p>}
             />
             <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
               El margen es BRUTO: si vendieras todo hoy te quedarian{' '}
@@ -224,7 +224,7 @@ export function Reportes() {
         </>
       ) : null}
 
-      <h2 className="seccion-titulo">Costo y ganancia, dia a dia</h2>
+      <h2 className="seccion-titulo">Costo y ganancia, día a día</h2>
       <div className="tarjeta">
         <GraficoDiario
           datos={porDia}
@@ -238,17 +238,17 @@ export function Reportes() {
         />
       </div>
 
-      <h2 className="seccion-titulo">El detalle, dia por dia</h2>
+      <h2 className="seccion-titulo">El detalle, día por día</h2>
       {ventas.length === 0 ? (
         <Vacio titulo="Todavia no hay ventas en este periodo">
-          <p>Cuando el mostrador registre la primera venta, aparecera aqui.</p>
+          <p>Cuando el mostrador registre la primera venta, aparecera aquí.</p>
         </Vacio>
       ) : (
         <div className="tabla-envoltura">
           <table className="tabla">
             <thead>
               <tr>
-                <th>Dia</th><th className="num">Ventas</th><th className="num">Piezas</th>
+                <th>Día</th><th className="num">Ventas</th><th className="num">Piezas</th>
                 <th className="num">Cobrado Bs</th><th className="num">Cobrado $</th>
                 <th className="num">Costo $</th><th className="num">Ganancia $</th>
               </tr>
@@ -302,7 +302,7 @@ export function Reportes() {
               Las {formatearEntero(cobertura.piezas_vendidas)} piezas vendidas cubrieron
               los {formatearUsd(cobertura.gastos_mes_usd)} de gastos, y por encima
               llevas <strong style={{ display: 'inline' }}>{formatearUsd(cobertura.ganancia_usd)}</strong> de
-              ganancia limpia. Todo lo que entre de aqui al fin de mes se suma ahi.
+              ganancia limpia. Todo lo que entre de aquí al fin de mes se suma ahi.
             </>
           ) : (
             <>
@@ -321,7 +321,7 @@ export function Reportes() {
         <GraficoGastos
           datos={partidasGasto}
           formato={formatearUsd}
-          vacio={<p>Carga tus gastos en Costos y apareceran aqui, partida por partida.</p>}
+          vacio={<p>Carga tus gastos en Costos y apareceran aquí, partida por partida.</p>}
         />
         {partidasGasto.length > 0 ? (
           <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
@@ -352,7 +352,7 @@ export function Reportes() {
               <tr>
                 <th>SKU</th><th>Modelo</th><th>Grupo</th>
                 <th className="num">Existencia</th><th className="num">Vendidas</th>
-                <th className="num">Sin venderse</th><th>Ultima venta</th>
+                <th className="num">Sin venderse</th><th>Última venta</th>
               </tr>
             </thead>
             <tbody>

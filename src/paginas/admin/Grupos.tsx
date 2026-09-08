@@ -62,7 +62,7 @@ export function Grupos() {
       <Ayuda titulo="Por que hay grupos y no un precio por pieza">
         <p>
           Un grupo es un punto de precio: G14 son catorce dolares BCV. Cada
-          pieza cae en el grupo mas barato que cubra su costo mas el margen,
+          pieza cae en el grupo más barato que cubra su costo más el margen,
           redondeando hacia arriba.
         </p>
         <p>
@@ -77,7 +77,7 @@ export function Grupos() {
         </p>
         <p>
           Si una pieza no cabe en ninguno, el sistema avisa: hace falta un grupo
-          mas alto, o esa pieza lleva precio propio.
+          más alto, o esa pieza lleva precio propio.
         </p>
       </Ayuda>
 
@@ -106,7 +106,7 @@ export function Grupos() {
       </form>
 
       {cargando ? <Cargando /> : grupos.length === 0 ? (
-        <Vacio titulo="Aun no hay grupos de precio">
+        <Vacio titulo="Aún no hay grupos de precio">
           <p>Crea el primero arriba. Sin grupo, un modelo no tiene precio de venta.</p>
         </Vacio>
       ) : (

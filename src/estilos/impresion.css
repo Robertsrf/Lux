@@ -99,7 +99,9 @@
 .ficha__material {
   font-family: var(--fuente-ui); font-size: 10px;
   letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--oro-arena);
+  /* La ficha va sobre blanco. El oro de marca da 1,66 ahi y esto es lo
+     que la clienta lee con el papel en la mano. */
+  color: var(--oro-texto);
   padding-top: var(--e-1);
 }
 .ficha__existencia {

@@ -80,7 +80,7 @@ export function Reserva() {
       <header className="barra barra--publica">
         <div className="barra__interior">
           <Wordmark alto={40} />
-          <Link to="/publico" className="sesion__quien">Ver el catalogo</Link>
+          <Link to="/publico" className="sesion__quien">Ver el catálogo</Link>
         </div>
       </header>
 
@@ -99,13 +99,13 @@ export function Reserva() {
 
             {reserva.estado === 'abierta' && restante ? (
               <Aviso tono="alerta" titulo="Apartado">
-                Tus piezas quedan reservadas <strong style={{ display: 'inline' }}>{restante}</strong> mas.
-                Paga y carga los datos aqui abajo para cerrarlo.
+                Tus piezas quedan reservadas <strong style={{ display: 'inline' }}>{restante}</strong> más.
+                Paga y carga los datos aquí abajo para cerrarlo.
               </Aviso>
             ) : null}
             {reserva.estado === 'abierta' && !restante ? (
               <Aviso tono="error" titulo="El apartado vencio">
-                Las piezas volvieron al catalogo. Arma el pedido otra vez.
+                Las piezas volvieron al catálogo. Arma el pedido otra vez.
               </Aviso>
             ) : null}
             {reserva.estado === 'confirmada' ? (
@@ -114,7 +114,7 @@ export function Reserva() {
               </Aviso>
             ) : null}
             {reserva.estado === 'vencida' ? (
-              <Aviso tono="error" titulo="El apartado vencio">Las piezas volvieron al catalogo.</Aviso>
+              <Aviso tono="error" titulo="El apartado vencio">Las piezas volvieron al catálogo.</Aviso>
             ) : null}
             {reserva.estado === 'cancelada' ? (
               <Aviso tono="neutro" titulo="Pedido cancelado">Puedes armar otro cuando quieras.</Aviso>

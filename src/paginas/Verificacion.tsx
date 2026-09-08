@@ -136,7 +136,7 @@ export function Verificacion() {
     <div className="pagina">
       <div className="encabezado-pagina">
         <div>
-          <h1>Verificacion</h1>
+          <h1>Verificación</h1>
           <p>Checklist de seguridad de la Fase 1, con la sesion de {perfil?.nombre ?? '—'} ({perfil?.rol ?? '—'}).</p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => void correr()}>Repetir</button>

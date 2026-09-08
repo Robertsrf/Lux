@@ -268,14 +268,14 @@ export function Mostrador() {
       </div>
 
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
-      {error ? <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso> : null}
+      {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
       {!tasa ? (
         <Aviso tono="alerta" titulo="Sin tasa vigente">
-          No se puede cobrar hasta que un administrador fije la tasa del dia.
+          No se puede cobrar hasta que un administrador fije la tasa del día.
         </Aviso>
       ) : null}
 
-      <div className="selector-ubicacion" role="group" aria-label="Ubicacion">
+      <div className="selector-ubicacion" role="group" aria-label="Ubicación">
         {ubicaciones.map((u) => (
           <button
             key={u.id}

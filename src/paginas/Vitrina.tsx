@@ -179,7 +179,7 @@ export function Vitrina() {
   );
 
   if (cargando) return <Cargando texto="Preparando la vitrina" />;
-  if (error) return <Aviso tono="error" titulo="No se pudo cargar el catalogo">{error}</Aviso>;
+  if (error) return <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso>;
   if (total === 0) {
     return (
       <Vacio titulo="No hay piezas que mostrar">

@@ -54,7 +54,7 @@ export function Pedidos() {
       <div className="encabezado-pagina">
         <div>
           <h1>Pedidos</h1>
-          <p>Lo que armaron desde el catalogo. Cada pieza dice donde esta.</p>
+          <p>Lo que armaron desde el catálogo. Cada pieza dice donde esta.</p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => void cargar()}>Actualizar</button>
       </div>
@@ -65,7 +65,7 @@ export function Pedidos() {
 
       {pedidos.length === 0 ? (
         <Vacio titulo="No hay pedidos pendientes">
-          <p>Cuando alguien arme un pedido desde el catalogo publico, aparecera aqui con la ubicacion de cada pieza.</p>
+          <p>Cuando alguien arme un pedido desde el catálogo publico, aparecera aquí con la ubicación de cada pieza.</p>
         </Vacio>
       ) : (
         <div className="pila">
@@ -110,7 +110,7 @@ export function Pedidos() {
                     ) : (
                       <>
                         <div className="dato__valor">Retira en tienda</div>
-                        <div className="campo__pista">Pidele la cedula al entregar.</div>
+                        <div className="campo__pista">Pidele la cédula al entregar.</div>
                       </>
                     )}
                   </div>
@@ -151,7 +151,7 @@ export function Pedidos() {
                 <div className="tabla-envoltura">
                   <table className="tabla">
                     <thead>
-                      <tr><th></th><th>Pieza</th><th>Donde esta</th><th className="num">Cantidad</th></tr>
+                      <tr><th></th><th>Pieza</th><th>Dónde está</th><th className="num">Cantidad</th></tr>
                     </thead>
                     <tbody>
                       {items.map((i) => {

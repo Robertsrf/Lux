@@ -69,14 +69,14 @@ export function Tasas() {
       <div className="encabezado-pagina">
         <div>
           <h1>Tasas</h1>
-          <p>Dos numeros con trabajos distintos: uno cobra y el otro mide. Cambiarlos repricia el catalogo completo, sin tocar un solo producto.</p>
+          <p>Dos numeros con trabajos distintos: uno cobra y el otro mide. Cambiarlos repricia el catálogo completo, sin tocar un solo producto.</p>
         </div>
       </div>
 
       <Ayuda titulo="Para que sirve cada tasa" abierta>
         <p>
           <strong>Tasa de compra de dolares (Binance).</strong> Lo que te
-          cuesta un dolar cuando vas a comprar mercancia afuera. Es la mas
+          cuesta un dolar cuando vas a comprar mercancía afuera. Es la más
           alta de las dos.
         </p>
         <p>
@@ -88,10 +88,10 @@ export function Tasas() {
           La diferencia entre las dos es <strong>la brecha</strong>. El sistema
           la usa para una sola cosa: saber cuantos dolares BCV hacen falta para
           juntar los Binance con los que vas a reponer la pieza. Por eso la
-          mercancia se multiplica por la brecha y el alquiler no.
+          mercancía se multiplica por la brecha y el alquiler no.
         </p>
         <p>
-          Cambiar estas dos cifras <strong>repricia el catalogo entero</strong>
+          Cambiar estas dos cifras <strong>repricia el catálogo entero</strong>
           {' '}sin tocar un producto. Las ventas ya hechas no se mueven: cada una
           guarda las tasas del dia en que se cobro.
         </p>
@@ -160,7 +160,7 @@ export function Tasas() {
             </dl>
           ) : (
             <Vacio titulo="Todavia no hay tasa vigente">
-              <p>Fijala aqui al lado. Sin tasa, el catalogo no puede mostrar precios en bolivares.</p>
+              <p>Fijala aquí al lado. Sin tasa, el catálogo no puede mostrar precios en bolivares.</p>
             </Vacio>
           )}
         </div>
@@ -168,7 +168,7 @@ export function Tasas() {
 
       <h2 className="seccion-titulo">Historico</h2>
       {cargando ? <Cargando /> : historico.length === 0 ? (
-        <Vacio titulo="Aun no hay cambios de tasa registrados" />
+        <Vacio titulo="Aún no hay cambios de tasa registrados" />
       ) : (
         <div className="tabla-envoltura">
           <table className="tabla">

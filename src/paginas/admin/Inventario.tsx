@@ -115,8 +115,8 @@ export function Inventario() {
       {bajas.length > 0 && objetivo !== null ? (
         <Aviso tono="alerta" titulo={`${bajas.length} piezas por debajo del ${objetivo} % objetivo`}>
           <p>
-            Estan en un grupo mas barato del que les toca por su costo, asi que
-            se venden dejando menos de lo que deberian. Pasa cuando el grupo se
+            Están en un grupo más barato del que les toca por su costo, así que
+            se venden dejando menos de lo que deberían. Pasa cuando el grupo se
             elige antes de teclear el costo final.
           </p>
           <p className="campo__pista">
@@ -132,27 +132,27 @@ export function Inventario() {
 
       {reasignado ? <Aviso tono="exito">{reasignado}</Aviso> : null}
 
-      <Ayuda titulo="Que dice cada columna">
+      <Ayuda titulo="Qué dice cada columna">
         <p>
-          <strong>Costo puesto</strong> es lo que pagaste por la pieza mas su
+          <strong>Costo puesto</strong> es lo que pagaste por la pieza más su
           flete, en dolares Binance. <strong>Costo total</strong> es esa
-          mercancia ya convertida a BCV mas lo que la pieza carga de tienda
-          -alquiler, sueldo, empaque-, y contra ese numero se mide el margen
+          mercancía ya convertida a BCV más lo que la pieza carga de tienda
+          -alquiler, sueldo, empaque-, y contra ese número se mide el margen
           de verdad.
         </p>
         <p>
           <strong>Etiqueta</strong> es el precio en dolares BCV y
           {' '}<strong>Paga en Bs</strong> lo mismo a la tasa de hoy.
           {' '}<strong>Ganancia real</strong> es lo que te queda en dolares
-          Binance: lo que puedes cambiar y volver a invertir en mercancia.
+          Binance: lo que puedes cambiar y volver a invertir en mercancía.
         </p>
         <p>
-          Toca dos veces una foto para verla en grande, con su categoria y sus
+          Toca dos veces una foto para verla en grande, con su categoría y sus
           materiales. Los botones de editar y retirar van anclados a la
-          izquierda, asi que siguen ahi aunque corras la tabla a lo ancho.
+          izquierda, así que siguen ahi aunque corras la tabla a lo ancho.
         </p>
         <p>
-          Los precios en bolivares no estan guardados: se calculan con la tasa
+          Los precios en bolivares no están guardados: se calculan con la tasa
           vigente cada vez que abres la pantalla.
         </p>
       </Ayuda>

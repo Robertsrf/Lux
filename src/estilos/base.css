@@ -848,8 +848,15 @@ table.tabla tfoot td {
 /* --- Responsive ------------------------------------------------------ */
 
 @media (max-width: 900px) {
-  /* La barra lateral se convierte en barra superior. */
-  .armazon { grid-template-columns: 1fr; }
+  /* La barra lateral se convierte en barra superior.
+     `grid-template-rows` no es decoracion: sin el, el grid pasa a una
+     columna y dos filas automaticas, y el `min-height: 100%` reparte el
+     alto sobrante entre ambas. La mitad se la quedaba el menu, que abria
+     un hueco de 80 px entre la navegacion y el titulo en toda pantalla
+     mas corta que el telefono: el tablero, la venta al mayor, cualquier
+     estado vacio. Con `auto 1fr` el menu ocupa lo suyo y el sobrante se
+     lo lleva el contenido, que es donde tiene sentido. */
+  .armazon { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .lateral {
     position: static;
     height: auto;
