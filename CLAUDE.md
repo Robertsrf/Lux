@@ -148,11 +148,16 @@ contestaban "cuántas piezas para no perder" con tres números.
 | Función | Da | La leen |
 |---|---|---|
 | `gastos_fijos_partidas()` | Los gastos fijos del mes, partida por partida, en $ BCV | `gastos_fijos_mes_bcv()`, Reportes, Inversiones |
-| `plan_ventas()` | Lo que deja cada pieza y cuántas hay que vender | Costos, Reportes, Inversiones, `meta_del_dia()` |
+| `plan_ventas()` | Lo que deja cada pieza y cuántas hay que vender | Costos, Reportes, Inversiones, `meta_vendedora()` |
 
 Las dos están revocadas a todo el mundo. Las vistas del administrador las llaman
 por sus envolturas `*_admin()`, que devuelven nada a quien no lo sea. **Si una
 pantalla nueva necesita una de estas cifras, la lee de ahí; no la recalcula.**
+
+`meta_vendedora()` es la única ventana de la vendedora a esa cuenta: le da su meta
+de piezas del día y del mes, lo vendido por la tienda y el calendario. **Solo piezas
+y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del dueño.
+`verificar` comprueba que ninguna columna suya hable de dinero.
 
 ---
 
@@ -176,6 +181,17 @@ pantalla nueva necesita una de estas cifras, la lee de ahí; no la recalcula.**
   ESPERABA vender: no se enseñan como ganancia. Las pantallas usan `contribucion_usd`.
 - **Precio en los catálogos: bolívares y $ BCV, del mismo tamaño.** Mostrador,
   catálogo público, catálogo PDF y vitrina del televisor.
+- **La meta de la vendedora sale de las cuentas.** La del mes son las piezas para la
+  meta de ganancia del dueño (o, sin meta, para cubrir el mes); la del día, eso entre
+  los días que abre la tienda (`configuracion.dias_abiertos_mes`). La ve en "Tu día"
+  y en el Mostrador. Sin el dato de días ve solo la del mes; nunca un número viejo.
+  La meta de piezas premium y su umbral los fija el dueño en Costos.
+- **Lo que puede negociar, ella lo ve; los márgenes, no.** `descuento_max_mostrador_pct`
+  (cuánto puede rebajar de la etiqueta) está en su lista de claves legibles, y en el
+  cobro cada pieza le dice cuánto admite. `margen_minimo_pct` **nunca** entra en esa
+  lista: con él y el mínimo de cada pieza, que ya ve, despejaría el costo. `verificar`
+  lo vigila. Los tres porcentajes (rebaja máxima, margen mínimo, margen para elegir
+  grupo) se fijan en Costos.
 - **El flete se reparte por bulto**, nunca por peso ni por valor. El peso ya no
   existe en el sistema: no lo reintroduzcas.
 - **Los exhibidores no son inventario**: su costo va a CAPEX de tienda. Sí pagan
@@ -195,12 +211,12 @@ pantalla nueva necesita una de estas cifras, la lee de ahí; no la recalcula.**
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 47 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 50 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace diecisiete
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace dieciocho
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

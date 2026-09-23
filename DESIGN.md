@@ -411,6 +411,12 @@ Portada a página completa en verde profundo con el wordmark verde dentro de un 
 ### Costos: la cifra que manda
 La única pantalla con una cifra protagonista de verdad: las piezas que hay que vender en el mes, en Fraunces 56 px (40 px en teléfono), con su unidad en label debajo y para qué alcanzan en EB Garamond 20 px. A su lado, en un panel, la mitad secundaria de la respuesta (las piezas para no perder). Debajo, una barra de avance del mes y una frase con el ritmo. La cuenta se enseña entera más abajo como cadena de pasos ("se vende en − mercancía − empaque = deja"), para que el número no se crea por fe.
 
+### Tu día (tablero de la vendedora)
+La misma forma que la cifra de Costos, a la escala de ella: lo vendido hoy en Fraunces 56 px con "de 4" a 28 px en salvia de texto al lado, una barra de avance y una frase con lo que falta. Debajo, el mes con su barra y el ritmo. Lo de ella (premium, vendido hoy, ticket) en celdas de tablero, con bolívares y $ BCV del mismo tamaño en las de dinero. En el Mostrador, la meta es una sola línea bajo el título, en éxito cuando se cumple.
+
+### Barra de guardar (Costos)
+La barra flotante del carrito, reutilizada: aparece en cuanto cambia un campo, esté donde esté, con Descartar y Guardar. La página reserva su alto abajo mientras está a la vista.
+
 ### Indicador con comparación (Reportes)
 Celda de tablero: etiqueta, valor y una línea que lo compara con el período anterior del mismo largo ("+12 % contra los 30 días anteriores"). El signo y las palabras cargan el mensaje; el color (éxito si sube, alerta de texto si baja) solo acompaña. Si la cifra lleva su moneda detrás, el valor baja a 28 px para caber en 160.
 

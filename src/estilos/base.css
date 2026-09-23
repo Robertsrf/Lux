@@ -1884,6 +1884,31 @@ table.tabla tfoot td {
 .plan__ritmo strong { font-weight: 500; color: var(--texto-fuerte); }
 .plan__ritmo--bien strong { color: var(--exito); }
 
+/* "2 de 4": lo vendido manda y la meta acompaña, un paso mas chica. */
+.plan__de {
+  font-size: var(--t-28); font-weight: 600;
+  color: var(--texto-secundario);
+  letter-spacing: 0;
+}
+
+/* Dos cifras en una celda, bolivares y dolares BCV del mismo tamaño. */
+.tablero__cifra + .tablero__cifra { margin-top: var(--e-1); }
+
+/* La meta de hoy bajo el titulo del mostrador: una linea, sin caja. Donde
+   ella trabaja, sin tener que ir a otra pantalla para saber como va. Con
+   la clase de la cabecera delante: `.encabezado-pagina p` la pintaria gris. */
+.encabezado-pagina .meta-mostrador { font-weight: 500; color: var(--texto); }
+.encabezado-pagina .meta-mostrador--cumplida { color: var(--exito); }
+
+/* Una pagina con barra flotante abajo reserva su sitio: si no, la barra
+   tapa lo ultimo que hay. En el telefono tambien esta la navegacion. */
+.pagina--con-barra { padding-bottom: 132px; }
+@media (max-width: 900px) {
+  .pagina--con-barra {
+    padding-bottom: calc(var(--e-7) + 76px + 88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @media (max-width: 560px) {
   .plan__cifras { grid-template-columns: 1fr; align-items: start; }
   .plan__numero { font-size: var(--t-40); }

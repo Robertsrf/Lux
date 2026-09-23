@@ -178,6 +178,28 @@ export interface TableroDia {
   piezas: number;
   piezas_premium: number;
   ticket_promedio_bs: number;
+  /** Lo vendido hoy, en dolares BCV con la tasa de cada venta. */
+  total_bcv: number;
+  ticket_promedio_bcv: number;
+}
+
+/**
+ * meta_vendedora(): como va la tienda, en PIEZAS y nada mas. Sale de la
+ * misma cuenta que ve el dueno en Costos, sin una sola cifra de dinero.
+ */
+export interface MetaVendedora {
+  /** Null mientras el dueno no diga cuantos dias abre la tienda. */
+  meta_hoy: number | null;
+  meta_mes: number | null;
+  /** 'meta': cubre el mes y deja la ganancia que busca el dueno. 'equilibrio': solo cubre el mes. */
+  para: 'meta' | 'equilibrio' | null;
+  /** De toda la tienda, no solo de ella: la meta es de la tienda. */
+  vendidas_hoy: number;
+  vendidas_mes: number;
+  dia_del_mes: number;
+  dias_del_mes: number;
+  ritmo_mes: number | null;
+  dias_abiertos: number;
 }
 
 export interface CuadreUbicacion {

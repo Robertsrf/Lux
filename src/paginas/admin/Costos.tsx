@@ -33,6 +33,27 @@ const MARGEN: Dato = {
   clave: 'margen_objetivo_pct', etiqueta: 'Margen que usas para el precio sugerido %', paso: '0.5',
 };
 
+/* Tampoco tenia pantalla: se escribio al instalar. */
+const MARGEN_GRUPO: Dato = {
+  clave: 'margen_piso_pct', etiqueta: 'Margen mínimo al asignar grupo %', paso: '0.5',
+  pista: 'El formulario de cada modelo le propone el grupo de precio más barato que deje al menos este margen.',
+};
+
+/*
+  Lo que le toca a la vendedora ademas de las piezas. Antes eran un 1 y un 20
+  escritos al instalar, sin pantalla donde cambiarlos.
+*/
+const VENDEDORA: Dato[] = [
+  { clave: 'descuento_max_mostrador_pct', etiqueta: 'Puede rebajar hasta %', paso: '1',
+    pista: 'Lo que ella puede bajar de la etiqueta para cerrar una venta, sin pedirte permiso. Ella lo ve.' },
+  { clave: 'margen_minimo_pct', etiqueta: 'Sin bajar nunca de este margen %', paso: '1',
+    pista: 'Aunque el descuento lo permita, ninguna pieza baja de lo que deja este margen. Ella NO lo ve: con él podría sacar el costo.' },
+  { clave: 'premium_min_usd', etiqueta: 'Una pieza es premium desde · $ BCV', paso: '1',
+    pista: 'Precio de etiqueta desde el que una pieza cuenta como premium en su tablero.' },
+  { clave: 'meta_premium_dia', etiqueta: 'Piezas premium por día', paso: '1',
+    pista: 'Cuántas de las piezas de cada día tienen que ser premium. Empuja el ticket, no solo el conteo.' },
+];
+
 /* Casi nunca se tocan. Viven plegadas. */
 const AJUSTES: Dato[] = [
   { clave: 'capex_amortizar_meses', etiqueta: 'Recuperar los exhibidores en (meses)', paso: '1',
@@ -50,7 +71,7 @@ const ESTIMADO: Dato[] = [
   { clave: 'meses_rotacion_objetivo', etiqueta: 'Venderlas en (meses)', paso: '1' },
 ];
 
-const TODOS = [...GASTOS, ...TIENDA, META, MARGEN, ...AJUSTES, ...ESTIMADO];
+const TODOS = [...GASTOS, ...TIENDA, META, ...VENDEDORA, MARGEN, MARGEN_GRUPO, ...AJUSTES, ...ESTIMADO];
 
 /**
  * Costos: cuántas piezas hay que vender, y de dónde sale ese número.
@@ -143,7 +164,7 @@ export function Costos() {
   const usaSugerido = sugerido !== null && Math.abs(num('margen_objetivo_pct') - sugerido) < 0.05;
 
   return (
-    <div className="pagina pagina--angosta">
+    <div className={cambiado ? 'pagina pagina--angosta pagina--con-barra' : 'pagina pagina--angosta'}>
       <div className="encabezado-pagina">
         <div>
           <h1>Costos</h1>
@@ -318,13 +339,36 @@ export function Costos() {
         <div className="fila">{campo(META)}</div>
       </div>
 
-      <div className="acciones acciones--sueltas" style={{ marginTop: 'var(--e-5)' }}>
-        <button type="button" className="boton boton--confirmar" disabled={!cambiado || guardando} onClick={() => void guardar()}>
-          {guardando ? 'Guardando' : 'Guardar y recalcular'}
-        </button>
-        {cambiado ? (
-          <button type="button" className="boton boton--secundario" onClick={() => void cargar()}>Descartar</button>
-        ) : null}
+
+      {/* ------------------------------------------- la meta de ella */}
+
+      <h2 className="seccion-titulo">La vendedora: su meta y lo que puede negociar</h2>
+      <div className="tarjeta">
+        {plan && objetivo ? (
+          <p className="prosa" style={{ marginBottom: 'var(--e-4)' }}>
+            {porDia !== null ? (
+              <>
+                En su tablero y en el mostrador ve <strong style={{ display: 'inline' }}>{formatearEntero(porDia)} piezas por día</strong>,
+                {' '}y cómo va el mes contra las {formatearEntero(objetivo)}. Sale de esta misma cuenta: si
+                cambias un gasto o tu meta, la de ella cambia sola.
+              </>
+            ) : (
+              <>
+                Ve las {formatearEntero(objetivo)} piezas del mes, pero todavía no una meta por día:
+                falta que pongas arriba cuántos días abres al mes.
+              </>
+            )}
+          </p>
+        ) : (
+          <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
+            Cuando haya con qué hacer la cuenta de arriba, su meta de piezas sale de ahí.
+          </p>
+        )}
+        <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
+          De las cuentas, ella solo ve piezas: ni los gastos, ni lo que deja cada una, ni tu meta
+          de ganancia. De los precios ve la etiqueta, el mínimo de cada pieza y cuánto puede rebajar.
+        </p>
+        <div className="fila">{VENDEDORA.map(campo)}</div>
       </div>
 
       {/* ---------------------------------------------------- el precio */}
@@ -373,7 +417,7 @@ export function Costos() {
             Pon tu meta de ganancia arriba y aquí te digo qué margen hace falta en cada precio.
           </p>
         )}
-        <div className="fila" style={{ marginTop: 'var(--e-4)' }}>{campo(MARGEN)}</div>
+        <div className="fila" style={{ marginTop: 'var(--e-4)' }}>{campo(MARGEN)}{campo(MARGEN_GRUPO)}</div>
         <p className="campo__pista">
           Es el margen con que el formulario de cada modelo sugiere su precio. Cambiarlo no
           toca los precios que ya están puestos.
@@ -396,11 +440,29 @@ export function Costos() {
               <div className="fila">{ESTIMADO.map(campo)}</div>
             </>
           ) : null}
-          <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
-            Estos también se guardan con el botón de arriba.
-          </p>
         </div>
       </details>
+
+      {/*
+        Guardar vive en una barra que aparece en cuanto cambias algo, este
+        donde este el campo. Antes era un boton a media pagina y los campos
+        de abajo tenian que decir "se guardan con el boton de arriba".
+        Es la misma barra flotante del mostrador: verde, abajo, al pulgar.
+      */}
+      {cambiado ? (
+        <div className="barra-carrito" role="region" aria-label="Cambios sin guardar">
+          <div className="barra-carrito__resumen">
+            <div className="barra-carrito__piezas">Cambios sin guardar</div>
+            <div className="barra-carrito__falta">Las cifras de arriba se recalculan al guardar</div>
+          </div>
+          <button type="button" className="boton boton--secundario" disabled={guardando} onClick={() => void cargar()}>
+            Descartar
+          </button>
+          <button type="button" className="boton" disabled={guardando} onClick={() => void guardar()}>
+            {guardando ? 'Guardando' : 'Guardar'}
+          </button>
+        </div>
+      ) : null}
 
       <Ayuda titulo="Si los números no te dan">
         <p>Solo hay cuatro palancas, y conviene moverlas en este orden:</p>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { bcvDesdeBs, formatearBcv, formatearBs, formatearPorcentaje } from '../../lib/dinero';
+import { bcvDesdeBs, formatearBcv, formatearBs, formatearPorcentaje, rebajaMaximaPct } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -11,7 +11,7 @@ import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorF
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
 import { METODOS_PAGO } from '../../lib/tipos';
-import type { ClienteDeVenta, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
+import type { ClienteDeVenta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
 // foto_path va aqui a proposito: sin ella el mostrador solo tenia el thumb
 // de 300 px y las piezas se veian borrosas, mientras el catalogo publico -que
@@ -45,7 +45,20 @@ export function Mostrador() {
   const [cliente, setCliente] = useState<ClienteDeVenta | null>(null);
   const [nombreCliente, setNombreCliente] = useState<string | null>(null);
   const [sinCliente, setSinCliente] = useState(false);
+  const [meta, setMeta] = useState<MetaVendedora | null>(null);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
+
+  /*
+    La meta de hoy, dicha donde ella trabaja y no solo en "Tu dia". Es la
+    misma que ve el dueno en Costos, en piezas y nada mas. Si no se puede
+    leer, el mostrador sigue igual: vender no depende de esto.
+  */
+  const cargarMeta = useCallback(async () => {
+    const { data } = await supabase.rpc('meta_vendedora');
+    setMeta(((data as MetaVendedora[] | null) ?? [])[0] ?? null);
+  }, []);
+
+  useEffect(() => { void cargarMeta(); }, [cargarMeta]);
 
   // El mostrador arranca en la primera vitrina, no en la bodega.
   useEffect(() => {
@@ -129,7 +142,7 @@ export function Mostrador() {
       setNombreCliente(null);
       setSinCliente(false);
       setPaso('venta');
-      await cargar();
+      await Promise.all([cargar(), cargarMeta()]);
     }
   }
 
@@ -192,7 +205,8 @@ export function Mostrador() {
                         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                       />
                       <span className="rebaja__piso">
-                        Puedes bajar hasta {formatearBs(l.precio_minimo_bs)}
+                        Puedes bajar hasta {formatearBs(l.precio_minimo_bs)}:
+                        {' '}{rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs)} % menos que la etiqueta
                       </span>
                     </div>
                   ) : (
@@ -204,7 +218,13 @@ export function Mostrador() {
                     >
                       {formatearBs(l.precio_final_bs)} c/u
                       {rebajado ? <s>{formatearBs(l.precio_lista_bs)}</s> : null}
-                      {l.precio_minimo_bs < l.precio_lista_bs ? <span className="rebaja__pista">tocar para rebajar</span> : null}
+                      {/* Cuanto puede rebajar ESTA pieza. Puede ser menos que el
+                          maximo de la tienda: en las de margen fino, el minimo lo
+                          pone el margen. Sale del precio y del minimo que ella ya
+                          ve; ningun costo. */}
+                      {l.precio_minimo_bs < l.precio_lista_bs
+                        ? <span className="rebaja__pista">puedes rebajar hasta {rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs)} %</span>
+                        : <span className="rebaja__pista">esta pieza no admite rebaja</span>}
                     </button>
                   )}
                 </div>
@@ -315,7 +335,15 @@ export function Mostrador() {
       <div className="encabezado-pagina">
         <div>
           <h1>Mostrador</h1>
-          <p>Toca una pieza para agregarla a la venta.</p>
+          {meta?.meta_hoy ? (
+            <p className={meta.vendidas_hoy >= meta.meta_hoy ? 'meta-mostrador meta-mostrador--cumplida' : 'meta-mostrador'}>
+              {meta.vendidas_hoy >= meta.meta_hoy
+                ? `Meta de hoy cumplida: van ${meta.vendidas_hoy} de ${meta.meta_hoy} piezas.`
+                : `Hoy van ${meta.vendidas_hoy} de ${meta.meta_hoy} piezas. Faltan ${meta.meta_hoy - meta.vendidas_hoy}.`}
+            </p>
+          ) : (
+            <p>Toca una pieza para agregarla a la venta.</p>
+          )}
         </div>
       </div>
 

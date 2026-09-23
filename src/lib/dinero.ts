@@ -206,6 +206,20 @@ export function formatearMonto(valor: number | Monto | null | undefined, decimal
   return cifra(valor, decimales) ?? '—';
 }
 
+/**
+ * Cuanto puede rebajar la vendedora una pieza, en por ciento de la etiqueta.
+ *
+ * Sale del precio de lista y del minimo que ya ve, no de ningun costo. Puede
+ * ser menos que el descuento maximo de la tienda: en las piezas de margen
+ * fino el minimo lo pone el margen, no el descuento.
+ */
+export function rebajaMaximaPct(lista: number | null | undefined, minimo: number | null | undefined): number {
+  if (!lista || lista <= 0 || minimo === null || minimo === undefined || minimo >= lista) return 0;
+  // Hacia abajo, para no prometerle un punto que el minimo no deja; el
+  // epsilon evita que un 10 exacto salga 9 por la aritmetica flotante.
+  return Math.floor(((lista - minimo) / lista) * 100 + 1e-6);
+}
+
 /** Cuántos dólares BCV son unos bolívares, a una tasa BCV dada. */
 export function bcvDesdeBs(bs: number | null | undefined, tasaBcv: number | null | undefined): number | null {
   if (bs === null || bs === undefined || !tasaBcv) return null;

@@ -159,11 +159,26 @@ async function main() {
   const envGastos = await V.rpc('gastos_fijos_admin');
   dice(!envGastos.error && envGastos.data === null, 'gastos_fijos_admin() le da null',
     envGastos.error ? 'error ' + envGastos.error.code : JSON.stringify(envGastos.data));
-  // La meta del dia SI es de ella: un numero de piezas, o null si faltan
-  // los dias que abre la tienda. Lo que importa es que no falle.
-  const metaDia = await V.rpc('meta_del_dia');
-  dice(!metaDia.error, 'meta_del_dia(), su meta de piezas',
-    metaDia.error ? 'ERROR ' + metaDia.error.code : String(metaDia.data));
+  // Su meta SI es de ella: piezas y fechas. Dos cosas que mirar: que
+  // responda, y que entre lo que devuelve no venga ni una cifra de dinero.
+  const metaV = await V.rpc('meta_vendedora');
+  dice(!metaV.error && Array.isArray(metaV.data), 'meta_vendedora(), su meta de piezas',
+    metaV.error ? 'ERROR ' + metaV.error.code : JSON.stringify(metaV.data?.[0] ?? null));
+  const columnasMeta = Object.keys(metaV.data?.[0] ?? {});
+  const dinero = columnasMeta.filter((c) => /costo|gasto|ganancia|contrib|margen|precio|bcv|usd|bs$/.test(c));
+  dice(!metaV.error && dinero.length === 0, 'meta_vendedora() sin cifras de dinero',
+    dinero.length ? 'TRAE ' + dinero.join(', ') : columnasMeta.length + ' columnas, todas de piezas o fechas');
+
+  // Lo que puede negociar SI lo ve; los margenes NO. Con el margen minimo y
+  // el precio minimo de cada pieza, que ya ve, despejaria el costo.
+  const suRebaja = await V.from('configuracion').select('valor').eq('clave', 'descuento_max_mostrador_pct');
+  dice(!suRebaja.error && (suRebaja.data?.length ?? 0) === 1, 'lee cuanto puede rebajar',
+    suRebaja.error ? 'ERROR ' + suRebaja.error.code : (suRebaja.data?.length ?? 0) + ' fila(s)');
+  const margenes = await V.from('configuracion').select('clave')
+    .in('clave', ['margen_minimo_pct', 'margen_piso_pct', 'margen_objetivo_pct', 'ganancia_mensual_objetivo_usd']);
+  dice(!margenes.error && (margenes.data?.length ?? 0) === 0, 'no lee margenes ni la meta de ganancia',
+    margenes.error ? 'ERROR ' + margenes.error.code
+      : (margenes.data?.length ?? 0) === 0 ? '0 filas' : 'LEE ' + margenes.data.map((f) => f.clave).join(', '));
 
   // Juntar dos fichas reescribe ventas ya registradas: no es de mostrador.
   const fus = await V.rpc('admin_fusionar_clientes', { p_se_va: -1, p_se_queda: -2 });

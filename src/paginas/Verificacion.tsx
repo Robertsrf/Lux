@@ -159,6 +159,27 @@ export function Verificacion() {
       bien: Boolean(nombrePublico.error),
     });
 
+    // La meta de la vendedora tiene que ser la misma cuenta que ve el dueno
+    // en Costos. Si algun dia alguien le arma una formula propia, esto lo ve.
+    const [metaV, planV] = await Promise.all([
+      supabase.rpc('meta_vendedora'),
+      supabase.from('v_plan_ventas').select('piezas_meta_mes, piezas_equilibrio_mes').maybeSingle(),
+    ]);
+    const metaMes = ((metaV.data as { meta_mes: number | null }[] | null) ?? [])[0]?.meta_mes ?? null;
+    const planFila = planV.data as { piezas_meta_mes: number | null; piezas_equilibrio_mes: number | null } | null;
+    const planMes = planFila ? (planFila.piezas_meta_mes ?? planFila.piezas_equilibrio_mes) : null;
+    const falloMeta = metaV.error ?? planV.error;
+    resultados.push({
+      nombre: 'La meta de la vendedora',
+      esperado: esAdmin ? 'La misma que dice Costos' : 'Responde con sus piezas',
+      obtenido: falloMeta
+        ? `Fallo: ${falloMeta.message}`
+        : esAdmin
+          ? `Ella: ${metaMes ?? '—'} · Costos: ${planMes ?? '—'} piezas al mes`
+          : `${metaMes ?? '—'} piezas al mes`,
+      bien: !falloMeta && (!esAdmin || Number(metaMes) === Number(planMes)),
+    });
+
     const meses = await supabase.rpc('meses_servicio');
     resultados.push({
       nombre: 'Meses de lavado y abrillantado',
