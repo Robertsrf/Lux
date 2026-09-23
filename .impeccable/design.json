@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-22T00:00:00Z",
+  "title": "Design System: Lux by Emory",
+  "extensions": {
+    "colorMeta": {
+      "verde-profundo": {
+        "role": "primary",
+        "displayName": "Verde profundo",
+        "canonical": "oklch(34.9% 0.040 208)",
+        "tonalRamp": ["#000E12", "#04272C", "#1F4045", "#3A5C61", "#56787E", "#73969C", "#9BBFC5", "#D1F7FD"]
+      },
+      "oro-arena": {
+        "role": "secondary",
+        "displayName": "Oro arena",
+        "canonical": "oklch(77.2% 0.063 68)",
+        "tonalRamp": ["#150700", "#331B00", "#503411", "#6C4F2D", "#8A6B49", "#A98866", "#D3B18C", "#FFEBD6"]
+      },
+      "oro-texto": {
+        "role": "secondary",
+        "displayName": "Oro de texto",
+        "canonical": "oklch(50.9% 0.075 66)",
+        "tonalRamp": ["#160700", "#331B00", "#543104", "#714C24", "#8F6941", "#AF865D", "#D9AE84", "#FEEBD8"]
+      },
+      "salvia": {
+        "role": "tertiary",
+        "displayName": "Salvia",
+        "canonical": "oklch(64.9% 0.024 190)",
+        "tonalRamp": ["#010E0D", "#132524", "#2C3F3D", "#465A58", "#627674", "#7F9492", "#A7BDBB", "#DDF4F2"]
+      },
+      "salvia-texto": {
+        "role": "tertiary",
+        "displayName": "Salvia de texto",
+        "canonical": "oklch(49.2% 0.027 189)",
+        "tonalRamp": ["#000F0D", "#112624", "#2A3F3D", "#455A58", "#607775", "#7D9592", "#A5BDBB", "#DBF5F2"]
+      },
+      "crema": {
+        "role": "neutral",
+        "displayName": "Crema",
+        "canonical": "oklch(92.3% 0.025 87)",
+        "tonalRamp": ["#100A01", "#272113", "#403A2B", "#5B5545", "#787161", "#968E7E", "#BEB7A5", "#F6EEDC"]
+      },
+      "papel": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "oklch(95.3% 0.016 86)",
+        "tonalRamp": ["#0E0B05", "#252119", "#3E3A31", "#59554C", "#757167", "#938F85", "#BCB7AC", "#F3EEE3"]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(26.5% 0.027 207)",
+        "tonalRamp": ["#000E11", "#102528", "#293F42", "#445A5D", "#5F767A", "#7C9498", "#A4BDC0", "#DAF4F8"]
+      },
+      "exito": {
+        "role": "tertiary",
+        "displayName": "Éxito",
+        "canonical": "oklch(49.5% 0.055 152)",
+        "tonalRamp": ["#001003", "#082914", "#23432C", "#3E5E46", "#5A7B61", "#77997E", "#9EC2A6", "#D4FADC"]
+      },
+      "alerta": {
+        "role": "tertiary",
+        "displayName": "Alerta",
+        "canonical": "oklch(60.5% 0.096 67)",
+        "tonalRamp": ["#160700", "#331B00", "#553100", "#784907", "#97662D", "#B6834C", "#E1AC73", "#FFEBD7"]
+      },
+      "alerta-texto": {
+        "role": "tertiary",
+        "displayName": "Alerta de texto",
+        "canonical": "oklch(51.1% 0.084 66)",
+        "tonalRamp": ["#160700", "#331B00", "#553100", "#754B1A", "#936738", "#B28556", "#DDAD7D", "#FEEBD8"]
+      },
+      "error": {
+        "role": "tertiary",
+        "displayName": "Error",
+        "canonical": "oklch(45.8% 0.114 28)",
+        "tonalRamp": ["#210000", "#470001", "#691A15", "#893830", "#AA554B", "#CB7368", "#F89B8F", "#FEE9E6"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Vitrina y portada del catálogo. Fraunces sustituye a Bagind, la fuente de marca." },
+      "headline": { "displayName": "Titular", "purpose": "El h1 de cada pantalla y el total del cobro." },
+      "title": { "displayName": "Título", "purpose": "h2 de tarjeta y h3 de sección." },
+      "price": { "displayName": "Precio", "purpose": "Toda cifra de dinero, siempre en serif de exhibición y tabular." },
+      "body": { "displayName": "Cuerpo", "purpose": "Jost, la fuente de trabajo de la interfaz de escritorio." },
+      "body-mostrador": { "displayName": "Cuerpo del mostrador", "purpose": "18 px: teléfono de gama baja bajo luz de tienda." },
+      "prose": { "displayName": "Prosa", "purpose": "EB Garamond. Nombre de la pieza, descripciones, estados vacíos, catálogo impreso." },
+      "label": { "displayName": "Etiqueta", "purpose": "Mayúsculas con tracking: etiquetas, cabeceras de tabla, botones, píldoras." }
+    },
+    "shadows": [
+      { "name": "sombra-1", "value": "0 1px 2px rgba(31,64,69,0.05), 0 2px 8px rgba(31,64,69,0.04)", "purpose": "Reposo: tarjetas, campos, botones." },
+      { "name": "sombra-2", "value": "0 2px 4px rgba(31,64,69,0.06), 0 8px 24px rgba(31,64,69,0.07)", "purpose": "Hover del botón." },
+      { "name": "sombra-3", "value": "0 4px 8px rgba(31,64,69,0.08), 0 16px 40px rgba(31,64,69,0.10)", "purpose": "Barra del carrito y tarjeta levantada." },
+      { "name": "anillo-foco", "value": "0 0 0 3px rgba(31,64,69,0.18)", "purpose": "Campo con foco." },
+      { "name": "anillo-oro", "value": "0 0 0 3px rgba(208,174,138,0.40)", "purpose": "Hover del botón de confirmación." }
+    ],
+    "motion": [
+      { "name": "salida", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "La única curva del sistema: sale rápido, entra suave." },
+      { "name": "rapido", "value": "150ms", "purpose": "Color, borde y fondo." },
+      { "name": "medio", "value": "240ms", "purpose": "Sombra y desplazamiento de tarjeta." },
+      { "name": "reducido", "value": "120ms", "purpose": "Con prefers-reduced-motion se cae el transform y queda la respuesta de color." }
+    ],
+    "breakpoints": [
+      { "name": "angosto", "value": "380px" },
+      { "name": "movil", "value": "560px" },
+      { "name": "tableta", "value": "720px" },
+      { "name": "escritorio", "value": "900px" },
+      { "name": "televisor", "value": "1600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La acción principal de cada pantalla. Píldora verde que sube 1 px al pasar.",
+      "html": "<button class=\"ds-btn\">Registrar venta</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 24px; font-family: var(--fuente-ui, 'Jost', system-ui, sans-serif); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #EDE5D3; background: #1F4045; border: 1px solid #1F4045; border-radius: 999px; box-shadow: 0 1px 2px rgba(31,64,69,.05), 0 2px 8px rgba(31,64,69,.04); cursor: pointer; transition: background 150ms cubic-bezier(.22,1,.36,1), box-shadow 150ms cubic-bezier(.22,1,.36,1), transform 150ms cubic-bezier(.22,1,.36,1); } .ds-btn:hover { background: #14292C; border-color: #14292C; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(31,64,69,.06), 0 8px 24px rgba(31,64,69,.07); } .ds-btn:active { transform: translateY(0); } .ds-btn:focus-visible { outline: 2px solid #1F4045; outline-offset: 2px; }"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "La acción que acompaña. Blanco con borde de línea.",
+      "html": "<button class=\"ds-btn-sec\">Seguir agregando</button>",
+      "css": ".ds-btn-sec { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 24px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #1F4045; background: #FFFFFF; border: 1px solid #E0D8C7; border-radius: 999px; box-shadow: 0 1px 2px rgba(31,64,69,.05); cursor: pointer; transition: background 150ms cubic-bezier(.22,1,.36,1), border-color 150ms cubic-bezier(.22,1,.36,1); } .ds-btn-sec:hover { background: #F0F4F3; border-color: #7F9492; color: #14292C; } .ds-btn-sec:focus-visible { outline: 2px solid #1F4045; outline-offset: 2px; }"
+    },
+    {
+      "name": "Botón de confirmación",
+      "kind": "button",
+      "refersTo": "button-confirm",
+      "description": "El paso que no se deshace: cobrar, guardar el cuadre. El oro es borde, nunca relleno.",
+      "html": "<button class=\"ds-btn-conf\">Cobrar</button>",
+      "css": ".ds-btn-conf { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 32px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #EDE5D3; background: #1F4045; border: 2px solid #D0AE8A; border-radius: 999px; cursor: pointer; transition: box-shadow 150ms cubic-bezier(.22,1,.36,1), transform 150ms cubic-bezier(.22,1,.36,1); } .ds-btn-conf:hover { transform: translateY(-1px); box-shadow: 0 0 0 3px rgba(208,174,138,.40), 0 8px 24px rgba(31,64,69,.07); } .ds-btn-conf:focus-visible { outline: 2px solid #1F4045; outline-offset: 2px; }"
+    },
+    {
+      "name": "Campo de formulario",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Etiqueta en mayúsculas anclada abajo de una caja fija, para que dos campos vecinos nunca queden a distinta altura.",
+      "html": "<label class=\"ds-campo\"><span>Cédula o nombre</span><input type=\"search\" placeholder=\"V-12.345.678\" /></label>",
+      "css": ".ds-campo { display: block; } .ds-campo > span { display: flex; align-items: flex-end; min-height: 34px; padding-bottom: 8px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-campo input { display: block; width: 100%; min-height: 42px; padding: 0 16px; font-family: 'Jost', system-ui, sans-serif; font-size: 16px; color: #14292C; background: #FFFFFF; border: 1px solid #E0D8C7; border-radius: 12px; box-shadow: 0 1px 2px rgba(31,64,69,.05); transition: border-color 150ms cubic-bezier(.22,1,.36,1), box-shadow 150ms cubic-bezier(.22,1,.36,1); } .ds-campo input:hover { border-color: #7F9492; } .ds-campo input:focus-visible { border-color: #1F4045; box-shadow: 0 0 0 3px rgba(31,64,69,.18); outline: none; } .ds-campo input::placeholder { color: #506664; opacity: 1; }"
+    },
+    {
+      "name": "Tarjeta",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contenedor de primer nivel. Nunca una dentro de otra: dentro va un panel de fondo.",
+      "html": "<div class=\"ds-tarjeta\"><h2>Ana Bolívar</h2><p>3 compras · última hace 2 meses</p><div class=\"ds-panel\"><span>Servicio</span><div>Lavado y abrillantado hasta el 21 de diciembre</div></div></div>",
+      "css": ".ds-tarjeta { background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; padding: 24px; box-shadow: 0 1px 2px rgba(31,64,69,.05), 0 2px 8px rgba(31,64,69,.04); color: #1F4045; } .ds-tarjeta h2 { margin: 0 0 16px; font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 20px; letter-spacing: -0.015em; color: #14292C; } .ds-tarjeta p { margin: 0; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; color: #506664; } .ds-panel { margin-top: 24px; padding: 16px; border-radius: 16px; background: #FAF6EE; } .ds-panel span { display: block; margin-bottom: 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-panel div { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; color: #14292C; }"
+    },
+    {
+      "name": "Tarjeta de modelo",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "La pieza en la cuadrícula del mostrador. Se toca con el pulgar: sube 3 px y vuelve al presionar.",
+      "html": "<button class=\"ds-modelo\"><span class=\"ds-modelo-foto\"></span><span class=\"ds-modelo-cuerpo\"><span class=\"ds-modelo-cat\">Collar</span><span class=\"ds-modelo-nombre\">Lazo de agua</span><span class=\"ds-modelo-precio\">Bs 1.480,00</span><span class=\"ds-modelo-pie\"><span class=\"ds-modelo-ex\">Quedan 4</span><span class=\"ds-modelo-n\">2</span></span></span></button>",
+      "css": ".ds-modelo { display: flex; flex-direction: column; text-align: left; padding: 0; width: 210px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 2px rgba(31,64,69,.05), 0 2px 8px rgba(31,64,69,.04); transition: box-shadow 240ms cubic-bezier(.22,1,.36,1), transform 240ms cubic-bezier(.22,1,.36,1), border-color 150ms cubic-bezier(.22,1,.36,1); } .ds-modelo:hover { transform: translateY(-3px); border-color: #7F9492; box-shadow: 0 4px 8px rgba(31,64,69,.08), 0 16px 40px rgba(31,64,69,.10); } .ds-modelo:active { transform: translateY(0); } .ds-modelo-foto { display: block; width: 100%; aspect-ratio: 1; background: #EFE8DA; } .ds-modelo-cuerpo { display: grid; gap: 4px; padding: 16px; } .ds-modelo-cat { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-modelo-nombre { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; line-height: 1.25; color: #14292C; } .ds-modelo-precio { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-modelo-pie { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; } .ds-modelo-ex { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-modelo-n { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; background: #1F4045; color: #EDE5D3; border-radius: 999px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; }"
+    },
+    {
+      "name": "Píldora de estado",
+      "kind": "chip",
+      "refersTo": "chip-alerta",
+      "description": "Existencia baja, servicio vigente, descuadre. Borde en el propio color y fondo al 8 %.",
+      "html": "<span class=\"ds-chip ds-chip-alerta\">Quedan 2</span> <span class=\"ds-chip ds-chip-exito\">Servicio vigente</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; } .ds-chip-alerta { color: #875C2D; background: rgba(168,118,62,.08); } .ds-chip-exito { color: #4A6B52; background: rgba(74,107,82,.08); }"
+    },
+    {
+      "name": "Cabecera de tabla",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "Verde profundo con esquinas superiores redondeadas; la fila se resalta al pasar, sin filas alternas.",
+      "html": "<table class=\"ds-tabla\"><thead><tr><th>Pieza</th><th>Dónde está</th><th class=\"n\">Cantidad</th></tr></thead><tbody><tr><td>Lazo de agua</td><td>Vitrina 1</td><td class=\"n\">4</td></tr><tr><td>Hilo de sal</td><td>Bodega</td><td class=\"n\">12</td></tr></tbody></table>",
+      "css": ".ds-tabla { width: 100%; border-collapse: collapse; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; background: #FFFFFF; border-radius: 22px; overflow: hidden; box-shadow: 0 1px 2px rgba(31,64,69,.05), 0 2px 8px rgba(31,64,69,.04); } .ds-tabla th { background: #1F4045; color: #EDE5D3; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; text-align: left; padding: 12px 16px; } .ds-tabla td { padding: 12px 16px; border-bottom: 1px solid #EDE7DA; color: #1F4045; } .ds-tabla tbody tr:hover { background: #F0F4F3; } .ds-tabla .n { text-align: right; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Navegación lateral",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Escritorio: 244 px en verde profundo. La activa lleva una barra de oro por dentro del borde izquierdo.",
+      "html": "<nav class=\"ds-nav\"><a class=\"activo\" href=\"#\">Inventario</a><a href=\"#\">Reportes</a><a href=\"#\">Clientes</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 244px; padding: 24px 16px; background: #1F4045; } .ds-nav a { display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.02em; text-decoration: none; color: rgba(237,229,211,.72); transition: background 150ms cubic-bezier(.22,1,.36,1), color 150ms cubic-bezier(.22,1,.36,1); } .ds-nav a:hover { background: rgba(237,229,211,.10); color: #EDE5D3; } .ds-nav a.activo { background: rgba(237,229,211,.14); color: #EDE5D3; box-shadow: inset 3px 0 0 #D0AE8A; }"
+    },
+    {
+      "name": "Barra del carrito",
+      "kind": "custom",
+      "refersTo": "cart-bar",
+      "description": "Píldora flotante sobre la navegación del teléfono: piezas, total y el descuento por cantidad ya ganado.",
+      "html": "<div class=\"ds-carrito\"><div><div class=\"ds-carrito-piezas\">6 piezas <span class=\"ds-carrito-tramo\">· 5 % menos</span></div><div class=\"ds-carrito-total\">Bs 8.640,00</div></div><button class=\"ds-carrito-btn\">Cobrar</button></div>",
+      "css": ".ds-carrito { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 24px; background: #1F4045; color: #EDE5D3; border-radius: 999px; box-shadow: 0 4px 8px rgba(31,64,69,.08), 0 16px 40px rgba(31,64,69,.10); } .ds-carrito-piezas { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(237,229,211,.72); } .ds-carrito-tramo { color: #D0AE8A; } .ds-carrito-total { font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; } .ds-carrito-btn { min-height: 52px; padding: 0 24px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #14292C; background: #D0AE8A; border: 1px solid #D0AE8A; border-radius: 999px; cursor: pointer; transition: background 150ms cubic-bezier(.22,1,.36,1); } .ds-carrito-btn:hover { background: #EDE5D3; border-color: #EDE5D3; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El estuche",
+    "overview": "La joya es la protagonista y la interfaz es el estuche que la sostiene: cálido, redondeado, callado. La referencia es Rolex, autoridad silenciosa: el lujo se demuestra, no se grita. Mucho aire, poco ruido, un solo elemento protagonista por pantalla. Hay dos caras con densidades opuestas y se diseñan distinto: el mostrador es táctil y de una mano en un Android de gama baja bajo luz de tienda; la administración es densa y tabular en escritorio, pero funciona entera desde el teléfono, donde se enseña menos en vez de reacomodar lo mismo.",
+    "keyCharacteristics": [
+      "Cuatro colores de marca y nada más; el oro se gasta con avaricia (≤ 5 % de una pantalla).",
+      "Tres familias con roles fijos: Fraunces para títulos y precios, EB Garamond para prosa, Jost para toda la interfaz.",
+      "Formas redondeadas en una sola escala; todos los botones son píldoras.",
+      "Elevación teñida de verde, nunca gris; profundidad por capas de superficie, no por bordes duros.",
+      "Contraste medido, no estimado: todo texto a 4,5:1 o más."
+    ],
+    "rules": [
+      { "name": "La regla del oro", "body": "El oro solo se lee sobre verde profundo. Sobre claro, oro-texto o nada. Si el oro ocupa más del 5 % de una pantalla, quítale oro a algo.", "section": "colors" },
+      { "name": "La regla del color medido", "body": "Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.", "section": "colors" },
+      { "name": "La regla del precio", "body": "Todo precio va en display serif. Sin excepción, ni en una celda de tabla.", "section": "typography" },
+      { "name": "La regla de la sans", "body": "Jost es la fuente de trabajo de la interfaz. La serif de lectura nunca va en una etiqueta, un botón o un dato.", "section": "typography" },
+      { "name": "La regla de la sombra verde", "body": "Ninguna sombra gris. Toda elevación lleva el verde profundo en su rgba.", "section": "elevation" },
+      { "name": "La regla de la tarjeta única", "body": "Tarjeta dentro de tarjeta está prohibido. Dentro de una tarjeta, un panel de fondo; nunca otro borde.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do poner todo precio en Fraunces 600 con tabular-nums.",
+      "Do medir el contraste contra el fondo real antes de usar un color para leer; 4,5:1 mínimo, sin excepción.",
+      "Do usar la variante de texto (salvia-texto, oro-texto, alerta-texto) sobre fondo claro.",
+      "Do hacer píldora todo botón, etiqueta y filtro.",
+      "Do teñir toda sombra de verde profundo y limitarla a los tres pasos.",
+      "Do cambiar una tabla por fichas en el teléfono y decidir qué datos se caen.",
+      "Do poner la navegación y las acciones principales abajo en el teléfono.",
+      "Do envolver un juego pequeño de pestañas o filtros; si no cabe en dos líneas, deslizarlo con la barra visible.",
+      "Do escribir el error junto a su campo, diciendo qué pasó y cómo se arregla.",
+      "Do quitarle un elemento a cada pantalla antes de darla por terminada."
+    ],
+    "donts": [
+      "Don't usar oro como texto sobre crema o blanco.",
+      "Don't usar salvia (#7F9492) como color de texto: es de líneas y bordes.",
+      "Don't inventar un color, un tamaño de letra ni un radio fuera de las escalas.",
+      "Don't meter tarjeta dentro de tarjeta ni franjas laterales de color como acento.",
+      "Don't usar degradados decorativos, sombras grises o dramáticas, emojis ni animación de relleno.",
+      "Don't aplicar EB Garamond a etiquetas, botones o datos, ni Fraunces a párrafos.",
+      "Don't usar filas alternas en tablas: compiten con el hover.",
+      "Don't poner nada crítico en la esquina superior izquierda del teléfono.",
+      "Don't poner el logo de SGS ni reproducir certificados del proveedor en piezas de la marca."
+    ]
+  }
+}
