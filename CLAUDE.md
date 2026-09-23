@@ -115,7 +115,7 @@ completa y cada archivo dice en su cabecera de qué depende.
 |---|---|---|
 | `v_catalogo_venta` | El catálogo **sin una sola columna de costo** | vendedora y admin |
 | `v_venta_ubicacion` | Lo mismo, desglosado por ubicación | vendedora y admin |
-| `v_disponible_publico` | El catálogo público, menos lo reservado | cualquiera, sin sesión |
+| `v_disponible_publico` | El catálogo público, menos lo reservado. La ubicación va **en clave** (`V1 · BG`), nunca con el nombre | cualquiera, sin sesión |
 | `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()` | solo admin |
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
@@ -168,7 +168,7 @@ npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace quince
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace dieciséis
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

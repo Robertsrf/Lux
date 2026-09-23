@@ -760,6 +760,24 @@ table.tabla tfoot td {
   color: var(--texto-secundario);
 }
 .tarjeta-modelo__existencia--baja { color: var(--alerta-texto); }
+
+/* Cuantas quedan y donde estan, juntas a la izquierda del pie. Van en un
+   contenedor propio para que el contador siga pegado al borde derecho: con
+   tres hijos sueltos, `space-between` dejaria la clave flotando en medio. */
+.tarjeta-modelo__datos {
+  display: flex; align-items: baseline; gap: var(--e-2);
+  min-width: 0;
+}
+/* La clave de ubicacion. Mismo tono que la existencia: es un dato de
+   trabajo y no compite con el precio. En el catalogo publico es lo unico
+   que se enseña de la trastienda, y en clave. */
+.tarjeta-modelo__clave {
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .tarjeta-modelo__contador {
   display: inline-grid; place-items: center;
   min-width: 28px; height: 28px; padding: 0 var(--e-2);

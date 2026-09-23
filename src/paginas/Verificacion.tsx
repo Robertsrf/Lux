@@ -148,6 +148,17 @@ export function Verificacion() {
       bien: Boolean(fugaCompras.error),
     });
 
+    // El enlace publico enseña la ubicacion EN CLAVE, "V1 · BG". El nombre
+    // completo no debe salir por ahi: es lo unico que hace que el codigo
+    // sirva de algo.
+    const nombrePublico = await supabase.from('v_disponible_publico').select('ubicaciones').limit(1);
+    resultados.push({
+      nombre: 'Nombre de la ubicacion en el catalogo publico',
+      esperado: 'Rechazada: ahi solo va el codigo',
+      obtenido: nombrePublico.error ? 'No existe la columna' : 'ESTA EL NOMBRE COMPLETO',
+      bien: Boolean(nombrePublico.error),
+    });
+
     const meses = await supabase.rpc('meses_servicio');
     resultados.push({
       nombre: 'Meses de lavado y abrillantado',

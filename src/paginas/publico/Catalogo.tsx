@@ -10,7 +10,7 @@ import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorF
 import { useTextos } from '../../hooks/useTextos';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
-const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible';
+const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo';
 
 /**
  * Catalogo publico. Se abre sin sesion, desde un enlace de WhatsApp.
@@ -414,8 +414,16 @@ export function Catalogo() {
                     {m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
                     <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
                     <span className="tarjeta-modelo__pie">
-                      <span className={m.disponible <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                        Quedan {m.disponible}
+                      <span className="tarjeta-modelo__datos">
+                        <span className={m.disponible <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
+                          Quedan {m.disponible}
+                        </span>
+                        {/* La clave de la tienda, nunca el nombre completo.
+                            Para la clienta son dos letras sin significado;
+                            para la vendedora, el estante al que ir. */}
+                        {m.ubicaciones_codigo ? (
+                          <span className="tarjeta-modelo__clave">{m.ubicaciones_codigo}</span>
+                        ) : null}
                       </span>
                       {puestas > 0 ? <span className="tarjeta-modelo__contador">{puestas}</span> : null}
                     </span>

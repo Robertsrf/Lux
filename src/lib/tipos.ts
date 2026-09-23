@@ -241,6 +241,8 @@ export interface ModeloPublico {
   precio_bs: number | null;
   /** Existencia menos lo reservado y vigente. */
   disponible: number;
+  /** En clave de tienda, "V1 · BG". Nunca el nombre completo: esto lo abre cualquiera. */
+  ubicaciones_codigo: string | null;
 }
 
 export interface Tramo {
