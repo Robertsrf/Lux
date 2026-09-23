@@ -139,6 +139,22 @@ async function main() {
   const tab = await V.from('v_tablero_dia').select('*').limit(1);
   dice(!tab.error, 'v_tablero_dia, su dia', tab.error ? 'ERROR ' + tab.error.code : 'responde');
 
+  // El maestro de clientas es de las dos caras: ella lo necesita con la
+  // clienta delante. Lo que hay que vigilar no es que lo vea, es que por
+  // ahi no se cuele una cifra de costo — `v_cliente_compras` sale de
+  // `venta_items`, que guarda el costo congelado de cada linea.
+  const cl = await V.from('v_clientes').select('id, nombre_completo, compras, servicio_vigente').limit(1);
+  dice(!cl.error, 'v_clientes, el maestro', cl.error ? 'ERROR ' + cl.error.code : 'responde');
+  const hist = await V.from('v_cliente_compras').select('venta_id, nombre, cantidad, servicio_hasta').limit(1);
+  dice(!hist.error, 'v_cliente_compras, el historico', hist.error ? 'ERROR ' + hist.error.code : 'responde');
+  const fugaCli = await V.from('v_cliente_compras').select('costo_puesto_usd_snap').limit(1);
+  dice(!!fugaCli.error, 'ninguna columna de costo en el historico',
+    fugaCli.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // Juntar dos fichas reescribe ventas ya registradas: no es de mostrador.
+  const fus = await V.rpc('admin_fusionar_clientes', { p_se_va: -1, p_se_queda: -2 });
+  dice(!!fus.error, 'admin_fusionar_clientes() le dice que no',
+    fus.error ? 'rechazada' : 'LA DEJO PASAR');
+
   console.log('\nEL ADMINISTRADOR SI VE LO SUYO');
   const oa = await A.rpc('costo_operativo_admin');
   dice(!oa.error && Number(oa.data) > 0, 'costo_operativo_admin() le da el numero',

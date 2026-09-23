@@ -85,6 +85,10 @@ export interface ModeloVenta {
   precio_usd_real: number | null;
   existencia_total: number;
   activo: boolean;
+  /** Donde hay existencia, en el orden de la tienda: "Vitrina 1 · Bodega". Null si en ninguna. */
+  ubicaciones: string | null;
+  /** Lo mismo en clave de tienda, "V1 · BG": para lo que se mira de cara al publico. */
+  ubicaciones_codigo: string | null;
 }
 
 /** Vista v_catalogo_admin: agrega costos y margen. Filtra con es_admin(). */
@@ -517,4 +521,65 @@ export interface ValorCategoriaFila {
   costo_bcv: number;
   margen_bruto_bcv: number;
   precio_bcv: number;
+}
+
+/* ---------------------------------------------------- Maestro de clientas */
+
+/**
+ * Vista v_clientes: la ficha con su resumen de compras.
+ *
+ * `total_usd` va en dolares a proposito. Sumar bolivares de marzo con
+ * bolivares de septiembre no dice nada; cada venta guarda su total en
+ * dolares congelado con la tasa de ese dia, asi que esa suma si significa
+ * algo. Los bolivares se muestran compra por compra.
+ */
+export interface ClienteResumen {
+  id: number;
+  cedula: string | null;
+  /** Solo los digitos: con esto se busca. */
+  cedula_digitos: string | null;
+  nombre: string;
+  apellido: string | null;
+  nombre_completo: string;
+  telefono: string | null;
+  notas: string | null;
+  creado_en: string;
+  compras: number;
+  piezas: number;
+  total_usd: number;
+  primera_compra: string | null;
+  ultima_compra: string | null;
+  /** Hasta cuando le toca lavado y abrillantado, contado desde su ultima compra. */
+  servicio_hasta: string | null;
+  servicio_vigente: boolean;
+}
+
+/** Vista v_cliente_compras: una fila por pieza que se llevo. */
+export interface CompraCliente {
+  cliente_id: number;
+  venta_id: number;
+  fecha: string;
+  tipo: TipoVenta;
+  metodo: MetodoPago;
+  total_bs: number;
+  total_usd: number;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  variantes_nota: string | null;
+  foto_thumb_path: string | null;
+  cantidad: number;
+  precio_unitario_bs: number;
+  servicio_hasta: string;
+  servicio_vigente: boolean;
+}
+
+/** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */
+export interface ClienteDeVenta {
+  id?: number | null;
+  cedula?: string | null;
+  nombre?: string | null;
+  apellido?: string | null;
+  telefono?: string | null;
 }

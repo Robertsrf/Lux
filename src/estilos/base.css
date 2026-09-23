@@ -1644,3 +1644,160 @@ table.tabla tfoot td {
   font-family: var(--fuente-ui); font-size: var(--t-12);
   color: var(--salvia-texto);
 }
+
+/* =====================================================================
+   Maestro de clientas.
+
+   Fichas, no tabla, tambien en escritorio: aqui no se comparan clientas
+   entre si, se busca una. Y lo primero que se lee de cada una es si le
+   toca servicio, que es lo que hay que saber antes de decirle nada.
+   ===================================================================== */
+
+.volver {
+  display: inline-block;
+  margin-bottom: var(--e-2);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  text-decoration: none;
+}
+.volver:hover { color: var(--texto-fuerte); text-decoration: underline; }
+
+.clientes {
+  display: grid; gap: var(--e-4);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  margin-top: var(--e-4);
+}
+
+.cliente-tarjeta {
+  display: grid; gap: var(--e-1);
+  padding: var(--e-4) var(--e-5);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-1);
+  text-decoration: none; color: var(--texto);
+  transition: box-shadow var(--medio), transform var(--medio), border-color var(--rapido);
+}
+.cliente-tarjeta:hover {
+  box-shadow: var(--sombra-3);
+  transform: translateY(-3px);
+  border-color: var(--salvia);
+}
+.cliente-tarjeta:active { transform: translateY(0); box-shadow: var(--sombra-1); }
+
+.cliente-tarjeta__nombre {
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20); line-height: 1.2;
+  color: var(--texto-fuerte);
+}
+.cliente-tarjeta__dato,
+.cliente-tarjeta__compras {
+  font-size: var(--t-12); color: var(--texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+.cliente-tarjeta__pie {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e-2); flex-wrap: wrap;
+  margin-top: var(--e-2);
+}
+.cliente-tarjeta__fecha {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--texto-secundario);
+}
+
+/* El estado del servicio: una frase, no una tabla de fechas. */
+.servicio {
+  margin: 0;
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20); line-height: 1.35;
+  color: var(--texto);
+}
+.servicio--vigente { color: var(--texto-fuerte); }
+
+/* --- Una compra del historico ---------------------------------------- */
+
+.compra__cabecera {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--e-3);
+  margin-bottom: var(--e-4);
+}
+.compra__fecha {
+  display: block;
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-20); font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+}
+.compra__meta {
+  font-size: var(--t-12); color: var(--texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+
+.compra__piezas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.compra__pieza {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center; gap: var(--e-3);
+  padding: var(--e-3);
+  border-radius: var(--radio-md);
+  background: var(--panel);
+}
+.compra__pieza .miniatura { width: 56px; height: 56px; }
+
+/* =====================================================================
+   Quien se lo lleva, en el cobro.
+
+   Vive dentro de un panel del paso de cobro, asi que no lleva caja propia:
+   tarjeta dentro de tarjeta esta prohibido.
+   ===================================================================== */
+
+.cliente-elegida {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e-3); flex-wrap: wrap;
+}
+.cliente-elegida__nombre {
+  font-family: var(--fuente-prosa);
+  font-size: var(--t-20); line-height: 1.2;
+  color: var(--texto-fuerte);
+}
+
+.cliente-buscador .campo:last-child { margin-bottom: 0; }
+.cliente-nueva .fila { margin-bottom: var(--e-3); }
+
+.cliente-resultados { display: grid; gap: var(--e-2); margin-top: var(--e-3); }
+
+.cliente-resultado {
+  display: grid; gap: 2px; text-align: left;
+  width: 100%;
+  min-height: var(--objetivo-tactil);
+  padding: var(--e-3) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-md);
+  font-family: inherit;
+  transition: background var(--rapido), border-color var(--rapido);
+}
+.cliente-resultado:hover { background: var(--verde-suave); border-color: var(--salvia); }
+.cliente-resultado__nombre {
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  color: var(--texto-fuerte);
+}
+.cliente-resultado__dato {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Va sin clienta" es una decision, no un descuido: cuando esta tomada se
+   ve tomada, con el mismo relleno con que se ve elegido un metodo de pago. */
+.cliente-buscador .boton[aria-pressed='true'] {
+  background: var(--verde-profundo); border-color: var(--verde-profundo);
+  color: var(--crema);
+}
+
+@media (max-width: 560px) {
+  .clientes { grid-template-columns: 1fr; }
+  .compra__pieza { grid-template-columns: 48px 1fr auto; padding: var(--e-2); }
+  .compra__pieza .miniatura { width: 48px; height: 48px; }
+}

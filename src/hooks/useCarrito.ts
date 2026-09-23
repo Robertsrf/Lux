@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { aMonto, deMonto, descuentoPara, porCantidad, sumar } from '../lib/dinero';
-import type { LineaCarrito, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
+import type { ClienteDeVenta, LineaCarrito, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
 
 /**
  * Carrito del mostrador. Vive solo en memoria: la venta se vuelve real
@@ -132,8 +132,13 @@ export function useCarrito() {
     };
   }, [lineas, tramos]);
 
-  /** Una sola llamada: venta, lineas y descuento de existencia o nada. */
-  const cobrar = useCallback(async (metodo: MetodoPago, tipo: TipoVenta = 'detal', cliente?: { nombre?: string; telefono?: string }) => {
+  /**
+   * Una sola llamada: venta, lineas, descuento de existencia y la ficha de
+   * la clienta, o nada. La clienta entra en la misma transaccion a
+   * proposito: si la venta se cae por existencia, no queda una ficha de una
+   * compra que nunca ocurrio.
+   */
+  const cobrar = useCallback(async (metodo: MetodoPago, tipo: TipoVenta = 'detal', cliente?: ClienteDeVenta | null) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     setCobrando(true);
     setError(null);
@@ -154,6 +159,13 @@ export function useCarrito() {
       p_cliente_nombre: cliente?.nombre ?? null,
       p_cliente_telefono: cliente?.telefono ?? null,
       p_notas: null,
+      // Los tres del maestro de clientas. Van al final de la firma y con
+      // valor por defecto: asi la version vieja del navegador, la que
+      // todavia manda siete argumentos mientras GitHub Pages publica,
+      // sigue encajando con la misma funcion.
+      p_cliente_id: cliente?.id ?? null,
+      p_cliente_cedula: cliente?.cedula ?? null,
+      p_cliente_apellido: cliente?.apellido ?? null,
     });
 
     setCobrando(false);

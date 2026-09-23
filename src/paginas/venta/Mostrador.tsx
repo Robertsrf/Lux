@@ -9,8 +9,9 @@ import { useTextos } from '../../hooks/useTextos';
 import { useCarrito } from '../../hooks/useCarrito';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import { Recordatorio } from '../../componentes/Recordatorio';
+import { BuscadorCliente } from '../../componentes/BuscadorCliente';
 import { METODOS_PAGO } from '../../lib/tipos';
-import type { MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
+import type { ClienteDeVenta, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
 // foto_path va aqui a proposito: sin ella el mostrador solo tenia el thumb
 // de 300 px y las piezas se veian borrosas, mientras el catalogo publico -que
@@ -41,6 +42,9 @@ export function Mostrador() {
   const [metodo, setMetodo] = useState<MetodoPago | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
+  const [cliente, setCliente] = useState<ClienteDeVenta | null>(null);
+  const [nombreCliente, setNombreCliente] = useState<string | null>(null);
+  const [sinCliente, setSinCliente] = useState(false);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
 
   // El mostrador arranca en la primera vitrina, no en la bodega.
@@ -115,10 +119,15 @@ export function Mostrador() {
 
   async function confirmar() {
     if (!metodo) return;
-    const r = await carrito.cobrar(metodo);
+    const r = await carrito.cobrar(metodo, 'detal', cliente);
     if (r.ok) {
-      setExito(`Venta registrada. Numero ${r.ventaId}.`);
+      setExito(cliente && nombreCliente
+        ? `Venta registrada a nombre de ${nombreCliente}. Numero ${r.ventaId}.`
+        : `Venta registrada. Numero ${r.ventaId}.`);
       setMetodo(null);
+      setCliente(null);
+      setNombreCliente(null);
+      setSinCliente(false);
       setPaso('venta');
       await cargar();
     }
@@ -236,6 +245,21 @@ export function Mostrador() {
 
         <Recordatorio momento="cerrar" titulo="Cierra con una pregunta" />
 
+        {/* Quien se lo lleva. Va antes del metodo de pago porque es lo que
+            se pregunta mientras se envuelve, no mientras se cobra. De aqui
+            salen la garantia y los meses de lavado y abrillantado: una
+            venta sin nombre no se los puede dar a nadie. */}
+        <h2>Quién se lo lleva</h2>
+        <div className="panel">
+          <BuscadorCliente
+            valor={cliente}
+            etiqueta={nombreCliente}
+            alElegir={(c, nombre) => { setCliente(c); setNombreCliente(nombre); setSinCliente(false); }}
+            sinCliente={sinCliente}
+            alSaltar={setSinCliente}
+          />
+        </div>
+
         <h2>Como paga</h2>
         <div className="metodos-pago" style={{ marginTop: 'var(--e-3)' }}>
           {METODOS_PAGO.map((m) => (
@@ -254,7 +278,10 @@ export function Mostrador() {
           <button
             type="button"
             className="boton boton--confirmar"
-            disabled={!metodo || carrito.cobrando || carrito.lineas.length === 0}
+            // Espera a que ella diga quien se lo lleva o que decida a
+            // proposito que va sin nombre. No es un requisito del sistema:
+            // es que saltarlo sin querer deja sin garantia a una clienta.
+            disabled={!metodo || (!cliente && !sinCliente) || carrito.cobrando || carrito.lineas.length === 0}
             onClick={() => void confirmar()}
           >
             {carrito.cobrando ? 'Registrando' : 'Registrar venta'}
@@ -263,6 +290,16 @@ export function Mostrador() {
             Seguir agregando
           </button>
         </div>
+
+        {/* Un boton apagado sin explicacion es una trampa: dice que no se
+            puede y no dice que falta. */}
+        {!metodo || (!cliente && !sinCliente) ? (
+          <p className="campo__pista">
+            {!cliente && !sinCliente
+              ? 'Falta decir quién se lo lleva. Si no quiere dar sus datos, toca "Cobrar sin registrarla".'
+              : 'Falta elegir cómo paga.'}
+          </p>
+        ) : null}
       </div>
     );
   }

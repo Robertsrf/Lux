@@ -53,6 +53,9 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 29 | `esquema-indices-fk.sql` | Los índices que las claves foráneas no traen |
 | 30 | `esquema-correcciones-datos.sql` | Arregla datos concretos; en base nueva no hace nada |
 | 31 | `esquema-categorias-publicas.sql` | El filtro del catálogo, sin traerse mil filas |
+| 32 | `esquema-tramos-en-mostrador.sql` | Fuera kits: el descuento por cantidad lo aplica el mostrador solo |
+| 33 | `esquema-ubicacion-en-catalogo.sql` | Dónde está cada pieza, en el catálogo PDF y en clave en la vitrina |
+| 34 | `esquema-clientes.sql` | El maestro de clientas: histórico, garantía y meses de servicio |
 
 ### Los que NO se corren
 

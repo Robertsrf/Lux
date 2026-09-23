@@ -12,6 +12,7 @@ interface Enlace { a: string; texto: string; icono: NombreIcono }
 const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/inventario', texto: 'Inventario', icono: 'inventario' },
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
+  { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
   { a: '/admin/grupos',     texto: 'Grupos',     icono: 'grupos' },
   { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
@@ -26,6 +27,7 @@ const ENLACES_ADMIN: Enlace[] = [
 const ENLACES_VENTA: Enlace[] = [
   { a: '/venta',          texto: 'Mostrador', icono: 'mostrador' },
   { a: '/venta/pedidos',  texto: 'Pedidos',   icono: 'pedidos' },
+  { a: '/clientes',       texto: 'Clientes',  icono: 'clientes' },
   { a: '/venta/tablero',  texto: 'Mi día',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },

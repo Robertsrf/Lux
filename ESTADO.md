@@ -57,8 +57,8 @@ src/paginas/admin/       lo que usa el dueño. Viaja en archivos aparte.
 src/paginas/publico/     el catálogo que se comparte por WhatsApp. Sin sesión.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             31 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    37 comprobaciones de seguridad.
+esquema*.sql             34 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    41 comprobaciones de seguridad.
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 
@@ -139,7 +139,8 @@ npm run respaldo --fotos    # además las fotos, unos 2 minutos
 ```
 
 Escribe en `../Respaldos Lux/<fecha>/`, **fuera del repositorio**, porque el
-repositorio es público y el respaldo lleva cédulas y teléfonos de clientas,
+repositorio es público y el respaldo lleva cédulas y teléfonos de clientas
+—ahora también los del maestro `clientes`, no solo los de un pedido suelto—,
 costos y márgenes. El `.gitignore` tiene esa carpeta como cinturón por si alguien
 cambia el destino.
 

@@ -50,6 +50,7 @@ const Reportes = lazy(() => import('./paginas/admin/Reportes').then((m) => ({ de
 const Verificacion = lazy(() => import('./paginas/Verificacion').then((m) => ({ default: m.Verificacion })));
 const CatalogoPdf = lazy(() => import('./paginas/CatalogoPdf').then((m) => ({ default: m.CatalogoPdf })));
 const Vitrina = lazy(() => import('./paginas/Vitrina').then((m) => ({ default: m.Vitrina })));
+const Clientes = lazy(() => import('./paginas/Clientes').then((m) => ({ default: m.Clientes })));
 
 /** GitHub Pages no reescribe rutas: se usa HashRouter (/#/admin/inventario). */
 function Inicio() {
@@ -102,6 +103,12 @@ export function App() {
                 protegida, que es un mapa que la vendedora no necesita. */}
             <Route path="/verificacion" element={soloAdmin(<Verificacion />)} />
             <Route path="/catalogo" element={<CatalogoPdf />} />
+
+            {/* El maestro de clientas lo ven las dos caras: ella lo
+                necesita con la clienta delante y el no tiene por que
+                pedirselo. No lleva una sola cifra de costo. */}
+            <Route path="/clientes" element={<Clientes />} />
+            <Route path="/clientes/:id" element={<Clientes />} />
 
             {/* Administracion */}
             <Route path="/admin/inventario" element={soloAdmin(<Inventario />)} />
