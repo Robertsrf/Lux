@@ -156,7 +156,7 @@ dando falso dentro de una función de definidor, así que pondría la venta de r
 - **Clientes.** Cada venta puede quedar a nombre de una clienta del maestro, que se
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
-  (`configuracion.meses_servicio`).
+  (`configuracion.meses_servicio`, que el administrador fija en Costos).
 
 ---
 

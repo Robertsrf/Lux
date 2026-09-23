@@ -26,6 +26,8 @@ const METAS = [
     pista: 'Cuantas salieron defectuosas o se perdieron. Si no se dano nada deja 0: no encarece nada.' },
   { clave: 'margen_objetivo_pct', etiqueta: 'Margen que usas %', paso: '0.5',
     pista: 'El que aplica el precio sugerido. Abajo el sistema te dice cual deberia ser.' },
+  { clave: 'meses_servicio', etiqueta: 'Lavado y abrillantado (meses)', paso: '1',
+    pista: 'Cuantos meses de ese servicio da cada compra. Cambiarlo vale para todas, tambien las viejas: es una politica de la casa.' },
 ];
 
 /**

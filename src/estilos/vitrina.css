@@ -49,14 +49,6 @@
   padding: var(--e-6) var(--e-8);
   width: 100%;
 }
-.vitrina__frase-etiqueta {
-  margin: 0;
-  font-family: var(--fuente-ui);
-  font-size: var(--t-16);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking);
-  color: var(--oro-arena);
-}
 /* Serif de lectura, no display: es una frase, no una cifra. */
 .vitrina__frase-texto {
   margin: 0;

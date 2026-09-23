@@ -89,7 +89,6 @@ button:disabled { cursor: not-allowed; }
 }
 .cifra { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 .secundario { color: var(--texto-secundario); }
-.centrado { text-align: center; }
 
 /* --- Marca ---------------------------------------------------------- */
 

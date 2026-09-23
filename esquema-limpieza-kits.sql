@@ -1,0 +1,53 @@
+-- =====================================================================
+-- Lux by Emory — se cierra la puerta que dejaron los kits
+-- Ejecutar en el SQL Editor DESPUÉS de esquema-clientes.sql
+--
+-- QUÉ HACE
+-- Suelta `registrar_venta_kit`, la función que vendía un kit entero. Las
+-- dos pantallas que la llamaban se fueron en septiembre de 2026 y hace
+-- semanas que no la llama nadie.
+--
+-- POR QUÉ NO SE BORRÓ ENTONCES
+-- `esquema-tramos-en-mostrador.sql` la dejó viva a propósito: el SQL corre
+-- en un segundo y el despliegue de GitHub Pages tarda minutos, y en esos
+-- minutos el teléfono de la vendedora todavía tenía la versión vieja. La
+-- regla de la casa es que un cambio de firma espera a que el navegador se
+-- ponga al día. Ya se puso, así que ahora se puede.
+--
+-- LO QUE SE QUEDA, Y NO ES OLVIDO
+--   - Las tablas `kits` y `kit_items`.
+--   - La columna `ventas.kit_id`.
+--   - El parámetro `p_kit_id` de `registrar_venta`.
+--
+-- Las ventas de kits que YA ocurrieron apuntan ahí. Borrarlas reescribiría
+-- la historia de meses de reportes para ahorrar tres tablas que no
+-- estorban a nadie. El respaldo las sigue copiando, y está bien.
+--
+-- QUÉ SE GANA
+-- Una función menos otorgada a `authenticated`. Mientras estuvo ahí, con
+-- su `grant execute`, cualquiera con la sesión de la vendedora podía
+-- registrar una venta de kit desde la consola del navegador, con el
+-- descuento que tuviera guardado ese kit. Nadie lo hizo; la puerta estaba
+-- abierta igual.
+-- =====================================================================
+
+drop function if exists registrar_venta_kit(bigint, text, bigint, text, text, text);
+
+notify pgrst, 'reload schema';
+
+-- =====================================================================
+-- COMPROBACIÓN
+--
+--   select count(*) from pg_proc where proname = 'registrar_venta_kit';
+--     -> 0.
+--
+--   select count(*) from pg_proc where proname = 'registrar_venta';
+--     -> 1. La de verdad sigue ahí; es la que cobra.
+--
+--   select count(*) from ventas where kit_id is not null;
+--     -> el mismo número que antes. Si bajó, algo borró historia y hay
+--        que restaurar el respaldo.
+--
+-- Y en la tienda: cobrar una venta normal desde el mostrador. Es lo único
+-- que de verdad comprueba que no se rompió nada.
+-- =====================================================================

@@ -191,17 +191,6 @@ export interface CuadreUbicacion {
   contado_en: string | null;
 }
 
-export interface Kit {
-  id: number;
-  nombre: string;
-  tipo: 'fijo' | 'armado';
-  /** Descuento sobre lo que valen sus piezas, en por ciento. */
-  descuento_pct: number;
-  n_piezas: number;
-  descripcion: string | null;
-  activo: boolean;
-}
-
 export interface VentaPorDia {
   dia: string;
   ventas: number;
@@ -357,18 +346,6 @@ export interface PrecioSugerido {
   grupo_alcanza: boolean;
   precio_grupo_real: number | null;
   margen_resultante_pct: number | null;
-}
-
-/** Vista v_kits_resumen: lo que cuesta un kit, ya con su descuento. */
-export interface KitResumen {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-  activo: boolean;
-  descuento_pct: number;
-  piezas: number;
-  subtotal_usd: number;
-  total_usd: number;
 }
 
 /** Una frase o recordatorio de la guia del colaborador. */

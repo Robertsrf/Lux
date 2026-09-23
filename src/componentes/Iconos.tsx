@@ -8,8 +8,8 @@
  */
 
 export type NombreIcono =
-  | 'inventario' | 'reportes' | 'lotes' | 'grupos' | 'kits' | 'tramos'
-  | 'tasas' | 'catalogo' | 'mostrador' | 'mayor' | 'dia' | 'cierre'
+  | 'inventario' | 'reportes' | 'lotes' | 'grupos' | 'tramos'
+  | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
   | 'clientes';
 
@@ -18,12 +18,10 @@ const TRAZOS: Record<NombreIcono, string> = {
   reportes:   'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
   lotes:      'M2 8h11v9H2z M13 11h4.5L21 14.5V17h-8 M6.5 20a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6Z M17 20a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6Z',
   grupos:     'M3 11V4h7l10 10-7 7L3 11Z M7.5 7.5h.01',
-  kits:       'M12 3 3 8l9 5 9-5-9-5Z M3 13l9 5 9-5 M3 17.5l9 5 9-5',
   tramos:     'M18 6 6 18 M7.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z M16.5 18a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
   tasas:      'M3 8h13l-3-3 M21 16H8l3 3',
   catalogo:   'M4 4h9a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H4V4Z M20 4h-4v13.5h1.5A2.5 2.5 0 0 1 20 20V4Z',
   mostrador:  'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
-  mayor:      'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6Z M3 6h18 M16 10a4 4 0 0 1-8 0',
   dia:        'M22 7l-8.5 8.5-5-5L2 17 M16 7h6v6',
   cierre:     'M9 3h6v3H9z M15 4.5h2.5A1.5 1.5 0 0 1 19 6v14a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V6a1.5 1.5 0 0 1 1.5-1.5H9 M9 13.5l2 2 4-4',
   conteo:     'M3 6.5 4.5 8 7.5 5 M3 12.5 4.5 14l3-3 M3 18.5 4.5 20l3-3 M11 6.5h10 M11 12.5h10 M11 18.5h10',
