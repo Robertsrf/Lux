@@ -104,7 +104,10 @@
   color: var(--oro-texto);
   padding-top: var(--e-1);
 }
-.ficha__existencia {
+/* Cuantas quedan y donde estan. Mismo tono las dos: son datos de trabajo,
+   no de venta, y no tienen que competir con el precio. */
+.ficha__existencia,
+.ficha__ubicacion {
   font-family: var(--fuente-ui); font-size: 10px;
   letter-spacing: var(--tracking); text-transform: uppercase;
   color: var(--texto-secundario); margin-top: 2px;

@@ -61,7 +61,7 @@ export function Vitrina() {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
           const { data, error: err } = await supabase
             .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, activo')
+            .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, activo, ubicaciones_codigo')
             .gt('existencia_total', 0)
             .order('categoria', { ascending: true })
             .order('nombre', { ascending: true })
@@ -249,6 +249,14 @@ export function Vitrina() {
           </div>
         ) : null}
       </div>
+
+      {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
+          sabe leerlo desde su puesto; la clienta ve una referencia y sigue
+          de largo. Va fuera de la ficha y se queda aunque se vayan los
+          controles, porque es para trabajar, no para vender. */}
+      {actual?.tipo === 'pieza' && actual.modelo.ubicaciones_codigo ? (
+        <p className="vitrina__clave">{actual.modelo.ubicaciones_codigo}</p>
+      ) : null}
 
       {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
       <div className="vitrina__progreso" aria-hidden="true">

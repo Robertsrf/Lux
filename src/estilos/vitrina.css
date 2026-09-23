@@ -165,6 +165,22 @@
   color: color-mix(in srgb, var(--crema) 66%, transparent);
 }
 
+/* --- La clave de ubicacion: para la vendedora, no para la clienta ----- */
+/* "V1 · BG" en la esquina de arriba, chico y apagado, en la misma voz que
+   el contador de piezas. La esquina de abajo la ocupa el boton de pantalla
+   completa. Crema al 66 % sobre el verde da 4,86:1, medido: se lee desde
+   el mostrador sin pedir atencion. */
+.vitrina__clave {
+  position: absolute; top: var(--e-5); right: var(--e-6);
+  margin: 0;
+  font-family: var(--fuente-ui);
+  font-size: var(--t-20);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking);
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- Cuanto falta para la siguiente --------------------------------- */
 
 .vitrina__progreso {
@@ -265,6 +281,7 @@
   .vitrina__precio { font-size: clamp(var(--t-56), 4.4vw, 92px); }
   .vitrina__precio-usd { font-size: var(--t-40); }
   .vitrina__materiales { font-size: var(--t-20); }
+  .vitrina__clave { font-size: var(--t-28); }
   .vitrina .wordmark { height: 64px !important; }
 }
 

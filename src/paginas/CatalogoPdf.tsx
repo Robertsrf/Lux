@@ -38,7 +38,7 @@ export function CatalogoPdf() {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
           const { data, error: err } = await supabase
             .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total')
+            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, ubicaciones')
             .gt('existencia_total', 0)
             .order('categoria', { ascending: true })
             .order('nombre', { ascending: true })
@@ -146,6 +146,9 @@ export function CatalogoPdf() {
                     <div className="ficha__existencia">
                       {m.existencia_total === 1 ? 'Queda 1 pieza' : `Quedan ${m.existencia_total} piezas`}
                     </div>
+                    {/* Donde esta, para que la vendedora vaya derecho a buscarla.
+                        En la vitrina del televisor va en clave; aqui, con nombre. */}
+                    {m.ubicaciones ? <div className="ficha__ubicacion">{m.ubicaciones}</div> : null}
                   </div>
                 </article>
               );
