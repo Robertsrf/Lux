@@ -58,6 +58,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 34 | `esquema-clientes.sql` | El maestro de clientas: histórico, garantía y meses de servicio |
 | 35 | `esquema-limpieza-kits.sql` | Suelta la función de venta de kits, que ya no llama nadie |
 | 36 | `esquema-ubicacion-en-publico.sql` | El catálogo público también dice dónde está la pieza, en clave |
+| 37 | `esquema-cuentas-claras.sql` | Una sola fórmula de gastos y de piezas a vender; arregla Costos, Reportes e Inversiones |
 
 ### Los que NO se corren
 
@@ -131,7 +132,7 @@ con `.github/workflows/desplegar.yml`.
 
 ## Comprobar que quedó bien
 
-Abre **Verificación**, que es de administrador. Son dieciséis pruebas en vivo con
+Abre **Verificación**, que es de administrador. Son diecisiete pruebas en vivo con
 la sesión que tengas abierta: tablas revocadas, vistas de costo, la nómina
 rechazada para todos, el maestro de clientas sin costo congelado y que
 `registrar_venta` siga siendo una sola, también para un navegador que aún no se
