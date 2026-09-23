@@ -124,6 +124,96 @@ export function Verificacion() {
       bien: !piso.error,
     });
 
+    /* --- El maestro de clientas ------------------------------------- */
+
+    // El maestro es de las dos caras, asi que aqui no se comprueba quien
+    // entra sino que responda. Lo que si importa es lo de abajo.
+    const maestro = await supabase.from('v_clientes').select('id, compras, servicio_vigente').limit(1);
+    resultados.push({
+      nombre: 'Vista v_clientes',
+      esperado: 'Funciona: el maestro lo ven las dos caras',
+      obtenido: maestro.error ? `Fallo: ${maestro.error.message}` : 'Funciona',
+      bien: !maestro.error,
+    });
+
+    // `v_cliente_compras` sale de `venta_items`, que guarda el costo
+    // congelado de cada linea. Se pide la columna a proposito: si la vista
+    // la expusiera, esto devolveria datos en vez de fallar. Y funciona
+    // aunque todavia no haya comprado nadie, porque no mira filas.
+    const fugaCompras = await supabase.from('v_cliente_compras').select('costo_puesto_usd_snap').limit(1);
+    resultados.push({
+      nombre: 'Costo congelado en el historico de una clienta',
+      esperado: 'Rechazada: esa columna no debe existir en la vista',
+      obtenido: fugaCompras.error ? 'No existe la columna' : 'LA COLUMNA ESTA AHI',
+      bien: Boolean(fugaCompras.error),
+    });
+
+    const meses = await supabase.rpc('meses_servicio');
+    resultados.push({
+      nombre: 'Meses de lavado y abrillantado',
+      esperado: 'Responde el numero que fijaste en Costos',
+      obtenido: meses.error ? `Fallo: ${meses.error.message}` : `${String(meses.data)} mes(es)`,
+      bien: !meses.error && Number(meses.data) > 0,
+    });
+
+    /*
+      LAS DOS MAS IMPORTANTES DE ESTA TANDA, y son dos por una razon.
+
+      Las dos llaman a `registrar_venta` con el carrito VACIO. La funcion
+      comprueba eso antes de tocar una sola tabla, asi que contesta "La
+      venta no tiene piezas" y no escribe nada.
+
+      La primera la llama como la llamaria un navegador VIEJO, con los
+      siete parametros de antes. Si al añadir los tres nuevos quedaron dos
+      funciones con el mismo nombre, PostgREST no sabe cual elegir y
+      responde "could not choose the best candidate": el telefono que no se
+      ha actualizado no podria cobrar, con una clienta delante.
+
+      La segunda la llama con los parametros nuevos. Esa prueba que la
+      firma de hoy esta publicada y que el maestro de clientas se puede
+      usar al vender.
+
+      Una sola de las dos no basta: la de arriba no ve si falta lo nuevo, y
+      la de abajo no ve la ambiguedad, porque `p_cliente_id` ya descarta a
+      la version vieja.
+    */
+    const vacio = { p_tipo: 'detal', p_metodo: 'efectivo_bs', p_items: [] };
+    const valido = (e: { message?: string } | null) => Boolean(e?.message?.includes('no tiene piezas'));
+
+    const vieja = await supabase.rpc('registrar_venta', { ...vacio, p_kit_id: null, p_notas: null });
+    resultados.push({
+      nombre: 'Cobrar desde un navegador sin actualizar',
+      esperado: 'Sigue encajando: hay UNA sola registrar_venta',
+      obtenido: valido(vieja.error)
+        ? 'Encaja y valida (no escribio nada)'
+        : vieja.error ? `Fallo: ${vieja.error.message}` : 'Respondio sin validar el carrito vacio',
+      bien: valido(vieja.error),
+    });
+
+    const nueva = await supabase.rpc('registrar_venta', {
+      ...vacio, p_cliente_id: null, p_cliente_cedula: null, p_cliente_apellido: null,
+    });
+    resultados.push({
+      nombre: 'Cobrar a nombre de una clienta',
+      esperado: 'La firma nueva esta publicada',
+      obtenido: valido(nueva.error)
+        ? 'Encaja y valida (no escribio nada)'
+        : nueva.error ? `Fallo: ${nueva.error.message}` : 'Respondio sin validar el carrito vacio',
+      bien: valido(nueva.error),
+    });
+
+    // Se solto con esquema-limpieza-kits.sql. Estaba otorgada a la
+    // vendedora y ya no la llamaba ninguna pantalla.
+    const kit = await supabase.rpc('registrar_venta_kit', { p_kit_id: -1 });
+    const noExiste = Boolean(kit.error?.message?.includes('Could not find')
+      || kit.error?.code === 'PGRST202');
+    resultados.push({
+      nombre: 'Funcion registrar_venta_kit',
+      esperado: 'Ya no existe: se fue con las pantallas de kits',
+      obtenido: noExiste ? 'No existe' : kit.error ? `Sigue ahi: ${kit.error.message}` : 'SIGUE AHI Y RESPONDE',
+      bien: noExiste,
+    });
+
     setPruebas(resultados);
     setCorriendo(false);
   }, [esAdmin]);
@@ -137,7 +227,11 @@ export function Verificacion() {
       <div className="encabezado-pagina">
         <div>
           <h1>Verificación</h1>
-          <p>Checklist de seguridad de la Fase 1, con la sesion de {perfil?.nombre ?? '—'} ({perfil?.rol ?? '—'}).</p>
+          <p>
+            Las puertas que tienen que seguir cerradas, probadas en vivo con la sesion
+            de {perfil?.nombre ?? '—'} ({perfil?.rol ?? '—'}). No escribe nada: son
+            todo lecturas y una llamada que se valida sola.
+          </p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => void correr()}>Repetir</button>
       </div>
@@ -146,9 +240,9 @@ export function Verificacion() {
         <Aviso tono="exito" titulo="Todo en orden">Las {pruebas.length} pruebas pasaron.</Aviso>
       ) : (
         <Aviso tono="error" titulo={`${fallos} prueba(s) sin pasar`}>
-          Revisa que hayas ejecutado todos los .sql en orden, hasta
-          esquema-flete-y-gastos.sql. Si falla una de las de fuga, no sigas:
-          la vendedora esta viendo algo que no deberia.
+          Revisa que hayas ejecutado todos los .sql en orden, hasta el ultimo de
+          la tabla de INSTALACION.md. Si falla una de las de fuga, no sigas: la
+          vendedora esta viendo algo que no deberia.
         </Aviso>
       )}
 

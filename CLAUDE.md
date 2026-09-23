@@ -168,7 +168,9 @@ npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace quince
+de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
+porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
 a ser `where`. Nada de eso rompe el build.
 

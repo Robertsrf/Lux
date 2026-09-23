@@ -130,9 +130,15 @@ con `.github/workflows/desplegar.yml`.
 
 ## Comprobar que quedó bien
 
-Entra con **los dos códigos** y abre **Verificación**. Son nueve pruebas por
-rol: tablas revocadas, vistas de costo vacías para la vendedora, la nómina
-rechazada para todos.
+Abre **Verificación**, que es de administrador. Son quince pruebas en vivo con
+la sesión que tengas abierta: tablas revocadas, vistas de costo, la nómina
+rechazada para todos, el maestro de clientas sin costo congelado y que
+`registrar_venta` siga siendo una sola, también para un navegador que aún no se
+ha actualizado. No escribe nada.
+
+Es la comprobación que se puede hacer desde el teléfono. La fuerte sigue siendo
+`npm run verificar`, que entra con **las dos sesiones** y prueba lo que esta
+pantalla no puede: que a la vendedora, de verdad, no le llegue nada.
 
 **Si falla una de las de fuga, no sigas.** Significa que la vendedora está
 viendo algo que no debería.
