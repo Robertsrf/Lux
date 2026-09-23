@@ -127,6 +127,24 @@ Ojo con la sutileza: los exhibidores **sí** pagan flete y lo pagan igual que
 cualquier otro bulto (regla 4). Lo que nunca ocurre es que esa parte se le cargue
 a las joyas. Reparto parejo entre bultos, destinos distintos.
 
+### 11b. Cada cifra, en un solo sitio; cada "$", con su nombre
+
+Escrita el 23/09/2026, después de la auditoría que encontró tres versiones de
+"cuánto cuesta el mes" y tres de "cuántas piezas para no perder", cada una con
+su resultado.
+
+- Los gastos fijos salen de `gastos_fijos_partidas()` y lo que deja cada pieza
+  de `plan_ventas()`. Una vista o una pantalla nueva que necesite esas cifras
+  las LEE de ahí, por las envolturas `*_admin()`. Copiar la fórmula es cómo
+  empezaron a no coincidir.
+- El empaque es gasto VARIABLE: se resta en lo que deja cada pieza, nunca se
+  suma a los gastos del mes.
+- En pantalla, `formatearBcv` o `formatearBinance`. `formatearMonto` solo en
+  una celda cuya cabecera dice "$ BCV" o "$ Binance".
+- Antes de una resta, las dos partes en la misma moneda **y a la misma tasa**.
+  Lo invertido a la tasa de hoy menos lo vendido a la tasa de cada venta no es
+  "lo que queda": es ruido de la brecha.
+
 ### 11. El mayoreo es una regla, no una lista
 
 **Los kits ya no existen.** Se quitaron en septiembre de 2026, con sus dos
@@ -255,7 +273,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-41 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+47 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 

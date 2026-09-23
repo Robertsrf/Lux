@@ -249,6 +249,8 @@ Apagados, nunca saturados. Ningún otro color existe; si hace falta uno nuevo, n
 
 **La regla del color medido.** Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.
 
+**La regla de las dos monedas.** En este negocio hay dos dólares y valen distinto. Todo "$" en pantalla dice cuál es: "$20,00 BCV" (el de la etiqueta) o "$14,50 Binance" (el que se compra afuera). En una tabla la moneda va en la cabecera ("Costo · $ Binance") y la celda lleva la cifra sola. Un "$" pelado es un defecto.
+
 ## Typography
 
 **Display Font:** Fraunces (sustituto de Bagind, la fuente de marca; Georgia de reserva)
@@ -395,21 +397,29 @@ Cabecera pegajosa en verde profundo con texto crema en label, esquinas superiore
 Borde completo y fondo teñido, sin franja lateral de color. Radio 16 px, Jost 14 px con título en label. Éxito, alerta y error tiñen borde al 38 % y fondo al 6–8 % de su color; el texto va en la variante legible.
 
 ### Tarjeta de modelo (mostrador)
-La tarjeta táctil de la cuadrícula de venta. Foto cuadrada arriba sobre panel hondo; debajo nombre en EB Garamond 16 px, precio en Fraunces 20 px tabular, existencia en label de 11 px (alerta si ≤ 2; con existencia cero no aparece) y un contador en píldora verde. Sube 3 px y pasa a sombra flotante al pasar, borde salvia; vuelve al presionar.
+La tarjeta táctil de la cuadrícula de venta, y la del catálogo público. Foto cuadrada arriba sobre panel hondo; debajo nombre en EB Garamond 16 px, **dos precios del mismo tamaño**, bolívares y $ BCV, uno sobre otro en Fraunces 20 px tabular, existencia en label de 11 px (alerta si ≤ 2; con existencia cero no aparece) y un contador en píldora verde. Sube 3 px y pasa a sombra flotante al pasar, borde salvia; vuelve al presionar.
 
 ### Barra del carrito
 Píldora flotante en verde profundo con sombra flotante, fija abajo por encima de la navegación. Piezas en label crema al 72 %, total en Fraunces 28 px, tramo alcanzado en oro y lo que falta en crema al 66 %. Botón de cobrar en oro con texto tinta.
 
 ### Vitrina (televisor)
-Verde profundo a sangre. Categoría en label oro, nombre en EB Garamond 56 px crema, regla ornamental, precio en Fraunces 56 px oro y dólares en 28 px crema al 78 %, materiales en prosa 20 px separados por línea de oro al 45 %. Cada cuatro piezas, una frase de marca centrada en EB Garamond de hasta 76 px. Clave de ubicación ("V1 · BG") en la esquina superior derecha, Jost 20 px crema al 66 % (4,86:1): para la vendedora, no para la clienta. Controles que se esconden a los 4 s y barra de progreso de 3 px en oro.
+Verde profundo a sangre. Categoría en label oro, nombre en EB Garamond 56 px crema, regla ornamental, **dos precios del mismo tamaño**, bolívares y $ BCV, los dos en Fraunces 56 px oro (hasta 92 px en televisores de más de 1600 px), materiales en prosa 20 px separados por línea de oro al 45 %. Cada cuatro piezas, una frase de marca centrada en EB Garamond de hasta 76 px. Clave de ubicación ("V1 · BG") en la esquina superior derecha, Jost 20 px crema al 66 % (4,86:1): para la vendedora, no para la clienta. Controles que se esconden a los 4 s y barra de progreso de 3 px en oro.
 
 ### Catálogo PDF
-Portada a página completa en verde profundo con el wordmark verde dentro de un recuadro crema, regla de oro con monograma, intro y materiales. Fichas en crema con fondo blanco, borde de 1 px, radio 12 px: foto cuadrada, SKU y existencia en Jost 10 px secundario, nombre en EB Garamond 16 px, material en oro de texto, precio en Fraunces 20 px, ubicación en el mismo tono que la existencia. Pie "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".
+Portada a página completa en verde profundo con el wordmark verde dentro de un recuadro crema, regla de oro con monograma, intro y materiales. Fichas en crema con fondo blanco, borde de 1 px, radio 12 px: foto cuadrada, SKU y existencia en Jost 10 px secundario, nombre en EB Garamond 16 px, material en oro de texto, bolívares y $ BCV en Fraunces 20 px los dos, ubicación en el mismo tono que la existencia. Pie "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".
+
+### Costos: la cifra que manda
+La única pantalla con una cifra protagonista de verdad: las piezas que hay que vender en el mes, en Fraunces 56 px (40 px en teléfono), con su unidad en label debajo y para qué alcanzan en EB Garamond 20 px. A su lado, en un panel, la mitad secundaria de la respuesta (las piezas para no perder). Debajo, una barra de avance del mes y una frase con el ritmo. La cuenta se enseña entera más abajo como cadena de pasos ("se vende en − mercancía − empaque = deja"), para que el número no se crea por fe.
+
+### Indicador con comparación (Reportes)
+Celda de tablero: etiqueta, valor y una línea que lo compara con el período anterior del mismo largo ("+12 % contra los 30 días anteriores"). El signo y las palabras cargan el mensaje; el color (éxito si sube, alerta de texto si baja) solo acompaña. Si la cifra lleva su moneda detrás, el valor baja a 28 px para caber en 160.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** poner todo precio en Fraunces 600 con `tabular-nums`.
+- **Do** decir de qué dólar es cada "$": BCV o Binance.
+- **Do** poner el precio en bolívares y en $ BCV del mismo tamaño en todo catálogo y en la vitrina.
 - **Do** medir el contraste contra el fondo real antes de usar un color para leer; 4,5:1 mínimo, sin excepción.
 - **Do** usar la variante de texto (`salvia-texto`, `oro-texto`, `alerta-texto`) sobre fondo claro.
 - **Do** hacer píldora todo botón, etiqueta y filtro.

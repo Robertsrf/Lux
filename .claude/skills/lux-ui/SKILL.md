@@ -188,7 +188,11 @@ La vendedora usa el pulgar con joyas en la otra mano. **Botones grandes, separad
 ## Componentes clave
 
 ### Tarjeta de modelo (cuadrícula de venta)
-Foto cuadrada arriba ocupando la mayor parte. Debajo: nombre en serif de cuerpo, precio en Bs en display serif, y existencia como etiqueta pequeña en Jost mayúsculas. Fondo blanco sobre crema, borde suave, radio `--radio-lg` y elevación `--sombra-1`, que sube a `--sombra-3` al tocarla.
+Foto cuadrada arriba ocupando la mayor parte. Debajo: nombre en serif de cuerpo, precio en Bs **y precio en $ BCV, uno sobre otro y del mismo tamaño**, los dos en display serif, y existencia como etiqueta pequeña en Jost mayúsculas.
+
+Los dos precios del mismo tamaño es decisión del dueño (septiembre de 2026): la clienta piensa en bolívares o en dólares, y ninguna de las dos monedas es la letra chica. Vale igual en el catálogo público, el catálogo PDF y la vitrina del televisor.
+
+**Todo "$" dice cuál es**: "$20,00 BCV" o "$14,50 Binance". En una tabla, la moneda va en la cabecera ("Costo · $ Binance") y la celda lleva la cifra sola. Fondo blanco sobre crema, borde suave, radio `--radio-lg` y elevación `--sombra-1`, que sube a `--sombra-3` al tocarla.
 
 Estado de existencia baja (≤2): etiqueta en `--alerta`. Existencia cero: la tarjeta no aparece.
 

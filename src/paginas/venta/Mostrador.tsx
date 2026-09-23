@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { formatearBs, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
+import { bcvDesdeBs, formatearBcv, formatearBs, formatearPorcentaje } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -235,9 +235,11 @@ export function Mostrador() {
           <span className="util secundario">Total a cobrar</span>
           <div>
             <div className="total-cobro__cifra">{formatearBs(carrito.totales.totalBs)}</div>
+            {/* Del mismo tamaño que los bolívares: si la clienta pregunta
+                "¿y en dólares?", la respuesta ya está a la vista. */}
             {tasa ? (
-              <div className="total-cobro__referencia">
-                Equivale a {formatearUsd(carrito.totales.totalBs / tasa.tasa_bcv)} al cambio BCV
+              <div className="total-cobro__cifra">
+                {formatearBcv(bcvDesdeBs(carrito.totales.totalBs, tasa.tasa_bcv))}
               </div>
             ) : null}
           </div>
@@ -411,6 +413,7 @@ export function Mostrador() {
                   {m.categoria ? <span className="tarjeta-modelo__categoria">{m.categoria}</span> : null}
                   <span className="tarjeta-modelo__nombre">{m.nombre}</span>
                   <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
+                  <span className="tarjeta-modelo__precio">{formatearBcv(m.precio_usd)}</span>
                   <span className="tarjeta-modelo__pie">
                     <span className={m.cantidad <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
                       Quedan {m.cantidad}

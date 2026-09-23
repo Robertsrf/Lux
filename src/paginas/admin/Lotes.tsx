@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearEntero, formatearFecha, formatearTasa, formatearUsd, previsualizarProrrateo } from '../../lib/dinero';
+import { formatearBinance, formatearEntero, formatearFecha, formatearMonto, formatearTasa, previsualizarProrrateo } from '../../lib/dinero';
 import type { LoteAdmin } from '../../lib/tipos';
 
 const HOY = () => new Date().toISOString().slice(0, 10);
@@ -200,19 +200,19 @@ export function Lotes() {
           <div className="rejilla rejilla--3">
             <div>
               <span className="dato__etiqueta">A mercancía</span>
-              <div className="dato__valor">{formatearUsd(vistaPrevia.fleteMercanciaUsd)}</div>
+              <div className="dato__valor">{formatearBinance(vistaPrevia.fleteMercanciaUsd)}</div>
             </div>
             <div>
               <span className="dato__etiqueta">A exhibidores</span>
-              <div className="dato__valor">{formatearUsd(vistaPrevia.fleteExhibidoresUsd)}</div>
+              <div className="dato__valor">{formatearBinance(vistaPrevia.fleteExhibidoresUsd)}</div>
             </div>
             <div>
               <span className="dato__etiqueta">CAPEX de tienda</span>
-              <div className="dato__valor">{formatearUsd(vistaPrevia.capexTiendaUsd)}</div>
+              <div className="dato__valor">{formatearBinance(vistaPrevia.capexTiendaUsd)}</div>
             </div>
             <div>
               <span className="dato__etiqueta">Flete por bulto</span>
-              <div className="cifra">{vistaPrevia.fletePorUnidadUsd === null ? '—' : formatearUsd(vistaPrevia.fletePorUnidadUsd, 4)}</div>
+              <div className="cifra">{vistaPrevia.fletePorUnidadUsd === null ? '—' : formatearBinance(vistaPrevia.fletePorUnidadUsd, 4)}</div>
             </div>
           </div>
           <p className="campo__pista">
@@ -247,10 +247,10 @@ export function Lotes() {
                 <th>Código</th>
                 <th>Llegada</th>
                 <th className="num">Tasa sellada</th>
-                <th className="num">Mercancía</th>
-                <th className="num">Flete a mercancía</th>
-                <th className="num">$/bulto</th>
-                <th className="num">CAPEX tienda</th>
+                <th className="num">Mercancía · $ Binance</th>
+                <th className="num">Flete a mercancía · $ Binance</th>
+                <th className="num">Por bulto · $ Binance</th>
+                <th className="num">Para la tienda · $ Binance</th>
                 <th className="num">Modelos</th>
                 <th></th>
               </tr>
@@ -261,10 +261,10 @@ export function Lotes() {
                   <td className="util">{l.codigo}</td>
                   <td>{formatearFecha(l.fecha_llegada)}</td>
                   <td className="num">{formatearTasa(l.tasa_binance_compra)}</td>
-                  <td className="num">{formatearUsd(l.costo_mercancia_usd)}</td>
-                  <td className="num">{formatearUsd(l.flete_mercancia_usd)}</td>
-                  <td className="num">{l.flete_por_unidad_usd === null ? '—' : formatearUsd(l.flete_por_unidad_usd, 4)}</td>
-                  <td className="num">{formatearUsd(l.capex_total_usd)}</td>
+                  <td className="num">{formatearMonto(l.costo_mercancia_usd)}</td>
+                  <td className="num">{formatearMonto(l.flete_mercancia_usd)}</td>
+                  <td className="num">{l.flete_por_unidad_usd === null ? '—' : formatearMonto(l.flete_por_unidad_usd, 4)}</td>
+                  <td className="num">{formatearMonto(l.capex_total_usd)}</td>
                   <td className="num">{l.modelos_cargados}</td>
                   <td>
                     <button type="button" className="boton boton--secundario" onClick={() => editar(l)}>Editar</button>

@@ -249,6 +249,15 @@ button:disabled { cursor: not-allowed; }
   color: var(--texto-fuerte);
 }
 .tablero__meta { font-size: var(--t-12); color: var(--texto-secundario); margin-top: var(--e-2); }
+/* Una cifra en dolares lleva su moneda detras ("$1.240 BCV"): a 40 px no
+   cabe en una celda de 160. Baja un paso de la escala, no inventa uno. */
+.tablero__cifra--dinero { font-size: var(--t-28); }
+
+/* Contra el periodo anterior. El signo y las palabras cargan el mensaje; el
+   color solo acompaña. */
+.comparacion { color: var(--texto-secundario); }
+.comparacion--sube { color: var(--exito); font-weight: 500; }
+.comparacion--baja { color: var(--alerta-texto); font-weight: 500; }
 
 .lista-datos { margin: 0; display: grid; gap: var(--e-4); }
 
@@ -904,6 +913,8 @@ table.tabla tfoot td {
   font-variant-numeric: tabular-nums; line-height: 1; color: var(--texto-fuerte);
 }
 .total-cobro__referencia { font-size: var(--t-14); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+/* El total en bolivares y en dolares BCV, del mismo tamaño. */
+.total-cobro__cifra + .total-cobro__cifra { margin-top: var(--e-2); }
 
 /* --- Acceso ---------------------------------------------------------- */
 
@@ -1138,7 +1149,7 @@ table.tabla tfoot td {
     display: flex; align-items: baseline; gap: var(--e-3);
     font-family: var(--fuente-display); font-size: var(--t-20);
   }
-  .ficha-inv__usd { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); }
+  .ficha-inv__usd { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); display: block; }
   .ficha-inv__datos {
     display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4);
     font-family: var(--fuente-ui); font-size: var(--t-12);
@@ -1817,4 +1828,63 @@ table.tabla tfoot td {
   .clientes { grid-template-columns: 1fr; }
   .compra__pieza { grid-template-columns: 48px 1fr auto; padding: var(--e-2); }
   .compra__pieza .miniatura { width: 48px; height: 48px; }
+}
+
+/* =====================================================================
+   Costos: la cifra que manda.
+
+   Una sola cifra protagonista en la pantalla, arriba y grande: las piezas
+   que hay que vender. Todo lo demás de la pantalla explica esa cifra o la
+   alimenta. La secundaria —las piezas para no perder— va al lado y más
+   chica, porque es la mitad de la misma respuesta.
+   ===================================================================== */
+
+.plan { display: grid; gap: var(--e-5); }
+
+.plan__cifras {
+  display: grid; gap: var(--e-5);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: end;
+}
+
+.plan__numero {
+  font-family: var(--fuente-display);
+  font-size: var(--t-56); font-weight: 600;
+  line-height: 1; letter-spacing: -0.02em;
+  color: var(--texto-fuerte);
+}
+.plan__unidad {
+  margin-top: var(--e-1);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.plan__para {
+  margin: var(--e-3) 0 0;
+  font-family: var(--fuente-prosa); font-size: var(--t-20); line-height: 1.3;
+  color: var(--texto-fuerte);
+}
+.plan__dia {
+  margin: var(--e-2) 0 0;
+  font-size: var(--t-14); font-weight: 500;
+  color: var(--texto);
+}
+
+.plan__secundaria {
+  padding: var(--e-4);
+  border-radius: var(--radio-md);
+  background: var(--panel);
+}
+
+.plan__ritmo {
+  margin: 0;
+  font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.45;
+  color: var(--texto);
+}
+.plan__ritmo strong { font-weight: 500; color: var(--texto-fuerte); }
+.plan__ritmo--bien strong { color: var(--exito); }
+
+@media (max-width: 560px) {
+  .plan__cifras { grid-template-columns: 1fr; align-items: start; }
+  .plan__numero { font-size: var(--t-40); }
 }

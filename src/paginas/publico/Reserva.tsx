@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
-import { cuentaRegresiva, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
+import { cuentaRegresiva, formatearBcv, formatearBs, formatearPorcentaje, precioEnBs } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
@@ -146,7 +146,7 @@ export function Reserva() {
               </div>
               <div>
                 <div className="total-cobro__cifra">{formatearBs(precioEnBs(reserva.total_usd, tasa))}</div>
-                <div className="total-cobro__referencia">{formatearUsd(reserva.total_usd)}</div>
+                <div className="total-cobro__cifra">{formatearBcv(reserva.total_usd)}</div>
               </div>
             </div>
 

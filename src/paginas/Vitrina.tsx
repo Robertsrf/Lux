@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
-import { formatearBs, formatearUsd } from '../lib/dinero';
+import { formatearBcv, formatearBs } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
@@ -239,8 +239,11 @@ export function Vitrina() {
                 <span /><Monograma tamano={26} /><span />
               </div>
 
+              {/* Bolívares y dólares BCV, del mismo tamaño y el mismo peso:
+                  quien mira de lejos piensa en una de las dos monedas, y
+                  ninguna tiene que ser la letra chica. */}
               <p className="vitrina__precio">{formatearBs(actual.modelo.precio_bs)}</p>
-              <p className="vitrina__precio-usd">{formatearUsd(actual.modelo.precio_usd)}</p>
+              <p className="vitrina__precio">{formatearBcv(actual.modelo.precio_usd)}</p>
 
               {textos.materiales_corto ? (
                 <p className="vitrina__materiales">{textos.materiales_corto}</p>

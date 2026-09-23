@@ -28,7 +28,8 @@
 .ficha__nombre { font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.2; }
 .ficha__variantes { font-size: var(--t-12); color: var(--texto-secundario); line-height: 1.3; }
 .ficha__precio { font-family: var(--fuente-display); font-size: var(--t-20); font-variant-numeric: tabular-nums; }
-.ficha__precio-usd { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); letter-spacing: var(--tracking); }
+/* Bolivares y dolares BCV, uno sobre otro y del mismo tamaño. */
+.ficha__precio + .ficha__precio { margin-top: 2px; }
 .ficha__sku { font-family: var(--fuente-ui); font-size: var(--t-12); letter-spacing: var(--tracking); color: var(--texto-secundario); }
 
 .catalogo__pie {

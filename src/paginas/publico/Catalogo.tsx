@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
-import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
+import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBcv, formatearBs, formatearPorcentaje, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
@@ -234,7 +234,7 @@ export function Catalogo() {
           </div>
           <div>
             <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
-            <div className="total-cobro__referencia">{formatearUsd(resumen.totalUsd)}</div>
+            <div className="total-cobro__cifra">{formatearBcv(resumen.totalUsd)}</div>
           </div>
         </div>
 
@@ -412,7 +412,10 @@ export function Catalogo() {
                       <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
                     ) : null}
                     {m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
+                    {/* Los dos precios del mismo tamaño: la clienta piensa en
+                        bolívares o en dólares, y ninguno es la letra chica. */}
                     <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
+                    <span className="tarjeta-modelo__precio">{formatearBcv(m.precio_usd)}</span>
                     <span className="tarjeta-modelo__pie">
                       <span className="tarjeta-modelo__datos">
                         <span className={m.disponible <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>

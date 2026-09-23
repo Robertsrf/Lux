@@ -191,22 +191,37 @@ export interface CuadreUbicacion {
   contado_en: string | null;
 }
 
+/**
+ * Vista v_ventas_por_dia. Todo en dolares BCV, con la tasa de cada venta.
+ *
+ * `ganancia_usd` resta a cada pieza su parte del alquiler calculada con las
+ * piezas que se ESPERABA vender: si se vende menos, enseña una ganancia que
+ * no existe. Las pantallas usan `contribucion_usd`, que es un hecho.
+ */
 export interface VentaPorDia {
   dia: string;
   ventas: number;
   piezas: number;
   total_bs: number;
+  /** Lo vendido, en dolares BCV. */
   total_usd: number;
   costo_usd: number;
   ganancia_usd: number;
+  /** Lo que costo la mercancia vendida, llevada a BCV con la brecha de ese dia. */
+  mercancia_usd: number;
+  /** Lo que dejaron las ventas despues de pagar la mercancia y el empaque. */
+  contribucion_usd: number;
 }
 
 export interface MezclaGrupo {
   grupo: string;
   orden: number;
   piezas: number;
+  /** Lo vendido, en dolares BCV. */
   ingreso_usd: number;
   ganancia_usd: number;
+  /** Lo que dejo despues de la mercancia y el empaque, en dolares BCV. */
+  contribucion_usd: number;
 }
 
 export interface RotacionModelo {
@@ -393,6 +408,53 @@ export interface Recuperacion {
   piezas_vendidas: number;
   activos_recuperado_pct: number | null;
   mercancia_recuperada_pct: number | null;
+  /** Lo mismo en la moneda en que se compro: dolares Binance. */
+  mercancia_vendida_real_usd: number;
+  mercancia_en_vitrina_real_usd: number;
+  /** Lo que dejaron todas las ventas despues de la mercancia y el empaque, en BCV. */
+  contribucion_acumulada_usd: number;
+  /** Alquiler, sueldos, servicios y otros de los meses que lleva abierta, en BCV. */
+  gastos_operativos_acumulados_usd: number;
+  meses_abierta: number;
+  gastos_operativos_mes_usd: number;
+}
+
+/**
+ * Vista v_plan_ventas: cuantas piezas hay que vender. Todo en dolares BCV
+ * salvo donde el nombre dice Binance. Una sola fila, solo para el
+ * administrador.
+ */
+export interface PlanVentas {
+  gastos_fijos_bcv: number;
+  empaque_bcv: number;
+  /** De donde sale el promedio: lo vendido en 90 dias, o lo que hay en vitrina. */
+  promedio_de: 'ventas' | 'vitrina' | 'nada';
+  piezas_promedio: number;
+  precio_promedio_bcv: number | null;
+  costo_promedio_binance: number | null;
+  /** La mercancia llevada a BCV con la brecha de hoy y la merma. */
+  costo_promedio_bcv: number | null;
+  brecha: number;
+  merma_pct: number;
+  /** Lo que deja cada pieza: precio − mercancia − empaque. */
+  contribucion_pieza_bcv: number | null;
+  contribucion_pct: number | null;
+  piezas_equilibrio_mes: number | null;
+  meta_ganancia_bcv: number;
+  piezas_meta_mes: number | null;
+  dias_abiertos_mes: number;
+  piezas_equilibrio_dia: number | null;
+  piezas_meta_dia: number | null;
+  vendidas_mes: number;
+  contribucion_mes_bcv: number;
+  dia_del_mes: number;
+  dias_del_mes: number;
+  /** A este paso, cuantas piezas cierra el mes. */
+  ritmo_piezas_mes: number | null;
+  /** Lo que dejo el mes hasta hoy menos los gastos del mes entero. */
+  resultado_mes_bcv: number;
+  resultado_proyectado_bcv: number | null;
+  resultado_proyectado_binance: number | null;
 }
 
 /** Vista v_equilibrio: cuántas piezas al mes tapan los gastos. */
@@ -531,6 +593,12 @@ export interface ClienteResumen {
   /** Hasta cuando le toca lavado y abrillantado, contado desde su ultima compra. */
   servicio_hasta: string | null;
   servicio_vigente: boolean;
+  /**
+   * Lo que ha comprado, en dolares BCV: la moneda de las etiquetas que ella
+   * vio. `total_usd` es la misma suma en dolares Binance, que no se parece a
+   * nada que ella haya pagado.
+   */
+  total_bcv: number;
 }
 
 /** Vista v_cliente_compras: una fila por pieza que se llevo. */

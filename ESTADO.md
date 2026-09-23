@@ -57,8 +57,8 @@ src/paginas/admin/       lo que usa el dueño. Viaja en archivos aparte.
 src/paginas/publico/     el catálogo que se comparte por WhatsApp. Sin sesión.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             36 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    41 comprobaciones de seguridad.
+esquema*.sql             37 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    47 comprobaciones de seguridad.
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 

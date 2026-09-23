@@ -70,21 +70,31 @@ function Vacio({ children }: { children: ReactNode }) {
 
 interface DiaGrafico {
   dia: string;
+  /** Lo que costó la mercancía vendida ese día. */
   costo: number;
+  /** Lo que dejó por encima de la mercancía y el empaque. */
   ganancia: number;
 }
 
 /**
- * Costo y ganancia apilados: juntos son lo cobrado ese día.
+ * Mercancía y lo que dejó, apilados: juntos son lo vendido ese día.
+ *
+ * Antes la parte de arriba era una "ganancia" que ya restaba el alquiler
+ * repartido con las piezas que se esperaba vender; un día flojo salía en
+ * cero aunque hubiera dejado dinero. Ahora es lo que dejó de verdad, y los
+ * gastos del mes se ven aparte, en "El mes".
  *
  * Apilados y no lado a lado a propósito. Así el alto de la columna ES el
  * ingreso, y de un vistazo se ve qué parte se quedó. Dos ejes distintos para
  * dos medidas —el error clásico de los tableros— aquí ni se plantea: las dos
  * son dólares y comparten escala.
  */
-export function GraficoDiario({ datos, formato, vacio }: {
+export function GraficoDiario({ datos, formato, eje = formato, vacio }: {
   datos: DiaGrafico[];
+  /** Para la etiqueta flotante: lleva la moneda, "$120,00 BCV". */
   formato: (n: number) => string;
+  /** Para las marcas del eje: la cifra sola, la moneda va en el título. */
+  eje?: (n: number) => string;
   vacio: ReactNode;
 }) {
   if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
@@ -95,15 +105,15 @@ export function GraficoDiario({ datos, formato, vacio }: {
         {/* Rejilla recesiva: guía la lectura sin competir con el dato. */}
         <CartesianGrid stroke={LINEA} strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="dia" {...EJE} />
-        <YAxis {...EJE} width={54} tickFormatter={(v) => formato(Number(v))} />
+        <YAxis {...EJE} width={54} tickFormatter={(v) => eje(Number(v))} />
         <Tooltip
           cursor={{ fill: 'rgba(31, 64, 69, 0.06)' }}
-          content={<Globo formato={formato} totalEtiqueta="Cobrado" />}
+          content={<Globo formato={formato} totalEtiqueta="Vendido" />}
         />
         <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
         {/* La ganancia va arriba de la pila: es lo que se busca al mirar. */}
-        <Bar dataKey="costo" name="Costo" stackId="a" fill={COSTO} />
-        <Bar dataKey="ganancia" name="Ganancia" stackId="a" fill={GANANCIA} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="costo" name="Mercancía" stackId="a" fill={COSTO} />
+        <Bar dataKey="ganancia" name="Te dejó" stackId="a" fill={GANANCIA} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -133,9 +143,10 @@ interface PartidaGrafico {
  * Horizontales porque las etiquetas son palabras: en vertical hay que torcer
  * la cabeza o el texto.
  */
-export function GraficoGastos({ datos, formato, vacio }: {
+export function GraficoGastos({ datos, formato, eje = formato, vacio }: {
   datos: PartidaGrafico[];
   formato: (n: number) => string;
+  eje?: (n: number) => string;
   vacio: ReactNode;
 }) {
   if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
@@ -144,7 +155,7 @@ export function GraficoGastos({ datos, formato, vacio }: {
     <ResponsiveContainer width="100%" height={Math.max(datos.length * 46 + 56, 190)}>
       <BarChart data={datos} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={LINEA} strokeDasharray="3 3" horizontal={false} />
-        <XAxis type="number" {...EJE} tickFormatter={(v) => formato(Number(v))} />
+        <XAxis type="number" {...EJE} tickFormatter={(v) => eje(Number(v))} />
         <YAxis
           type="category"
           dataKey="partida"
@@ -186,9 +197,10 @@ interface ValorCategoria {
  * cada pieza guardada su parte de alquiler seria contar un gasto que
  * todavia no ocurrio.
  */
-export function GraficoValor({ datos, formato, vacio }: {
+export function GraficoValor({ datos, formato, eje = formato, vacio }: {
   datos: ValorCategoria[];
   formato: (n: number) => string;
+  eje?: (n: number) => string;
   vacio: ReactNode;
 }) {
   if (datos.length === 0) return <Vacio>{vacio}</Vacio>;
@@ -197,7 +209,7 @@ export function GraficoValor({ datos, formato, vacio }: {
     <ResponsiveContainer width="100%" height={Math.max(datos.length * 44 + 56, 190)}>
       <BarChart data={datos} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={LINEA} strokeDasharray="3 3" horizontal={false} />
-        <XAxis type="number" {...EJE} tickFormatter={(v) => formato(Number(v))} />
+        <XAxis type="number" {...EJE} tickFormatter={(v) => eje(Number(v))} />
         <YAxis
           type="category"
           dataKey="categoria"
@@ -211,7 +223,7 @@ export function GraficoValor({ datos, formato, vacio }: {
           content={<Globo formato={formato} totalEtiqueta="A precio de etiqueta" />}
         />
         <Legend wrapperStyle={{ ...LETRA, color: SECUNDARIO, paddingTop: 8 }} />
-        <Bar dataKey="costo" name="Lo que costo" stackId="v" fill={COSTO} barSize={18} />
+        <Bar dataKey="costo" name="Reponerlas" stackId="v" fill={COSTO} barSize={18} />
         <Bar dataKey="margen" name="Margen bruto" stackId="v" fill={GANANCIA} radius={[0, 4, 4, 0]} barSize={18} />
       </BarChart>
     </ResponsiveContainer>

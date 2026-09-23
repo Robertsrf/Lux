@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../componentes/Piezas';
-import { formatearBs, formatearFecha, formatearUsd } from '../lib/dinero';
+import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { guardarCliente, useBuscarClientes, useCliente, useMesesServicio } from '../hooks/useClientes';
 import { METODOS_PAGO } from '../lib/tipos';
@@ -113,7 +113,7 @@ function Tarjeta({ cliente: c }: { cliente: ClienteResumen }) {
       <span className="cliente-tarjeta__compras">
         {c.compras === 0
           ? 'Todavía sin compras'
-          : `${c.compras} compra${c.compras === 1 ? '' : 's'} · ${c.piezas} pieza${c.piezas === 1 ? '' : 's'} · ${formatearUsd(c.total_usd)}`}
+          : `${c.compras} compra${c.compras === 1 ? '' : 's'} · ${c.piezas} pieza${c.piezas === 1 ? '' : 's'} · ${formatearBcv(c.total_bcv)}`}
       </span>
       {c.ultima_compra ? (
         <span className="cliente-tarjeta__pie">
@@ -214,7 +214,7 @@ function Ficha({ id }: { id: number | null }) {
               </div>
               <div>
                 <span className="dato__etiqueta">Ha comprado</span>
-                <span className="dato__valor precio">{formatearUsd(c.total_usd)}</span>
+                <span className="dato__valor precio">{formatearBcv(c.total_bcv)}</span>
               </div>
             </div>
           </div>

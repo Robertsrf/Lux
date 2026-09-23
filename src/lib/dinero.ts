@@ -159,11 +159,57 @@ export function previsualizarProrrateo(datos: DatosLote): Prorrateo {
 const NUM = (min: number, max: number) =>
   new Intl.NumberFormat('es-VE', { minimumFractionDigits: min, maximumFractionDigits: max });
 
-export function formatearUsd(valor: number | Monto | null | undefined, decimales = 2): string {
-  if (valor === null || valor === undefined) return '—';
+/*
+  LOS DOS DÓLARES, CADA UNO CON SU NOMBRE
+
+  En este negocio "$20" no dice nada: hay dos dólares y valen distinto.
+
+    $ BCV      el de la etiqueta. La clienta paga en bolívares a la tasa del
+               BCV. Precios, gastos de la tienda, margen y reportes.
+
+    $ Binance  el que se compra afuera, a la tasa de venta. Lo que costó la
+               mercancía y su flete, y lo que de verdad te queda para
+               reponer.
+
+  Antes había un solo `formatearUsd` que imprimía "$" y nada más, y la
+  pantalla de Inventario ponía un costo en Binance al lado de un costo en
+  BCV sin que se notara la diferencia. Ya no existe: cada cifra en dólares
+  dice cuál es. La única excepción es `formatearMonto`, para las celdas de
+  una tabla cuya CABECERA ya dice la moneda.
+*/
+
+function cifra(valor: number | Monto | null | undefined, decimales: number): string | null {
+  if (valor === null || valor === undefined) return null;
   const n = typeof valor === 'bigint' ? deMonto(valor) : valor;
-  if (!Number.isFinite(n)) return '—';
-  return '$' + NUM(decimales, decimales).format(n);
+  if (!Number.isFinite(n)) return null;
+  return (n < 0 ? '−$' : '$') + NUM(decimales, decimales).format(Math.abs(n));
+}
+
+/** Dólares BCV, los de la etiqueta: "$20,00 BCV". */
+export function formatearBcv(valor: number | Monto | null | undefined, decimales = 2): string {
+  const c = cifra(valor, decimales);
+  return c === null ? '—' : `${c} BCV`;
+}
+
+/** Dólares Binance, los que se compran afuera: "$14,50 Binance". */
+export function formatearBinance(valor: number | Monto | null | undefined, decimales = 2): string {
+  const c = cifra(valor, decimales);
+  return c === null ? '—' : `${c} Binance`;
+}
+
+/**
+ * Solo la cifra, "$20,00". ÚNICAMENTE para celdas de tabla cuya cabecera
+ * ya dice "$ BCV" o "$ Binance". En cualquier otro sitio, una de las dos
+ * de arriba.
+ */
+export function formatearMonto(valor: number | Monto | null | undefined, decimales = 2): string {
+  return cifra(valor, decimales) ?? '—';
+}
+
+/** Cuántos dólares BCV son unos bolívares, a una tasa BCV dada. */
+export function bcvDesdeBs(bs: number | null | undefined, tasaBcv: number | null | undefined): number | null {
+  if (bs === null || bs === undefined || !tasaBcv) return null;
+  return bs / tasaBcv;
 }
 
 export function formatearBs(valor: number | null | undefined): string {
@@ -180,6 +226,12 @@ export function formatearPorcentaje(valor: number | null | undefined, decimales 
 export function formatearTasa(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
   return NUM(2, 4).format(valor);
+}
+
+/** Un numero con decimales fijos y coma venezolana: 4,2 meses. */
+export function formatearDecimal(valor: number | null | undefined, decimales = 1): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
+  return NUM(decimales, decimales).format(valor);
 }
 
 export function formatearEntero(valor: number | null | undefined): string {

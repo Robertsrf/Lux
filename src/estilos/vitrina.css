@@ -130,7 +130,9 @@
 }
 .vitrina__regla .monograma { flex: none; }
 
-/* El precio es la cifra protagonista: display serif, siempre. */
+/* El precio es la cifra protagonista: display serif, siempre.
+   Van dos, bolivares y dolares BCV, y los dos con el mismo cuerpo: quien
+   mira de lejos piensa en una de las dos monedas y ninguna es letra chica. */
 .vitrina__precio {
   margin: 0;
   font-family: var(--fuente-display);
@@ -140,13 +142,7 @@
   color: var(--oro-arena);
   font-variant-numeric: tabular-nums;
 }
-.vitrina__precio-usd {
-  margin: var(--e-2) 0 0;
-  font-family: var(--fuente-display);
-  font-size: var(--t-28);
-  color: color-mix(in srgb, var(--crema) 78%, transparent);
-  font-variant-numeric: tabular-nums;
-}
+.vitrina__precio + .vitrina__precio { margin-top: var(--e-3); }
 
 .vitrina__materiales {
   margin: var(--e-6) 0 0;
@@ -271,7 +267,6 @@
   .vitrina__pieza { gap: 5rem; padding: var(--e-7) 5rem; }
   .vitrina__nombre,
   .vitrina__precio { font-size: clamp(var(--t-56), 4.4vw, 92px); }
-  .vitrina__precio-usd { font-size: var(--t-40); }
   .vitrina__materiales { font-size: var(--t-20); }
   .vitrina__clave { font-size: var(--t-28); }
   .vitrina .wordmark { height: 64px !important; }

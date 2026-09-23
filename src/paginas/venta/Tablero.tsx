@@ -18,17 +18,26 @@ export function Tablero() {
   const { perfil } = useSesion();
   const [dato, setDato] = useState<TableroDia | null>(null);
   const [metas, setMetas] = useState<Record<string, number>>({});
+  const [metaCalculada, setMetaCalculada] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       setCargando(true);
-      const [tab, cfg] = await Promise.all([
+      const [tab, cfg, meta] = await Promise.all([
         supabase.from('v_tablero_dia').select('*').maybeSingle(),
         supabase.from('configuracion').select('clave, valor'),
+        // La meta de piezas sale de las cuentas del mes: lo que hay que
+        // vender, repartido entre los dias que abre la tienda. Es un numero
+        // de piezas y nada mas; no deja deducir ningun costo.
+        supabase.rpc('meta_del_dia'),
       ]);
-      if (tab.error) setError(mensajeDeError(tab.error));
+      // Las dos que importan se miran. Si la meta calculada falla, se sigue
+      // con la de siempre: el tablero no se cae por eso.
+      const fallo = tab.error ?? cfg.error;
+      if (fallo) setError(mensajeDeError(fallo));
+      setMetaCalculada(typeof meta.data === 'number' && meta.data > 0 ? meta.data : null);
       setDato((tab.data as TableroDia | null) ?? null);
       const m: Record<string, number> = {};
       for (const f of (cfg.data as { clave: string; valor: number }[] | null) ?? []) m[f.clave] = Number(f.valor);
@@ -41,7 +50,10 @@ export function Tablero() {
 
   const piezas = dato?.piezas ?? 0;
   const premium = dato?.piezas_premium ?? 0;
-  const metaPiezas = metas['meta_piezas_dia'] ?? 0;
+  // Antes era un 4 escrito al instalar, sin relacion con lo que cuesta el
+  // mes. Si todavia no se pueden hacer las cuentas (faltan los dias que abre
+  // la tienda), se usa ese.
+  const metaPiezas = metaCalculada ?? metas['meta_piezas_dia'] ?? 0;
   const metaPremium = metas['meta_premium_dia'] ?? 0;
   const minPremium = metas['premium_min_usd'] ?? 20;
 
@@ -68,7 +80,7 @@ export function Tablero() {
         </div>
 
         <div className="tablero__celda">
-          <span className="dato__etiqueta">De ${formatearEntero(minPremium)} o mas</span>
+          <span className="dato__etiqueta">De ${formatearEntero(minPremium)} BCV o más</span>
           <div className="tablero__cifra">{formatearEntero(premium)}</div>
           {metaPremium > 0 ? (
             <div className="tablero__meta">

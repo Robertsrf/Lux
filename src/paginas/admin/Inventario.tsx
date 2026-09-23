@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Cargando, Campo, Vacio, Filtros } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, porCantidad, sumar } from '../../lib/dinero';
+import { aMonto, deMonto, formatearBcv, formatearBs, formatearMonto, formatearPorcentaje, porCantidad, sumar } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTextos } from '../../hooks/useTextos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
@@ -10,6 +10,7 @@ import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
+import type { ModeloAdmin } from '../../lib/tipos';
 
 
 /**
@@ -91,13 +92,32 @@ export function Inventario() {
     else await recargar();
   }
 
+  /*
+    La fila de totales. Antes restaba el costo en dolares BCV de una venta en
+    dolares BINANCE: dos monedas en una misma resta, y el margen que salia no
+    era de nada. Ahora cada total esta en la misma moneda que la columna que
+    suma, y solo entran las piezas que tienen precio: una sin precio pondria
+    su costo sin su venta y hundiria el margen.
+  */
   const totales = useMemo(() => {
     const piezas = modelos.reduce((n, m) => n + (m.existencia_total ?? 0), 0);
-    const costo = sumar(modelos.map((m) => porCantidad(aMonto(m.costo_total_usd ?? m.costo_puesto_usd), m.existencia_total ?? 0)));
-    // El inventario se valora en dolares REALES, no en etiqueta BCV:
-    // es lo unico comparable contra el costo puesto.
-    const venta = sumar(modelos.map((m) => porCantidad(aMonto(m.precio_usd_real ?? 0), m.existencia_total ?? 0)));
-    return { piezas, costoUsd: deMonto(costo), ventaUsd: deMonto(venta), margenUsd: deMonto(venta - costo) };
+    const conPrecio = modelos.filter((m) => m.precio_usd !== null);
+    const por = (f: (m: ModeloAdmin) => number | null) =>
+      sumar(conPrecio.map((m) => porCantidad(aMonto(f(m) ?? 0), m.existencia_total ?? 0)));
+    const costoBcv = por((m) => m.costo_total_usd);
+    const ventaBcv = por((m) => m.precio_usd);
+    const ventaBs = por((m) => m.precio_bs);
+    const gananciaBinance = por((m) => m.ganancia_real_usd);
+    const gananciaBcv = ventaBcv - costoBcv;
+    return {
+      piezas,
+      costoBcv: deMonto(costoBcv),
+      ventaBcv: deMonto(ventaBcv),
+      ventaBs: deMonto(ventaBs),
+      gananciaBinance: deMonto(gananciaBinance),
+      gananciaBcv: deMonto(gananciaBcv),
+      margenPct: ventaBcv > 0n ? (deMonto(gananciaBcv) / deMonto(ventaBcv)) * 100 : null,
+    };
   }, [modelos]);
 
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
@@ -215,12 +235,12 @@ export function Inventario() {
                   <th>Modelo</th>
                   <th>Grupo</th>
                   <th>Lote</th>
-                  <th className="num">Costo puesto</th>
-                  <th className="num">Costo total</th>
-                  <th className="num">Etiqueta $ BCV</th>
-                  <th className="num">Paga en Bs</th>
-                  <th className="num">Ganancia real $</th>
-                  <th className="num">Margen $</th>
+                  <th className="num">Costo puesto · $ Binance</th>
+                  <th className="num">Costo total · $ BCV</th>
+                  <th className="num">Etiqueta · $ BCV</th>
+                  <th className="num">Paga · Bs</th>
+                  <th className="num">Ganancia · $ Binance</th>
+                  <th className="num">Ganancia · $ BCV</th>
                   <th className="num">Margen %</th>
                   <th className="num">Existencia</th>
                 </tr>
@@ -266,16 +286,16 @@ export function Inventario() {
                       </td>
                       <td className="util">{m.grupo ?? '—'}</td>
                       <td className="util">{m.lote_codigo ?? '—'}</td>
-                      <td className="num">{formatearUsd(m.costo_puesto_usd, 4)}</td>
+                      <td className="num">{formatearMonto(m.costo_puesto_usd, 4)}</td>
                       <td className="num">
-                        {formatearUsd(m.costo_total_usd, 4)}
-                        <div className="celda-nota">{formatearUsd(m.costo_mercancia_bcv)} mercancía + {formatearUsd(m.costo_operativo_usd)} tienda</div>
+                        {formatearMonto(m.costo_total_usd, 4)}
+                        <div className="celda-nota">{formatearMonto(m.costo_mercancia_bcv)} mercancía + {formatearMonto(m.costo_operativo_usd)} tienda</div>
                       </td>
-                      <td className="num">{formatearUsd(m.precio_usd)}</td>
+                      <td className="num">{formatearMonto(m.precio_usd)}</td>
                       <td className="num precio">{formatearBs(m.precio_bs)}</td>
-                      <td className="num">{formatearUsd(m.ganancia_real_usd)}</td>
+                      <td className="num">{formatearMonto(m.ganancia_real_usd)}</td>
                       <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
-                        {formatearUsd(m.margen_usd)}
+                        {formatearMonto(m.margen_usd)}
                       </td>
                       <td className={m.margen_pct !== null && m.margen_pct < 0 ? 'num negativo' : 'num'}>
                         {formatearPorcentaje(m.margen_pct)}
@@ -292,11 +312,15 @@ export function Inventario() {
               </tbody>
               <tfoot>
                 <tr>
+                  {/* Una celda por columna, en la moneda de su cabecera. */}
                   <td colSpan={7}>{totales.piezas} piezas en esta pagina</td>
-                  <td className="num">{formatearUsd(totales.costoUsd)}</td>
-                  <td className="num" colSpan={3}>{formatearUsd(totales.ventaUsd)}</td>
-                  <td className="num" colSpan={2}>{formatearUsd(totales.margenUsd)}</td>
-                  <td colSpan={2}></td>
+                  <td className="num">{formatearMonto(totales.costoBcv)}</td>
+                  <td className="num">{formatearMonto(totales.ventaBcv)}</td>
+                  <td className="num">{formatearBs(totales.ventaBs)}</td>
+                  <td className="num">{formatearMonto(totales.gananciaBinance)}</td>
+                  <td className={totales.gananciaBcv < 0 ? 'num negativo' : 'num positivo'}>{formatearMonto(totales.gananciaBcv)}</td>
+                  <td className="num">{formatearPorcentaje(totales.margenPct)}</td>
+                  <td className="num">{totales.piezas}</td>
                 </tr>
               </tfoot>
             </table>
@@ -351,7 +375,7 @@ export function Inventario() {
                     <div className="ficha-inv__nombre">{m.nombre}</div>
                     <div className="ficha-inv__precio">
                       {formatearBs(m.precio_bs)}
-                      <span className="ficha-inv__usd">{formatearUsd(m.precio_usd)}</span>
+                      <span className="ficha-inv__usd">{formatearBcv(m.precio_usd)}</span>
                     </div>
                     <div className="ficha-inv__datos">
                       <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>

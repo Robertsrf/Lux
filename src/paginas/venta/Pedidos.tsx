@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
-import { cuentaRegresiva, formatearFecha, formatearUsd } from '../../lib/dinero';
+import { cuentaRegresiva, formatearBcv, formatearFecha } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import type { LineaPedido } from '../../lib/tipos';
 
@@ -81,7 +81,7 @@ export function Pedidos() {
                       {cabecera.cliente_telefono ?? 'Sin telefono'}
                       {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''} ·
                       {' '}{formatearFecha(cabecera.creado_en)} ·
-                      {' '}{cabecera.piezas_total} piezas · {formatearUsd(cabecera.total_usd)}
+                      {' '}{cabecera.piezas_total} piezas · {formatearBcv(cabecera.total_usd)}
                     </p>
                   </div>
                   {cabecera.estado === 'confirmada'

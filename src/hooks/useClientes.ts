@@ -4,7 +4,7 @@ import type { ClienteResumen, CompraCliente } from '../lib/tipos';
 
 const COLUMNAS =
   'id, cedula, cedula_digitos, nombre, apellido, nombre_completo, telefono, notas, creado_en,'
-  + ' compras, piezas, total_usd, primera_compra, ultima_compra, servicio_hasta, servicio_vigente';
+  + ' compras, piezas, total_usd, primera_compra, ultima_compra, servicio_hasta, servicio_vigente, total_bcv';
 
 /** Lo que PostgREST interpreta dentro de un `or()`: fuera antes de preguntar. */
 const limpiar = (s: string) => s.trim().replace(/[%,()]/g, ' ');

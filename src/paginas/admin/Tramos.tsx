@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { aplicarDescuento, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
+import { aplicarDescuento, formatearBinance, formatearMonto, formatearPorcentaje } from '../../lib/dinero';
 import type { Tramo } from '../../lib/tipos';
 
 interface Riesgo { nombre: string; margen: number }
@@ -130,8 +130,8 @@ export function Tramos() {
         {riesgoNuevo ? (
           <Aviso tono={riesgoNuevo.margen < 0 ? 'error' : riesgoNuevo.margen < 1 ? 'alerta' : 'exito'}>
             {riesgoNuevo.margen < 0
-              ? `Cuidado: con ${descuento} % de descuento, "${riesgoNuevo.nombre}" se venderia por debajo del costo (${formatearUsd(riesgoNuevo.margen)} de margen).`
-              : `Con ${descuento} % de descuento, la pieza mas ajustada del catalogo ("${riesgoNuevo.nombre}") aun deja ${formatearUsd(riesgoNuevo.margen)} de margen.`}
+              ? `Cuidado: con ${descuento} % de descuento, "${riesgoNuevo.nombre}" se venderia por debajo de lo que costo la mercancia (${formatearBinance(riesgoNuevo.margen)} de margen). La base no lo deja pasar del piso, asi que en esa pieza el descuento se quedaria corto.`
+              : `Con ${descuento} % de descuento, la pieza mas ajustada del catalogo ("${riesgoNuevo.nombre}") aun deja ${formatearBinance(riesgoNuevo.margen)} por encima de lo que costo la mercancia.`}
           </Aviso>
         ) : null}
 
@@ -153,7 +153,7 @@ export function Tramos() {
               <tr>
                 <th className="num">Desde</th>
                 <th className="num">Descuento</th>
-                <th className="num">Peor margen del catálogo</th>
+                <th className="num">Peor margen del catálogo · $ Binance</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -166,7 +166,7 @@ export function Tramos() {
                     <td className="num">{t.min_piezas} piezas</td>
                     <td className="num precio">{formatearPorcentaje(t.descuento_pct)}</td>
                     <td className={riesgo && riesgo.margen < 0 ? 'num negativo' : 'num'}>
-                      {riesgo ? formatearUsd(riesgo.margen) : '—'}
+                      {riesgo ? formatearMonto(riesgo.margen) : '—'}
                       {riesgo ? <div className="celda-nota">{riesgo.nombre}</div> : null}
                     </td>
                     <td>{t.activo ? <span className="etiqueta etiqueta--exito">Activo</span> : <span className="etiqueta">Inactivo</span>}</td>

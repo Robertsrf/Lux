@@ -59,8 +59,8 @@ src/
                 useInventario, useTextos, useFrases, useConsejos
   componentes/  Disposicion (armazón y navegación), Piezas (Aviso, Campo,
                 Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto,
-                Graficos, Recordatorio, CompartirCatalogo, BuscadorCliente,
-                RutaProtegida
+                Graficos, Progreso, Recordatorio, CompartirCatalogo,
+                BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos, Tasas,
                 Costos, Inversiones, Reportes, Textos
@@ -120,6 +120,7 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo, con dónde está cada pieza | vendedora y admin |
+| `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
@@ -137,6 +138,22 @@ Las `admin_*` llevan `if not es_admin() then raise` por dentro. **Ese guardián 
 va en una función que la vendedora necesite**: `es_admin()` mira `auth.uid()` y sigue
 dando falso dentro de una función de definidor, así que pondría la venta de rodillas.
 
+### Las dos fórmulas de las que sale toda cifra de dinero
+
+Desde `esquema-cuentas-claras.sql` hay **una** fórmula por cifra, y todas las
+pantallas leen de ella. Antes estaban copiadas en tres sitios cada una, y cada copia
+derivó por su lado: Costos y Reportes decían gastos distintos, y tres pantallas
+contestaban "cuántas piezas para no perder" con tres números.
+
+| Función | Da | La leen |
+|---|---|---|
+| `gastos_fijos_partidas()` | Los gastos fijos del mes, partida por partida, en $ BCV | `gastos_fijos_mes_bcv()`, Reportes, Inversiones |
+| `plan_ventas()` | Lo que deja cada pieza y cuántas hay que vender | Costos, Reportes, Inversiones, `meta_del_dia()` |
+
+Las dos están revocadas a todo el mundo. Las vistas del administrador las llaman
+por sus envolturas `*_admin()`, que devuelven nada a quien no lo sea. **Si una
+pantalla nueva necesita una de estas cifras, la lee de ahí; no la recalcula.**
+
 ---
 
 ## Las reglas de negocio vivas
@@ -144,6 +161,21 @@ dando falso dentro de una función de definidor, así que pondría la venta de r
 - **Dos monedas en el costo.** La mercancía y su flete nacen en dólares Binance y se
   multiplican por la brecha; el alquiler, los sueldos y el empaque nacen en BCV y no.
   El margen se reporta en dólares BCV, y aparte la ganancia en dólares reales.
+- **Cada "$" en pantalla dice cuál es.** `formatearBcv` ("$20,00 BCV") y
+  `formatearBinance` ("$14,50 Binance"), de `lib/dinero.ts`. `formatearMonto` da la
+  cifra sola y **solo** va en celdas de tabla cuya cabecera dice la moneda
+  ("Costo · $ Binance"). El viejo `formatearUsd`, que imprimía "$" pelado, no existe.
+- **Gasto fijo y gasto variable no se mezclan.** Fijo: se paga vendas o no
+  (alquiler, sueldos, servicios, la parte del mes de muebles y exhibidores). Variable:
+  se paga por pieza (mercancía y empaque). Lo que deja cada pieza = precio − mercancía
+  − empaque; piezas para no perder = gastos fijos ÷ eso. El empaque nunca va entre los
+  gastos del mes.
+- **La ganancia de verdad es la del mes.** Lo que dejaron las ventas del mes contra
+  los gastos del mes entero (`v_cobertura_mes`). Las columnas `ganancia_usd` de
+  `v_ventas_por_dia` y compañía restan el alquiler repartido con las piezas que se
+  ESPERABA vender: no se enseñan como ganancia. Las pantallas usan `contribucion_usd`.
+- **Precio en los catálogos: bolívares y $ BCV, del mismo tamaño.** Mostrador,
+  catálogo público, catálogo PDF y vitrina del televisor.
 - **El flete se reparte por bulto**, nunca por peso ni por valor. El peso ya no
   existe en el sistema: no lo reintroduzcas.
 - **Los exhibidores no son inventario**: su costo va a CAPEX de tienda. Sí pagan
@@ -163,12 +195,12 @@ dando falso dentro de una función de definidor, así que pondría la venta de r
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 41 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 47 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace dieciséis
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace diecisiete
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -181,6 +213,14 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
 ---
 
 ## Trampas que ya mordieron
+
+- **Una fórmula copiada es una fórmula que deriva.** Los gastos del mes estaban en
+  tres sitios y "cuántas piezas para no perder" en otros tres; en septiembre de 2026
+  ya daban números distintos en Costos, Reportes e Inversiones. Una cifra, un sitio.
+- **Dos tasas en una resta.** Inventario restaba un costo en $ BCV de una venta en
+  $ Binance, e Inversiones restaba lo invertido a la tasa de hoy menos lo vendido a
+  la tasa de cada venta. Antes de restar, las dos partes en la misma moneda y a la
+  misma tasa.
 
 - **Una vista no te presta su permiso para ejecutar funciones.** Postgres comprueba
   el `EXECUTE` contra quien consulta, no contra el dueño de la vista.

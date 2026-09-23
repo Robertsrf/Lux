@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
-import { aDolaresReales, aMonto, deMonto, formatearBs, formatearPorcentaje, formatearUsd, precioEnBs } from '../../lib/dinero';
+import { aDolaresReales, aMonto, deMonto, formatearBcv, formatearBinance, formatearBs, formatearPorcentaje, precioEnBs } from '../../lib/dinero';
 import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
@@ -329,7 +329,7 @@ export function FormularioModelo() {
             <Campo etiqueta="Lote" htmlFor="m-lote" pista="De el sale el flete que le toca a esta pieza.">
               <select id="m-lote" value={form.lote_id} onChange={(e) => cambiar('lote_id', e.target.value)}>
                 <option value="">Sin lote</option>
-                {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearUsd(l.flete_por_unidad_usd, 4)} por pieza`}</option>)}
+                {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearBinance(l.flete_por_unidad_usd, 4)} por pieza`}</option>)}
               </select>
             </Campo>
             <Campo etiqueta="Costo unitario $" htmlFor="m-costo">
@@ -342,7 +342,7 @@ export function FormularioModelo() {
               <select id="m-grupo" value={form.grupo_precio_id} onChange={(e) => cambiar('grupo_precio_id', e.target.value)}>
                 <option value="">Sin grupo</option>
                 {grupos.filter((g) => g.activo).map((g) => (
-                  <option key={g.id} value={g.id}>{g.nombre} · {formatearUsd(g.precio_usd)}</option>
+                  <option key={g.id} value={g.id}>{g.nombre} · {formatearBcv(g.precio_usd)}</option>
                 ))}
               </select>
             </Campo>
@@ -389,14 +389,14 @@ export function FormularioModelo() {
             <ol className="cadena">
               <li>
                 <span className="dato__etiqueta">1 · La pieza te costo</span>
-                <div className="dato__valor">{formatearUsd(sugerencia?.costo_puesto_usd ?? null, 4)}</div>
+                <div className="dato__valor">{formatearBinance(sugerencia?.costo_puesto_usd ?? null, 4)}</div>
                 <div className="campo__pista">
-                  dolares Binance · {formatearUsd(sugerencia?.flete_unitario_usd ?? null, 4)} de eso es flete
+                  {formatearBinance(sugerencia?.flete_unitario_usd ?? null, 4)} de eso es flete
                 </div>
               </li>
               <li>
-                <span className="dato__etiqueta">2 · En dolares BCV</span>
-                <div className="dato__valor">{formatearUsd(sugerencia?.costo_mercancia_bcv ?? null, 4)}</div>
+                <span className="dato__etiqueta">2 · Llevada a dolares BCV</span>
+                <div className="dato__valor">{formatearBcv(sugerencia?.costo_mercancia_bcv ?? null, 4)}</div>
                 <div className="campo__pista">
                   x {sugerencia?.factor_brecha ?? '—'} de brecha: lo que hace falta aqui para
                   volver a comprarla alla
@@ -404,19 +404,19 @@ export function FormularioModelo() {
               </li>
               <li>
                 <span className="dato__etiqueta">3 · Más lo que carga de tienda</span>
-                <div className="dato__valor">{formatearUsd(sugerencia?.costo_operativo_usd ?? null, 4)}</div>
-                <div className="campo__pista">alquiler, sueldo y empaque · ya en BCV, no se convierte</div>
+                <div className="dato__valor">{formatearBcv(sugerencia?.costo_operativo_usd ?? null, 4)}</div>
+                <div className="campo__pista">alquiler, sueldo y empaque · se pagan aqui, no se convierten</div>
               </li>
               <li>
                 <span className="dato__etiqueta">4 · Te sale en</span>
-                <div className="dato__valor">{formatearUsd(sugerencia?.costo_total_usd ?? null, 4)}</div>
-                <div className="campo__pista">dolares BCV · este es el costo de verdad</div>
+                <div className="dato__valor">{formatearBcv(sugerencia?.costo_total_usd ?? null, 4)}</div>
+                <div className="campo__pista">este es el costo de verdad</div>
               </li>
               <li className="cadena__final">
                 <span className="dato__etiqueta">5 · Precio sugerido</span>
-                <div className="dato__valor dato__valor--grande">{formatearUsd(sugerencia?.precio_sugerido_bcv ?? null)}</div>
+                <div className="dato__valor dato__valor--grande">{formatearBcv(sugerencia?.precio_sugerido_bcv ?? null)}</div>
                 <div className="campo__pista">
-                  dolares BCV · el costo entre (100 − {sugerencia?.margen_objetivo_pct ?? '—'} %)
+                  el costo entre (100 − {sugerencia?.margen_objetivo_pct ?? '—'} %)
                 </div>
               </li>
             </ol>
@@ -426,7 +426,7 @@ export function FormularioModelo() {
                 {sugerencia.grupo_alcanza ? (
                   <>
                     Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
-                    {' '}({formatearUsd(sugerencia.grupo_precio_bcv)} BCV), que deja
+                    {' '}({formatearBcv(sugerencia.grupo_precio_bcv)}), que deja
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen
                     {' '}ya contando la tienda. Se elige el grupo más barato que llegue
                     {' '}al {formatearPorcentaje(sugerencia.margen_piso_pct)} de piso, para no
@@ -446,8 +446,8 @@ export function FormularioModelo() {
                   </>
                 ) : (
                   <>
-                    Ningun grupo llega a {formatearUsd(sugerencia.precio_sugerido_bcv)}. El más caro es
-                    {' '}{sugerencia.grupo_nombre} ({formatearUsd(sugerencia.grupo_precio_bcv)}), que dejaria
+                    Ningun grupo llega a {formatearBcv(sugerencia.precio_sugerido_bcv)}. El más caro es
+                    {' '}{sugerencia.grupo_nombre} ({formatearBcv(sugerencia.grupo_precio_bcv)}), que dejaria
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
                   </>
                 )}
@@ -464,8 +464,7 @@ export function FormularioModelo() {
             <div className="rejilla rejilla--3">
               <div>
                 <span className="dato__etiqueta">Etiqueta</span>
-                <div className="dato__valor">{formatearUsd(precioBcv)}</div>
-                <div className="campo__pista">dolares BCV</div>
+                <div className="dato__valor">{formatearBcv(precioBcv)}</div>
               </div>
               <div>
                 <span className="dato__etiqueta">Paga la clienta</span>
@@ -474,7 +473,7 @@ export function FormularioModelo() {
               </div>
               <div>
                 <span className="dato__etiqueta">Menos el costo</span>
-                <div className="dato__valor">{formatearUsd(costoTotalBcv)}</div>
+                <div className="dato__valor">{formatearBcv(costoTotalBcv)}</div>
                 <div className="campo__pista">el del paso 4</div>
               </div>
               <div>
@@ -483,13 +482,13 @@ export function FormularioModelo() {
                     dejara siete dolares limpios. */}
                 <span className="dato__etiqueta">Ganancia</span>
                 <div className={ganancia !== null && ganancia < 0 ? 'dato__valor dato__valor--grande negativo' : 'dato__valor dato__valor--grande positivo'}>
-                  {formatearUsd(ganancia)}
+                  {formatearBcv(ganancia)}
                 </div>
-                <div className="campo__pista">dolares BCV · {formatearPorcentaje(margenPct)} del precio</div>
+                <div className="campo__pista">{formatearPorcentaje(margenPct)} del precio</div>
               </div>
               <div>
                 <span className="dato__etiqueta">Eso, en Binance</span>
-                <div className="dato__valor">{formatearUsd(gananciaReal)}</div>
+                <div className="dato__valor">{formatearBinance(gananciaReal)}</div>
                 <div className="campo__pista">lo que puedes cambiar y reinvertir</div>
               </div>
             </div>
@@ -497,7 +496,7 @@ export function FormularioModelo() {
             {sugerencia?.precio_minimo_bcv ? (
               <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
                 <strong style={{ display: 'inline' }}>Para negociar:</strong> la vendedora
-                puede bajar hasta {formatearUsd(sugerencia.precio_minimo_bcv)} BCV
+                puede bajar hasta {formatearBcv(sugerencia.precio_minimo_bcv)}
                 {' '}({formatearBs(precioEnBs(sugerencia.precio_minimo_bcv, tasa))}) sin pedirte
                 permiso, y ahi la pieza todavia deja
                 {' '}{formatearPorcentaje(sugerencia.margen_en_el_piso_pct)}. Por debajo de eso

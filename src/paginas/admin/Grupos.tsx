@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearBs, formatearUsd, precioEnBs } from '../../lib/dinero';
+import { formatearBs, formatearTasa, precioEnBs } from '../../lib/dinero';
 import { useGrupos } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 
@@ -115,8 +115,8 @@ export function Grupos() {
             <thead>
               <tr>
                 <th>Grupo</th>
-                <th className="num">Precio $</th>
-                <th className="num">Precio Bs</th>
+                <th className="num">Precio · $ BCV</th>
+                <th className="num">Precio · Bs</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -156,7 +156,7 @@ export function Grupos() {
               })}
             </tbody>
             <tfoot>
-              <tr><td colSpan={5}>{grupos.length} grupos · el precio del grupo esta en dolares BCV; los bolivares salen de la tasa BCV vigente ({formatearUsd(1)} = {formatearBs(1)})</td></tr>
+              <tr><td colSpan={5}>{grupos.length} grupos · el precio del grupo esta en dolares BCV; los bolivares salen de la tasa BCV vigente ({tasa ? `$1 BCV = Bs ${formatearTasa(tasa.tasa_bcv)}` : 'sin tasa vigente'})</td></tr>
             </tfoot>
           </table>
         </div>

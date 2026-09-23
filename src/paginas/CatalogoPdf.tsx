@@ -3,7 +3,7 @@ import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { CompartirCatalogo } from '../componentes/CompartirCatalogo';
 import { Monograma, Wordmark } from '../componentes/Marca';
-import { formatearBs, formatearFecha, formatearUsd } from '../lib/dinero';
+import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
@@ -142,7 +142,7 @@ export function CatalogoPdf() {
                   ) : null}
                   <div>
                     <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
-                    <div className="ficha__precio-usd">{formatearUsd(m.precio_usd)}</div>
+                    <div className="ficha__precio">{formatearBcv(m.precio_usd)}</div>
                     <div className="ficha__existencia">
                       {m.existencia_total === 1 ? 'Queda 1 pieza' : `Quedan ${m.existencia_total} piezas`}
                     </div>

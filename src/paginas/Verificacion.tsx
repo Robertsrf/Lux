@@ -213,6 +213,32 @@ export function Verificacion() {
       bien: valido(nueva.error),
     });
 
+    // Una sola cifra de gastos en todo el sistema. Antes Costos y Reportes
+    // enseñaban dos distintas: Reportes metia el empaque como gasto del mes.
+    // Si alguna vista vuelve a copiar la formula por su cuenta, esto lo ve.
+    const [gPlan, gDx, gDesglose, gCobertura] = await Promise.all([
+      supabase.from('v_plan_ventas').select('gastos_fijos_bcv').maybeSingle(),
+      supabase.from('v_diagnostico').select('gastos_mes_usd').maybeSingle(),
+      supabase.from('v_gastos_desglose').select('monto_usd'),
+      supabase.from('v_cobertura_mes').select('gastos_mes_usd').maybeSingle(),
+    ]);
+    const cifras = [
+      Number((gPlan.data as { gastos_fijos_bcv: number } | null)?.gastos_fijos_bcv ?? NaN),
+      Number((gDx.data as { gastos_mes_usd: number } | null)?.gastos_mes_usd ?? NaN),
+      ((gDesglose.data as { monto_usd: number }[] | null) ?? []).reduce((a, f) => a + Number(f.monto_usd), 0),
+      Number((gCobertura.data as { gastos_mes_usd: number } | null)?.gastos_mes_usd ?? NaN),
+    ];
+    const falloGastos = gPlan.error ?? gDx.error ?? gDesglose.error ?? gCobertura.error;
+    const iguales = cifras.every((c) => Number.isFinite(c) && Math.abs(c - cifras[0]!) < 0.05);
+    resultados.push({
+      nombre: 'Los gastos del mes, una sola cifra',
+      esperado: esAdmin ? 'Costos, Reportes y el desglose dicen lo mismo' : 'Solo se puede comprobar como administrador',
+      obtenido: falloGastos
+        ? `Fallo: ${falloGastos.message}`
+        : cifras.map((c) => (Number.isFinite(c) ? c.toFixed(2) : '—')).join(' · '),
+      bien: !esAdmin || (!falloGastos && iguales),
+    });
+
     // Se solto con esquema-limpieza-kits.sql. Estaba otorgada a la
     // vendedora y ya no la llamaba ninguna pantalla.
     const kit = await supabase.rpc('registrar_venta_kit', { p_kit_id: -1 });

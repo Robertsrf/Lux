@@ -1,52 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearFecha, formatearPorcentaje, formatearUsd } from '../../lib/dinero';
-import type { Equilibrio, Inversion, Recuperacion } from '../../lib/tipos';
+import { Progreso } from '../../componentes/Progreso';
+import { formatearBcv, formatearBinance, formatearDecimal, formatearFecha } from '../../lib/dinero';
+import type { Inversion, Recuperacion } from '../../lib/tipos';
 
 const CATEGORIAS = ['mobiliario', 'exhibidor', 'equipo', 'local', 'otro'];
 
-function Progreso({ titulo, hecho, total, pct, pie }: {
-  titulo: string; hecho: number; total: number; pct: number | null; pie?: string;
-}) {
-  const p = Math.max(0, Math.min(pct ?? 0, 100));
-  return (
-    <div className="progreso">
-      <div className="progreso__cabecera">
-        <span className="progreso__titulo">{titulo}</span>
-        <span className="progreso__cifra">{formatearPorcentaje(pct, 0)}</span>
-      </div>
-      <div
-        className="progreso__riel"
-        role="progressbar"
-        aria-valuenow={Math.round(p)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={titulo}
-      >
-        <div
-          className={p >= 100 ? 'progreso__relleno progreso__relleno--completo' : 'progreso__relleno'}
-          style={{ transform: `scaleX(${p / 100})` }}
-        />
-      </div>
-      <div className="progreso__pie">
-        {formatearUsd(hecho)} de {formatearUsd(total)}{pie ? ` · ${pie}` : ''}
-      </div>
-    </div>
-  );
-}
+/** Cada inversión en la moneda en que se pagó. */
+const enSuMoneda = (i: Inversion) => (i.moneda === 'real' ? formatearBinance(i.monto_usd) : formatearBcv(i.monto_usd));
 
 /**
  * Lo invertido y cuánto ha vuelto.
  *
- * Cada inversión decide si se AMORTIZA —entra al costo de cada pieza y
- * sube los precios— o si solo se RECUPERA de la ganancia. Una vitrina
- * cara puede seguirse sin disparar la etiqueta de un anillo.
+ * DOS COSAS DISTINTAS, DOS BARRAS DISTINTAS
+ *
+ * La MERCANCÍA vuelve sola al venderla: cada pieza que sale devuelve lo
+ * que costó. Se cuenta en dólares Binance, que es como se compró; así
+ * "vendido" y "en vitrina" suman lo invertido sin que ninguna tasa se
+ * cuele en la resta. Antes se restaba lo invertido a la tasa de hoy menos
+ * lo vendido a la tasa de cada venta, y la barra no cuadraba.
+ *
+ * Los MUEBLES Y EXHIBIDORES vuelven de lo que sobra: lo que dejaron las
+ * ventas menos el alquiler, los sueldos y los servicios de esos meses.
+ * Antes se usaba una "ganancia" que ya traía restada la parte de los
+ * muebles, y después se medía contra el total de los muebles: se pagaban
+ * dos veces y la barra avanzaba a la mitad de lo real.
+ *
+ * Cuántas piezas vender al mes ya no se calcula aquí: vive en Costos, que
+ * es la única cuenta. Antes esta pantalla tenía la suya, con otro
+ * resultado.
  */
 export function Inversiones() {
   const [lista, setLista] = useState<Inversion[]>([]);
   const [rec, setRec] = useState<Recuperacion | null>(null);
-  const [eq, setEq] = useState<Equilibrio | null>(null);
   const [nombre, setNombre] = useState('');
   const [categoria, setCategoria] = useState('mobiliario');
   const [monto, setMonto] = useState('');
@@ -58,15 +46,14 @@ export function Inversiones() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    const [i, r, e] = await Promise.all([
+    const [i, r] = await Promise.all([
       supabase.from('inversiones').select('*').order('fecha', { ascending: false }),
       supabase.from('v_recuperacion').select('*').maybeSingle(),
-      supabase.from('v_equilibrio').select('*').maybeSingle(),
     ]);
-    if (i.error) setError(mensajeDeError(i.error));
+    const fallo = i.error ?? r.error;
+    setError(fallo ? mensajeDeError(fallo) : null);
     setLista((i.data as Inversion[] | null) ?? []);
     setRec((r.data as Recuperacion | null) ?? null);
-    setEq((e.data as Equilibrio | null) ?? null);
     setCargando(false);
   }, []);
 
@@ -87,122 +74,123 @@ export function Inversiones() {
   }
 
   async function borrar(inv: Inversion) {
-    if (!window.confirm(`Quitar "${inv.nombre}" de las inversiones?`)) return;
+    if (!window.confirm(`¿Quitar "${inv.nombre}" de las inversiones?`)) return;
     const { error: err } = await supabase.from('inversiones').delete().eq('id', inv.id);
     if (err) setError(mensajeDeError(err)); else await cargar();
   }
 
-  if (cargando) return <Cargando texto="Calculando la recuperacion" />;
+  if (cargando) return <Cargando texto="Calculando lo que ha vuelto" />;
+
+  const sobra = rec ? Number(rec.ganancia_acumulada_usd) : 0;
 
   return (
     <div className="pagina pagina--angosta">
       <div className="encabezado-pagina">
         <div>
           <h1>Inversiones</h1>
-          <p>Lo que pusiste en el negocio y cuanto ha vuelto. Se recupera de la ganancia, no del precio de las piezas.</p>
+          <p>Lo que pusiste en el negocio y cuánto ha vuelto.</p>
         </div>
       </div>
 
-      <Ayuda titulo="Solo seguirla o meterla al precio">
-        <p>
-          Cada inversion se puede llevar de dos maneras, y la diferencia es
-          grande.
-        </p>
-        <p>
-          <strong>Solo seguirla.</strong> No toca los precios. Se recupera de la
-          ganancia que ya dejan las ventas, y la barra de arriba te dice cuanto
-          va. Es lo sensato para lo que se compra una vez.
-        </p>
-        <p>
-          <strong>Meterla al precio.</strong> Se reparte entre las piezas que
-          vendas durante los meses que digas, así que sube el precio de todo.
-          Se paga sola, pero te hace más caro que la competencia mientras dure.
-        </p>
-        <p>
-          <strong>Donde la pagaste importa.</strong> Si la compraste aqui en
-          bolivares es un dolar BCV; si la trajiste de afuera es un dolar
-          Binance y hay que convertirla. El sistema pregunta cual es porque son
-          cantidades de dinero distintas.
-        </p>
-      </Ayuda>
-
-
-      {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
+      {error ? <Aviso tono="error" titulo="Algo no cuadró">{error}</Aviso> : null}
 
       {rec ? (
         <div className="tarjeta">
-          <h2>Cuánto has recuperado</h2>
+          <h2>Cuánto ha vuelto</h2>
           <hr className="divisor" />
 
-          <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
-            Todo en dolares BCV, para que las dos barras se puedan comparar y
-            sumar. La mercancia se compro en Binance: reponerla entera cuesta
-            {' '}{formatearUsd(rec.invertido_mercancia_real_usd)} de aquellos.
-          </p>
-
           <div className="pila">
-            <Progreso
-              titulo="Mercancía"
-              hecho={Number(rec.mercancia_recuperada_usd)}
-              total={Number(rec.invertido_mercancia_usd)}
-              pct={rec.mercancia_recuperada_pct}
-              pie={`quedan ${formatearUsd(rec.mercancia_en_vitrina_usd)} en vitrina · se recupera al venderla`}
-            />
-            <Progreso
-              titulo="Muebles y exhibidores"
-              hecho={Math.max(Number(rec.ganancia_acumulada_usd), 0)}
-              total={Number(rec.invertido_activos_usd)}
-              pct={rec.activos_recuperado_pct}
-              pie="se pagan con la ganancia acumulada"
-            />
+            <div>
+              <Progreso
+                titulo="Mercancía"
+                pct={rec.mercancia_recuperada_pct}
+                pie={`${formatearBinance(rec.mercancia_vendida_real_usd, 0)} vendidos de ${formatearBinance(rec.invertido_mercancia_real_usd, 0)} · quedan ${formatearBinance(rec.mercancia_en_vitrina_real_usd, 0)} en vitrina`}
+              />
+              <p className="campo__pista">
+                En dólares Binance, como se compró. Vuelve sola al venderse: cada pieza que sale
+                devuelve lo que costó.
+              </p>
+            </div>
+
+            <div>
+              <Progreso
+                titulo="Muebles y exhibidores"
+                pct={rec.activos_recuperado_pct}
+                pie={`${formatearBcv(Math.max(sobra, 0), 0)} de ${formatearBcv(rec.invertido_activos_usd, 0)}`}
+              />
+              <p className="campo__pista">
+                En dólares BCV. Vuelven de lo que sobra después de pagar el día a día.
+              </p>
+            </div>
           </div>
 
           <div className="panel">
-            <div className="rejilla rejilla--3">
-              <div>
-                <span className="dato__etiqueta">Invertido en total</span>
-                <div className="dato__valor">{formatearUsd(rec.invertido_total_usd)}</div>
-              </div>
-              <div>
-                <span className="dato__etiqueta">Ganancia acumulada</span>
-                <div className={Number(rec.ganancia_acumulada_usd) < 0 ? 'dato__valor negativo' : 'dato__valor'}>
-                  {formatearUsd(rec.ganancia_acumulada_usd)}
+            <span className="panel__titulo">De dónde sale lo que ha vuelto</span>
+            <ol className="cadena">
+              <li>
+                <span className="dato__etiqueta">Las ventas dejaron</span>
+                <div className="dato__valor">{formatearBcv(rec.contribucion_acumulada_usd, 0)}</div>
+                <div className="campo__pista">
+                  en {rec.piezas_vendidas} piezas, después de la mercancía y el empaque
                 </div>
-                <div className="campo__pista">ya sin gastos</div>
-              </div>
-              <div>
-                <span className="dato__etiqueta">Piezas vendidas</span>
-                <div className="dato__valor">{rec.piezas_vendidas}</div>
-              </div>
-            </div>
+              </li>
+              <li>
+                <span className="dato__etiqueta">Menos el día a día</span>
+                <div className="dato__valor">{formatearBcv(rec.gastos_operativos_acumulados_usd, 0)}</div>
+                <div className="campo__pista">
+                  alquiler, sueldos y servicios de {formatearDecimal(rec.meses_abierta)} meses
+                  {' '}a {formatearBcv(rec.gastos_operativos_mes_usd, 0)} al mes
+                </div>
+              </li>
+              <li className="cadena__final">
+                <span className="dato__etiqueta">Ha vuelto</span>
+                <div className={sobra < 0 ? 'dato__valor dato__valor--grande negativo' : 'dato__valor dato__valor--grande'}>
+                  {formatearBcv(sobra, 0)}
+                </div>
+                <div className="campo__pista">
+                  {sobra < 0 ? 'todavía no alcanza para el día a día' : 'para pagar lo invertido'}
+                </div>
+              </li>
+            </ol>
+            <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
+              Los meses pasados se cuentan con los gastos de hoy: el sistema no guarda cuánto era el
+              alquiler hace tres meses. Si subió o bajó, la cifra se corre un poco.
+            </p>
           </div>
+
+          <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+            Invertido en total: {formatearBcv(rec.invertido_total_usd, 0)}, todo llevado a
+            dólares BCV con la brecha de hoy. Cuántas piezas vender al mes para cubrir los
+            gastos está en <Link to="/admin/costos">Costos</Link>.
+          </p>
         </div>
       ) : null}
 
-      {eq ? (
-        <div className="tarjeta" style={{ marginTop: 'var(--e-4)' }}>
-          <h2>Cuánto hay que vender al mes</h2>
-          <hr className="divisor" />
-          {eq.piezas_para_equilibrio ? (
-            <Aviso tono="neutro">
-              Con lo que deja cada pieza hoy ({formatearUsd(eq.contribucion_por_pieza_usd)} por encima de su costo),
-              necesitas vender <strong style={{ display: 'inline' }}>{eq.piezas_para_equilibrio} piezas al mes</strong> solo
-              para tapar los {formatearUsd(eq.gastos_mes_usd)} de gastos. De ahi en adelante, todo es ganancia.
-            </Aviso>
-          ) : (
-            <Aviso tono="alerta">
-              Todavia no hay ventas suficientes para saber cuanto deja cada pieza. Tus gastos del mes
-              son {formatearUsd(eq.gastos_mes_usd)}.
-            </Aviso>
-          )}
-        </div>
-      ) : null}
+      <Ayuda titulo="Solo seguirla o meterla al precio">
+        <p>
+          Cada inversión se puede llevar de dos maneras, y la diferencia es grande.
+        </p>
+        <p>
+          <strong>Solo seguirla.</strong> No toca los precios. Se recupera de lo que sobra de las
+          ventas, y la barra de arriba te dice cuánto va. Es lo sensato para lo que se compra una vez.
+        </p>
+        <p>
+          <strong>Meterla al precio.</strong> Se reparte en los gastos de los meses que digas, así
+          que sube el precio sugerido de todo y las piezas que necesitas vender. Se paga sola, pero
+          te hace más caro mientras dure.
+        </p>
+        <p>
+          <strong>Dónde la pagaste importa.</strong> Si la compraste aquí en bolívares es un dólar
+          BCV; si la trajiste de afuera es un dólar Binance y hay que convertirla. Son cantidades de
+          dinero distintas.
+        </p>
+      </Ayuda>
 
-      <h2 className="seccion-titulo">Agregar inversion</h2>
+      <h2 className="seccion-titulo">Agregar inversión</h2>
 
       <form className="tarjeta" onSubmit={(e) => void agregar(e)}>
         <div className="fila">
-          <Campo etiqueta="Que compraste" htmlFor="i-nombre" pista="Vitrina 1, mueble del mostrador, aire acondicionado...">
+          <Campo etiqueta="Qué compraste" htmlFor="i-nombre" pista="Vitrina 1, mueble del mostrador, aire acondicionado...">
             <input id="i-nombre" required value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </Campo>
           <Campo etiqueta="Categoría" htmlFor="i-cat">
@@ -210,19 +198,19 @@ export function Inversiones() {
               {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta="Cuánto costo $" htmlFor="i-monto">
-            <input id="i-monto" type="number" min="0.01" step="0.01" required value={monto} onChange={(e) => setMonto(e.target.value)} />
-          </Campo>
-          <Campo etiqueta="Lo pagaste" htmlFor="i-moneda" pista="Aquí en bolivares son dolares BCV. Traido de afuera es dolar Binance.">
+          <Campo etiqueta="Dónde la pagaste" htmlFor="i-moneda">
             <select id="i-moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'bcv' | 'real')}>
-              <option value="bcv">Aquí, en bolivares</option>
-              <option value="real">Afuera, en dolares Binance</option>
+              <option value="bcv">Aquí, en bolívares · $ BCV</option>
+              <option value="real">Afuera · $ Binance</option>
             </select>
+          </Campo>
+          <Campo etiqueta={moneda === 'real' ? 'Cuánto costó · $ Binance' : 'Cuánto costó · $ BCV'} htmlFor="i-monto">
+            <input id="i-monto" type="number" min="0.01" step="0.01" inputMode="decimal" required value={monto} onChange={(e) => setMonto(e.target.value)} />
           </Campo>
         </div>
 
         <div className="panel">
-          <span className="panel__titulo">Como se paga</span>
+          <span className="panel__titulo">Cómo se paga</span>
           <div className="metodos-pago">
             <button type="button" aria-pressed={!amortiza} onClick={() => setAmortiza(false)}>
               Solo seguirla
@@ -233,12 +221,12 @@ export function Inversiones() {
           </div>
           <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
             {amortiza
-              ? 'Se reparte en el costo de cada pieza durante los meses que digas. Sube los precios, pero se paga sola.'
-              : 'No toca los precios. Se recupera de la ganancia y la ves subir en la barra de arriba.'}
+              ? 'Se reparte en los gastos de los meses que digas. Sube el precio sugerido y las piezas que necesitas vender, pero se paga sola.'
+              : 'No toca los precios. Se recupera de lo que sobra de las ventas y la ves subir en la barra de arriba.'}
           </p>
           {amortiza ? (
             <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
-              <Campo etiqueta="En cuantos meses" htmlFor="i-meses">
+              <Campo etiqueta="En cuántos meses" htmlFor="i-meses">
                 <input id="i-meses" type="number" min="1" step="1" value={meses} onChange={(e) => setMeses(e.target.value)} />
               </Campo>
             </div>
@@ -261,8 +249,8 @@ export function Inversiones() {
           <table className="tabla">
             <thead>
               <tr>
-                <th>Que</th><th>Categoría</th><th className="num">Monto</th>
-                <th>Como se paga</th><th>Fecha</th><th></th>
+                <th>Qué</th><th>Categoría</th><th className="num">Costó</th>
+                <th>Cómo se paga</th><th>Fecha</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -270,14 +258,14 @@ export function Inversiones() {
                 <tr key={i.id}>
                   <td className="celda-nombre">{i.nombre}</td>
                   <td className="util">{i.categoria}</td>
-                  <td className="num">
-                    {formatearUsd(i.monto_usd)}
-                    <div className="celda-nota">{i.moneda === 'real' ? 'Binance' : 'BCV'}</div>
-                  </td>
+                  {/* Cada fila en su moneda: aquí la columna mezcla las dos a
+                      propósito, así que la etiqueta va en la cifra y no en la
+                      cabecera. */}
+                  <td className="num">{enSuMoneda(i)}</td>
                   <td>
                     {i.amortizar_meses
                       ? <span className="etiqueta etiqueta--alerta">En el precio · {i.amortizar_meses} meses</span>
-                      : <span className="etiqueta">De la ganancia</span>}
+                      : <span className="etiqueta">Se sigue aparte</span>}
                   </td>
                   <td>{formatearFecha(i.fecha)}</td>
                   <td>

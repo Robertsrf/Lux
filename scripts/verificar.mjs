@@ -91,6 +91,7 @@ const VISTAS_DE_COSTO = [
   'v_gastos_desglose', 'v_diagnostico', 'v_margen_ventas', 'v_rotacion_modelo',
   'v_lotes_admin', 'v_capex_lote', 'v_ventas_por_dia', 'v_mezcla_grupo',
   'v_cobertura_mes', 'v_equilibrio', 'v_volumen', 'v_descuentos_mostrador',
+  'v_plan_ventas',
 ];
 
 /** Funciones que revelan costo. Tienen que rechazarla. */
@@ -99,6 +100,10 @@ const FUNCIONES_CERRADAS = [
   ['costo_total_bcv', { p_costo_puesto_usd: 1 }],
   ['calcular_flete_unitario', { p_lote_id: 1 }],
   ['gastos_fijos_mes_bcv', {}],
+  // Las dos fuentes unicas de esquema-cuentas-claras.sql: gastos partida
+  // por partida y el plan de ventas. Revocadas a todos.
+  ['gastos_fijos_partidas', {}],
+  ['plan_ventas', {}],
 ];
 
 async function main() {
@@ -150,6 +155,16 @@ async function main() {
   const fugaCli = await V.from('v_cliente_compras').select('costo_puesto_usd_snap').limit(1);
   dice(!!fugaCli.error, 'ninguna columna de costo en el historico',
     fugaCli.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // Las envolturas del administrador le devuelven nada a ella.
+  const envGastos = await V.rpc('gastos_fijos_admin');
+  dice(!envGastos.error && envGastos.data === null, 'gastos_fijos_admin() le da null',
+    envGastos.error ? 'error ' + envGastos.error.code : JSON.stringify(envGastos.data));
+  // La meta del dia SI es de ella: un numero de piezas, o null si faltan
+  // los dias que abre la tienda. Lo que importa es que no falle.
+  const metaDia = await V.rpc('meta_del_dia');
+  dice(!metaDia.error, 'meta_del_dia(), su meta de piezas',
+    metaDia.error ? 'ERROR ' + metaDia.error.code : String(metaDia.data));
+
   // Juntar dos fichas reescribe ventas ya registradas: no es de mostrador.
   const fus = await V.rpc('admin_fusionar_clientes', { p_se_va: -1, p_se_queda: -2 });
   dice(!!fus.error, 'admin_fusionar_clientes() le dice que no',
@@ -159,7 +174,7 @@ async function main() {
   const oa = await A.rpc('costo_operativo_admin');
   dice(!oa.error && Number(oa.data) > 0, 'costo_operativo_admin() le da el numero',
     oa.error ? 'error ' + oa.error.code : String(oa.data));
-  for (const v of ['v_catalogo_admin', 'v_valor_inventario', 'v_recuperacion', 'v_gastos_desglose', 'v_diagnostico']) {
+  for (const v of ['v_catalogo_admin', 'v_valor_inventario', 'v_recuperacion', 'v_gastos_desglose', 'v_diagnostico', 'v_plan_ventas']) {
     const { data, error } = await A.from(v).select('*').limit(1);
     dice(!error && (data?.length ?? 0) > 0, v, error ? 'ERROR ' + error.code : 'con datos');
   }

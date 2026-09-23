@@ -153,8 +153,8 @@
       "name": "Tarjeta de modelo",
       "kind": "custom",
       "refersTo": "card",
-      "description": "La pieza en la cuadrícula del mostrador. Se toca con el pulgar: sube 3 px y vuelve al presionar.",
-      "html": "<button class=\"ds-modelo\"><span class=\"ds-modelo-foto\"></span><span class=\"ds-modelo-cuerpo\"><span class=\"ds-modelo-cat\">Collar</span><span class=\"ds-modelo-nombre\">Lazo de agua</span><span class=\"ds-modelo-precio\">Bs 1.480,00</span><span class=\"ds-modelo-pie\"><span class=\"ds-modelo-ex\">Quedan 4</span><span class=\"ds-modelo-n\">2</span></span></span></button>",
+      "description": "La pieza en la cuadrícula del mostrador y del catálogo público. Bolívares y $ BCV del mismo tamaño. Se toca con el pulgar: sube 3 px y vuelve al presionar.",
+      "html": "<button class=\"ds-modelo\"><span class=\"ds-modelo-foto\"></span><span class=\"ds-modelo-cuerpo\"><span class=\"ds-modelo-cat\">Collar</span><span class=\"ds-modelo-nombre\">Lazo de agua</span><span class=\"ds-modelo-precio\">Bs 1.480,00</span><span class=\"ds-modelo-precio\">$20,00 BCV</span><span class=\"ds-modelo-pie\"><span class=\"ds-modelo-ex\">Quedan 4</span><span class=\"ds-modelo-n\">2</span></span></span></button>",
       "css": ".ds-modelo { display: flex; flex-direction: column; text-align: left; padding: 0; width: 210px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 2px rgba(31,64,69,.05), 0 2px 8px rgba(31,64,69,.04); transition: box-shadow 240ms cubic-bezier(.22,1,.36,1), transform 240ms cubic-bezier(.22,1,.36,1), border-color 150ms cubic-bezier(.22,1,.36,1); } .ds-modelo:hover { transform: translateY(-3px); border-color: #7F9492; box-shadow: 0 4px 8px rgba(31,64,69,.08), 0 16px 40px rgba(31,64,69,.10); } .ds-modelo:active { transform: translateY(0); } .ds-modelo-foto { display: block; width: 100%; aspect-ratio: 1; background: #EFE8DA; } .ds-modelo-cuerpo { display: grid; gap: 4px; padding: 16px; } .ds-modelo-cat { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-modelo-nombre { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; line-height: 1.25; color: #14292C; } .ds-modelo-precio { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-modelo-pie { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; } .ds-modelo-ex { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-modelo-n { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; background: #1F4045; color: #EDE5D3; border-radius: 999px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; }"
     },
     {
@@ -203,6 +203,7 @@
     "rules": [
       { "name": "La regla del oro", "body": "El oro solo se lee sobre verde profundo. Sobre claro, oro-texto o nada. Si el oro ocupa más del 5 % de una pantalla, quítale oro a algo.", "section": "colors" },
       { "name": "La regla del color medido", "body": "Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.", "section": "colors" },
+      { "name": "La regla de las dos monedas", "body": "En este negocio hay dos dólares y valen distinto. Todo \"$\" en pantalla dice cuál es: \"$20,00 BCV\" (el de la etiqueta) o \"$14,50 Binance\" (el que se compra afuera). En una tabla la moneda va en la cabecera y la celda lleva la cifra sola. Un \"$\" pelado es un defecto.", "section": "colors" },
       { "name": "La regla del precio", "body": "Todo precio va en display serif. Sin excepción, ni en una celda de tabla.", "section": "typography" },
       { "name": "La regla de la sans", "body": "Jost es la fuente de trabajo de la interfaz. La serif de lectura nunca va en una etiqueta, un botón o un dato.", "section": "typography" },
       { "name": "La regla de la sombra verde", "body": "Ninguna sombra gris. Toda elevación lleva el verde profundo en su rgba.", "section": "elevation" },
@@ -210,6 +211,8 @@
     ],
     "dos": [
       "Do poner todo precio en Fraunces 600 con tabular-nums.",
+      "Do decir de qué dólar es cada \"$\": BCV o Binance.",
+      "Do poner el precio en bolívares y en $ BCV del mismo tamaño en todo catálogo y en la vitrina.",
       "Do medir el contraste contra el fondo real antes de usar un color para leer; 4,5:1 mínimo, sin excepción.",
       "Do usar la variante de texto (salvia-texto, oro-texto, alerta-texto) sobre fondo claro.",
       "Do hacer píldora todo botón, etiqueta y filtro.",
