@@ -138,6 +138,10 @@ llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
 
+`admin_guardar_modelo` recibe también `p_variantes`: la tabla de variantes del
+formulario entera, que `guardar_variantes_de` (revocada, por dentro) guarda en la
+misma transacción que el producto.
+
 `buscar_cliente_publico` es la única que lee el maestro de clientas sin sesión:
 el catálogo la usa para reconocer a una clienta por su cédula. Devuelve
 **enmascarado** (primer nombre, inicial del apellido, dos últimos dígitos del
@@ -231,6 +235,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   Las vistas publican `familia` (nunca null) y todas las pantallas agrupan con
   `agruparPorFamilia` de `lib/familias.ts`: una tarjeta por producto, que al tocarla
   abre la hoja de elegir. `variantes_nota` quedó como nota libre de la pieza.
+  **Se cargan en una tabla dentro del formulario del producto**: nombre, cantidad y
+  costo solo si es distinto. Con el costo vacío la variante vale lo mismo que el
+  producto; con uno propio se le busca el grupo con `admin_sugerir_precio`, la misma
+  cuenta de siempre, y "Sale en" lo enseña antes de guardar. Si su costo no cambió,
+  su precio se respeta. Nombre, categoría, nota, lote y foto son del producto y se
+  copian solos a todas.
 - **El tercer precio, en $ Binance.** Lo que se cobra si pagan en dólares, en
   efectivo o por Binance: bolívares entre la tasa Binance (`binanceDesdeBs`), la
   misma cuenta con la que la base guarda `ventas.total_usd`. Solo en el mostrador y

@@ -11,7 +11,7 @@ export type NombreIcono =
   | 'inventario' | 'reportes' | 'lotes' | 'grupos' | 'tramos'
   | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
-  | 'clientes';
+  | 'clientes' | 'agregar' | 'quitar';
 
 const TRAZOS: Record<NombreIcono, string> = {
   inventario: 'M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z M3.5 7.5 12 12l8.5-4.5 M12 12v9',
@@ -37,6 +37,9 @@ const TRAZOS: Record<NombreIcono, string> = {
      `conteo`. Abre la hoja con TODAS las secciones, asi que dice lista, no
      "tres puntos de opciones sueltas". */
   mas:        'M4 7h16 M4 12h16 M4 17h16',
+  /* Agregar y quitar una fila: una cruz recta y una cruz girada. */
+  agregar:    'M12 5v14 M5 12h14',
+  quitar:     'M6.5 6.5l11 11 M17.5 6.5l-11 11',
 };
 
 export function Icono({ nombre, className = 'icono' }: { nombre: NombreIcono; className?: string }) {

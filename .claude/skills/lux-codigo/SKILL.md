@@ -192,6 +192,13 @@ vistas publican `familia = coalesce(familia_id, id)`, que nunca es null, y toda
 pantalla agrupa con `agruparPorFamilia` (`lib/familias.ts`). No agrupes a mano en
 una pantalla: una diría "45 · 60" y otra "60 · 45".
 
+Se cargan como filas en el formulario del producto y viajan en la misma llamada
+(`admin_guardar_modelo(..., p_variantes)`), en una transacción. La regla del
+precio de cada fila está dos veces a propósito, y tiene que decir lo mismo en los
+dos sitios: en `guardar_variantes_de` (la que manda) y en `precioDeFila` del
+formulario (la que lo enseña). Costo vacío o igual: el precio del producto. Costo
+propio sin cambios: su precio de antes. Costo nuevo: `admin_sugerir_precio`.
+
 ---
 
 ## Migraciones SQL — la lista antes de entregar un archivo

@@ -430,6 +430,9 @@ La única pantalla con una cifra protagonista de verdad: las piezas que hay que 
 ### Tus datos (pedido del catálogo)
 Empieza por la cédula, sola, con la pista "Si ya compraste con nosotros, no tienes que escribir nada más". Si ya es clienta, aparece un panel sin borde: "Ya compraste con nosotros" en label, su nombre enmascarado ("María G.") en Fraunces 28 px, "Te escribimos al número que termina en 67" y dos botones, "Sí, soy yo" y "Cambiar mis datos". Si no, una línea de bienvenida y los campos de siempre. El botón de apartar dice debajo qué falta mientras está apagado. Enmascarado a propósito: el catálogo lo abre cualquiera.
 
+### Tabla de variantes (formulario del producto)
+Una fila por variante con cuatro casillas: nombre, cantidad, costo en $ Binance y "Sale en". La primera fila es la pieza misma, sobre fondo de panel, con el costo "el de arriba" como texto y su cantidad atada a la de la tarjeta de existencias. El costo vacío muestra "igual: $4,2000" como marcador. "Sale en" da el precio en Fraunces 16 px y debajo los bolívares, el grupo y lo que deja, en Jost 12 px secundario; si ningún grupo alcanza, una línea en alerta de texto. Quitar es un botón de 44 px con una cruz; la fila quitada queda al 50 % con "Deshacer" y un aviso de que sale del catálogo al guardar. Una lista arriba dice de qué ubicación son las cantidades. En el teléfono la cabecera desaparece, cada casilla lleva su etiqueta, y la fila se acomoda en tres renglones: nombre y quitar; cantidad y costo; precio.
+
 ### Confirmar la tasa
 La única acción que cambia todos los precios de un toque pide un segundo paso en la misma tarjeta, no en una ventana: un panel que dice cada tasa "antes → después" con cuánto sube o baja en oro de texto, y dos botones, "Sí, fijarla" y "Corregir". Un cero de más se ve antes de que cueste.
 
