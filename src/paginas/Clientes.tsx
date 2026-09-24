@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../componentes/Piezas';
 import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
+import { nombreConVariante } from '../lib/familias';
 import { guardarCliente, useBuscarClientes, useCliente, useMesesServicio } from '../hooks/useClientes';
 import { METODOS_PAGO } from '../lib/tipos';
 import type { ClienteResumen, MetodoPago } from '../lib/tipos';
@@ -254,7 +255,7 @@ function Ficha({ id }: { id: number | null }) {
                         ? <img className="miniatura" src={foto} alt="" loading="lazy" />
                         : <span className="miniatura" />}
                       <div>
-                        <div className="celda-nombre">{p.nombre}</div>
+                        <div className="celda-nombre">{nombreConVariante(p.nombre, p.variante)}</div>
                         <div className="celda-nota">
                           {p.sku}
                           {p.variantes_nota ? ` · ${p.variantes_nota}` : ''}

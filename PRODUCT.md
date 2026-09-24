@@ -12,7 +12,10 @@ Sistema de inventario y ventas de una joyería hipoalergénica en Sabana de Mend
 Venezuela. Dos caras con necesidades opuestas:
 
 - **Mostrador (1 vendedora).** Teléfono Android de gama baja, luz fuerte de tienda,
-  una mano ocupada con joyas. Registrar una venta en menos de 10 segundos.
+  una mano ocupada con joyas. Registrar una venta en menos de 10 segundos. También
+  fija la tasa del día: la tasa se mueve durante el día y ella es la que está en la
+  tienda. Ve el precio en bolívares, en $ BCV y en $ Binance, y hasta dónde puede
+  bajar cada pieza; nunca un costo.
 - **Administración (2 administradores).** Cargar inventario, fijar tasas, comparar
   costos y márgenes. Densidad y precisión sobre respiración.
 

@@ -196,6 +196,30 @@ Los dos precios del mismo tamaño es decisión del dueño (septiembre de 2026): 
 
 Estado de existencia baja (≤2): etiqueta en `--alerta`. Existencia cero: la tarjeta no aparece.
 
+**En el mostrador, dos líneas más.** El tercer precio, "$14,50 Binance", en
+display serif 16 px `--salvia-texto`: lo que cobra si pagan en dólares. Un paso
+más chico porque es para ella. Y el mínimo, "Mínimo Bs 1.215,00", en Jost 12 px
+`--oro-texto`, o "Precio fijo". **Ninguna de las dos va en lo que ve la clienta**
+(catálogo público, PDF, vitrina).
+
+**Con variantes, una sola tarjeta.** Las medidas en una línea bajo el nombre
+("45 cm · 60 cm"); con precios distintos, el más bajo con "desde" encima. Tocarla
+abre la hoja de elegir.
+
+### Hoja para elegir variante
+Sube desde abajo, clara (papel), con una fila táctil de 64 px por medida: la
+medida en display 20 px, lo que queda y el mínimo debajo, los precios apilados a
+la derecha. Un toque agrega y cierra. En escritorio, la misma hoja centrada. No
+son fichas en la tarjeta porque tres blancos de 56 px no caben en 160 px.
+
+### Visor de la pieza
+A pantalla completa. Se pasa de pieza con las flechas del teclado, deslizando el
+dedo o con **dos botones de flecha siempre visibles**: un gesto sin botón es un
+camino que nadie encuentra. Precio en crema, variantes en píldoras y el botón de
+agregar en oro relleno (sobre el fondo oscuro es legítimo, como en la barra del
+carrito). Deslizar de lado solo vive aquí: en la cuadrícula sigue siendo mover la
+página.
+
 ### Botones
 **Todos son píldoras** (`--radio-pill`). Primario: fondo verde profundo, texto crema, Jost mayúsculas con tracking, `--sombra-1` en reposo. Al pasar por encima sube 1 px y gana `--sombra-2`; al presionar vuelve a su sitio. Secundario: fondo blanco, borde `--linea`, que al hover pasa a fondo `--verde-suave`.
 

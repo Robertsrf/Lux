@@ -93,8 +93,12 @@ dice cuál de las dos está mandando.
 | Tasa | Vive en | Se usa para | ¿Cambia? |
 |---|---|---|---|
 | `tasa_binance_compra` | Cada **lote** | Costo real del lote | **Nunca.** Es historia. |
-| `tasa_venta` | Registro maestro vigente | Convertir USD → Bs al cobrar | Sí, la fija el admin |
-| `tasa_bcv` | Registro maestro vigente | Mostrar referencia en $ | Sí, la fija el admin |
+| `tasa_venta` | Registro maestro vigente | La tasa Binance: cobrar en dólares y medir la ganancia real | Sí, la fijan el admin **y la vendedora** (`fijar_tasa`) |
+| `tasa_bcv` | Registro maestro vigente | Convertir la etiqueta a Bs | Sí, igual |
+
+Quien fija cada una queda en `tasas.registrado_por` y la pantalla de Tasas lo
+enseña (`v_tasas`). La pantalla pide confirmar antes: es la única acción que
+cambia todos los precios en bolívares de un toque.
 
 **Nunca recalcules el costo de un lote viejo con una tasa nueva.** Si aparece código que hace eso, es un bug grave: borra la historia real de la inversión.
 
@@ -161,15 +165,32 @@ aplica en tres sitios y **los tres tienen que decir lo mismo**:
 
 Tres reglas que no se negocian:
 
-1. **El tramo nunca baja del piso.** `greatest(lista * (1 - desc/100), precio_minimo_de(modelo))`.
-   Sin ese `greatest`, un 15 % sobre una pieza de margen fino vende a pérdida y
-   nadie se entera hasta el cierre del mes.
-2. **Si la vendedora ya regateó, manda su precio** y el tramo no se le suma
-   encima. Sumar los dos es descontar dos veces la misma pieza.
+1. **El tramo nunca baja del piso DE MARGEN.** `greatest(lista * (1 - desc/100), piso_margen_de(modelo))`.
+   Sin ese `greatest`, un 15 % sobre una pieza de margen fino vende a pérdida.
+   Y el piso es el de margen, no `precio_minimo_de`: ese mete también la rebaja
+   máxima de la vendedora, y con él el 15 % se quedaba en el 10 % (septiembre de
+   2026, corregido en `esquema-variantes-y-mostrador.sql`).
+2. **Con tramo manda el tramo.** El regateo es para cerrar ventas de menos piezas
+   que el primer tramo. Si la venta alcanza un tramo, el precio a mano se ignora.
+   Sumar los dos sería descontar dos veces la misma pieza. Cada línea guarda por
+   qué salió más barata: `venta_items.motivo_rebaja` (`regateo` o `tramo`).
 3. **El navegador no decide el precio.** El mostrador manda
-   `precio_unitario_usd` solo cuando ella rebajó a mano; el descuento por
-   cantidad lo calcula la base. Si lo mandara el navegador, el precio lo estaría
-   fijando el cliente.
+   `precio_unitario_usd` solo cuando ella rebajó a mano y no hay tramo; el
+   descuento por cantidad lo calcula la base. Si lo mandara el navegador, el
+   precio lo estaría fijando el cliente.
+
+El carrito enseña lo mismo que cobrará la base porque hace la misma cuenta con
+el mismo redondeo: `precioConTramo` (cuatro decimales, la mitad hacia afuera) y
+`bsDeBcv` (`round(x, 2)`). Si tocas una, tocas la otra.
+
+### 11c. Variantes: modelos hermanos, no filas nuevas
+
+Una cadena de 45 cm y otra de 60 cm son **dos modelos completos** (cada uno su
+SKU, existencia, costo, grupo y foto) que comparten `familia_id`. La cabeza se
+apunta a sí misma; si sale, `soltar_de_familia` pasa las demás a la menor. Las
+vistas publican `familia = coalesce(familia_id, id)`, que nunca es null, y toda
+pantalla agrupa con `agruparPorFamilia` (`lib/familias.ts`). No agrupes a mano en
+una pantalla: una diría "45 · 60" y otra "60 · 45".
 
 ---
 
@@ -273,7 +294,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-50 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+60 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -286,6 +307,18 @@ vuelve a ser `where`. Nada de eso rompe el build.
 ## Trampas que ya mordieron
 
 Ninguna da error al escribirla. Por eso están aquí.
+
+**Una columna que la pantalla no pide es una regla que no se aplica.** El
+mostrador no pedía `precio_minimo_bs`; el carrito tomaba la etiqueta como mínimo
+y el descuento por cantidad salió en cero durante semanas, sin un solo error.
+Cuando una regla depende de una columna, la columna va en el `select`.
+
+**El catálogo público vive de que Postgres NO ejecute los pisos.** La clienta
+sin sesión no tiene EXECUTE sobre `precio_minimo_de` ni `piso_margen_de`, y lee
+`v_catalogo_venta` (a través de `v_disponible_publico`) sin pedir esas columnas.
+Escritas directo en la lista de columnas, Postgres no las evalúa. Metidas en un
+`lateral` no hay garantía, y el día que se evalúen el catálogo público responde
+"permission denied" a todo el mundo.
 
 **Una vista no te presta su permiso para ejecutar funciones.** Postgres comprueba
 el `EXECUTE` contra **quien consulta**. Dentro de una función `security definer`,

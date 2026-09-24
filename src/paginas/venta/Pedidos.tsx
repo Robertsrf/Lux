@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
-import { cuentaRegresiva, formatearBcv, formatearFecha } from '../../lib/dinero';
+import { binanceDesdeBs, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs, formatearFecha, precioEnBs } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
+import { nombreConVariante } from '../../lib/familias';
+import { useTasa } from '../../hooks/useTasa';
 import type { LineaPedido } from '../../lib/tipos';
 
 /**
@@ -15,6 +17,7 @@ import type { LineaPedido } from '../../lib/tipos';
 const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
 
 export function Pedidos() {
+  const { tasa } = useTasa();
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +84,15 @@ export function Pedidos() {
                       {cabecera.cliente_telefono ?? 'Sin telefono'}
                       {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''} ·
                       {' '}{formatearFecha(cabecera.creado_en)} ·
-                      {' '}{cabecera.piezas_total} piezas · {formatearBcv(cabecera.total_usd)}
+                      {' '}{cabecera.piezas_total} piezas
+                    </p>
+                    {/* Lo que paga, en las tres formas en que puede pagarlo. El
+                        total esta en dolares BCV; los bolivares y los Binance
+                        salen de la tasa de hoy, que es a la que se cobra. */}
+                    <p className="pedido__total">
+                      {formatearBcv(cabecera.total_usd)}
+                      {tasa ? <> · {formatearBs(precioEnBs(cabecera.total_usd, tasa))}</> : null}
+                      {tasa ? <> · {formatearBinance(binanceDesdeBs(precioEnBs(cabecera.total_usd, tasa), tasa.tasa_venta))}</> : null}
                     </p>
                   </div>
                   {cabecera.estado === 'confirmada'
@@ -158,7 +169,7 @@ export function Pedidos() {
                           <tr key={i.modelo_id}>
                             <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
                             <td>
-                              <div className="celda-nombre">{i.nombre}</div>
+                              <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                               <div className="celda-nota">{i.sku}{i.variantes_nota ? ` · ${i.variantes_nota}` : ''}</div>
                             </td>
                             <td className="util">{i.ubicacion}</td>

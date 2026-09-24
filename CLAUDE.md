@@ -54,19 +54,20 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 
 ```
 src/
-  lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts
+  lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario, useTextos, useFrases, useConsejos
   componentes/  Disposicion (armazón y navegación), Piezas (Aviso, Campo,
-                Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto,
-                Graficos, Progreso, Recordatorio, CompartirCatalogo,
+                Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto
+                (detalle que pasa de pieza), ElegirVariante (la hoja de
+                medidas), Graficos, Progreso, Recordatorio, CompartirCatalogo,
                 BuscadorCliente, RutaProtegida
   paginas/
-    admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos, Tasas,
+    admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos
     venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
     publico/    Catalogo, Reserva          (sin sesión)
-    Clientes, CatalogoPdf, Vitrina, Entrar, Verificacion
+    Clientes, Tasas, CatalogoPdf, Vitrina, Entrar, Verificacion   (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css
 ```
 
@@ -121,6 +122,8 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo, con dónde está cada pieza | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
+| `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
+| `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo o tramo) y quién | solo admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
@@ -131,8 +134,12 @@ directamente, ni "solo para leer el nombre".
 
 Toda operación que toque varias tablas va en una RPC transaccional, no en tres
 llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
-`reportar_pago`, `cerrar_dia`, `admin_guardar_modelo`, `admin_fijar_tasa`,
-`admin_reasignar_grupos`, `admin_fusionar_clientes`.
+`reportar_pago`, `cerrar_dia`, `fijar_tasa`, `admin_guardar_modelo`,
+`admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
+
+`fijar_tasa` es de las dos caras (la tasa se mueve durante el día y quien está
+en la tienda es ella). `admin_fijar_tasa` sigue viva solo para el navegador viejo
+del administrador; la pantalla ya no la llama.
 
 Las `admin_*` llevan `if not es_admin() then raise` por dentro. **Ese guardián nunca
 va en una función que la vendedora necesite**: `es_admin()` mira `auth.uid()` y sigue
@@ -187,8 +194,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   y en el Mostrador. Sin el dato de días ve solo la del mes; nunca un número viejo.
   La meta de piezas premium y su umbral los fija el dueño en Costos.
 - **Lo que puede negociar, ella lo ve; los márgenes, no.** `descuento_max_mostrador_pct`
-  (cuánto puede rebajar de la etiqueta) está en su lista de claves legibles, y en el
-  cobro cada pieza le dice cuánto admite. `margen_minimo_pct` **nunca** entra en esa
+  (cuánto puede rebajar de la etiqueta) está en su lista de claves legibles; cada
+  tarjeta del mostrador dice su mínimo y en el cobro escribe lo que cobra por pieza. `margen_minimo_pct` **nunca** entra en esa
   lista: con él y el mínimo de cada pieza, que ya ve, despejaría el costo. `verificar`
   lo vigila. Los tres porcentajes (rebaja máxima, margen mínimo, margen para elegir
   grupo) se fijan en Costos.
@@ -198,9 +205,28 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   flete, y esa parte nunca se le carga a las joyas.
 - **El mayoreo es una regla, no una lista.** Tramos configurables (6 piezas 5 %,
   12 piezas 10 %, 20 piezas 15 %) que se aplican en tres sitios y **los tres dicen lo
-  mismo**: `registrar_venta` manda, el carrito y el catálogo público solo enseñan.
-  Nunca por debajo de `precio_minimo_de`. Si la vendedora ya regateó, manda su
-  precio. Los kits se retiraron en septiembre de 2026.
+  mismo**: `registrar_venta` manda, el carrito lo enseña con la misma cuenta
+  (`precioConTramo`) y `crear_reserva` cobra igual. Los kits se retiraron en
+  septiembre de 2026.
+- **Dos pisos, dos trabajos.** `piso_margen_de` es lo que todavía deja el margen
+  mínimo: es el piso del TRAMO. `precio_minimo_de` es el mayor entre ese y la
+  etiqueta menos la rebaja máxima: es el piso del REGATEO. Antes el tramo usaba el
+  del regateo y el 15 % se quedaba en el 10 % de la vendedora.
+- **Con tramo manda el tramo.** El regateo es para cerrar una venta de menos piezas
+  que el primer tramo; desde ahí el precio a mano se ignora y se cobra el tramo.
+  Cada línea guarda por qué salió más barata (`venta_items.motivo_rebaja`:
+  `regateo` o `tramo`), y `v_rebajas` se lo enseña al dueño en Reportes.
+- **Variantes.** Una cadena de 45 cm y otra de 60 cm son el mismo producto con dos
+  opciones. Cada variante sigue siendo un modelo completo (SKU, existencia, grupo,
+  costo, foto); las junta `modelos.familia_id` y las distingue `modelos.variante`.
+  Las vistas publican `familia` (nunca null) y todas las pantallas agrupan con
+  `agruparPorFamilia` de `lib/familias.ts`: una tarjeta por producto, que al tocarla
+  abre la hoja de elegir. `variantes_nota` quedó como nota libre de la pieza.
+- **El tercer precio, en $ Binance.** Lo que se cobra si pagan en dólares, en
+  efectivo o por Binance: bolívares entre la tasa Binance (`binanceDesdeBs`), la
+  misma cuenta con la que la base guarda `ventas.total_usd`. Solo en el mostrador y
+  en la administración; nunca en el catálogo público, el PDF ni la vitrina.
+  "Binance" es también forma de pago.
 - **Clientes.** Cada venta puede quedar a nombre de una clienta del maestro, que se
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
@@ -211,12 +237,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 50 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 60 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace dieciocho
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintiuna
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -238,6 +264,13 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   la tasa de cada venta. Antes de restar, las dos partes en la misma moneda y a la
   misma tasa.
 
+- **Una columna que la pantalla no pide es una regla que no se aplica.** El
+  mostrador no pedía `precio_minimo_bs`; el carrito creía que el mínimo era la
+  etiqueta y el descuento por cantidad salió en cero durante semanas, sin un error.
+- **El catálogo público vive de que Postgres NO ejecute los pisos.** La clienta sin
+  sesión no puede ejecutar `precio_minimo_de` ni `piso_margen_de`, y lee
+  `v_catalogo_venta` sin pedir esas columnas: así no se evalúan. Van directas en la
+  lista de columnas; en un lateral no hay esa garantía y el catálogo caería entero.
 - **Una vista no te presta su permiso para ejecutar funciones.** Postgres comprueba
   el `EXECUTE` contra quien consulta, no contra el dueño de la vista.
 - **Un agregado sin `GROUP BY` devuelve una fila aunque no entre ninguna.** Hace

@@ -5,6 +5,7 @@ import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
 import { cuentaRegresiva, formatearBcv, formatearBs, formatearPorcentaje, precioEnBs } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
+import { nombreConVariante } from '../../lib/familias';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
 import type { ReservaVista } from '../../lib/tipos';
@@ -127,7 +128,7 @@ export function Reserva() {
                   <div className="linea-cobro" key={i.modelo_id}>
                     {foto ? <img className="linea-cobro__foto" src={foto} alt="" /> : <span className="linea-cobro__foto" />}
                     <div>
-                      <div className="linea-cobro__nombre">{i.nombre}</div>
+                      <div className="linea-cobro__nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                       {i.variantes_nota ? <div className="linea-cobro__precio">{i.variantes_nota}</div> : null}
                     </div>
                     <span className="contador__valor">{i.cantidad}</span>

@@ -1196,17 +1196,22 @@ table.tabla tfoot td {
 
 .visor {
   position: fixed; inset: 0; z-index: 60;
-  display: grid; place-items: center;
-  padding: var(--e-5);
+  display: flex;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--e-7) var(--e-5) var(--e-6);
   background: color-mix(in srgb, var(--tinta) 88%, transparent);
   animation: aparecer 160ms var(--salida);
+  /* El dedo que va de lado es para pasar de pieza; el que va de arriba
+     abajo sigue desplazando. Sin esto el navegador se queda el gesto. */
+  touch-action: pan-y;
 }
 @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
 
 .visor__marco {
-  margin: 0;
+  /* margin auto centra y, si el detalle es mas alto que la pantalla, deja
+     desplazar sin cortar la parte de arriba (place-items: center la cortaba). */
+  margin: auto;
   max-width: min(760px, 100%);
-  max-height: 100%;
   display: flex; flex-direction: column; gap: var(--e-4);
   animation: subir 220ms var(--salida);
 }
@@ -1220,7 +1225,9 @@ table.tabla tfoot td {
 .visor__foto {
   display: block;
   max-width: 100%;
-  max-height: 72vh;
+  max-height: 60vh;
+  margin-inline: auto;
+  user-select: none;
   width: auto; height: auto;
   object-fit: contain;
   border-radius: var(--radio-lg);
@@ -1912,4 +1919,357 @@ table.tabla tfoot td {
 @media (max-width: 560px) {
   .plan__cifras { grid-template-columns: 1fr; align-items: start; }
   .plan__numero { font-size: var(--t-40); }
+}
+
+
+/* =====================================================================
+   Septiembre de 2026: variantes, precio en Binance, tramos que bajan,
+   el visor que pasa de pieza y la tasa que fija la vendedora.
+   ===================================================================== */
+
+/* --- Tarjeta: medidas, "desde", Binance y el minimo ------------------ */
+
+/* "45 cm · 60 cm": que hay mas de una, antes de tocar. */
+.tarjeta-modelo__variantes {
+  font-family: var(--fuente-ui); font-size: var(--t-14);
+  color: var(--texto-secundario); line-height: 1.3;
+}
+/* Con precios distintos, la tarjeta ensena el mas bajo y lo dice. */
+.tarjeta-modelo__desde {
+  font-family: var(--fuente-ui); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  margin-bottom: -2px;
+}
+/* Lo que cobra si le pagan en dolares. Un paso mas chico que los dos de
+   la etiqueta: es para ella, no lo que la clienta lee primero. Sigue en
+   la serif de los precios: es un precio. #506664 sobre blanco, 5,9:1. */
+.tarjeta-modelo__binance {
+  font-family: var(--fuente-display);
+  font-size: var(--t-16); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--salvia-texto);
+}
+/* Hasta donde puede bajar. En oro de texto (#835D35, 5,86:1 sobre blanco):
+   se distingue de "Quedan" sin gritar. */
+.tarjeta-modelo__minimo {
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  color: var(--oro-texto);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+/* --- Mostrador: ubicacion, tipo y buscador --------------------------- */
+
+.filtros-mostrador {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--e-4);
+  align-items: end;
+  margin-bottom: var(--hueco-campos);
+}
+.filtros-mostrador .campo { margin-bottom: 0; }
+/* En escritorio: el buscador ancho y el tipo al lado. */
+.filtros-mostrador__buscar { order: -1; }
+
+/* --- Cobro ----------------------------------------------------------- */
+
+.linea-cobro__precio--fijo {
+  display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap;
+  padding: 2px 0;
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: var(--texto-secundario);
+}
+.linea-cobro__precio--fijo s { color: var(--texto-secundario); opacity: 0.7; }
+.rebaja__etiqueta { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); }
+
+/* El total en dolares: bajo los dos de la etiqueta, a todo el ancho. */
+.total-cobro__dolares {
+  flex-basis: 100%;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--e-4); flex-wrap: wrap;
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--linea);
+  color: var(--texto-secundario);
+}
+.total-cobro__binance {
+  font-family: var(--fuente-display);
+  font-size: var(--t-20); font-weight: 600;
+  font-variant-numeric: tabular-nums; line-height: 1;
+  color: var(--texto);
+  transition: font-size var(--rapido);
+}
+/* Si eligio "Efectivo $" o "Binance", esa pasa a ser la cifra que cobra. */
+.total-cobro__dolares--activo { color: var(--texto-fuerte); }
+.total-cobro__dolares--activo .total-cobro__binance { font-size: var(--t-28); color: var(--texto-fuerte); }
+
+.cobro-dolares {
+  margin: var(--e-3) 0 0;
+  padding: var(--e-3) var(--e-4);
+  background: var(--verde-suave);
+  border-radius: var(--radio);
+  font-size: var(--t-16); line-height: 1.4;
+  color: var(--texto);
+}
+.cobro-dolares strong { font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- Visor: pasar de pieza sin salir --------------------------------- */
+
+/* Siempre a la vista: el deslizar sin boton es un gesto que nadie
+   adivina. Fondo de tinta y no de crema: van encima de la foto. */
+.visor__flecha {
+  position: fixed; top: 50%; z-index: 1;
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  transform: translateY(-50%);
+  color: var(--crema);
+  background: color-mix(in srgb, var(--tinta) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--crema) 30%, transparent);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido);
+}
+.visor__flecha:hover { background: color-mix(in srgb, var(--tinta) 82%, transparent); }
+.visor__flecha svg { width: 22px; height: 22px; }
+.visor__flecha--antes { left: var(--e-4); }
+.visor__flecha--despues { right: var(--e-4); }
+
+/* La pieza nueva entra desde el lado hacia el que se paso: dice que no se
+   cerro nada, que se avanzo. Con movimiento reducido, solo aparece. */
+@keyframes entra-desde-derecha { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
+@keyframes entra-desde-izquierda { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
+.visor__marco--despues { animation: entra-desde-derecha 200ms var(--salida); }
+.visor__marco--antes { animation: entra-desde-izquierda 200ms var(--salida); }
+
+.visor__variantes {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--e-2);
+  margin-top: var(--e-2);
+}
+.visor__variantes button {
+  min-height: 44px; min-width: 64px; padding: 0 var(--e-4);
+  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 500;
+  color: var(--crema);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--crema) 40%, transparent);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.visor__variantes button:hover { border-color: var(--crema); }
+.visor__variantes button[aria-pressed='true'] {
+  background: var(--crema); border-color: var(--crema); color: var(--verde-profundo);
+}
+
+/* Bolivares y dolares BCV del mismo tamano, como en la etiqueta. */
+.visor__precios {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+  gap: var(--e-1) var(--e-5);
+  margin-top: var(--e-2);
+}
+.visor__precio {
+  font-family: var(--fuente-display);
+  font-size: var(--t-28); font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--crema);
+}
+.visor__binance {
+  flex-basis: 100%;
+  font-family: var(--fuente-display);
+  font-size: var(--t-16); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--crema) 80%, transparent);
+}
+
+/* Sobre el fondo oscuro del visor el oro es relleno legitimo, igual que
+   en la barra del carrito: verde sobre oro da 5,38:1. */
+.boton.visor__accion {
+  justify-self: center;
+  margin-top: var(--e-3);
+  min-height: 52px; padding: 0 var(--e-6);
+  background: var(--oro-arena); border-color: var(--oro-arena);
+  color: var(--verde-profundo);
+}
+.boton.visor__accion:hover:not(:disabled) { background: color-mix(in srgb, var(--oro-arena) 88%, var(--crema)); }
+.boton.visor__accion:disabled { opacity: 0.45; }
+.visor__llevas {
+  margin-left: var(--e-2);
+  font-size: var(--t-12); letter-spacing: 0; text-transform: none;
+  opacity: 0.8;
+}
+.visor__posicion {
+  margin-top: var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--crema) 70%, transparent);
+}
+
+@media (max-width: 560px) {
+  .visor { padding: var(--e-7) var(--e-3) var(--e-5); }
+  .visor__flecha { width: 44px; height: 44px; }
+  .visor__flecha--antes { left: var(--e-2); }
+  .visor__flecha--despues { right: var(--e-2); }
+}
+
+/* --- La hoja para elegir variante ------------------------------------ */
+/* Sube desde abajo, al alcance del pulgar. En escritorio es la misma
+   hoja, centrada. Clara y no verde: lo que se elige son piezas con su
+   precio, y se leen igual que en la cuadricula. */
+
+.elegir-fondo {
+  position: fixed; inset: 0; z-index: 55;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--tinta) 58%, transparent);
+  animation: aparecer 160ms var(--salida);
+}
+.elegir {
+  width: 100%; max-height: 84vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--e-2) var(--e-4) calc(var(--e-5) + env(safe-area-inset-bottom, 0px));
+  background: var(--papel);
+  border-radius: var(--radio-lg) var(--radio-lg) 0 0;
+  box-shadow: var(--sombra-3);
+  animation: hoja-sube 260ms var(--salida);
+}
+.elegir__asa {
+  width: 40px; height: 4px; margin: var(--e-2) auto var(--e-4);
+  border-radius: var(--radio-pill);
+  background: var(--linea);
+}
+.elegir__cabeza {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e-4);
+  padding: 0 var(--e-1) var(--e-4);
+}
+.elegir__titulo {
+  margin: 0;
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  line-height: 1.2; color: var(--texto-fuerte);
+}
+.elegir__subtitulo { margin: var(--e-1) 0 0; font-size: var(--t-14); color: var(--texto-secundario); }
+.elegir__cerrar {
+  flex: none;
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  transition: border-color var(--rapido), background var(--rapido);
+}
+.elegir__cerrar:hover { border-color: var(--salvia); background: var(--verde-suave); }
+.elegir__cerrar svg { width: 20px; height: 20px; }
+.elegir__opciones { display: grid; gap: var(--e-2); }
+
+.opcion-variante {
+  position: relative;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--e-4);
+  min-height: 64px; padding: var(--e-3) var(--e-4);
+  text-align: left; font-family: inherit;
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-1);
+  transition: box-shadow var(--rapido), border-color var(--rapido), transform var(--rapido);
+}
+.opcion-variante:hover:not(:disabled) { border-color: var(--salvia); box-shadow: var(--sombra-2); }
+.opcion-variante:active:not(:disabled) { transform: scale(0.99); }
+.opcion-variante:disabled { opacity: 0.45; }
+.opcion-variante__nombre { display: grid; gap: 2px; min-width: 0; }
+.opcion-variante__etiqueta {
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  line-height: 1.15; color: var(--texto-fuerte);
+}
+.opcion-variante__detalle { font-family: var(--fuente-ui); font-size: var(--t-14); color: var(--texto-secundario); }
+.opcion-variante__precios { display: grid; justify-items: end; gap: 2px; }
+.opcion-variante__precio {
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--texto-fuerte);
+}
+.opcion-variante__binance {
+  font-family: var(--fuente-display); font-size: var(--t-16); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--salvia-texto);
+}
+.opcion-variante__llevas {
+  position: absolute; top: -8px; right: -6px;
+  display: inline-grid; place-items: center;
+  min-width: 28px; height: 28px; padding: 0 var(--e-2);
+  background: var(--verde-profundo); color: var(--crema);
+  border-radius: var(--radio-pill);
+  font-size: var(--t-12); font-weight: 500; font-variant-numeric: tabular-nums;
+}
+
+/* --- Tasas: confirmar antes de repriciar todo ------------------------ */
+
+.confirmar-tasa {
+  margin-top: var(--e-4);
+  padding: var(--e-4);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+}
+.confirmar-tasa__titulo { margin: 0 0 var(--e-3); font-weight: 500; color: var(--texto-fuerte); }
+.confirmar-tasa__lista { display: grid; gap: var(--e-2); margin: 0 0 var(--e-2); }
+.confirmar-tasa__lista > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-3); flex-wrap: wrap;
+}
+.confirmar-tasa__lista dt {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.confirmar-tasa__lista dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--texto); }
+.confirmar-tasa__lista strong { font-family: var(--fuente-display); font-weight: 600; font-size: var(--t-20); color: var(--texto-fuerte); }
+.confirmar-tasa__cambio { margin-left: var(--e-2); font-size: var(--t-12); font-weight: 500; color: var(--oro-texto); }
+
+/* --- Inventario y formulario: la variante con su nombre -------------- */
+
+.etiqueta-variante {
+  display: inline-block; vertical-align: 0.1em;
+  margin-left: var(--e-2); padding: 1px var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  line-height: 1.5;
+  color: var(--texto);
+  background: var(--verde-suave);
+  border-radius: var(--radio-pill);
+}
+.ficha-inv__minimo { font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500; color: var(--oro-texto); }
+
+.hermanas { list-style: none; margin: var(--e-2) 0 var(--e-4); padding: 0; }
+.hermanas__fila {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-4);
+  padding: var(--e-2) 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.hermanas__fila:last-child { border-bottom: 0; }
+.hermanas__nombre {
+  flex: 1 1 120px;
+  font-family: var(--fuente-display); font-size: var(--t-16); font-weight: 600;
+  color: var(--texto-fuerte);
+}
+.hermanas__dato { font-size: var(--t-14); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+
+/* --- Pedidos: lo que paga, en las tres formas ------------------------ */
+
+.encabezado-pagina .pedido__total {
+  margin-top: var(--e-1);
+  font-family: var(--fuente-display); font-size: var(--t-16); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+}
+
+/* --- Telefono -------------------------------------------------------- */
+
+@media (min-width: 901px) {
+  .elegir-fondo { align-items: center; padding: var(--e-5); }
+  .elegir {
+    max-width: 520px; max-height: 80vh;
+    padding-bottom: var(--e-5);
+    border-radius: var(--radio-lg);
+    animation: subir 220ms var(--salida);
+  }
+  .elegir__asa { display: none; }
+  .elegir__cabeza { padding-top: var(--e-3); }
+}
+
+@media (max-width: 900px) {
+  /* Ubicacion y tipo lado a lado, el buscador debajo a todo el ancho. */
+  .filtros-mostrador { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .filtros-mostrador__buscar { order: 0; grid-column: 1 / -1; }
 }

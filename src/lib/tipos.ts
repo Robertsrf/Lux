@@ -27,6 +27,11 @@ export interface Tasa {
   creado_en: string;
 }
 
+/** Vista v_tasas: el historico con el nombre de quien fijo cada una. */
+export interface TasaHistorica extends Tasa {
+  registrado_por_nombre: string | null;
+}
+
 export interface GrupoPrecio {
   id: number;
   nombre: string;
@@ -89,6 +94,16 @@ export interface ModeloVenta {
   ubicaciones: string | null;
   /** Lo mismo en clave de tienda, "V1 · BG": para lo que se mira de cara al publico. */
   ubicaciones_codigo: string | null;
+  /** Hasta donde puede bajar la vendedora. Nunca revela el costo. */
+  precio_minimo_usd?: number | null;
+  precio_minimo_bs?: number | null;
+  /**
+   * La familia de variantes: el id de la cabeza, o el suyo si va suelta.
+   * Nunca null, asi que se agrupa por aqui sin preguntar nada mas.
+   */
+  familia: number;
+  /** Lo que la distingue de sus hermanas: "45 cm". Null si va suelta. */
+  variante: string | null;
 }
 
 /** Vista v_catalogo_admin: agrega costos y margen. Filtra con es_admin(). */
@@ -124,7 +139,7 @@ export interface Existencia {
 /* ------------------------------------------------------------ Fase 2 */
 
 export type TipoVenta = 'detal' | 'mayor';
-export type MetodoPago = 'punto' | 'pago_movil' | 'transferencia' | 'efectivo_bs' | 'efectivo_usd';
+export type MetodoPago = 'punto' | 'pago_movil' | 'transferencia' | 'efectivo_bs' | 'efectivo_usd' | 'binance';
 
 export const METODOS_PAGO: { valor: MetodoPago; texto: string }[] = [
   { valor: 'punto', texto: 'Punto de venta' },
@@ -132,7 +147,15 @@ export const METODOS_PAGO: { valor: MetodoPago; texto: string }[] = [
   { valor: 'transferencia', texto: 'Transferencia' },
   { valor: 'efectivo_bs', texto: 'Efectivo Bs' },
   { valor: 'efectivo_usd', texto: 'Efectivo $' },
+  { valor: 'binance', texto: 'Binance' },
 ];
+
+/**
+ * Las formas de pago en dolares. Las dos se cobran a la tasa Binance: el
+ * total en bolivares dividido entre ella, que es justo el `total_usd` que
+ * la base guarda de cada venta.
+ */
+export const METODOS_EN_DOLARES: readonly MetodoPago[] = ['efectivo_usd', 'binance'];
 
 /** Vista v_venta_ubicacion: existencia por ubicacion, sin una sola cifra de costo. */
 export interface ModeloEnUbicacion {
@@ -148,27 +171,47 @@ export interface ModeloEnUbicacion {
   precio_usd: number | null;
   precio_bs: number | null;
   cantidad: number;
-  /** Hasta donde puede bajar la vendedora. Nunca revela el costo. */
+  /** Hasta donde puede bajar la vendedora regateando. Nunca revela el costo. */
   precio_minimo_usd: number | null;
   precio_minimo_bs: number | null;
+  familia: number;
+  variante: string | null;
+  /**
+   * Hasta donde baja el descuento por CANTIDAD: el piso de margen, sin la
+   * rebaja maxima del regateo. Solo lo usa el carrito para ensenar lo mismo
+   * que va a cobrar `registrar_venta`.
+   */
+  piso_tramo_usd: number | null;
+  piso_tramo_bs: number | null;
 }
 
-/** Una linea del carrito, antes de cobrar. */
+/** Una linea del carrito, antes de cobrar. Todo en dolares BCV salvo los _bs. */
 export interface LineaCarrito {
   modelo_id: number;
   ubicacion_id: number;
   sku: string;
   nombre: string;
+  variante: string | null;
   foto_thumb_path: string | null;
-  /** Lo que se va a cobrar: puede haber bajado por regateo. */
-  precio_usd: number;
-  precio_bs: number;
-  /** Lo que marca la etiqueta, para saber cuanto se rebajo. */
+  /** Lo que marca la etiqueta. */
+  precio_lista_usd: number;
   precio_lista_bs: number;
-  /** El piso que fijo el dueno. */
+  /** El piso del regateo que fijo el dueno. */
+  precio_minimo_usd: number;
   precio_minimo_bs: number;
+  /** El piso del descuento por cantidad. */
+  piso_tramo_usd: number;
+  /** Lo que ella negocio a mano, o null. Solo cuenta sin tramo. */
+  precio_manual_usd: number | null;
   cantidad: number;
   disponible: number;
+}
+
+/** Una linea ya calculada: lo que se va a cobrar de verdad y por que. */
+export interface LineaCobro extends LineaCarrito {
+  precio_final_usd: number;
+  precio_final_bs: number;
+  motivo: 'regateo' | 'tramo' | null;
 }
 
 export interface TableroDia {
@@ -280,6 +323,8 @@ export interface ModeloPublico {
   disponible: number;
   /** En clave de tienda, "V1 · BG". Nunca el nombre completo: esto lo abre cualquiera. */
   ubicaciones_codigo: string | null;
+  familia: number;
+  variante: string | null;
 }
 
 export interface Tramo {
@@ -298,6 +343,8 @@ interface ItemReserva {
   variantes_nota: string | null;
   foto_thumb_path: string | null;
   precio_usd: number | null;
+  /** Null en las reservas hechas antes de las variantes, o si va suelta. */
+  variante?: string | null;
 }
 
 /** Lo que devuelve ver_reserva(token). Sin una sola cifra de costo. */
@@ -356,6 +403,7 @@ export interface LineaPedido {
   foto_thumb_path: string | null;
   cantidad: number;
   ubicacion: string;
+  variante: string | null;
 }
 
 /** Lo que devuelve admin_sugerir_precio: el resultado y todo el camino. */
@@ -642,6 +690,32 @@ export interface CompraCliente {
   precio_unitario_bs: number;
   servicio_hasta: string;
   servicio_vigente: boolean;
+  variante: string | null;
+}
+
+/**
+ * Vista v_rebajas: una fila por linea vendida por debajo de su etiqueta.
+ * Solo administrador. En dolares BCV, la moneda de la etiqueta.
+ */
+export interface Rebaja {
+  venta_id: number;
+  fecha: string;
+  usuario_id: string;
+  vendedora: string | null;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  cantidad: number;
+  precio_lista_usd: number;
+  precio_unitario_usd: number;
+  precio_lista_bs: number;
+  precio_unitario_bs: number;
+  /** Lo que se dejo de cobrar en la linea entera: (lista − cobrado) × cantidad. */
+  rebaja_usd: number;
+  rebaja_pct: number;
+  /** Null en las ventas anteriores a que se guardara el motivo. */
+  motivo_rebaja: 'regateo' | 'tramo' | null;
 }
 
 /** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */

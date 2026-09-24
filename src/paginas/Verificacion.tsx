@@ -124,6 +124,41 @@ export function Verificacion() {
       bien: !piso.error,
     });
 
+    // El piso del TRAMO nunca puede quedar por encima del del REGATEO: el
+    // de regateo es el mayor entre la rebaja maxima y el de margen. Si se
+    // cruzan, el descuento por cantidad volveria a quedarse corto.
+    const pisos = await supabase.from('v_catalogo_venta').select('sku, precio_minimo_usd, piso_tramo_usd').limit(500);
+    const cruzados = ((pisos.data as { sku: string; precio_minimo_usd: number | null; piso_tramo_usd: number | null }[] | null) ?? [])
+      .filter((p) => p.piso_tramo_usd !== null && p.precio_minimo_usd !== null && p.piso_tramo_usd > p.precio_minimo_usd + 0.01);
+    resultados.push({
+      nombre: 'Los dos pisos: tramo por debajo del regateo',
+      esperado: 'Ninguna pieza con el piso del tramo por encima del minimo',
+      obtenido: pisos.error ? `Fallo: ${pisos.error.message}` : cruzados.length === 0 ? `${pisos.data?.length ?? 0} piezas, todas bien` : `${cruzados.length} al reves: ${cruzados.slice(0, 3).map((c) => c.sku).join(', ')}`,
+      bien: !pisos.error && cruzados.length === 0,
+    });
+
+    // La tasa la fijan las dos caras. Se llama con ceros a proposito: la
+    // funcion responde que no, sin escribir nada, y ese "no" dice que se
+    // pudo ejecutar. Un "permission denied" diria que ella no puede.
+    const tasa = await supabase.rpc('fijar_tasa', { p_tasa_venta: 0, p_tasa_bcv: 0 });
+    const tasaViva = !!tasa.error && /mayores que cero/i.test(tasa.error.message);
+    resultados.push({
+      nombre: 'Fijar la tasa (fijar_tasa)',
+      esperado: 'Se puede ejecutar: con ceros responde "mayores que cero"',
+      obtenido: tasa.error ? tasa.error.message : 'ACEPTO CEROS',
+      bien: tasaViva,
+    });
+
+    // Las rebajas son del dueno: cuanto se dejo de cobrar y quien.
+    const reb = await supabase.from('v_rebajas').select('venta_id').limit(1);
+    const filasReb = reb.data?.length ?? 0;
+    resultados.push({
+      nombre: 'Vista v_rebajas',
+      esperado: esAdmin ? 'Responde (puede no tener filas)' : 'Devuelve 0 filas',
+      obtenido: reb.error ? `Fallo: ${reb.error.message}` : `${filasReb} fila(s)`,
+      bien: esAdmin ? !reb.error : filasReb === 0,
+    });
+
     /* --- El maestro de clientas ------------------------------------- */
 
     // El maestro es de las dos caras, asi que aqui no se comprueba quien

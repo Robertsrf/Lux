@@ -399,17 +399,36 @@ Borde completo y fondo teñido, sin franja lateral de color. Radio 16 px, Jost 1
 ### Tarjeta de modelo (mostrador)
 La tarjeta táctil de la cuadrícula de venta, y la del catálogo público. Foto cuadrada arriba sobre panel hondo; debajo nombre en EB Garamond 16 px, **dos precios del mismo tamaño**, bolívares y $ BCV, uno sobre otro en Fraunces 20 px tabular, existencia en label de 11 px (alerta si ≤ 2; con existencia cero no aparece) y un contador en píldora verde. Sube 3 px y pasa a sombra flotante al pasar, borde salvia; vuelve al presionar.
 
+**En el mostrador lleva dos líneas más, que el catálogo público no lleva.** Debajo de los dos precios, el **tercer precio**: lo que se cobra si pagan en dólares, "$14,50 Binance", en Fraunces 16 px salvia de texto (5,9:1 sobre blanco). Un paso más chico porque es para ella, no lo primero que lee la clienta; en serif porque es un precio. Y el **mínimo**: "Mínimo Bs 1.215,00" en Jost 12 px oro de texto (5,86:1), o "Precio fijo" si la pieza no admite rebaja.
+
+**Con variantes es una sola tarjeta.** Bajo el nombre, las medidas en Jost 14 px secundario ("45 cm · 60 cm"); si los precios difieren, la tarjeta enseña el más bajo con "desde" en label encima. Tocarla abre la hoja de elegir variante en vez de agregar.
+
+### Hoja para elegir variante
+Sube desde abajo, al alcance del pulgar, sobre un fondo de tinta al 58 %. Clara (papel), no verde: lo que se elige son piezas con su precio y se leen igual que en la cuadrícula. Nombre del producto en Fraunces 20 px, una línea de ayuda y el botón de cerrar de 48 px. Cada opción es una fila táctil de 64 px como mínimo: la medida en Fraunces 20 px y debajo lo que queda y el mínimo en Jost 14 px; a la derecha los precios apilados, bolívares y $ BCV del mismo tamaño y Binance un paso abajo. Si ya lleva de esa, un contador verde en la esquina. Un toque agrega y cierra. En escritorio es la misma hoja, centrada, de 520 px.
+
+**Por qué una hoja y no fichas en la tarjeta.** Un blanco de 56 px por medida no cabe tres veces en una tarjeta de 160 px sin volverla una lista. Dos toques, abrir y elegir, es lo mínimo cuando hay que decidir algo.
+
+### Visor de la pieza
+A pantalla completa sobre tinta al 88 %. Foto hasta 60 vh; debajo categoría en oro, nombre en EB Garamond 20 px, SKU, las variantes como píldoras de 44 px (la elegida en crema con texto verde), bolívares y $ BCV en Fraunces 28 px crema, Binance en 16 px donde se enseña, lo que queda, materiales y un botón de agregar en **oro relleno con texto verde** (5,38:1): sobre el fondo oscuro del visor el oro es relleno legítimo, igual que en la barra del carrito.
+
+**Se pasa de pieza sin salir**: flechas del teclado en la computadora, deslizar el dedo a un lado en el teléfono, y en los dos **botones de flecha siempre visibles** de 48 px a media altura, en tinta al 62 % para leerse encima de la foto. El gesto sin botón es invisible, y quien no puede deslizar se queda sin camino. La pieza nueva entra 32 px desde el lado hacia el que se pasó, en 200 ms; con movimiento reducido solo aparece. Debajo, "3 de 40" en label. Deslizar solo vive dentro del visor: en la cuadrícula, deslizar de lado sigue siendo mover la página.
+
 ### Barra del carrito
 Píldora flotante en verde profundo con sombra flotante, fija abajo por encima de la navegación. Piezas en label crema al 72 %, total en Fraunces 28 px, tramo alcanzado en oro y lo que falta en crema al 66 %. Botón de cobrar en oro con texto tinta.
 
 ### Vitrina (televisor)
+Un producto con variantes es una sola pantalla: si cuestan lo mismo, las medidas en la línea de nota y un precio; si no, una fila por medida con la medida en EB Garamond 28 px y los dos precios en Fraunces 40 px oro.
+
 Verde profundo a sangre. Categoría en label oro, nombre en EB Garamond 56 px crema, regla ornamental, **dos precios del mismo tamaño**, bolívares y $ BCV, los dos en Fraunces 56 px oro (hasta 92 px en televisores de más de 1600 px), materiales en prosa 20 px separados por línea de oro al 45 %. Cada cuatro piezas, una frase de marca centrada en EB Garamond de hasta 76 px. Clave de ubicación ("V1 · BG") en la esquina superior derecha, Jost 20 px crema al 66 % (4,86:1): para la vendedora, no para la clienta. Controles que se esconden a los 4 s y barra de progreso de 3 px en oro.
 
 ### Catálogo PDF
-Portada a página completa en verde profundo con el wordmark verde dentro de un recuadro crema, regla de oro con monograma, intro y materiales. Fichas en crema con fondo blanco, borde de 1 px, radio 12 px: foto cuadrada, SKU y existencia en Jost 10 px secundario, nombre en EB Garamond 16 px, material en oro de texto, bolívares y $ BCV en Fraunces 20 px los dos, ubicación en el mismo tono que la existencia. Pie "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".
+Portada a página completa en verde profundo con el wordmark verde dentro de un recuadro crema, regla de oro con monograma, intro y materiales. Fichas en crema con fondo blanco, borde de 1 px, radio 12 px: foto cuadrada, SKU y existencia en Jost 10 px secundario, nombre en EB Garamond 16 px, material en oro de texto, bolívares y $ BCV en Fraunces 20 px los dos, ubicación en el mismo tono que la existencia. Con variantes, una ficha por producto: medidas del mismo precio en la nota; de precios distintos, una fila por medida con los dos precios en Fraunces 16 px. Pie "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".
 
 ### Costos: la cifra que manda
 La única pantalla con una cifra protagonista de verdad: las piezas que hay que vender en el mes, en Fraunces 56 px (40 px en teléfono), con su unidad en label debajo y para qué alcanzan en EB Garamond 20 px. A su lado, en un panel, la mitad secundaria de la respuesta (las piezas para no perder). Debajo, una barra de avance del mes y una frase con el ritmo. La cuenta se enseña entera más abajo como cadena de pasos ("se vende en − mercancía − empaque = deja"), para que el número no se crea por fe.
+
+### Confirmar la tasa
+La única acción que cambia todos los precios de un toque pide un segundo paso en la misma tarjeta, no en una ventana: un panel que dice cada tasa "antes → después" con cuánto sube o baja en oro de texto, y dos botones, "Sí, fijarla" y "Corregir". Un cero de más se ve antes de que cueste.
 
 ### Tu día (tablero de la vendedora)
 La misma forma que la cifra de Costos, a la escala de ella: lo vendido hoy en Fraunces 56 px con "de 4" a 28 px en salvia de texto al lado, una barra de avance y una frase con lo que falta. Debajo, el mes con su barra y el ritmo. Lo de ella (premium, vendido hoy, ticket) en celdas de tablero, con bolívares y $ BCV del mismo tamaño en las de dinero. En el Mostrador, la meta es una sola línea bajo el título, en éxito cuando se cumple.
@@ -426,6 +445,8 @@ Celda de tablero: etiqueta, valor y una línea que lo compara con el período an
 - **Do** poner todo precio en Fraunces 600 con `tabular-nums`.
 - **Do** decir de qué dólar es cada "$": BCV o Binance.
 - **Do** poner el precio en bolívares y en $ BCV del mismo tamaño en todo catálogo y en la vitrina.
+- **Do** poner el tercer precio, el de $ Binance, solo en el mostrador y en la administración, un paso más chico. Nunca en lo que ve la clienta: el catálogo público, el PDF y la vitrina.
+- **Do** acompañar todo gesto con un botón visible que haga lo mismo.
 - **Do** medir el contraste contra el fondo real antes de usar un color para leer; 4,5:1 mínimo, sin excepción.
 - **Do** usar la variante de texto (`salvia-texto`, `oro-texto`, `alerta-texto`) sobre fondo claro.
 - **Do** hacer píldora todo botón, etiqueta y filtro.

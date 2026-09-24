@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Cargando, Campo, Vacio, Filtros } from '../../componentes/Piezas';
-import { aMonto, deMonto, formatearBcv, formatearBs, formatearMonto, formatearPorcentaje, porCantidad, sumar } from '../../lib/dinero';
+import {
+  aMonto, binanceDesdeBs, deMonto, formatearBcv, formatearBinance, formatearBs, formatearMonto,
+  formatearPorcentaje, porCantidad, rebajaMaximaPct, sumar,
+} from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { useTextos } from '../../hooks/useTextos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
+import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
 import type { ModeloAdmin } from '../../lib/tipos';
@@ -114,11 +118,38 @@ export function Inventario() {
       costoBcv: deMonto(costoBcv),
       ventaBcv: deMonto(ventaBcv),
       ventaBs: deMonto(ventaBs),
+      // Lo mismo que cobraria todo si se pagara en dolares: Bs entre la tasa Binance.
+      ventaBinance: binanceDesdeBs(deMonto(ventaBs), tasa?.tasa_venta),
       gananciaBinance: deMonto(gananciaBinance),
       gananciaBcv: deMonto(gananciaBcv),
       margenPct: ventaBcv > 0n ? (deMonto(gananciaBcv) / deMonto(ventaBcv)) * 100 : null,
     };
-  }, [modelos]);
+  }, [modelos, tasa?.tasa_venta]);
+
+  // El detalle pasa de pieza en pieza por la pagina que se esta viendo.
+  const fichas = useMemo<FotoAmpliada[]>(() => modelos.map((m) => ({
+    clave: m.id,
+    nombre: m.nombre,
+    categoria: m.categoria,
+    materiales: textos.materiales_corto ?? null,
+    variantes: [{
+      id: m.id,
+      etiqueta: m.variante,
+      sku: m.sku,
+      path: m.foto_path,
+      thumbPath: m.foto_thumb_path,
+      bs: m.precio_bs,
+      bcv: m.precio_usd,
+      binance: binanceDesdeBs(m.precio_bs, tasa?.tasa_venta),
+      quedan: m.existencia_total,
+      nota: m.variantes_nota,
+    }],
+  })), [modelos, textos.materiales_corto, tasa?.tasa_venta]);
+
+  function verFoto(id: number) {
+    const ficha = fichas.find((f) => f.clave === id);
+    if (ficha) visor.abrir(ficha, fichas);
+  }
 
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
@@ -163,8 +194,17 @@ export function Inventario() {
         <p>
           <strong>Etiqueta</strong> es el precio en dolares BCV y
           {' '}<strong>Paga en Bs</strong> lo mismo a la tasa de hoy.
+          {' '}<strong>Paga en $ Binance</strong> es lo que se cobra si la
+          clienta paga en dólares, en efectivo o por Binance: los bolívares
+          entre la tasa Binance.
           {' '}<strong>Ganancia real</strong> es lo que te queda en dolares
           Binance: lo que puedes cambiar y volver a invertir en mercancía.
+        </p>
+        <p>
+          <strong>Mínimo</strong> es hasta dónde puede bajar la vendedora para
+          cerrar una venta de pocas piezas: el mayor entre la rebaja máxima que
+          fijaste en Costos y el precio que todavía deja el margen mínimo. Es
+          la misma cifra que ella ve en cada tarjeta del mostrador.
         </p>
         <p>
           Toca dos veces una foto para verla en grande, con su categoría y sus
@@ -177,7 +217,7 @@ export function Inventario() {
         </p>
       </Ayuda>
 
-      <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
+      <VisorFoto {...visor.props} />
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
       {errorCarga ? <Aviso tono="error" titulo="No se pudo leer el inventario">{errorCarga}</Aviso> : null}
@@ -239,6 +279,8 @@ export function Inventario() {
                   <th className="num">Costo total · $ BCV</th>
                   <th className="num">Etiqueta · $ BCV</th>
                   <th className="num">Paga · Bs</th>
+                  <th className="num">Paga · $ Binance</th>
+                  <th className="num">Mínimo · Bs</th>
                   <th className="num">Ganancia · $ Binance</th>
                   <th className="num">Ganancia · $ BCV</th>
                   <th className="num">Margen %</th>
@@ -271,17 +313,16 @@ export function Inventario() {
                             className="miniatura miniatura--tocable"
                             style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                             aria-label={`Ver la foto de ${m.nombre}`}
-                            onClick={() => visor.abrir({
-                              nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
-                              path: m.foto_path, thumbPath: m.foto_thumb_path,
-                              categoria: m.categoria, materiales: textos.materiales_corto ?? null,
-                            })}
+                            onClick={() => verFoto(m.id)}
                           />
                         ) : <span className="miniatura" />}
                       </td>
                       <td className="celda-sku">{m.sku}</td>
                       <td>
-                        <div className="celda-nombre">{m.nombre}</div>
+                        <div className="celda-nombre">
+                          {m.nombre}
+                          {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
+                        </div>
                         {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
                       </td>
                       <td className="util">{m.grupo ?? '—'}</td>
@@ -293,6 +334,17 @@ export function Inventario() {
                       </td>
                       <td className="num">{formatearMonto(m.precio_usd)}</td>
                       <td className="num precio">{formatearBs(m.precio_bs)}</td>
+                      <td className="num">{formatearMonto(binanceDesdeBs(m.precio_bs, tasa?.tasa_venta))}</td>
+                      <td className="num">
+                        {m.precio_minimo_bs != null && m.precio_bs != null && m.precio_minimo_bs < m.precio_bs ? (
+                          <>
+                            {formatearBs(m.precio_minimo_bs)}
+                            <div className="celda-nota">
+                              {rebajaMaximaPct(m.precio_bs, m.precio_minimo_bs)} % menos · {formatearBcv(m.precio_minimo_usd ?? null)}
+                            </div>
+                          </>
+                        ) : <span className="secundario util">precio fijo</span>}
+                      </td>
                       <td className="num">{formatearMonto(m.ganancia_real_usd)}</td>
                       <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
                         {formatearMonto(m.margen_usd)}
@@ -317,6 +369,8 @@ export function Inventario() {
                   <td className="num">{formatearMonto(totales.costoBcv)}</td>
                   <td className="num">{formatearMonto(totales.ventaBcv)}</td>
                   <td className="num">{formatearBs(totales.ventaBs)}</td>
+                  <td className="num">{formatearMonto(totales.ventaBinance)}</td>
+                  <td></td>
                   <td className="num">{formatearMonto(totales.gananciaBinance)}</td>
                   <td className={totales.gananciaBcv < 0 ? 'num negativo' : 'num positivo'}>{formatearMonto(totales.gananciaBcv)}</td>
                   <td className="num">{formatearPorcentaje(totales.margenPct)}</td>
@@ -362,21 +416,24 @@ export function Inventario() {
                       className="miniatura miniatura--tocable ficha-inv__foto"
                       style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                       aria-label={`Ver la foto de ${m.nombre}`}
-                      onClick={() => visor.abrir({
-                        nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
-                        path: m.foto_path, thumbPath: m.foto_thumb_path,
-                        categoria: m.categoria, materiales: textos.materiales_corto ?? null,
-                      })}
+                      onClick={() => verFoto(m.id)}
                     />
                   ) : <span className="miniatura ficha-inv__foto" />}
 
                   <div className="ficha-inv__cuerpo">
                     <div className="ficha-inv__sku">{m.sku} · {m.grupo ?? 'sin grupo'}</div>
-                    <div className="ficha-inv__nombre">{m.nombre}</div>
+                    <div className="ficha-inv__nombre">
+                      {m.nombre}
+                      {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
+                    </div>
                     <div className="ficha-inv__precio">
                       {formatearBs(m.precio_bs)}
                       <span className="ficha-inv__usd">{formatearBcv(m.precio_usd)}</span>
+                      {tasa ? <span className="ficha-inv__usd">{formatearBinance(binanceDesdeBs(m.precio_bs, tasa.tasa_venta))}</span> : null}
                     </div>
+                    {m.precio_minimo_bs != null && m.precio_bs != null && m.precio_minimo_bs < m.precio_bs ? (
+                      <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div>
+                    ) : null}
                     <div className="ficha-inv__datos">
                       <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
                         Margen {formatearPorcentaje(m.margen_pct)}

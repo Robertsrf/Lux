@@ -4,6 +4,8 @@ import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBcv, formatearBs } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
+import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
+import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
 import type { Frase, ModeloVenta } from '../lib/tipos';
@@ -18,7 +20,7 @@ const CADA = 4;
 const SEGUNDOS = [5, 8, 12, 20] as const;
 
 type Diapositiva =
-  | { tipo: 'pieza'; modelo: ModeloVenta; n: number }
+  | { tipo: 'pieza'; familia: Familia<ModeloVenta>; n: number }
   | { tipo: 'frase'; frase: Frase };
 
 /**
@@ -61,7 +63,7 @@ export function Vitrina() {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
           const { data, error: err } = await supabase
             .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, activo, ubicaciones_codigo')
+            .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, activo, ubicaciones_codigo, familia, variante')
             .gt('existencia_total', 0)
             .order('categoria', { ascending: true })
             .order('nombre', { ascending: true })
@@ -80,20 +82,24 @@ export function Vitrina() {
     })();
   }, []);
 
+  // Un producto con variantes es UNA pantalla, con sus medidas y sus
+  // precios: dos pantallas seguidas con la misma cadena parecerian un error.
+  const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
+
   // El guion: piezas con una frase cada CADA. Si no hay frases cargadas
   // queda solo el catalogo, que es como estaba antes.
   const guion = useMemo<Diapositiva[]>(() => {
     const salida: Diapositiva[] = [];
-    modelos.forEach((modelo, i) => {
-      salida.push({ tipo: 'pieza', modelo, n: i + 1 });
-      if (secuencia.length > 0 && (i + 1) % CADA === 0 && i + 1 < modelos.length) {
+    familias.forEach((familia, i) => {
+      salida.push({ tipo: 'pieza', familia, n: i + 1 });
+      if (secuencia.length > 0 && (i + 1) % CADA === 0 && i + 1 < familias.length) {
         // La secuencia ya viene alternada por categoria y sin repetir:
         // recorrerla en orden cumple las dos reglas del banco.
         salida.push({ tipo: 'frase', frase: secuencia[Math.floor(i / CADA) % secuencia.length]! });
       }
     });
     return salida;
-  }, [modelos, secuencia]);
+  }, [familias, secuencia]);
 
   const total = guion.length;
   const actual = total > 0 ? guion[indice % total] : null;
@@ -116,7 +122,8 @@ export function Vitrina() {
     if (total <= 1) return;
     const siguiente = guion[(indice + 1) % total];
     if (siguiente?.tipo !== 'pieza') return;
-    const url = urlPublicaFoto(siguiente.modelo.foto_path ?? siguiente.modelo.foto_thumb_path);
+    const portada = conFoto(siguiente.familia.variantes);
+    const url = portada ? urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path) : null;
     if (url) { const img = new Image(); img.src = url; }
   }, [indice, guion, total]);
 
@@ -171,12 +178,16 @@ export function Vitrina() {
     return () => window.removeEventListener('keydown', alTeclear);
   }, [avanzar, mostrarControles, alternarPantallaCompleta]);
 
-  const foto = useMemo(
-    () => (actual?.tipo === 'pieza'
-      ? urlPublicaFoto(actual.modelo.foto_path ?? actual.modelo.foto_thumb_path)
-      : null),
-    [actual],
-  );
+  const foto = useMemo(() => {
+    if (actual?.tipo !== 'pieza') return null;
+    const portada = conFoto(actual.familia.variantes);
+    return portada ? urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path) : null;
+  }, [actual]);
+
+  // Las claves de todas las variantes, sin repetir: "V1 · BG".
+  const claves = actual?.tipo === 'pieza'
+    ? [...new Set(actual.familia.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ')
+    : '';
 
   if (cargando) return <Cargando texto="Preparando la vitrina" />;
   if (error) return <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso>;
@@ -219,47 +230,16 @@ export function Vitrina() {
             </div>
           </div>
         ) : actual?.tipo === 'pieza' ? (
-          <div className="vitrina__pieza">
-            <div className="vitrina__foto">
-              {foto
-                ? <img src={foto} alt={actual.modelo.nombre} />
-                : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
-            </div>
-
-            <div className="vitrina__ficha">
-              {actual.modelo.categoria ? (
-                <p className="vitrina__categoria">{actual.modelo.categoria}</p>
-              ) : null}
-              <h1 className="vitrina__nombre">{actual.modelo.nombre}</h1>
-              {actual.modelo.variantes_nota ? (
-                <p className="vitrina__nota">{actual.modelo.variantes_nota}</p>
-              ) : null}
-
-              <div className="vitrina__regla" aria-hidden="true">
-                <span /><Monograma tamano={26} /><span />
-              </div>
-
-              {/* Bolívares y dólares BCV, del mismo tamaño y el mismo peso:
-                  quien mira de lejos piensa en una de las dos monedas, y
-                  ninguna tiene que ser la letra chica. */}
-              <p className="vitrina__precio">{formatearBs(actual.modelo.precio_bs)}</p>
-              <p className="vitrina__precio">{formatearBcv(actual.modelo.precio_usd)}</p>
-
-              {textos.materiales_corto ? (
-                <p className="vitrina__materiales">{textos.materiales_corto}</p>
-              ) : null}
-            </div>
-          </div>
+          <FichaVitrina familia={actual.familia} foto={foto} materiales={textos.materiales_corto ?? null} />
         ) : null}
       </div>
+
 
       {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
           sabe leerlo desde su puesto; la clienta ve una referencia y sigue
           de largo. Va fuera de la ficha y se queda aunque se vayan los
           controles, porque es para trabajar, no para vender. */}
-      {actual?.tipo === 'pieza' && actual.modelo.ubicaciones_codigo ? (
-        <p className="vitrina__clave">{actual.modelo.ubicaciones_codigo}</p>
-      ) : null}
+      {claves ? <p className="vitrina__clave">{claves}</p> : null}
 
       {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
       <div className="vitrina__progreso" aria-hidden="true">
@@ -295,12 +275,75 @@ export function Vitrina() {
 
         <div className="vitrina__grupo">
           <span className="vitrina__cuenta">
-            {actual?.tipo === 'pieza' ? `Pieza ${actual.n} de ${modelos.length}` : 'Lux by Emory'}
+            {actual?.tipo === 'pieza' ? `Pieza ${actual.n} de ${familias.length}` : 'Lux by Emory'}
           </span>
           <button type="button" className="boton boton--confirmar" onClick={alternarPantallaCompleta}>
             {pantallaCompleta ? 'Salir' : 'Pantalla completa'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * La ficha de una pieza en la vitrina.
+ *
+ * Con variantes del mismo precio, las medidas en una linea y un precio.
+ * Con precios distintos, cada medida con los suyos: "desde" en una pantalla
+ * que se lee de lejos no dice nada, y la clienta no pregunta por lo que no
+ * ve.
+ */
+function FichaVitrina({ familia, foto, materiales }: {
+  familia: Familia<ModeloVenta>;
+  foto: string | null;
+  materiales: string | null;
+}) {
+  const { cabeza, variantes } = familia;
+  const varias = variantes.length > 1;
+  const mismoPrecio = variantes.every((v) => v.precio_bs === cabeza.precio_bs);
+  const nota = varias
+    ? (mismoPrecio ? etiquetasDe(familia) : null)
+    : [cabeza.variante, cabeza.variantes_nota].filter(Boolean).join(' · ') || null;
+
+  return (
+    <div className="vitrina__pieza">
+      <div className="vitrina__foto">
+        {foto
+          ? <img src={foto} alt={cabeza.nombre} />
+          : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
+      </div>
+
+      <div className="vitrina__ficha">
+        {cabeza.categoria ? <p className="vitrina__categoria">{cabeza.categoria}</p> : null}
+        <h1 className="vitrina__nombre">{cabeza.nombre}</h1>
+        {nota ? <p className="vitrina__nota">{nota}</p> : null}
+
+        <div className="vitrina__regla" aria-hidden="true">
+          <span /><Monograma tamano={26} /><span />
+        </div>
+
+        {/* Bolívares y dólares BCV, del mismo tamaño y el mismo peso:
+            quien mira de lejos piensa en una de las dos monedas, y
+            ninguna tiene que ser la letra chica. */}
+        {varias && !mismoPrecio ? (
+          <ul className="vitrina__variantes">
+            {variantes.map((v) => (
+              <li key={v.id}>
+                <span className="vitrina__variante">{v.variante ?? v.sku}</span>
+                <span className="vitrina__variante-precio">{formatearBs(v.precio_bs)}</span>
+                <span className="vitrina__variante-precio">{formatearBcv(v.precio_usd)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <>
+            <p className="vitrina__precio">{formatearBs(cabeza.precio_bs)}</p>
+            <p className="vitrina__precio">{formatearBcv(cabeza.precio_usd)}</p>
+          </>
+        )}
+
+        {materiales ? <p className="vitrina__materiales">{materiales}</p> : null}
       </div>
     </div>
   );

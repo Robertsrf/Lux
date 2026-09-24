@@ -92,6 +92,8 @@ const VISTAS_DE_COSTO = [
   'v_lotes_admin', 'v_capex_lote', 'v_ventas_por_dia', 'v_mezcla_grupo',
   'v_cobertura_mes', 'v_equilibrio', 'v_volumen', 'v_descuentos_mostrador',
   'v_plan_ventas',
+  // No lleva costo, pero es del dueno: cuanto se dejo de cobrar y quien.
+  'v_rebajas',
 ];
 
 /** Funciones que revelan costo. Tienen que rechazarla. */
@@ -141,6 +143,19 @@ async function main() {
   const vu = await V.from('v_venta_ubicacion').select('modelo_id').limit(1);
   dice(!vu.error && (vu.data?.length ?? 0) > 0, 'v_venta_ubicacion, su mostrador',
     vu.error ? 'ERROR ' + vu.error.code : 'con piezas');
+  // Lo que necesita el carrito para ensenar el tramo y las variantes. Sin
+  // estas columnas el descuento por cantidad no se veia.
+  const vuNuevo = await V.from('v_venta_ubicacion').select('familia, variante, precio_minimo_usd, piso_tramo_usd').limit(1);
+  dice(!vuNuevo.error, 'su mostrador trae pisos y variantes',
+    vuNuevo.error ? 'ERROR ' + vuNuevo.error.code : 'responde');
+  // Fija la tasa del dia. Con ceros la funcion dice que no sin escribir
+  // nada; ese "no" prueba que la pudo ejecutar.
+  const ft = await V.rpc('fijar_tasa', { p_tasa_venta: 0, p_tasa_bcv: 0 });
+  dice(!!ft.error && /mayores que cero/i.test(ft.error.message), 'puede fijar la tasa (fijar_tasa)',
+    ft.error ? ft.error.message : 'ACEPTO CEROS');
+  const vt = await V.from('v_tasas').select('id, registrado_por_nombre').limit(1);
+  dice(!vt.error && (vt.data?.length ?? 0) > 0, 'v_tasas, el historico con quien',
+    vt.error ? 'ERROR ' + vt.error.code : (vt.data?.length ?? 0) + ' fila(s)');
   const tab = await V.from('v_tablero_dia').select('*').limit(1);
   dice(!tab.error, 'v_tablero_dia, su dia', tab.error ? 'ERROR ' + tab.error.code : 'responde');
 
@@ -180,6 +195,11 @@ async function main() {
     margenes.error ? 'ERROR ' + margenes.error.code
       : (margenes.data?.length ?? 0) === 0 ? '0 filas' : 'LEE ' + margenes.data.map((f) => f.clave).join(', '));
 
+  // Separar variantes cambia el catalogo: tampoco es de mostrador.
+  const sep = await V.rpc('admin_separar_variante', { p_id: -1 });
+  dice(!!sep.error, 'admin_separar_variante() le dice que no',
+    sep.error ? 'rechazada' : 'LA DEJO PASAR');
+
   // Juntar dos fichas reescribe ventas ya registradas: no es de mostrador.
   const fus = await V.rpc('admin_fusionar_clientes', { p_se_va: -1, p_se_queda: -2 });
   dice(!!fus.error, 'admin_fusionar_clientes() le dice que no',
@@ -193,6 +213,9 @@ async function main() {
     const { data, error } = await A.from(v).select('*').limit(1);
     dice(!error && (data?.length ?? 0) > 0, v, error ? 'ERROR ' + error.code : 'con datos');
   }
+  // Puede no haber rebajas todavia: lo que se mira es que responda.
+  const rebA = await A.from('v_rebajas').select('venta_id, motivo_rebaja').limit(1);
+  dice(!rebA.error, 'v_rebajas', rebA.error ? 'ERROR ' + rebA.error.code : 'responde');
 
   console.log('\nLA CLIENTA VE EL CATALOGO Y NADA MAS');
   const pub = await P.from('v_disponible_publico').select('id, precio_usd').limit(1);
@@ -213,6 +236,17 @@ async function main() {
   const fuga = await P.from('v_disponible_publico').select('costo_puesto_usd').limit(1);
   dice(!!fuga.error, 'ninguna columna de costo en lo publico',
     fuga.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // Los pisos son de mostrador: con ellos y un poco de paciencia se
+  // adivina el margen de cada pieza.
+  for (const col of ['precio_minimo_usd', 'piso_tramo_usd']) {
+    const f = await P.from('v_disponible_publico').select(col).limit(1);
+    dice(!!f.error, col + ' no sale en lo publico', f.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  }
+  const fam = await P.from('v_disponible_publico').select('familia, variante').limit(1);
+  dice(!fam.error, 'las variantes si salen en lo publico', fam.error ? 'ERROR ' + fam.error.code : 'responde');
+  const ftP = await P.rpc('fijar_tasa', { p_tasa_venta: 0, p_tasa_bcv: 0 });
+  dice(!!ftP.error && !/mayores que cero/i.test(ftP.error.message), 'fijar_tasa() sin sesion, rechazada',
+    ftP.error ? 'rechazada ' + (ftP.error.code ?? '') : 'LA DEJO PASAR');
 
   console.log('');
   if (fallos) {

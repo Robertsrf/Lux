@@ -295,3 +295,28 @@
 @media (min-width: 1600px) {
   .vitrina__materiales { font-size: var(--t-28); }
 }
+
+
+/* Variantes de distinto precio: cada medida con los suyos, en filas. Un
+   paso por debajo del precio grande, que con dos o tres filas no cabria. */
+.vitrina__variantes {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: var(--e-3);
+}
+.vitrina__variantes li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline; gap: var(--e-5);
+}
+.vitrina__variante {
+  font-family: var(--fuente-prosa); font-size: var(--t-28);
+  color: var(--crema);
+}
+.vitrina__variante-precio {
+  font-family: var(--fuente-display); font-size: var(--t-40); font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--oro-arena);
+}
+@media (max-width: 900px) {
+  .vitrina__variantes li { grid-template-columns: 1fr; gap: var(--e-1); }
+  .vitrina__variante-precio { font-size: var(--t-28); }
+}

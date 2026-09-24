@@ -5,12 +5,16 @@ import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../co
 import { Wordmark } from '../../componentes/Marca';
 import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBcv, formatearBs, formatearPorcentaje, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
+import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import type { Familia } from '../../lib/familias';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
+import type { FotoAmpliada } from '../../componentes/VisorFoto';
+import { ElegirVariante } from '../../componentes/ElegirVariante';
 import { useTextos } from '../../hooks/useTextos';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
-const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo';
+const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante';
 
 /**
  * Catalogo publico. Se abre sin sesion, desde un enlace de WhatsApp.
@@ -49,6 +53,7 @@ export function Catalogo() {
   const [agencia, setAgencia] = useState('');
   const [direccion, setDireccion] = useState('');
   const [reservando, setReservando] = useState(false);
+  const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   const visor = useVisorFoto();
   const esDobleToque = useDobleToque();
 
@@ -64,8 +69,8 @@ export function Catalogo() {
     if (categoria) consulta = consulta.eq('categoria', categoria);
 
     if (texto.trim()) {
-      const t = texto.trim().replace(/[%,]/g, ' ');
-      consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%`);
+      const t = texto.trim().replace(/[%,()]/g, ' ');
+      consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
     }
 
     const [cat, tr] = await Promise.all([
@@ -123,6 +128,34 @@ export function Catalogo() {
     return { piezas, subtotal, descuento, totalUsd: aplicarDescuento(subtotal, descuento) };
   }, [seleccion, tramos, porId]);
 
+  // Un producto con variantes es UNA tarjeta, no dos: la cadena de 45 cm y
+  // la de 60 cm son la misma pieza con dos opciones.
+  const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
+
+  // Lo que ensena el detalle, en el mismo orden que la cuadricula, para
+  // pasar de una pieza a la siguiente sin salir.
+  const fichas = useMemo<FotoAmpliada[]>(() => familias.map((f) => {
+    const portada = conFoto(f.variantes);
+    return {
+      clave: f.clave,
+      nombre: f.cabeza.nombre,
+      categoria: f.cabeza.categoria,
+      materiales: textos.materiales_largo ?? null,
+      variantes: f.variantes.map((v) => ({
+        id: v.id,
+        etiqueta: v.variante,
+        path: v.foto_path ?? portada?.foto_path ?? null,
+        thumbPath: v.foto_thumb_path ?? portada?.foto_thumb_path ?? null,
+        bs: v.precio_bs,
+        bcv: v.precio_usd,
+        quedan: v.disponible,
+        nota: v.variantes_nota,
+      })),
+    };
+  }), [familias, textos.materiales_largo]);
+
+  const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
+
   function agregar(m: ModeloPublico) {
     setSeleccion((prev) => {
       const copia = new Map(prev);
@@ -133,20 +166,31 @@ export function Catalogo() {
     });
   }
 
-  function verFoto(m: ModeloPublico) {
-    visor.abrir({
-      nombre: m.nombre, sku: m.sku, nota: m.variantes_nota,
-      path: m.foto_path, thumbPath: m.foto_thumb_path,
-      materiales: textos.materiales_largo ?? null,
-    });
+  function agregarPorId(id: number) {
+    const m = porId.get(id);
+    if (m) agregar(m);
   }
 
-  /** Un toque suma la pieza; dos seguidos abren la foto y deshacen el primero. */
-  function alTocar(m: ModeloPublico) {
+  function verFoto(f: Familia<ModeloPublico>) {
+    const ficha = fichas.find((x) => x.clave === f.clave);
+    if (ficha) visor.abrir(ficha, fichas);
+  }
+
+  /**
+   * Un toque suma la pieza; dos seguidos abren el detalle y deshacen el
+   * primero. Si el producto tiene variantes, el toque abre la hoja para
+   * elegir cual.
+   */
+  function alTocar(f: Familia<ModeloPublico>) {
+    if (f.variantes.length > 1) {
+      setFamiliaAbierta(f.clave);
+      return;
+    }
+    const m = f.cabeza;
     if (esDobleToque(m.id)) {
       const puestas = seleccion.get(m.id) ?? 0;
       if (puestas > 0) cambiar(m.id, puestas - 1);
-      verFoto(m);
+      verFoto(f);
       return;
     }
     agregar(m);
@@ -212,7 +256,7 @@ export function Catalogo() {
                 ? <img className="linea-cobro__foto" src={urlPublicaFoto(m.foto_thumb_path)!} alt="" />
                 : <span className="linea-cobro__foto" />}
               <div>
-                <div className="linea-cobro__nombre">{m.nombre}</div>
+                <div className="linea-cobro__nombre">{nombreConVariante(m.nombre, m.variante)}</div>
                 <div className="linea-cobro__precio">Quedan {m.disponible}</div>
               </div>
               <div className="contador">
@@ -379,25 +423,38 @@ export function Catalogo() {
           </Vacio>
         ) : (
           <div className="rejilla-venta">
-            {modelos.map((m) => {
-              const foto = fuenteFoto(m.foto_path, m.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
-              const puestas = seleccion.get(m.id) ?? 0;
+            {familias.map((f) => {
+              const m = f.cabeza;
+              const unica = f.variantes.length === 1;
+              const portada = conFoto(f.variantes) ?? m;
+              const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
+              const puestas = f.variantes.reduce((n, v) => n + (seleccion.get(v.id) ?? 0), 0);
+              const quedan = f.variantes.reduce((n, v) => n + v.disponible, 0);
+              const agotado = f.variantes.every((v) => (seleccion.get(v.id) ?? 0) >= v.disponible);
+              const bs = rangoDe(f.variantes, (v) => v.precio_bs);
+              const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
+              const etiquetas = etiquetasDe(f);
+              // Las claves de todas las variantes, sin repetir: "V1 · BG".
+              const claves = [...new Set(f.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ');
               return (
                 <button
-                  key={m.id}
+                  key={f.clave}
                   type="button"
                   className="tarjeta-modelo"
-                  disabled={puestas >= m.disponible}
-                  onClick={() => alTocar(m)}
-                  aria-label={`Agregar ${m.nombre} al pedido`}
+                  disabled={agotado}
+                  onClick={() => alTocar(f)}
+                  aria-haspopup={unica ? undefined : 'dialog'}
+                  aria-label={unica
+                    ? `Agregar ${nombreConVariante(m.nombre, m.variante)} al pedido`
+                    : `Elegir cuál de ${m.nombre}: ${etiquetas}`}
                 >
                   <span
                     role="button"
                     tabIndex={0}
                     className="lupa"
-                    aria-label={`Ver la foto de ${m.nombre}`}
-                    onClick={(e) => { e.stopPropagation(); verFoto(m); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(m); } }}
+                    aria-label={`Ver en detalle ${m.nombre}`}
+                    onClick={(e) => { e.stopPropagation(); verFoto(f); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(f); } }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
                       <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
@@ -408,25 +465,26 @@ export function Catalogo() {
                     : <span className="tarjeta-modelo__foto" />}
                   <span className="tarjeta-modelo__cuerpo">
                     <span className="tarjeta-modelo__nombre">{m.nombre}</span>
+                    {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
                     {textos.materiales_corto ? (
                       <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
                     ) : null}
-                    {m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
+                    {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
                     {/* Los dos precios del mismo tamaño: la clienta piensa en
-                        bolívares o en dólares, y ninguno es la letra chica. */}
-                    <span className="tarjeta-modelo__precio">{formatearBs(m.precio_bs)}</span>
-                    <span className="tarjeta-modelo__precio">{formatearBcv(m.precio_usd)}</span>
+                        bolívares o en dólares, y ninguno es la letra chica.
+                        Con variantes de distinto precio, el mas bajo y "desde". */}
+                    {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
+                    <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
+                    <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
                     <span className="tarjeta-modelo__pie">
                       <span className="tarjeta-modelo__datos">
-                        <span className={m.disponible <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                          Quedan {m.disponible}
+                        <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
+                          Quedan {quedan}
                         </span>
                         {/* La clave de la tienda, nunca el nombre completo.
                             Para la clienta son dos letras sin significado;
                             para la vendedora, el estante al que ir. */}
-                        {m.ubicaciones_codigo ? (
-                          <span className="tarjeta-modelo__clave">{m.ubicaciones_codigo}</span>
-                        ) : null}
+                        {claves ? <span className="tarjeta-modelo__clave">{claves}</span> : null}
                       </span>
                       {puestas > 0 ? <span className="tarjeta-modelo__contador">{puestas}</span> : null}
                     </span>
@@ -437,7 +495,47 @@ export function Catalogo() {
           </div>
         )}
 
-        <VisorFoto foto={visor.foto} alCerrar={visor.cerrar} />
+        <VisorFoto
+          {...visor.props}
+          accion={{
+            texto: 'Agregar al pedido',
+            alTocar: agregarPorId,
+            deshabilitada: (id) => {
+              const m = porId.get(id);
+              return !m || (seleccion.get(id) ?? 0) >= m.disponible;
+            },
+            llevas: (id) => seleccion.get(id) ?? 0,
+          }}
+        />
+
+        {(() => {
+          const abierta = familiaAbierta === null ? null : familias.find((x) => x.clave === familiaAbierta);
+          if (!abierta) return null;
+          return (
+            <ElegirVariante
+              titulo={abierta.cabeza.nombre}
+              subtitulo="Elige la que quieres."
+              opciones={abierta.variantes.map((v) => {
+                const puestas = seleccion.get(v.id) ?? 0;
+                return {
+                  id: v.id,
+                  etiqueta: v.variante ?? v.sku,
+                  detalle: v.disponible === 1 ? 'Queda 1' : `Quedan ${v.disponible}`,
+                  precios: (
+                    <>
+                      <span className="opcion-variante__precio">{formatearBs(v.precio_bs)}</span>
+                      <span className="opcion-variante__precio">{formatearBcv(v.precio_usd)}</span>
+                    </>
+                  ),
+                  deshabilitada: puestas >= v.disponible,
+                  llevas: puestas,
+                };
+              })}
+              alElegir={(id) => { agregarPorId(id); setFamiliaAbierta(null); }}
+              alCerrar={cerrarHoja}
+            />
+          );
+        })()}
 
         {resumen.piezas > 0 ? (
           <div className="barra-carrito">

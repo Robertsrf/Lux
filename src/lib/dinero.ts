@@ -72,9 +72,62 @@ export function precioEnBs(
   tasa: Pick<Tasas, 'tasa_bcv'> | null | undefined,
 ): number | null {
   if (precioUsdBcv === null || !tasa) return null;
-  const bruto = aMonto(precioUsdBcv) * aMonto(tasa.tasa_bcv);   // escala 8
-  const centavos = bruto / (FACTOR * 100n);                     // escala 2
+  return bsDeBcv(precioUsdBcv, tasa.tasa_bcv);
+}
+
+/**
+ * Bolivares de un precio en dolares BCV, redondeados igual que la base:
+ * `round(x, 2)`, la mitad hacia afuera. Antes se truncaba, y una pieza
+ * podia salir un centimo por debajo de lo que despues cobraba la venta.
+ */
+export function bsDeBcv(precioUsdBcv: number, tasaBcv: number): number {
+  const bruto = aMonto(precioUsdBcv) * aMonto(tasaBcv);         // escala 8
+  const unCentimo = FACTOR * 100n;                              // 0,01 a escala 8
+  const mitad = unCentimo / 2n;
+  const centavos = (bruto + (bruto >= 0n ? mitad : -mitad)) / unCentimo;
   return Number(centavos) / 100;
+}
+
+/**
+ * El precio de una pieza con el descuento por cantidad, en dolares BCV.
+ *
+ * Es la misma cuenta que hace `registrar_venta` en la base, paso por paso,
+ * para que el carrito ensene lo que se va a cobrar y no algo parecido:
+ *
+ *   1. la etiqueta menos el porcentaje, redondeada a cuatro decimales;
+ *   2. nunca por debajo del piso de margen de esa pieza;
+ *   3. nunca por encima de la etiqueta.
+ *
+ * El piso es el de MARGEN, no el del regateo. Con el del regateo, un tramo
+ * del 15 % se quedaba en el 10 % que puede rebajar la vendedora.
+ */
+export function precioConTramo(listaUsd: number, descuentoPct: number | null, pisoUsd: number | null): number {
+  const lista = aMonto(listaUsd);
+  if (!descuentoPct || descuentoPct <= 0) return deMonto(lista);
+  // lista x (100 - d) esta a escala 8; entre 100 a escala 4 (= 10^6) queda
+  // a escala 4. Se suma la mitad antes de dividir: redondea, no trunca.
+  const bruto = lista * aMonto(100 - descuentoPct);
+  let precio = (bruto + 500_000n) / 1_000_000n;
+  const piso = pisoUsd === null ? 0n : aMonto(pisoUsd);
+  if (precio < piso) precio = piso;
+  if (precio > lista) precio = lista;
+  return deMonto(precio);
+}
+
+/**
+ * Dolares Binance de unos bolivares: lo que cobra quien paga en dolares en
+ * efectivo o por Binance. Es la misma cuenta con la que la base guarda el
+ * `total_usd` de cada venta (total en Bs entre la tasa de venta), asi que
+ * lo que ella cobra y lo que queda registrado es la misma cifra.
+ */
+export function binanceDesdeBs(bs: number | null | undefined, tasaVenta: number | null | undefined): number | null {
+  if (bs === null || bs === undefined || !tasaVenta) return null;
+  return bs / tasaVenta;
+}
+
+/** Un numero redondeado a cuatro decimales, como `numeric(12,4)`. */
+export function aCuatroDecimales(valor: number): number {
+  return deMonto(aMonto(valor));
 }
 
 /**
@@ -168,8 +221,9 @@ const NUM = (min: number, max: number) =>
                BCV. Precios, gastos de la tienda, margen y reportes.
 
     $ Binance  el que se compra afuera, a la tasa de venta. Lo que costó la
-               mercancía y su flete, y lo que de verdad te queda para
-               reponer.
+               mercancía y su flete, lo que de verdad te queda para
+               reponer, y lo que cobra la vendedora cuando la clienta paga
+               en dólares en efectivo o por Binance.
 
   Antes había un solo `formatearUsd` que imprimía "$" y nada más, y la
   pantalla de Inventario ponía un costo en Binance al lado de un costo en
@@ -218,6 +272,12 @@ export function rebajaMaximaPct(lista: number | null | undefined, minimo: number
   // Hacia abajo, para no prometerle un punto que el minimo no deja; el
   // epsilon evita que un 10 exacto salga 9 por la aritmetica flotante.
   return Math.floor(((lista - minimo) / lista) * 100 + 1e-6);
+}
+
+/** Cuanto se rebajo de verdad una pieza, en por ciento entero de su etiqueta. */
+export function porcentajeRebajado(lista: number | null | undefined, cobrado: number | null | undefined): number {
+  if (!lista || lista <= 0 || cobrado === null || cobrado === undefined || cobrado >= lista) return 0;
+  return Math.round(((lista - cobrado) / lista) * 100);
 }
 
 /** Cuántos dólares BCV son unos bolívares, a una tasa BCV dada. */

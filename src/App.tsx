@@ -41,7 +41,7 @@ const Inventario = lazy(() => import('./paginas/admin/Inventario').then((m) => (
 const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').then((m) => ({ default: m.FormularioModelo })));
 const Lotes = lazy(() => import('./paginas/admin/Lotes').then((m) => ({ default: m.Lotes })));
 const Grupos = lazy(() => import('./paginas/admin/Grupos').then((m) => ({ default: m.Grupos })));
-const Tasas = lazy(() => import('./paginas/admin/Tasas').then((m) => ({ default: m.Tasas })));
+const Tasas = lazy(() => import('./paginas/Tasas').then((m) => ({ default: m.Tasas })));
 const Tramos = lazy(() => import('./paginas/admin/Tramos').then((m) => ({ default: m.Tramos })));
 const Textos = lazy(() => import('./paginas/admin/Textos').then((m) => ({ default: m.Textos })));
 const Costos = lazy(() => import('./paginas/admin/Costos').then((m) => ({ default: m.Costos })));
@@ -110,6 +110,11 @@ export function App() {
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/clientes/:id" element={<Clientes />} />
 
+            {/* Las tasas tambien las fija ella: la tasa se mueve durante el
+                dia y es ella la que esta en la tienda. La base deja escrito
+                quien fijo cada una. */}
+            <Route path="/tasas" element={<Tasas />} />
+
             {/* Administracion */}
             <Route path="/admin/inventario" element={soloAdmin(<Inventario />)} />
             <Route path="/admin/modelos/nuevo" element={soloAdmin(<FormularioModelo />)} />
@@ -120,7 +125,8 @@ export function App() {
             <Route path="/admin/textos" element={soloAdmin(<Textos />)} />
             <Route path="/admin/costos" element={soloAdmin(<Costos />)} />
             <Route path="/admin/inversiones" element={soloAdmin(<Inversiones />)} />
-            <Route path="/admin/tasas" element={soloAdmin(<Tasas />)} />
+            {/* La direccion vieja, por si quedo guardada en un marcador. */}
+            <Route path="/admin/tasas" element={<Navigate to="/tasas" replace />} />
             <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
           </Route>
 

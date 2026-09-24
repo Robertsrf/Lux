@@ -39,6 +39,7 @@ export function Tablero() {
   const [premiumDesde, setPremiumDesde] = useState<number | null>(null);
   const [metaPremium, setMetaPremium] = useState(0);
   const [rebajaMax, setRebajaMax] = useState<number | null>(null);
+  const [primerTramo, setPrimerTramo] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,16 +47,19 @@ export function Tablero() {
     if (!perfil) return;
     void (async () => {
       setCargando(true);
-      const [tab, cfg, m] = await Promise.all([
+      const [tab, cfg, m, tr] = await Promise.all([
         // Filtrado por ella: si el dueño abre esta pantalla, la vista le
         // devolvería una fila por persona que vendió hoy.
         supabase.from('v_tablero_dia').select('*').eq('usuario_id', perfil.id).maybeSingle(),
         supabase.from('configuracion').select('clave, valor')
           .in('clave', ['premium_min_usd', 'meta_premium_dia', 'descuento_max_mostrador_pct']),
         supabase.rpc('meta_vendedora'),
+        // Desde cuantas piezas empieza el descuento por cantidad: ahi el
+        // regateo deja de contar.
+        supabase.from('tramos_mayoreo').select('min_piezas').eq('activo', true).order('min_piezas').limit(1),
       ]);
-      // Tres consultas, tres errores mirados.
-      const fallo = tab.error ?? cfg.error ?? m.error;
+      // Cuatro consultas, cuatro errores mirados.
+      const fallo = tab.error ?? cfg.error ?? m.error ?? tr.error;
       setError(fallo ? mensajeDeError(fallo) : null);
       setDato((tab.data as TableroDia | null) ?? null);
       const valores = new Map(((cfg.data as { clave: string; valor: number }[] | null) ?? []).map((f) => [f.clave, Number(f.valor)]));
@@ -63,6 +67,7 @@ export function Tablero() {
       setMetaPremium(valores.get('meta_premium_dia') ?? 0);
       setRebajaMax(valores.get('descuento_max_mostrador_pct') ?? null);
       setMeta(((m.data as MetaVendedora[] | null) ?? [])[0] ?? null);
+      setPrimerTramo(((tr.data as { min_piezas: number }[] | null) ?? [])[0]?.min_piezas ?? null);
       setCargando(false);
     })();
   }, [perfil]);
@@ -174,8 +179,15 @@ export function Tablero() {
           <p className="prosa" style={{ margin: 0 }}>
             Puedes rebajar hasta <strong style={{ display: 'inline' }}>{formatearEntero(rebajaMax)} %</strong> de
             la etiqueta para cerrar una venta. En algunas piezas un poco menos: el sistema no deja
-            bajar de su mínimo. Al cobrar, cada pieza te dice cuánto admite.
+            bajar de su mínimo, que ves en cada tarjeta del mostrador. Al cobrar, toca el precio
+            de la pieza y escribe lo que cobras.
           </p>
+          {primerTramo !== null ? (
+            <p className="prosa" style={{ margin: 'var(--e-3) 0 0' }}>
+              Desde <strong style={{ display: 'inline' }}>{formatearEntero(primerTramo)} piezas</strong> no
+              se regatea: manda el descuento por cantidad, que el sistema pone solo.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

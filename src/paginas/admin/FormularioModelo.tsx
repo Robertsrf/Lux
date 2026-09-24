@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
-import { aDolaresReales, aMonto, deMonto, formatearBcv, formatearBinance, formatearBs, formatearPorcentaje, precioEnBs } from '../../lib/dinero';
+import {
+  aDolaresReales, aMonto, binanceDesdeBs, deMonto, formatearBcv, formatearBinance, formatearBs,
+  formatearPorcentaje, precioEnBs,
+} from '../../lib/dinero';
 import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
@@ -16,24 +19,52 @@ const VACIO = {
   sku: '',
   descripcion: '',
   variantes_nota: '',
+  variante: '',
   lote_id: '',
   costo_unitario_usd: '',
   grupo_precio_id: '',
   precio_override_usd: '',
 };
 
+/** Una hermana de la familia, para listarla y saltar a editarla. */
+interface Hermana {
+  id: number;
+  sku: string;
+  variante: string | null;
+  precio_bs: number | null;
+  existencia_total: number;
+}
+
+/**
+ * Pasar de un producto a otro, o de un producto a una variante nueva, es
+ * la MISMA ruta con otros datos. Sin la clave, React reutilizaria el
+ * formulario y la variante nueva heredaria las cantidades de la anterior.
+ */
+export function FormularioModelo() {
+  const { id } = useParams();
+  const [parametros] = useSearchParams();
+  return <Formulario key={`${id ?? 'nuevo'}-${parametros.get('variante_de') ?? ''}`} />;
+}
+
 /**
  * Carga de modelos. Se inventarian MODELOS con cantidad, no piezas
  * individuales: no existe "la pieza numero 247", existe "cadena cubana
  * dorada" de la que quedan 18.
  *
- * Las variantes menores (grosor, largo) no crean modelos nuevos si cuestan y
- * se venden igual: van en la nota de variantes.
+ * VARIANTES. Una cadena de 45 cm y otra de 60 cm son el mismo producto con
+ * dos opciones. Cada una sigue siendo un modelo completo (su SKU, su
+ * existencia, su costo, su grupo, su foto), y lo que las junta es la
+ * familia. "Guardar y agregar otra variante" guarda esta y abre una nueva
+ * copiada de ella, ya dentro de la familia: solo hay que cambiar la medida
+ * y lo que sea distinto.
  */
-export function FormularioModelo() {
+function Formulario() {
   const { id } = useParams();
+  const [parametros] = useSearchParams();
   const navegar = useNavigate();
   const esNuevo = !id;
+  // La pieza de la que sale esta variante, cuando se esta creando una.
+  const varianteDe = esNuevo && parametros.get('variante_de') ? Number(parametros.get('variante_de')) : null;
 
   const { grupos } = useGrupos();
   const categorias = useCategorias();
@@ -50,10 +81,18 @@ export function FormularioModelo() {
   const [margenObjetivo, setMargenObjetivo] = useState('');
   const [categoriaNueva, setCategoriaNueva] = useState(false);
   const [autoAsignado, setAutoAsignado] = useState(false);
-  const [cargando, setCargando] = useState(!esNuevo);
+  const [cargando, setCargando] = useState(!esNuevo || varianteDe !== null);
   const [guardando, setGuardando] = useState(false);
   const [procesandoFoto, setProcesandoFoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorVariante, setErrorVariante] = useState<string | null>(null);
+  const [hermanas, setHermanas] = useState<Hermana[]>([]);
+  const [padre, setPadre] = useState<string | null>(null);
+  // La foto de la pieza de la que sale la variante: si no se sube otra, la
+  // variante nueva ensena la misma.
+  const [fotoHeredada, setFotoHeredada] = useState<{ foto_path: string | null; foto_thumb_path: string | null } | null>(null);
+  const [separando, setSeparando] = useState(false);
+  const campoVariante = useRef<HTMLInputElement>(null);
 
   function cambiar<K extends keyof typeof VACIO>(campo: K, valor: string) {
     setForm((f) => ({ ...f, [campo]: valor }));
@@ -66,14 +105,29 @@ export function FormularioModelo() {
     })();
   }, []);
 
+  /** Las otras piezas de la familia, sin la que se esta editando. */
+  const cargarHermanas = useCallback(async (familia: number, sin: number | null) => {
+    let consulta = supabase
+      .from('v_catalogo_admin')
+      .select('id, sku, variante, precio_bs, existencia_total')
+      .eq('familia', familia)
+      .order('variante', { ascending: true });
+    if (sin !== null) consulta = consulta.neq('id', sin);
+    const { data } = await consulta;
+    setHermanas((data as Hermana[] | null) ?? []);
+  }, []);
+
   useEffect(() => {
-    if (esNuevo) return;
+    // Lo que se lee: el modelo que se edita, o aquel del que sale la
+    // variante nueva.
+    const leer = esNuevo ? varianteDe : Number(id);
+    if (leer === null) return;
     void (async () => {
       setCargando(true);
       const { data, error: err } = await supabase
         .from('v_catalogo_admin')
-        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd')
-        .eq('id', Number(id))
+        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd, familia, variante')
+        .eq('id', leer)
         .maybeSingle();
 
       if (err) { setError(mensajeDeError(err)); setCargando(false); return; }
@@ -83,9 +137,12 @@ export function FormularioModelo() {
       setForm({
         nombre: m.nombre,
         categoria: m.categoria,
-        sku: m.sku,
+        // Una variante nueva lleva su propio SKU (se genera) y su propia
+        // medida: lo demas se copia, que es casi siempre lo mismo.
+        sku: esNuevo ? '' : m.sku,
         descripcion: m.descripcion ?? '',
         variantes_nota: m.variantes_nota ?? '',
+        variante: esNuevo ? '' : m.variante ?? '',
         lote_id: m.lote_id ? String(m.lote_id) : '',
         costo_unitario_usd: String(m.costo_unitario_usd ?? ''),
         grupo_precio_id: m.grupo_precio_id ? String(m.grupo_precio_id) : '',
@@ -94,7 +151,17 @@ export function FormularioModelo() {
       setFotoActual(urlPublicaFoto(m.foto_thumb_path ?? m.foto_path));
       setAutoAsignado(true);
 
-      const { data: ex } = await supabase.from('existencias').select('ubicacion_id, cantidad').eq('modelo_id', Number(id));
+      if (esNuevo) {
+        setPadre(m.variante ? `${m.nombre} · ${m.variante}` : m.nombre);
+        setFotoHeredada({ foto_path: m.foto_path, foto_thumb_path: m.foto_thumb_path });
+        // Todas las de la familia son hermanas de la nueva, la de origen incluida.
+        await cargarHermanas(m.familia, null);
+        setCargando(false);
+        return;
+      }
+
+      await cargarHermanas(m.familia, m.id);
+      const { data: ex } = await supabase.from('existencias').select('ubicacion_id, cantidad').eq('modelo_id', m.id);
       const mapa: Record<number, string> = {};
       for (const fila of (ex as { ubicacion_id: number; cantidad: number }[] | null) ?? []) {
         mapa[fila.ubicacion_id] = String(fila.cantidad);
@@ -102,7 +169,21 @@ export function FormularioModelo() {
       setCantidades(mapa);
       setCargando(false);
     })();
-  }, [id, esNuevo]);
+  }, [id, esNuevo, varianteDe, cargarHermanas]);
+
+  /**
+   * Sacar esta pieza de su familia: vuelve a ir suelta. Si era la cabeza,
+   * las demas siguen juntas; lo resuelve la base.
+   */
+  async function separar() {
+    if (!id) return;
+    if (!window.confirm('¿Sacar esta pieza del producto? Vuelve a ir suelta en el catálogo; sus hermanas siguen juntas.')) return;
+    setSeparando(true);
+    const { error: err } = await supabase.rpc('admin_separar_variante', { p_id: Number(id) });
+    setSeparando(false);
+    if (err) { setError(mensajeDeError(err)); return; }
+    setHermanas([]);
+  }
 
   // La vista previa de la foto nueva. El URL de objeto se libera al cambiar
   // de foto o al salir: si no, el navegador se queda con la imagen en memoria
@@ -155,16 +236,30 @@ export function FormularioModelo() {
     }
   }
 
-  async function guardar(e: React.FormEvent) {
-    e.preventDefault();
-    setGuardando(true);
+  /**
+   * Guarda. Con `agregarOtra`, despues abre una variante nueva copiada de
+   * esta y ya dentro de su familia.
+   */
+  async function guardar(agregarOtra: boolean) {
     setError(null);
+    setErrorVariante(null);
+    // Dos hermanas sin nombre de variante son dos tarjetas iguales en la
+    // hoja de elegir: la vendedora no sabria cual es cual.
+    if ((agregarOtra || varianteDe !== null || hermanas.length > 0) && !form.variante.trim()) {
+      setErrorVariante('Ponle nombre a esta variante: lo que la distingue de las otras, por ejemplo 45 cm.');
+      campoVariante.current?.focus();
+      return;
+    }
+    setGuardando(true);
 
     try {
-      let rutas: { foto_path: string; foto_thumb_path: string } | null = null;
+      let rutas: { foto_path: string | null; foto_thumb_path: string | null } | null = null;
       if (foto) {
         const carpeta = form.sku.trim() || form.nombre.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
         rutas = await subirFoto(carpeta, foto);
+      } else if (esNuevo && fotoHeredada) {
+        // Sin foto propia, la variante nueva ensena la de su hermana.
+        rutas = fotoHeredada;
       }
 
       const existencias = ubicaciones
@@ -185,11 +280,15 @@ export function FormularioModelo() {
         p_foto_thumb_path: rutas?.foto_thumb_path ?? null,
         p_sku: form.sku || null,
         p_existencias: existencias,
+        // Cadena vacia = sin variante. Null significaria "no la toques",
+        // que es lo que manda el formulario viejo.
+        p_variante: form.variante.trim(),
+        p_variante_de: varianteDe,
       });
 
       if (err) throw err;
       if (!data) throw new Error('La base no devolvio el modelo guardado.');
-      navegar('/admin/inventario');
+      navegar(agregarOtra ? `/admin/modelos/nuevo?variante_de=${data as number}` : '/admin/inventario');
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
@@ -217,14 +316,21 @@ export function FormularioModelo() {
     <div className="pagina pagina--angosta">
       <div className="encabezado-pagina">
         <div>
-          <h1>{esNuevo ? 'Agregar producto' : `Editar ${form.sku}`}</h1>
-          <p>Cada producto se inventaria con su cantidad, no pieza por pieza.</p>
+          <h1>{varianteDe !== null ? 'Nueva variante' : esNuevo ? 'Agregar producto' : `Editar ${form.sku}`}</h1>
+          <p>
+            {varianteDe !== null && padre
+              ? `De ${padre}. Viene copiada: cambia la medida y lo que sea distinto.`
+              : 'Cada producto se inventaria con su cantidad, no pieza por pieza.'}
+          </p>
         </div>
       </div>
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 
-      <form onSubmit={(e) => void guardar(e)} className="pila">
+      <form
+        onSubmit={(e) => { e.preventDefault(); void guardar(false); }}
+        className="pila"
+      >
         <div className="tarjeta">
           <h2>Foto</h2>
           <hr className="divisor" />
@@ -312,13 +418,85 @@ export function FormularioModelo() {
             </Campo>
           ) : null}
 
-          <Campo etiqueta="Nota de variantes" htmlFor="m-variantes" pista="Grosores y largos que hay del mismo modelo, para no ir a mirar la vitrina.">
+          <Campo
+            etiqueta="Nota corta"
+            htmlFor="m-variantes"
+            pista="Algo que la clienta deba saber de la pieza: ajustable, se vende en par. Las medidas o tallas que se venden aparte van como variantes, abajo."
+          >
             <textarea id="m-variantes" value={form.variantes_nota} onChange={(e) => cambiar('variantes_nota', e.target.value)} />
           </Campo>
 
           <Campo etiqueta="Descripcion" htmlFor="m-desc">
             <textarea id="m-desc" value={form.descripcion} onChange={(e) => cambiar('descripcion', e.target.value)} />
           </Campo>
+        </div>
+
+        {/* LAS VARIANTES. En vez de escribir "45 y 60 cm" en una nota, cada
+            medida es una opcion del mismo producto: en el mostrador y en el
+            catalogo sale una sola tarjeta, y al tocarla se elige cual. */}
+        <div className="tarjeta">
+          <h2>Variantes</h2>
+          <hr className="divisor" />
+
+          <Campo
+            etiqueta="Esta variante se llama"
+            htmlFor="m-variante"
+            pista="Lo que la distingue de las otras del mismo producto: 45 cm, talla 7, dorada. Déjalo vacío si el producto no tiene variantes."
+            {...(errorVariante ? { error: errorVariante } : {})}
+          >
+            <input
+              id="m-variante"
+              ref={campoVariante}
+              value={form.variante}
+              maxLength={40}
+              autoFocus={varianteDe !== null}
+              onChange={(e) => { cambiar('variante', e.target.value); setErrorVariante(null); }}
+            />
+          </Campo>
+
+          {hermanas.length > 0 ? (
+            <>
+              <span className="panel__titulo">
+                {varianteDe !== null ? 'Ya están en este producto' : 'Las otras de este producto'}
+              </span>
+              <ul className="hermanas">
+                {hermanas.map((h) => (
+                  <li key={h.id} className="hermanas__fila">
+                    <span className="hermanas__nombre">{h.variante ?? 'Sin nombre de variante'}</span>
+                    <span className="hermanas__dato">{h.sku}</span>
+                    <span className="hermanas__dato">{formatearBs(h.precio_bs)}</span>
+                    <span className="hermanas__dato">{h.existencia_total} en tienda</span>
+                    <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${h.id}`}>Editar</Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="campo__pista">
+              Si esta pieza viene en otras medidas o tallas, agrégalas aquí: se venden
+              como un solo producto y la clienta elige cuál.
+            </p>
+          )}
+
+          <div className="acciones acciones--sueltas">
+            <button
+              type="button"
+              className="boton boton--secundario"
+              disabled={guardando || procesandoFoto}
+              onClick={(e) => {
+                // Las mismas comprobaciones del navegador que el boton de
+                // guardar: nombre y categoria no pueden quedar vacios.
+                if (e.currentTarget.form?.reportValidity()) void guardar(true);
+              }}
+            >
+              {hermanas.length > 0 || varianteDe !== null ? 'Guardar y agregar otra variante' : 'Guardar y agregar una variante'}
+            </button>
+            {!esNuevo && hermanas.length > 0 ? (
+              <button type="button" className="boton boton--secundario" disabled={separando} onClick={() => void separar()}>
+                {separando ? 'Sacando' : 'Sacar de este producto'}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="tarjeta">
@@ -469,7 +647,10 @@ export function FormularioModelo() {
               <div>
                 <span className="dato__etiqueta">Paga la clienta</span>
                 <div className="dato__valor">{formatearBs(precioEnBs(precioBcv, tasa))}</div>
-                <div className="campo__pista">a la tasa BCV de hoy</div>
+                <div className="campo__pista">
+                  a la tasa BCV de hoy
+                  {tasa ? `, o ${formatearBinance(binanceDesdeBs(precioEnBs(precioBcv, tasa), tasa.tasa_venta))} si paga en dólares` : ''}
+                </div>
               </div>
               <div>
                 <span className="dato__etiqueta">Menos el costo</span>

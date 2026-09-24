@@ -5,6 +5,8 @@ import { CompartirCatalogo } from '../componentes/CompartirCatalogo';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
+import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
+import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
 import type { ModeloVenta } from '../lib/tipos';
@@ -38,7 +40,7 @@ export function CatalogoPdf() {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
           const { data, error: err } = await supabase
             .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, ubicaciones')
+            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, ubicaciones, familia, variante')
             .gt('existencia_total', 0)
             .order('categoria', { ascending: true })
             .order('nombre', { ascending: true })
@@ -61,11 +63,16 @@ export function CatalogoPdf() {
   // El catalogo se parte en tandas para intercalar una frase de marca
   // entre ellas. Son las mismas de la Guia del Colaborador: lo que la
   // vendedora diria de viva voz, dicho por el papel.
+  //
+  // Un producto con variantes es UNA ficha, con la medida y el precio de
+  // cada una: dos fichas iguales en el mismo PDF parecen un error de
+  // imprenta.
+  const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
   const tandas = useMemo(() => {
-    const salida: ModeloVenta[][] = [];
-    for (let i = 0; i < modelos.length; i += POR_TANDA) salida.push(modelos.slice(i, i + POR_TANDA));
+    const salida: Familia<ModeloVenta>[][] = [];
+    for (let i = 0; i < familias.length; i += POR_TANDA) salida.push(familias.slice(i, i + POR_TANDA));
     return salida;
-  }, [modelos]);
+  }, [familias]);
 
   if (cargando) return <Cargando texto="Armando el catálogo" />;
 
@@ -110,7 +117,7 @@ export function CatalogoPdf() {
         ) : null}
 
         <p className="portada__dato">
-          Catalogo del {formatearFecha(new Date().toISOString())} · {modelos.length} modelos disponibles
+          Catalogo del {formatearFecha(new Date().toISOString())} · {familias.length} modelos disponibles
         </p>
 
         <p className="portada__lugar">
@@ -127,28 +134,52 @@ export function CatalogoPdf() {
           {tandas.map((tanda, t) => (
           <div key={t}>
           <div className="catalogo__rejilla">
-            {tanda.map((m) => {
-              const foto = urlPublicaFoto(m.foto_path ?? m.foto_thumb_path);
+            {tanda.map((f) => {
+              const m = f.cabeza;
+              const portada = conFoto(f.variantes) ?? m;
+              const foto = urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path);
+              const varias = f.variantes.length > 1;
+              const mismoPrecio = f.variantes.every((v) => v.precio_bs === m.precio_bs);
+              const quedan = f.variantes.reduce((n, v) => n + v.existencia_total, 0);
+              const donde = [...new Set(f.variantes.flatMap((v) => (v.ubicaciones ?? '').split(' · ')).filter(Boolean))].join(' · ');
               return (
-                <article className="ficha" key={m.id}>
+                <article className="ficha" key={f.clave}>
                   {foto
                     ? <img className="ficha__foto" src={foto} alt={m.nombre} loading="lazy" />
                     : <div className="ficha__foto" />}
-                  <div className="ficha__sku">{m.sku}</div>
+                  <div className="ficha__sku">{varias ? f.variantes.map((v) => v.sku).join(' · ') : m.sku}</div>
                   <div className="ficha__nombre">{m.nombre}</div>
-                  {m.variantes_nota ? <div className="ficha__variantes">{m.variantes_nota}</div> : null}
+                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasDe(f)}</div> : null}
+                  {!varias && (m.variante || m.variantes_nota) ? (
+                    <div className="ficha__variantes">{[m.variante, m.variantes_nota].filter(Boolean).join(' · ')}</div>
+                  ) : null}
                   {textos.materiales_corto ? (
                     <div className="ficha__material">{textos.materiales_corto}</div>
                   ) : null}
                   <div>
-                    <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
-                    <div className="ficha__precio">{formatearBcv(m.precio_usd)}</div>
+                    {varias && !mismoPrecio ? (
+                      // Cada medida con su precio, los dos del mismo tamano.
+                      <ul className="ficha__opciones">
+                        {f.variantes.map((v) => (
+                          <li key={v.id}>
+                            <span className="ficha__opcion">{v.variante ?? v.sku}</span>
+                            <span className="ficha__opcion-precio">{formatearBs(v.precio_bs)}</span>
+                            <span className="ficha__opcion-precio">{formatearBcv(v.precio_usd)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <>
+                        <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
+                        <div className="ficha__precio">{formatearBcv(m.precio_usd)}</div>
+                      </>
+                    )}
                     <div className="ficha__existencia">
-                      {m.existencia_total === 1 ? 'Queda 1 pieza' : `Quedan ${m.existencia_total} piezas`}
+                      {quedan === 1 ? 'Queda 1 pieza' : `Quedan ${quedan} piezas`}
                     </div>
                     {/* Donde esta, para que la vendedora vaya derecho a buscarla.
                         En la vitrina del televisor va en clave; aqui, con nombre. */}
-                    {m.ubicaciones ? <div className="ficha__ubicacion">{m.ubicaciones}</div> : null}
+                    {donde ? <div className="ficha__ubicacion">{donde}</div> : null}
                   </div>
                 </article>
               );

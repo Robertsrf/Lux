@@ -197,3 +197,11 @@
   .catalogo__franja { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .franja__texto { font-size: 12pt; }
 }
+
+
+/* Variantes de distinto precio: una fila por medida, los dos precios del
+   mismo tamano. */
+.ficha__opciones { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ficha__opciones li { display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap; }
+.ficha__opcion { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); min-width: 5ch; }
+.ficha__opcion-precio { font-family: var(--fuente-display); font-size: var(--t-16); font-variant-numeric: tabular-nums; }

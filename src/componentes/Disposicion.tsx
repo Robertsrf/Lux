@@ -18,7 +18,7 @@ const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
   { a: '/admin/costos',     texto: 'Costos',     icono: 'reportes' },
   { a: '/admin/inversiones', texto: 'Inversiones', icono: 'lotes' },
-  { a: '/admin/tasas',      texto: 'Tasas',      icono: 'tasas' },
+  { a: '/tasas',            texto: 'Tasas',      icono: 'tasas' },
   { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
   { a: '/catalogo',         texto: 'Catálogo',   icono: 'catalogo' },
   { a: '/vitrina',          texto: 'Vitrina',    icono: 'vitrina' },
@@ -31,6 +31,7 @@ const ENLACES_VENTA: Enlace[] = [
   { a: '/venta/tablero',  texto: 'Mi día',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
+  { a: '/tasas',          texto: 'Tasas',     icono: 'tasas' },
   { a: '/venta/guia',     texto: 'Guía',      icono: 'catalogo' },
   { a: '/vitrina',        texto: 'Vitrina',   icono: 'vitrina' },
 ];

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
-import { aMonto, deMonto, descuentoPara, porCantidad, sumar } from '../lib/dinero';
-import type { ClienteDeVenta, LineaCarrito, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
+import {
+  aCuatroDecimales, aMonto, bcvDesdeBs, binanceDesdeBs, bsDeBcv, deMonto,
+  descuentoPara, porCantidad, precioConTramo, sumar,
+} from '../lib/dinero';
+import type { Tasas } from '../lib/dinero';
+import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
 
 /**
  * Carrito del mostrador. Vive solo en memoria: la venta se vuelve real
@@ -9,17 +13,27 @@ import type { ClienteDeVenta, LineaCarrito, MetodoPago, ModeloEnUbicacion, TipoV
  * Aqui no se calcula ningun costo ni margen; la vendedora no los ve.
  *
  * EL DESCUENTO POR CANTIDAD SE APLICA SOLO
- * Antes el mayoreo era una pantalla aparte con kits armados a mano. Ahora
- * es una regla: 6 piezas 5 %, 12 piezas 10 %, 20 piezas 15 %. La vendedora
- * no cambia de pantalla ni se acuerda de nada; junta piezas y la rebaja
- * aparece.
+ * 6 piezas 5 %, 12 piezas 10 %, 20 piezas 15 % (o lo que el dueno ponga en
+ * Tramos). La vendedora no cambia de pantalla ni se acuerda de nada: junta
+ * piezas y la rebaja aparece.
+ *
+ * Y DURANTE SEMANAS NO APARECIO. El mostrador no le pedia a la base el
+ * precio minimo de cada pieza; sin el, el carrito creia que el minimo era la
+ * etiqueta, y el tramo "nunca por debajo del minimo" se quedaba en cero. De
+ * paso, cada pieza decia "no admite rebaja". Ahora las dos cifras llegan, y
+ * el tramo usa la que le toca: el piso de MARGEN, no el del regateo.
+ *
+ * CON TRAMO MANDA EL TRAMO
+ * El regateo es para cerrar una venta chica. Desde el primer tramo, lo que
+ * ella haya escrito a mano deja de contar y se cobra el tramo; si quita
+ * piezas y baja de ahi, su precio vuelve. Asi lo decidio el dueno, y asi lo
+ * hace `registrar_venta`.
  *
  * Lo que se calcula aqui es solo para que ella VEA lo mismo que va a
- * cobrar. Quien decide el precio de verdad es `registrar_venta`, y hace
- * exactamente esto mismo: el tramo por el total de piezas, sin bajar del
- * piso de cada pieza, y sin tocar las lineas que ella ya regateo.
+ * cobrar. Quien decide el precio es la base, con la misma cuenta, en el
+ * mismo orden y con el mismo redondeo (`precioConTramo`, `bsDeBcv`).
  */
-export function useCarrito() {
+export function useCarrito(tasa: Tasas | null) {
   const [lineas, setLineas] = useState<LineaCarrito[]>([]);
   const [tramos, setTramos] = useState<Tramo[]>([]);
   const [cobrando, setCobrando] = useState(false);
@@ -32,8 +46,8 @@ export function useCarrito() {
         .select('id, min_piezas, descuento_pct, activo')
         .eq('activo', true)
         .order('min_piezas');
-      // Si la escalera no llega, se cobra al detal y se dice. Callarlo
-      // seria cobrarle de mas a una clienta sin que nadie se entere.
+      // Si la escalera no llega, se dice. Callarlo seria ensenar un total
+      // sin descuento mientras la base cobra otro.
       if (err) setError('No se pudo leer la escalera de descuentos: ' + mensajeDeError(err));
       else setTramos((data as Tramo[] | null) ?? []);
     })();
@@ -50,16 +64,22 @@ export function useCarrito() {
         copia[i] = { ...linea, cantidad: linea.cantidad + 1 };
         return copia;
       }
+      const lista = m.precio_usd ?? 0;
       return [...prev, {
         modelo_id: m.modelo_id,
         ubicacion_id: m.ubicacion_id,
         sku: m.sku,
         nombre: m.nombre,
+        variante: m.variante ?? null,
         foto_thumb_path: m.foto_thumb_path,
-        precio_usd: m.precio_usd ?? 0,
-        precio_bs: m.precio_bs ?? 0,
+        precio_lista_usd: lista,
         precio_lista_bs: m.precio_bs ?? 0,
+        // Sin piso, ni regateo ni tramo: se cobra la etiqueta. Es lo mismo
+        // que hace la base con un `coalesce(piso, lista)`.
+        precio_minimo_usd: m.precio_minimo_usd ?? lista,
         precio_minimo_bs: m.precio_minimo_bs ?? m.precio_bs ?? 0,
+        piso_tramo_usd: m.piso_tramo_usd ?? lista,
+        precio_manual_usd: null,
         cantidad: 1,
         disponible: m.cantidad,
       }];
@@ -75,62 +95,81 @@ export function useCarrito() {
   }, []);
 
   /**
-   * Rebaja para cerrar el trato. La vendedora escribe bolivares, que es
-   * como habla con la clienta; el precio ancla sigue siendo el de etiqueta
-   * en dolares BCV, asi que se convierte de vuelta al enviar.
+   * Rebaja para cerrar el trato. Ella escribe bolivares, que es como habla
+   * con la clienta; se guarda en dolares BCV, que es lo que manda la venta.
    *
-   * Este tope es una comodidad, no una proteccion: quien mande la venta
-   * por su cuenta se lo salta. El piso de verdad lo valida la base.
+   * En el minimo exacto se guarda el minimo en dolares tal cual llego de la
+   * base, no la vuelta de los bolivares: dividir y redondear dejaba el
+   * precio una diezmilesima por debajo del piso y la venta se rechazaba
+   * justo en la cifra que la pantalla ofrecia.
+   *
+   * El tope es una comodidad, no una proteccion: el piso de verdad lo
+   * valida `registrar_venta`.
    */
-  const cambiarPrecio = useCallback((modeloId: number, ubicacionId: number, precioBs: number, tasaBcv: number) => {
+  const cambiarPrecio = useCallback((modeloId: number, ubicacionId: number, precioBs: number) => {
+    const tasaBcv = tasa?.tasa_bcv ?? null;
     setLineas((prev) => prev.map((l) => {
       if (l.modelo_id !== modeloId || l.ubicacion_id !== ubicacionId) return l;
-      const acotado = Math.min(Math.max(precioBs, l.precio_minimo_bs), l.precio_lista_bs);
-      return { ...l, precio_bs: acotado, precio_usd: tasaBcv > 0 ? acotado / tasaBcv : l.precio_usd };
+      if (!Number.isFinite(precioBs) || precioBs <= 0 || precioBs >= l.precio_lista_bs) {
+        return { ...l, precio_manual_usd: null };
+      }
+      if (precioBs <= l.precio_minimo_bs) return { ...l, precio_manual_usd: l.precio_minimo_usd };
+      const usd = bcvDesdeBs(precioBs, tasaBcv);
+      return { ...l, precio_manual_usd: usd === null ? null : aCuatroDecimales(usd) };
     }));
-  }, []);
+  }, [tasa?.tasa_bcv]);
 
   const vaciar = useCallback(() => { setLineas([]); setError(null); }, []);
 
   const totales = useMemo(() => {
     const piezas = lineas.reduce((n, l) => n + l.cantidad, 0);
     const descuento = descuentoPara(tramos, piezas);
+    const tasaBcv = tasa?.tasa_bcv ?? null;
 
     // Mismo orden de decisiones que `registrar_venta`, a proposito:
-    //   1. Si ella escribio un precio, ese manda y el tramo no se suma.
-    //   2. Si no, el tramo sobre el precio de lista.
-    //   3. Nunca por debajo del piso de esa pieza.
-    const conTramo = lineas.map((l) => {
-      const regateada = l.precio_bs < l.precio_lista_bs;
-      if (regateada || !descuento) return { ...l, precio_final_bs: l.precio_bs };
-      const rebajado = l.precio_lista_bs * (1 - descuento / 100);
-      return { ...l, precio_final_bs: Math.max(rebajado, l.precio_minimo_bs) };
+    //   1. Con tramo, el tramo, sin bajar del piso de margen.
+    //   2. Sin tramo, lo que ella negocio, si negocio.
+    //   3. Si no, la etiqueta.
+    const calculadas: LineaCobro[] = lineas.map((l) => {
+      let usd = l.precio_lista_usd;
+      let motivo: LineaCobro['motivo'] = null;
+      if (descuento) {
+        usd = precioConTramo(l.precio_lista_usd, descuento, l.piso_tramo_usd);
+        if (usd < l.precio_lista_usd) motivo = 'tramo';
+      } else if (l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd) {
+        usd = l.precio_manual_usd;
+        motivo = 'regateo';
+      }
+      // A etiqueta, los bolivares de la vista tal cual; rebajada, la misma
+      // cuenta de la base: round(dolares x tasa BCV, 2).
+      const bs = motivo !== null && tasaBcv ? bsDeBcv(usd, tasaBcv) : l.precio_lista_bs;
+      return { ...l, precio_final_usd: usd, precio_final_bs: bs, motivo };
     });
 
-    const bs = sumar(conTramo.map((l) => porCantidad(aMonto(l.precio_final_bs), l.cantidad)));
-    const lista = sumar(lineas.map((l) => porCantidad(aMonto(l.precio_lista_bs), l.cantidad)));
-    // Los dolares salen de la misma proporcion de cada linea, que es exacta
-    // en los dos casos: la regateada tiene factor 1 y la rebajada lleva el
-    // mismo recorte que sus bolivares.
-    const usd = sumar(conTramo.map((l) => porCantidad(
-      aMonto(l.precio_bs > 0 ? l.precio_usd * (l.precio_final_bs / l.precio_bs) : l.precio_usd),
-      l.cantidad,
-    )));
+    const bs = deMonto(sumar(calculadas.map((l) => porCantidad(aMonto(l.precio_final_bs), l.cantidad))));
+    const lista = deMonto(sumar(lineas.map((l) => porCantidad(aMonto(l.precio_lista_bs), l.cantidad))));
+    const regateadas = calculadas.filter((l) => l.motivo === 'regateo');
 
-    const siguiente = tramos
-      .filter((t) => t.activo && t.min_piezas > piezas)
-      .sort((a, b) => a.min_piezas - b.min_piezas)[0] ?? null;
+    const activos = tramos.filter((t) => t.activo).sort((a, b) => a.min_piezas - b.min_piezas);
+    const siguiente = activos.find((t) => t.min_piezas > piezas) ?? null;
 
     return {
       piezas,
-      totalBs: deMonto(bs),
-      totalUsd: deMonto(usd),
+      totalBs: bs,
+      /** En dolares BCV: lo que dice la etiqueta. */
+      totalBcv: bcvDesdeBs(bs, tasaBcv),
+      /** En dolares Binance: lo que cobra si le pagan en dolares o por Binance. */
+      totalBinance: binanceDesdeBs(bs, tasa?.tasa_venta ?? null),
       descuento,
-      ahorroBs: deMonto(lista) - deMonto(bs),
+      ahorroBs: lista - bs,
+      /** Lo que ella rebajo a mano, en bolivares. Cero con tramo. */
+      regateoBs: deMonto(sumar(regateadas.map((l) => porCantidad(aMonto(l.precio_lista_bs - l.precio_final_bs), l.cantidad)))),
+      /** Desde cuantas piezas empieza el primer tramo: ahi el regateo deja de contar. */
+      primerTramo: activos[0]?.min_piezas ?? null,
       siguiente: siguiente ? { faltan: siguiente.min_piezas - piezas, pct: siguiente.descuento_pct } : null,
-      lineas: conTramo,
+      lineas: calculadas,
     };
-  }, [lineas, tramos]);
+  }, [lineas, tramos, tasa?.tasa_bcv, tasa?.tasa_venta]);
 
   /**
    * Una sola llamada: venta, lineas, descuento de existencia y la ficha de
@@ -143,6 +182,8 @@ export function useCarrito() {
     setCobrando(true);
     setError(null);
 
+    const conTramo = descuentoPara(tramos, lineas.reduce((n, l) => n + l.cantidad, 0)) !== null;
+
     const { data, error: err } = await supabase.rpc('registrar_venta', {
       p_tipo: tipo,
       p_metodo: metodo,
@@ -150,19 +191,17 @@ export function useCarrito() {
         modelo_id: l.modelo_id,
         ubicacion_id: l.ubicacion_id,
         cantidad: l.cantidad,
-        // Solo se manda si ELLA rebajo a mano. El descuento por cantidad no
-        // se manda: lo calcula `registrar_venta` con la escalera de la base,
-        // que es la unica que manda. Mandarlo desde aqui seria dejar que el
+        // Solo se manda lo que ELLA negocio, y solo sin tramo. El descuento
+        // por cantidad no se manda: lo calcula la base con su escalera, que
+        // es la unica que manda. Mandarlo desde aqui seria dejar que el
         // navegador decidiera el precio.
-        precio_unitario_usd: l.precio_bs < l.precio_lista_bs ? Number(l.precio_usd.toFixed(4)) : null,
+        precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
+          ? l.precio_manual_usd
+          : null,
       })),
       p_cliente_nombre: cliente?.nombre ?? null,
       p_cliente_telefono: cliente?.telefono ?? null,
       p_notas: null,
-      // Los tres del maestro de clientas. Van al final de la firma y con
-      // valor por defecto: asi la version vieja del navegador, la que
-      // todavia manda siete argumentos mientras GitHub Pages publica,
-      // sigue encajando con la misma funcion.
       p_cliente_id: cliente?.id ?? null,
       p_cliente_cedula: cliente?.cedula ?? null,
       p_cliente_apellido: cliente?.apellido ?? null,
@@ -176,7 +215,7 @@ export function useCarrito() {
     }
     setLineas([]);
     return { ok: true as const, ventaId: data as number };
-  }, [lineas]);
+  }, [lineas, tramos]);
 
   return { lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, cobrando, error };
 }

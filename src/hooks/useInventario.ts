@@ -29,6 +29,7 @@ const COLUMNAS = [
   'costo_operativo_usd', 'costo_mercancia_bcv', 'costo_total_usd', 'factor_merma',
   'lote_id', 'lote_codigo', 'margen_usd', 'margen_pct', 'ganancia_real_usd',
   'descripcion', 'activo',
+  'precio_minimo_usd', 'precio_minimo_bs', 'familia', 'variante',
 ].join(', ');
 
 /**
@@ -76,7 +77,7 @@ export function useInventario(filtros: FiltrosInventario, pagina: number) {
       if (idsEnUbicacion) consulta = consulta.in('id', idsEnUbicacion);
       if (filtros.texto.trim()) {
         const t = filtros.texto.trim().replace(/[%,]/g, ' ');
-        consulta = consulta.or(`nombre.ilike.%${t}%,sku.ilike.%${t}%`);
+        consulta = consulta.or(`nombre.ilike.%${t}%,sku.ilike.%${t}%,variante.ilike.%${t}%`);
       }
 
       const { data, error: err, count } = await consulta;

@@ -8,11 +8,14 @@ import {
   formatearFecha, formatearMonto, formatearPorcentaje, porCantidad, precioEnBs, sumar,
 } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
+import { nombreConVariante } from '../../lib/familias';
 import { GraficoDiario, GraficoGastos, GraficoValor } from '../../componentes/Graficos';
 import type {
-  CoberturaMes, GastoPartida, MezclaGrupo, RotacionModelo,
+  CoberturaMes, GastoPartida, MezclaGrupo, Rebaja, RotacionModelo,
   ValorCategoriaFila, ValorInventario, VentaPorDia,
 } from '../../lib/tipos';
+
+const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad' };
 
 const PERIODOS = [
   { dias: 7, texto: 'Últimos 7 días' },
@@ -88,6 +91,7 @@ export function Reportes() {
   const [cobertura, setCobertura] = useState<CoberturaMes | null>(null);
   const [valor, setValor] = useState<ValorInventario | null>(null);
   const [valorCat, setValorCat] = useState<ValorCategoriaFila[]>([]);
+  const [rebajas, setRebajas] = useState<Rebaja[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +100,7 @@ export function Reportes() {
       setCargando(true);
       setError(null);
       // El doble del período: la mitad de atrás es contra lo que se compara.
-      const [v, m, r, g, c, iv, ic] = await Promise.all([
+      const [v, m, r, g, c, iv, ic, rb] = await Promise.all([
         supabase.from('v_ventas_por_dia').select('*').gte('dia', hace(dias * 2)).order('dia', { ascending: false }),
         supabase.from('v_mezcla_grupo').select('*').order('orden'),
         supabase.from('v_rotacion_modelo').select('*').order('piezas_vendidas', { ascending: false }).limit(500),
@@ -104,9 +108,11 @@ export function Reportes() {
         supabase.from('v_cobertura_mes').select('*').maybeSingle(),
         supabase.from('v_valor_inventario').select('*').maybeSingle(),
         supabase.from('v_valor_por_categoria').select('*'),
+        // Lo que se vendio por debajo de la etiqueta en el periodo.
+        supabase.from('v_rebajas').select('*').gte('fecha', hace(dias)).order('fecha', { ascending: false }).limit(1000),
       ]);
-      // Siete consultas, siete errores mirados.
-      const fallo = v.error ?? m.error ?? r.error ?? g.error ?? c.error ?? iv.error ?? ic.error;
+      // Ocho consultas, ocho errores mirados.
+      const fallo = v.error ?? m.error ?? r.error ?? g.error ?? c.error ?? iv.error ?? ic.error ?? rb.error;
       if (fallo) setError(mensajeDeError(fallo));
       setFilas((v.data as VentaPorDia[] | null) ?? []);
       setMezcla((m.data as MezclaGrupo[] | null) ?? []);
@@ -115,6 +121,7 @@ export function Reportes() {
       setCobertura((c.data as CoberturaMes | null) ?? null);
       setValor((iv.data as ValorInventario | null) ?? null);
       setValorCat((ic.data as ValorCategoriaFila[] | null) ?? []);
+      setRebajas((rb.data as Rebaja[] | null) ?? []);
       setCargando(false);
     })();
   }, [dias]);
@@ -123,6 +130,23 @@ export function Reportes() {
   const ventas = useMemo(() => filas.filter((f) => f.dia >= desde), [filas, desde]);
   const actual = useMemo(() => totalizar(ventas), [ventas]);
   const anterior = useMemo(() => totalizar(filas.filter((f) => f.dia < desde)), [filas, desde]);
+
+  /*
+    LAS REBAJAS, SEPARADAS POR QUE
+    El regateo lo decide la vendedora pieza por pieza para cerrar una venta
+    chica; el tramo lo pone la regla de cantidad. Juntarlos en una cifra
+    esconderia justo lo que se quiere saber: cuanto cuesta negociar.
+  */
+  const resumenRebajas = useMemo(() => {
+    const de = (motivo: Rebaja['motivo_rebaja']) => {
+      const filas = rebajas.filter((x) => x.motivo_rebaja === motivo);
+      return {
+        piezas: filas.reduce((n, x) => n + x.cantidad, 0),
+        usd: deMonto(sumar(filas.map((x) => aMonto(x.rebaja_usd)))),
+      };
+    };
+    return { regateo: de('regateo'), tramo: de('tramo'), sinDato: de(null) };
+  }, [rebajas]);
 
   const dormidos = useMemo(
     () => rotacion.filter((r) => r.existencia > 0
@@ -306,6 +330,77 @@ export function Reportes() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ------------------------------------------------ rebajas */}
+
+      <h2 className="seccion-titulo">Rebajas · $ BCV</h2>
+      {rebajas.length === 0 ? (
+        <Vacio titulo={`Ninguna pieza se vendió por debajo de su etiqueta en los últimos ${dias} días`} />
+      ) : (
+        <>
+          <div className="tablero">
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Regateo para cerrar</span>
+              <div className="tablero__cifra">{formatearBcv(resumenRebajas.regateo.usd)}</div>
+              <div className="tablero__meta">
+                {resumenRebajas.regateo.piezas} pieza{resumenRebajas.regateo.piezas === 1 ? '' : 's'} · lo negoció la vendedora
+              </div>
+            </div>
+            <div className="tablero__celda">
+              <span className="dato__etiqueta">Descuento por cantidad</span>
+              <div className="tablero__cifra">{formatearBcv(resumenRebajas.tramo.usd)}</div>
+              <div className="tablero__meta">
+                {resumenRebajas.tramo.piezas} pieza{resumenRebajas.tramo.piezas === 1 ? '' : 's'} · lo puso el tramo
+              </div>
+            </div>
+            {resumenRebajas.sinDato.piezas > 0 ? (
+              <div className="tablero__celda">
+                <span className="dato__etiqueta">Sin motivo guardado</span>
+                <div className="tablero__cifra">{formatearBcv(resumenRebajas.sinDato.usd)}</div>
+                <div className="tablero__meta">ventas de antes de que se guardara el porqué</div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="tabla-envoltura" style={{ marginTop: 'var(--e-4)' }}>
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Pieza</th><th>Quién</th><th>Por qué</th>
+                  <th className="num">Cant.</th>
+                  <th className="num">Etiqueta · Bs</th>
+                  <th className="num">Cobrado · Bs</th>
+                  <th className="num">Rebaja</th>
+                  <th className="num">Dejó de cobrar · $ BCV</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rebajas.slice(0, 60).map((x) => (
+                  <tr key={`${x.venta_id}-${x.modelo_id}`}>
+                    <td>{formatearFecha(x.fecha)}</td>
+                    <td>
+                      <div className="celda-nombre">{nombreConVariante(x.nombre, x.variante)}</div>
+                      <div className="celda-nota">{x.sku} · venta {x.venta_id}</div>
+                    </td>
+                    <td className="util">{x.vendedora ?? '—'}</td>
+                    <td className="util">{x.motivo_rebaja ? MOTIVO[x.motivo_rebaja] : 'Sin dato'}</td>
+                    <td className="num">{x.cantidad}</td>
+                    <td className="num">{formatearBs(x.precio_lista_bs)}</td>
+                    <td className="num">{formatearBs(x.precio_unitario_bs)}</td>
+                    <td className="num">{formatearPorcentaje(x.rebaja_pct, 0)}</td>
+                    <td className="num">{formatearMonto(x.rebaja_usd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
+            Cada venta guarda a cuánto salió cada pieza, no el precio de su grupo: los reportes de
+            arriba ya cuentan lo cobrado de verdad. Esto dice cuánto se dejó de cobrar y por qué.
+            {rebajas.length > 60 ? ` Se ven las 60 más recientes de ${rebajas.length}.` : ''}
+          </p>
+        </>
       )}
 
       {/* -------------------------------------------- por grupo */}
