@@ -404,6 +404,8 @@ export interface LineaPedido {
   cantidad: number;
   ubicacion: string;
   variante: string | null;
+  /** La clienta del maestro con esa cedula, si ya existia al apartar. */
+  cliente_id: number | null;
 }
 
 /** Lo que devuelve admin_sugerir_precio: el resultado y todo el camino. */

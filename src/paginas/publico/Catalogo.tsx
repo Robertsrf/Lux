@@ -11,6 +11,8 @@ import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
+import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
+import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
@@ -44,10 +46,9 @@ export function Catalogo() {
     // Sin replace: cada cambio deja su huella en el historial.
     setParametros(p === 'pedido' ? { paso: 'pedido' } : {});
   };
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [cedula, setCedula] = useState('');
-  const [telefono, setTelefono] = useState('');
+  // Los datos de la clienta viven aqui y no en el formulario: si vuelve a
+  // "Seguir viendo" y regresa, lo que ya confirmo sigue confirmado.
+  const [datos, setDatos] = useState<EstadoTusDatos>(TUS_DATOS_VACIOS);
   const [entrega, setEntrega] = useState<'tienda' | 'envio'>('tienda');
   const [empresa, setEmpresa] = useState<'domesa' | 'mrw'>('domesa');
   const [agencia, setAgencia] = useState('');
@@ -207,16 +208,20 @@ export function Catalogo() {
   }
 
   async function reservar() {
+    const quien = datosParaReservar(datos);
+    if (!quien) return;
     setReservando(true);
     setError(null);
     const items = [...seleccion.entries()].map(([modelo_id, cantidad]) => ({ modelo_id, cantidad }));
 
     const { data, error: err } = await supabase.rpc('crear_reserva', {
       p_items: items,
-      p_cliente_nombre: nombre,
-      p_cliente_apellido: apellido,
-      p_cliente_cedula: cedula,
-      p_cliente_telefono: telefono,
+      // Si confirmo que es clienta, nombre, apellido o telefono van vacios
+      // y la base los pone desde su ficha: aqui nunca estuvieron completos.
+      p_cliente_nombre: quien.nombre,
+      p_cliente_apellido: quien.apellido,
+      p_cliente_cedula: quien.cedula,
+      p_cliente_telefono: quien.telefono,
       p_entrega: entrega,
       p_envio_empresa: entrega === 'envio' ? empresa : null,
       p_envio_agencia: entrega === 'envio' ? agencia : null,
@@ -283,22 +288,7 @@ export function Catalogo() {
         </div>
 
         <h2 className="seccion-titulo">Tus datos</h2>
-        <div className="fila">
-          <Campo etiqueta="Nombre" htmlFor="r-nombre">
-            <input id="r-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="given-name" required />
-          </Campo>
-          <Campo etiqueta="Apellido" htmlFor="r-apellido">
-            <input id="r-apellido" value={apellido} onChange={(e) => setApellido(e.target.value)} autoComplete="family-name" required />
-          </Campo>
-        </div>
-        <div className="fila">
-          <Campo etiqueta="Cédula" htmlFor="r-cedula" pista="Va en la guia de envio.">
-            <input id="r-cedula" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value)} required />
-          </Campo>
-          <Campo etiqueta="Teléfono" htmlFor="r-tel" pista="Con el código. Por ejemplo 0412 1234567.">
-            <input id="r-tel" type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} autoComplete="tel" required />
-          </Campo>
-        </div>
+        <TusDatos valor={datos} alCambiar={setDatos} />
 
         <h2 className="seccion-titulo">Como lo recibes</h2>
         <div className="panel">
@@ -345,7 +335,7 @@ export function Catalogo() {
           <button
             type="button"
             className="boton boton--confirmar"
-            disabled={reservando || resumen.piezas === 0}
+            disabled={reservando || resumen.piezas === 0 || !datosParaReservar(datos)}
             onClick={() => void reservar()}
           >
             {reservando ? 'Apartando' : 'Apartar mis piezas'}
@@ -354,6 +344,8 @@ export function Catalogo() {
             Seguir viendo
           </button>
         </div>
+        {/* Un boton apagado sin explicacion es una trampa. */}
+        {!datosParaReservar(datos) ? <p className="campo__pista">{queFalta(datos)}</p> : null}
       </div>
     );
   }

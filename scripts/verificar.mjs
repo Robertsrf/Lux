@@ -244,6 +244,15 @@ async function main() {
   }
   const fam = await P.from('v_disponible_publico').select('familia, variante').limit(1);
   dice(!fam.error, 'las variantes si salen en lo publico', fam.error ? 'ERROR ' + fam.error.code : 'responde');
+  // La busqueda por cedula del catalogo: responde sin sesion, pero NUNCA
+  // con el apellido entero ni el telefono completo. Si devolviera mas, se
+  // podria sacar la lista de clientas probando cedulas.
+  const bc = await P.rpc('buscar_cliente_publico', { p_cedula: '00000001' });
+  const clavesBc = Object.keys(bc.data ?? {});
+  const permitidas = ['encontrada', 'nombre', 'inicial', 'telefono_final', 'faltan'];
+  const deMas = clavesBc.filter((c) => !permitidas.includes(c));
+  dice(!bc.error && deMas.length === 0, 'buscar_cliente_publico() enmascarada',
+    bc.error ? 'ERROR ' + bc.error.code : deMas.length ? 'DEVUELVE ' + deMas.join(', ') : 'solo ' + clavesBc.join(', '));
   const ftP = await P.rpc('fijar_tasa', { p_tasa_venta: 0, p_tasa_bcv: 0 });
   dice(!!ftP.error && !/mayores que cero/i.test(ftP.error.message), 'fijar_tasa() sin sesion, rechazada',
     ftP.error ? 'rechazada ' + (ftP.error.code ?? '') : 'LA DEJO PASAR');

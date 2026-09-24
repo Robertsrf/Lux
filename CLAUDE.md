@@ -60,7 +60,8 @@ src/
   componentes/  Disposicion (armazón y navegación), Piezas (Aviso, Campo,
                 Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto
                 (detalle que pasa de pieza), ElegirVariante (la hoja de
-                medidas), Graficos, Progreso, Recordatorio, CompartirCatalogo,
+                medidas), TusDatos (el pedido público empieza por la
+                cédula), Graficos, Progreso, Recordatorio, CompartirCatalogo,
                 BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
@@ -136,6 +137,14 @@ Toda operación que toque varias tablas va en una RPC transaccional, no en tres
 llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
+
+`buscar_cliente_publico` es la única que lee el maestro de clientas sin sesión:
+el catálogo la usa para reconocer a una clienta por su cédula. Devuelve
+**enmascarado** (primer nombre, inicial del apellido, dos últimos dígitos del
+teléfono) porque las cédulas son correlativas y con datos completos cualquiera se
+llevaría la lista. Lo que la clienta confirmada no escribe lo rellena
+`crear_reserva` por dentro, y `ver_reserva` lo devuelve enmascarado también.
+`verificar` vigila que no devuelva una clave más.
 
 `fijar_tasa` es de las dos caras (la tasa se mueve durante el día y quien está
 en la tienda es ella). `admin_fijar_tasa` sigue viva solo para el navegador viejo
@@ -231,18 +240,23 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
   (`configuracion.meses_servicio`, que el administrador fija en Costos).
+  Al pedir por el catálogo, la clienta escribe primero su cédula: si ya está en el
+  maestro se reconoce ("María G.") y confirma sin escribir nada más; si no, llena
+  sus datos. El catálogo **no crea** clientas ni cambia su ficha: una clienta nace
+  cuando alguien le cobra. La reserva guarda `cliente_id` y en Pedidos sale "Ya es
+  clienta".
 
 ---
 
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 60 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 61 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintiuna
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintidós
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

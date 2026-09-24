@@ -2273,3 +2273,33 @@ table.tabla tfoot td {
   .filtros-mostrador { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .filtros-mostrador__buscar { order: 0; grid-column: 1 / -1; }
 }
+
+
+/* --- Tus datos: la cedula primero ------------------------------------ */
+/* Si ya es clienta, se reconoce y confirma; no escribe nada mas. El panel
+   dice lo justo para que se reconozca ("Maria G.", el final del telefono)
+   y nada que sirva para armar una lista: el catalogo lo abre cualquiera. */
+
+.tus-datos__estado {
+  min-height: 1.4em;
+  margin: var(--e-1) 0 0;
+  font-size: var(--t-14);
+  color: var(--texto-secundario);
+}
+.tus-datos__aviso { margin: 0 0 var(--e-3); }
+.clienta-hallada {
+  display: grid; gap: var(--e-2);
+  margin: var(--e-2) 0 var(--e-4);
+  padding: var(--e-4) var(--e-5);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+}
+.clienta-hallada__nombre {
+  margin: 0;
+  font-family: var(--fuente-display);
+  font-size: var(--t-28); font-weight: 600; line-height: 1.1;
+  color: var(--texto-fuerte);
+}
+.clienta-hallada__dato { margin: 0; font-size: var(--t-16); line-height: 1.4; color: var(--texto); }
+.clienta-hallada .acciones { margin-top: var(--e-2); }
+.clienta-hallada > .boton--pequeno { justify-self: start; }

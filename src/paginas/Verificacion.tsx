@@ -149,6 +149,19 @@ export function Verificacion() {
       bien: tasaViva,
     });
 
+    // La busqueda por cedula del catalogo publico. Se prueba con una
+    // cedula que no existe: lo que importa es que las claves que devuelve
+    // sean las enmascaradas y ninguna mas.
+    const bc = await supabase.rpc('buscar_cliente_publico', { p_cedula: '00000001' });
+    const clavesBc = Object.keys((bc.data as Record<string, unknown> | null) ?? {});
+    const deMas = clavesBc.filter((c) => !['encontrada', 'nombre', 'inicial', 'telefono_final', 'faltan'].includes(c));
+    resultados.push({
+      nombre: 'Búsqueda por cédula del catálogo',
+      esperado: 'Responde, y nunca con el apellido entero ni el teléfono completo',
+      obtenido: bc.error ? `Fallo: ${bc.error.message}` : deMas.length ? `Devuelve ${deMas.join(', ')}` : 'Enmascarada',
+      bien: !bc.error && deMas.length === 0,
+    });
+
     // Las rebajas son del dueno: cuanto se dejo de cobrar y quien.
     const reb = await supabase.from('v_rebajas').select('venta_id').limit(1);
     const filasReb = reb.data?.length ?? 0;

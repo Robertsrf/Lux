@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
@@ -80,6 +81,14 @@ export function Pedidos() {
                     <h2>
                       {[cabecera.cliente_nombre, cabecera.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre'}
                     </h2>
+                    {/* Pidio con su cedula y ya estaba en el maestro: su
+                        historico, su garantia y sus meses de servicio estan
+                        a un toque. */}
+                    {cabecera.cliente_id ? (
+                      <Link className="etiqueta etiqueta--exito" to={`/clientes/${cabecera.cliente_id}`}>
+                        Ya es clienta · ver su ficha
+                      </Link>
+                    ) : null}
                     <p>
                       {cabecera.cliente_telefono ?? 'Sin telefono'}
                       {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''} ·

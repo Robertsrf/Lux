@@ -294,7 +294,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-60 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+61 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -366,6 +366,19 @@ Sé honesto sobre la limitación en comentarios del código: 4 dígitos son 10.0
 - Rate limiting de Auth activado en Supabase.
 
 No escribas código que "compense" esto con validaciones en el navegador. No compensan nada.
+
+### Lo que ve alguien sin sesión, de las clientas
+El catálogo público reconoce a una clienta por su cédula
+(`buscar_cliente_publico`), y lo hace **enmascarado**: primer nombre, inicial del
+apellido y los dos últimos dígitos del teléfono. Las cédulas venezolanas son
+correlativas; una búsqueda que devolviera datos completos le entregaría la lista
+de clientas a cualquiera que probara números. Por la misma razón:
+
+- los datos completos los pone `crear_reserva` por dentro, nunca el navegador;
+- `ver_reserva` (pública con el enlace) devuelve enmascarado lo que salió del
+  maestro (`reservas.datos_del_maestro`);
+- el catálogo no crea clientas ni cambia su ficha: con la cédula de otra, se
+  podría cambiarle el teléfono.
 
 ### Claves
 La `anon key` de Supabase es pública por diseño y va en el repo sin problema. La **`service_role` key jamás entra al repo ni al navegador.**

@@ -427,6 +427,9 @@ Portada a página completa en verde profundo con el wordmark verde dentro de un 
 ### Costos: la cifra que manda
 La única pantalla con una cifra protagonista de verdad: las piezas que hay que vender en el mes, en Fraunces 56 px (40 px en teléfono), con su unidad en label debajo y para qué alcanzan en EB Garamond 20 px. A su lado, en un panel, la mitad secundaria de la respuesta (las piezas para no perder). Debajo, una barra de avance del mes y una frase con el ritmo. La cuenta se enseña entera más abajo como cadena de pasos ("se vende en − mercancía − empaque = deja"), para que el número no se crea por fe.
 
+### Tus datos (pedido del catálogo)
+Empieza por la cédula, sola, con la pista "Si ya compraste con nosotros, no tienes que escribir nada más". Si ya es clienta, aparece un panel sin borde: "Ya compraste con nosotros" en label, su nombre enmascarado ("María G.") en Fraunces 28 px, "Te escribimos al número que termina en 67" y dos botones, "Sí, soy yo" y "Cambiar mis datos". Si no, una línea de bienvenida y los campos de siempre. El botón de apartar dice debajo qué falta mientras está apagado. Enmascarado a propósito: el catálogo lo abre cualquiera.
+
 ### Confirmar la tasa
 La única acción que cambia todos los precios de un toque pide un segundo paso en la misma tarjeta, no en una ventana: un panel que dice cada tasa "antes → después" con cuánto sube o baja en oro de texto, y dos botones, "Sí, fijarla" y "Corregir". Un cero de más se ve antes de que cueste.
 
