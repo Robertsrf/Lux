@@ -62,6 +62,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 38 | `esquema-meta-vendedora.sql` | La meta de la vendedora, del día y del mes, sacada de las cuentas |
 | 39 | `esquema-variantes-y-mostrador.sql` | Variantes, la tasa que fija la vendedora, el tramo que sí baja y por qué se rebajó cada pieza |
 | 40 | `esquema-cedula-en-catalogo.sql` | El pedido del catálogo empieza por la cédula y reconoce a la clienta, enmascarada |
+| 41 | `esquema-variantes-en-tabla.sql` | Las variantes se cargan en una tabla del formulario, en el mismo guardar |
 
 ### Los que NO se corren
 
