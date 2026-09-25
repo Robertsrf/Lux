@@ -417,9 +417,17 @@ A pantalla completa sobre tinta al 88 %. Foto hasta 60 vh; debajo categoría en 
 Píldora flotante en verde profundo con sombra flotante, fija abajo por encima de la navegación. Piezas en label crema al 72 %, total en Fraunces 28 px, tramo alcanzado en oro y lo que falta en crema al 66 %. Botón de cobrar en oro con texto tinta.
 
 ### Vitrina (televisor)
-Un producto con variantes es una sola pantalla: si cuestan lo mismo, las medidas en la línea de nota y un precio; si no, una fila por medida con la medida en EB Garamond 28 px y los dos precios en Fraunces 40 px oro.
+Verde profundo a sangre. Categoría en label oro, nombre en EB Garamond crema, regla ornamental, **dos precios del mismo tamaño**, bolívares y $ BCV, los dos en Fraunces oro, materiales en prosa separados por línea de oro al 45 %. Cada cuatro piezas, una frase de marca centrada en EB Garamond. Clave de ubicación ("V1 · BG") en la esquina superior derecha, Jost crema al 66 % (4,86:1): para la vendedora, no para la clienta. Controles que se esconden a los 4 s y barra de progreso de 3 px en oro.
 
-Verde profundo a sangre. Categoría en label oro, nombre en EB Garamond 56 px crema, regla ornamental, **dos precios del mismo tamaño**, bolívares y $ BCV, los dos en Fraunces 56 px oro (hasta 92 px en televisores de más de 1600 px), materiales en prosa 20 px separados por línea de oro al 45 %. Cada cuatro piezas, una frase de marca centrada en EB Garamond de hasta 76 px. Clave de ubicación ("V1 · BG") en la esquina superior derecha, Jost 20 px crema al 66 % (4,86:1): para la vendedora, no para la clienta. Controles que se esconden a los 4 s y barra de progreso de 3 px en oro.
+Un producto con variantes es una sola pantalla: si cuestan lo mismo, las medidas en la línea de nota y un precio; si no, una fila por medida con su nombre y sus dos precios.
+
+**Todo se mide contra la pantalla, no en píxeles.** Probada en un Daewoo de 32" (septiembre de 2026), el precio quedaba por debajo del borde: el navegador del televisor dibuja la página como si la pantalla fuera más chica, y el logotipo y los controles reservaban una fila arriba y otra abajo aunque estuvieran ocultos. Ahora:
+- las letras son una fracción del alto (`vh`) con un tope por el ancho (`vw`): nombre ≈ 6,2 % del alto, precio ≈ 7,4 %, con topes de 96 y 112 px;
+- el logotipo y los controles flotan encima: la pieza usa la pantalla entera;
+- todo lo importante queda dentro de un margen de seguridad del 5 %, porque muchos televisores recortan los bordes;
+- si aun así la ficha no cabe (un nombre muy largo, cinco medidas), `Vitrina.tsx` mide lo que se dibujó y baja su letra (`--escala`, hasta la mitad) hasta que entra entera. Se achica la letra; nunca se corta el precio.
+
+En vertical (un teléfono) la foto va arriba y la ficha debajo, por orientación y no por ancho: un televisor que el navegador dibuja a 900 px sigue siendo horizontal.
 
 ### Catálogo PDF
 Portada a página completa en verde profundo con el wordmark verde dentro de un recuadro crema, regla de oro con monograma, intro y materiales. Fichas en crema con fondo blanco, borde de 1 px, radio 12 px: foto cuadrada, SKU y existencia en Jost 10 px secundario, nombre en EB Garamond 16 px, material en oro de texto, bolívares y $ BCV en Fraunces 20 px los dos, ubicación en el mismo tono que la existencia. Con variantes, una ficha por producto: medidas del mismo precio en la nota; de precios distintos, una fila por medida con los dos precios en Fraunces 16 px. Pie "Lux by Emory · Desde Sabana de Mendoza para toda Venezuela".

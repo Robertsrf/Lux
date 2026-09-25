@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
@@ -188,6 +188,42 @@ export function Vitrina() {
   const claves = actual?.tipo === 'pieza'
     ? [...new Set(actual.familia.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ')
     : '';
+
+  /*
+    QUE QUEPA SIEMPRE.
+
+    Probada en un televisor de 32", un nombre de cuatro renglones empujaba
+    el precio por debajo del borde. Las letras ya se miden contra el alto
+    de la pantalla (vitrina.css), pero un nombre muy largo o cinco medidas
+    pueden seguir sin caber. Aqui se mide lo que de verdad se dibujo y, si
+    la ficha se pasa de la pantalla, se baja su letra (--escala) hasta que
+    entra entera. Antes de pintar, para que no se vea el salto.
+
+    Se mide y no se calcula porque no se sabe cuanto ocupa un nombre hasta
+    que el navegador lo parte en renglones, y cada televisor lo hace a su
+    manera.
+  */
+  useLayoutEffect(() => {
+    const raiz = contenedor.current;
+    if (!raiz) return;
+    const MINIMO = 0.5;
+    const ajustar = () => {
+      for (const caja of raiz.querySelectorAll<HTMLElement>('.vitrina__ficha, .vitrina__frase')) {
+        let escala = 1;
+        caja.style.setProperty('--escala', '1');
+        for (let vuelta = 0; vuelta < 6 && caja.scrollHeight > caja.clientHeight + 1 && escala > MINIMO; vuelta++) {
+          escala = Math.max(MINIMO, escala * Math.min(0.94, caja.clientHeight / caja.scrollHeight));
+          caja.style.setProperty('--escala', escala.toFixed(3));
+        }
+      }
+    };
+    ajustar();
+    // Las letras de la marca llegan despues del primer dibujo, y con otra
+    // letra cambia el alto: se vuelve a medir cuando terminan de llegar.
+    void document.fonts?.ready.then(ajustar);
+    window.addEventListener('resize', ajustar);
+    return () => window.removeEventListener('resize', ajustar);
+  }, [indice, total, cargando]);
 
   if (cargando) return <Cargando texto="Preparando la vitrina" />;
   if (error) return <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso>;

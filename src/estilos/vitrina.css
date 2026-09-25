@@ -3,57 +3,101 @@
    Se mira de lejos, asi que todo sube de tamano y baja de cantidad: una
    pieza por pantalla y nada mas. Verde profundo a sangre, como la
    portada del catalogo, para que la joya sea lo unico que brilla.
+
+   TODO SE MIDE CONTRA LA PANTALLA, NO EN PIXELES FIJOS
+   Probada en un Daewoo de 32" (septiembre de 2026), el precio quedaba
+   por debajo del borde. Tres causas, y las tres se corrigen aqui:
+
+   1. El logotipo y los controles ocupaban una fila arriba y otra abajo
+      aunque estuvieran invisibles: casi un tercio de la pantalla
+      reservado para nada. Ahora flotan encima y la pieza usa todo el alto.
+   2. Las letras tenian tamanos de computadora (56 px). El navegador de
+      un televisor dibuja la pagina como si la pantalla fuera mas chica
+      (1280 x 720, o menos), y un nombre de cuatro renglones empujaba el
+      precio afuera. Ahora las letras son una fraccion del alto (vh), con
+      un tope por el ancho (vw) para las pantallas angostas: la pieza se
+      ve igual de proporcionada en un 32" que en un 55".
+   3. Muchos televisores recortan los bordes de la imagen (overscan). Todo
+      lo importante queda dentro de un margen de seguridad del 5 %.
+
+   Y si aun asi algo no cabe (un nombre muy largo, cinco medidas), la
+   pantalla reduce la letra de esa ficha hasta que entra entera: la
+   variable --escala la pone Vitrina.tsx midiendo lo que se dibujo.
    ===================================================================== */
 
 .vitrina {
+  /* Los tamanos de la vitrina, en una sola parte. */
+  --v-seguro-y: 5vh;
+  --v-seguro-x: 5vw;
+  --v-nombre:   clamp(24px, min(6.2vh, 5vw), 96px);
+  --v-precio:   clamp(26px, min(7.4vh, 6vw), 112px);
+  --v-categoria: clamp(11px, min(2vh, 1.6vw), 28px);
+  --v-nota:     clamp(13px, min(2.8vh, 2.3vw), 36px);
+  --v-materiales: clamp(12px, min(2.3vh, 1.9vw), 30px);
+  --v-variante: clamp(14px, min(3.4vh, 2.8vw), 44px);
+  --v-variante-precio: clamp(18px, min(4.8vh, 4vw), 64px);
+  --v-clave:    clamp(13px, 2.4vh, 32px);
+  --v-frase:    clamp(24px, min(6.6vh, 5.4vw), 104px);
+  --v-frase-corta: clamp(32px, min(10vh, 8vw), 150px);
+  --v-aire:     2.6vh;
+
   position: fixed; inset: 0;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
   background: var(--verde-profundo);
   color: var(--crema);
   overflow: hidden;
 }
 
+/* El logotipo flota arriba y se va con los controles: no le quita alto a
+   la pieza. */
 .vitrina__marca {
-  padding: var(--e-5) var(--e-6) 0;
+  position: absolute; z-index: 2;
+  top: var(--v-seguro-y); left: 0; right: 0;
   display: flex; justify-content: center;
+  pointer-events: none;
   transition: opacity var(--medio);
 }
-/* El componente trae su alto por prop; en televisor grande se sube aqui. */
-.vitrina .wordmark { display: block; }
+/* El componente trae su alto por prop; aqui manda la pantalla. */
+.vitrina .wordmark { display: block; height: clamp(32px, 6vh, 72px) !important; }
 
-/* --- La pieza ------------------------------------------------------- */
+/* --- La escena: la pantalla entera, menos el margen de seguridad ------ */
 
 .vitrina__escena {
-  min-height: 0;
+  position: absolute; inset: 0;
+  padding: var(--v-seguro-y) var(--v-seguro-x);
   display: grid;
+  /* Las dos con minmax(0, …): sin el de columnas, una foto de 1800 px
+     estiraba la escena mas ancha que la pantalla en un telefono. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   animation: vitrina-entra 700ms var(--salida) both;
 }
 
 .vitrina__pieza {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-rows: minmax(0, 1fr);
   align-items: center;
-  gap: var(--e-8);
-  padding: var(--e-6) var(--e-8);
+  gap: 4vw;
   min-height: 0;
 }
 
 /* --- La frase de marca: una sola idea, centrada, y nada mas ---------- */
 
 .vitrina__frase {
+  --escala: 1;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  gap: var(--e-5);
-  padding: var(--e-6) var(--e-8);
+  gap: var(--v-aire);
   width: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 /* Serif de lectura, no display: es una frase, no una cifra. */
 .vitrina__frase-texto {
   margin: 0;
   font-family: var(--fuente-prosa);
-  font-size: clamp(var(--t-40), 5vw, 76px);
+  font-size: calc(var(--v-frase) * var(--escala));
   font-weight: 500;
   line-height: 1.2;
   color: var(--crema);
@@ -64,11 +108,13 @@
   text-wrap: balance;
 }
 .vitrina__frase-texto--corta {
-  font-size: clamp(var(--t-56), 8vw, 120px);
+  font-size: calc(var(--v-frase-corta) * var(--escala));
   line-height: 1.05;
   max-width: 14ch;
 }
 .vitrina__frase .vitrina__regla { width: min(360px, 70%); margin: 0; }
+
+/* --- La foto: todo el alto que haya, sin salirse --------------------- */
 
 .vitrina__foto {
   display: flex; align-items: center; justify-content: center;
@@ -84,19 +130,28 @@
 }
 .vitrina__sinfoto {
   display: grid; place-items: center;
-  width: min(52vh, 100%); aspect-ratio: 1;
+  width: min(60vh, 100%); aspect-ratio: 1;
   border-radius: var(--radio-lg);
   border: 1px solid color-mix(in srgb, var(--crema) 22%, transparent);
   color: color-mix(in srgb, var(--crema) 40%, transparent);
 }
 .vitrina__sinfoto .monograma { width: 44%; height: auto; aspect-ratio: 1; }
 
-.vitrina__ficha { min-width: 0; }
+/* --- La ficha: nombre, precio y materiales --------------------------- */
+/* Nunca mas alta que la pantalla. Si su contenido no cabe, Vitrina.tsx
+   baja --escala hasta que cabe: se achica la letra, no se corta el precio. */
+
+.vitrina__ficha {
+  --escala: 1;
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
 
 .vitrina__categoria {
-  margin: 0 0 var(--e-3);
+  margin: 0 0 calc(var(--v-aire) * 0.5 * var(--escala));
   font-family: var(--fuente-ui);
-  font-size: var(--t-16);
+  font-size: calc(var(--v-categoria) * var(--escala));
   text-transform: uppercase;
   letter-spacing: var(--tracking);
   color: var(--oro-arena);
@@ -105,23 +160,24 @@
 .vitrina__nombre {
   margin: 0;
   font-family: var(--fuente-prosa);
-  font-size: var(--t-56);
+  font-size: calc(var(--v-nombre) * var(--escala));
   font-weight: 500;
   line-height: 1.1;
   color: var(--crema);
+  text-wrap: balance;
 }
 
 .vitrina__nota {
-  margin: var(--e-3) 0 0;
+  margin: calc(var(--v-aire) * 0.5 * var(--escala)) 0 0;
   font-family: var(--fuente-prosa);
-  font-size: var(--t-20);
+  font-size: calc(var(--v-nota) * var(--escala));
   color: color-mix(in srgb, var(--crema) 70%, transparent);
 }
 
 /* La regla fina con el monograma: el ornamento de la casa, reutilizado. */
 .vitrina__regla {
   display: flex; align-items: center; gap: var(--e-4);
-  margin: var(--e-6) 0;
+  margin: calc(var(--v-aire) * var(--escala)) 0;
   color: var(--oro-arena);
 }
 .vitrina__regla span {
@@ -136,33 +192,60 @@
 .vitrina__precio {
   margin: 0;
   font-family: var(--fuente-display);
-  font-size: var(--t-56);
+  font-size: calc(var(--v-precio) * var(--escala));
   font-weight: 600;
   line-height: 1;
   color: var(--oro-arena);
   font-variant-numeric: tabular-nums;
 }
-.vitrina__precio + .vitrina__precio { margin-top: var(--e-3); }
+.vitrina__precio + .vitrina__precio { margin-top: calc(var(--v-aire) * 0.4 * var(--escala)); }
 
+/* Los materiales: media razon por la que alguien se acerca a preguntar.
+   Se despegan del precio con la regla de oro. */
 .vitrina__materiales {
-  margin: var(--e-6) 0 0;
+  margin: calc(var(--v-aire) * var(--escala)) 0 0;
+  padding-top: calc(var(--v-aire) * 0.6 * var(--escala));
+  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
   max-width: 46ch;
   font-family: var(--fuente-prosa);
-  font-size: var(--t-16);
-  line-height: 1.55;
-  color: color-mix(in srgb, var(--crema) 66%, transparent);
+  font-size: calc(var(--v-materiales) * var(--escala));
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--crema) 82%, transparent);
+}
+
+/* Variantes de distinto precio: cada medida con los suyos, en filas. Un
+   paso por debajo del precio grande, que con dos o tres filas no cabria. */
+.vitrina__variantes {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: calc(var(--v-aire) * 0.5 * var(--escala));
+}
+.vitrina__variantes li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline; gap: 2vw;
+}
+.vitrina__variante {
+  font-family: var(--fuente-prosa);
+  font-size: calc(var(--v-variante) * var(--escala));
+  color: var(--crema);
+}
+.vitrina__variante-precio {
+  font-family: var(--fuente-display);
+  font-size: calc(var(--v-variante-precio) * var(--escala));
+  font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--oro-arena);
 }
 
 /* --- La clave de ubicacion: para la vendedora, no para la clienta ----- */
-/* "V1 · BG" en la esquina de arriba, chico y apagado, en la misma voz que
-   el contador de piezas. La esquina de abajo la ocupa el boton de pantalla
-   completa. Crema al 66 % sobre el verde da 4,86:1, medido: se lee desde
-   el mostrador sin pedir atencion. */
+/* "V1 · BG" en la esquina de arriba, dentro del margen de seguridad para
+   que el televisor no la recorte. Crema al 66 % sobre el verde da 4,86:1,
+   medido: se lee desde el mostrador sin pedir atencion. */
 .vitrina__clave {
-  position: absolute; top: var(--e-5); right: var(--e-6);
+  position: absolute; z-index: 2;
+  top: var(--v-seguro-y); right: var(--v-seguro-x);
   margin: 0;
   font-family: var(--fuente-ui);
-  font-size: var(--t-20);
+  font-size: var(--v-clave);
   text-transform: uppercase;
   letter-spacing: var(--tracking);
   color: color-mix(in srgb, var(--crema) 66%, transparent);
@@ -172,7 +255,7 @@
 /* --- Cuanto falta para la siguiente --------------------------------- */
 
 .vitrina__progreso {
-  position: absolute; inset-inline: 0; top: 0;
+  position: absolute; z-index: 2; inset-inline: 0; top: 0;
   height: 3px;
   background: color-mix(in srgb, var(--crema) 12%, transparent);
 }
@@ -183,14 +266,15 @@
   animation: vitrina-avanza linear both;
 }
 
-/* --- Controles: se van solos y vuelven al mover el raton ------------- */
+/* --- Controles: flotan abajo, se van solos y vuelven al mover el raton - */
 
 .vitrina__controles {
+  position: absolute; z-index: 3; left: 0; right: 0; bottom: 0;
   display: flex; flex-wrap: wrap;
   align-items: center; justify-content: space-between;
   gap: var(--e-4);
-  padding: var(--e-4) var(--e-6) var(--e-5);
-  background: linear-gradient(to top, rgba(10, 26, 28, 0.55), transparent);
+  padding: var(--e-5) var(--v-seguro-x) var(--v-seguro-y);
+  background: linear-gradient(to top, rgba(10, 26, 28, 0.78), transparent);
   transition: opacity var(--medio), transform var(--medio);
 }
 .vitrina__grupo { display: flex; align-items: center; gap: var(--e-2); }
@@ -229,9 +313,9 @@
    el teclado: se ocultan a la vista, no del foco. */
 .vitrina--limpia .vitrina__controles,
 .vitrina--limpia .vitrina__marca { opacity: 0; }
-.vitrina--limpia .vitrina__controles { transform: translateY(6px); }
+.vitrina--limpia .vitrina__controles { transform: translateY(6px); pointer-events: none; }
 .vitrina--limpia:focus-within .vitrina__controles,
-.vitrina--limpia:focus-within .vitrina__marca { opacity: 1; transform: none; }
+.vitrina--limpia:focus-within .vitrina__marca { opacity: 1; transform: none; pointer-events: auto; }
 .vitrina--limpia { cursor: none; }
 
 @keyframes vitrina-entra {
@@ -243,80 +327,39 @@
   to   { transform: scaleX(1); }
 }
 
-/* --- Pantallas angostas: la ficha baja debajo de la foto ------------- */
+/* --- Pantalla vertical (un telefono): la ficha baja debajo de la foto -- */
+/* Por orientacion y no por ancho: un televisor que el navegador dibuja
+   a 900 px sigue siendo horizontal, y ahi la foto va al lado. */
 
-@media (max-width: 900px) {
-  .vitrina__pieza {
-    grid-template-columns: 1fr;
-    gap: var(--e-5);
-    padding: var(--e-4);
-    align-content: center;
+@media (orientation: portrait) {
+  .vitrina {
+    --v-seguro-y: 4vh;
+    --v-seguro-x: 5vw;
+    --v-nombre: clamp(22px, 7.4vw, 40px);
+    --v-precio: clamp(24px, 8.4vw, 44px);
+    --v-categoria: clamp(11px, 3vw, 14px);
+    --v-nota: clamp(13px, 3.8vw, 18px);
+    --v-materiales: clamp(12px, 3.4vw, 16px);
+    --v-variante: clamp(14px, 4.4vw, 22px);
+    --v-variante-precio: clamp(16px, 5.6vw, 28px);
+    --v-frase: clamp(22px, 7vw, 40px);
+    --v-frase-corta: clamp(28px, 10vw, 56px);
+    --v-aire: 2vh;
   }
-  .vitrina__nombre { font-size: var(--t-40); }
-  .vitrina__precio { font-size: var(--t-40); }
-  .vitrina__materiales { display: none; }
-  .vitrina__frase { padding: var(--e-4); }
-  .vitrina__frase-texto { font-size: var(--t-28); max-width: 20ch; }
-  .vitrina__frase-texto--corta { font-size: var(--t-40); max-width: 14ch; }
+  .vitrina__pieza {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 45%) minmax(0, 1fr);
+    align-items: start;
+    gap: 3vh;
+  }
+  /* Cada medida en un renglon tambien aqui: apiladas en tres, cinco
+     medidas ya no cabian en un telefono. */
+  .vitrina__variantes li { gap: 3vw; }
   .vitrina__controles { justify-content: center; }
-}
-
-/* --- Televisores grandes: la escala sube con el ancho ---------------- */
-
-@media (min-width: 1600px) {
-  .vitrina__pieza { gap: 5rem; padding: var(--e-7) 5rem; }
-  .vitrina__nombre,
-  .vitrina__precio { font-size: clamp(var(--t-56), 4.4vw, 92px); }
-  .vitrina__materiales { font-size: var(--t-20); }
-  .vitrina__clave { font-size: var(--t-28); }
-  .vitrina .wordmark { height: 64px !important; }
 }
 
 /* Quien pidio menos movimiento no recibe ni la entrada ni la barra. */
 @media (prefers-reduced-motion: reduce) {
   .vitrina__escena { animation: none; }
   .vitrina__progreso-barra { animation: none; transform: scaleX(1); }
-}
-
-/* Los materiales dejan de ser un pie de pagina.
-   En un televisor de tienda son media razon por la que alguien se acerca a
-   preguntar, asi que suben de tamano, se despegan del precio con la regla de
-   oro y se quedan visibles tambien en pantallas angostas. */
-.vitrina__materiales {
-  margin-top: var(--e-5);
-  padding-top: var(--e-4);
-  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
-  font-size: var(--t-20);
-  color: color-mix(in srgb, var(--crema) 82%, transparent);
-}
-@media (max-width: 900px) {
-  .vitrina__materiales { display: block; font-size: var(--t-16); margin-top: var(--e-4); }
-}
-@media (min-width: 1600px) {
-  .vitrina__materiales { font-size: var(--t-28); }
-}
-
-
-/* Variantes de distinto precio: cada medida con los suyos, en filas. Un
-   paso por debajo del precio grande, que con dos o tres filas no cabria. */
-.vitrina__variantes {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; gap: var(--e-3);
-}
-.vitrina__variantes li {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline; gap: var(--e-5);
-}
-.vitrina__variante {
-  font-family: var(--fuente-prosa); font-size: var(--t-28);
-  color: var(--crema);
-}
-.vitrina__variante-precio {
-  font-family: var(--fuente-display); font-size: var(--t-40); font-weight: 600;
-  line-height: 1; font-variant-numeric: tabular-nums;
-  color: var(--oro-arena);
-}
-@media (max-width: 900px) {
-  .vitrina__variantes li { grid-template-columns: 1fr; gap: var(--e-1); }
-  .vitrina__variante-precio { font-size: var(--t-28); }
 }
