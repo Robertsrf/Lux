@@ -63,6 +63,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 39 | `esquema-variantes-y-mostrador.sql` | Variantes, la tasa que fija la vendedora, el tramo que sí baja y por qué se rebajó cada pieza |
 | 40 | `esquema-cedula-en-catalogo.sql` | El pedido del catálogo empieza por la cédula y reconoce a la clienta, enmascarada |
 | 41 | `esquema-variantes-en-tabla.sql` | Las variantes se cargan en una tabla del formulario, en el mismo guardar |
+| 42 | `esquema-pedidos-y-mover.sql` | Catálogo desde una pieza, mover piezas de ubicación, ventas por verificar, pedidos que se cobran y vitrina sin sesión |
 
 ### Los que NO se corren
 
