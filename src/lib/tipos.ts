@@ -183,6 +183,10 @@ export interface ModeloEnUbicacion {
    */
   piso_tramo_usd: number | null;
   piso_tramo_bs: number | null;
+  /** Lo que hay de verdad en esa ubicacion. `cantidad` es lo LIBRE: esto menos lo apartado. */
+  existencia: number;
+  /** Lo apartado por pedidos del catalogo que salen de esta ubicacion. */
+  apartadas: number;
 }
 
 /** Una linea del carrito, antes de cobrar. Todo en dolares BCV salvo los _bs. */

@@ -39,6 +39,9 @@ const COLUMNAS = [
   'ubicacion_id', 'modelo_id', 'sku', 'nombre', 'categoria', 'variantes_nota',
   'foto_path', 'foto_thumb_path', 'grupo', 'precio_usd', 'precio_bs', 'cantidad',
   'precio_minimo_usd', 'precio_minimo_bs', 'familia', 'variante', 'piso_tramo_usd', 'piso_tramo_bs',
+  // `cantidad` es lo libre; esto es lo apartado por pedidos del catalogo,
+  // que ella no puede vender pero tiene que saber que esta ahi.
+  'apartadas',
 ].join(', ');
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
@@ -642,6 +645,7 @@ export function Mostrador() {
             const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
             const puestas = f.variantes.reduce((n, v) => n + puestasDe(v), 0);
             const quedan = f.variantes.reduce((n, v) => n + v.cantidad, 0);
+            const apartadas = f.variantes.reduce((n, v) => n + (v.apartadas ?? 0), 0);
             const agotado = f.variantes.every((v) => puestasDe(v) >= v.cantidad);
             const bs = rangoDe(f.variantes, (v) => v.precio_bs);
             const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
@@ -705,8 +709,16 @@ export function Mostrador() {
                     </span>
                   ) : null}
                   <span className="tarjeta-modelo__pie">
-                    <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                      Quedan {quedan}
+                    <span className="tarjeta-modelo__datos">
+                      <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
+                        Quedan {quedan}
+                      </span>
+                      {/* Las que estan aqui pero son de un pedido del
+                          catalogo: no se venden, y se dice para que nadie
+                          las busque en la vitrina como si fueran libres. */}
+                      {apartadas > 0 ? (
+                        <span className="tarjeta-modelo__clave">{apartadas} apartada{apartadas === 1 ? '' : 's'}</span>
+                      ) : null}
                     </span>
                     {puestas > 0 ? <span className="tarjeta-modelo__contador">{puestas}</span> : null}
                   </span>

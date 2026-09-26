@@ -62,7 +62,9 @@ export function MoverUbicacion({ piezas, desdePreferida, alCerrar, alMover }: {
   }, []);
 
   // Donde esta hoy esa pieza. Sale de la vista de venta, que las dos caras
-  // pueden leer y que no trae costos.
+  // pueden leer y que no trae costos. Se mira `existencia`, lo que hay de
+  // verdad, y no `cantidad`, que es lo libre: mover de sitio una pieza
+  // apartada es legitimo, sigue siendo del pedido.
   useEffect(() => {
     if (modeloId === null) return;
     let vigente = true;
@@ -71,12 +73,13 @@ export function MoverUbicacion({ piezas, desdePreferida, alCerrar, alMover }: {
     void (async () => {
       const { data, error: err } = await supabase
         .from('v_venta_ubicacion')
-        .select('ubicacion_id, cantidad')
+        .select('ubicacion_id, existencia')
         .eq('modelo_id', modeloId)
-        .gt('cantidad', 0);
+        .gt('existencia', 0);
       if (!vigente) return;
       if (err) { setError(mensajeDeError(err)); setDonde([]); return; }
-      const filas = (data as { ubicacion_id: number; cantidad: number }[] | null) ?? [];
+      const filas = ((data as { ubicacion_id: number; existencia: number }[] | null) ?? [])
+        .map((f) => ({ ubicacion_id: f.ubicacion_id, cantidad: f.existencia }));
       setDonde(filas);
       const inicial = filas.find((f) => f.ubicacion_id === desdePreferida)
         ?? [...filas].sort((a, b) => b.cantidad - a.cantidad)[0];

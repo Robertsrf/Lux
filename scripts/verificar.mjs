@@ -209,6 +209,11 @@ async function main() {
   dice(!vv.error, 'v_ventas_por_verificar, sus pendientes', vv.error ? 'ERROR ' + vv.error.code : 'responde');
   const vvCosto = await V.from('v_ventas_por_verificar').select('costo_puesto_usd_snap').limit(1);
   dice(!!vvCosto.error, 'ninguna columna de costo en por verificar', vvCosto.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // Su mostrador ve lo libre y lo apartado: sin esas columnas venderia
+  // piezas apartadas por pedidos del catalogo.
+  const libre = await V.from('v_venta_ubicacion').select('cantidad, existencia, apartadas').limit(1);
+  dice(!libre.error, 'su mostrador trae lo libre y lo apartado', libre.error ? 'ERROR ' + libre.error.code : 'responde');
+
   // Quien movio que es del administrador.
   const movs = await V.from('movimientos').select('id').limit(1);
   dice(!movs.error && (movs.data?.length ?? 0) === 0, 'movimientos: 0 filas para ella',
@@ -279,6 +284,9 @@ async function main() {
   const vvP = await P.from('v_ventas_por_verificar').select('venta_id').limit(1);
   dice(!!vvP.error || (vvP.data?.length ?? 0) === 0, 'v_ventas_por_verificar sin sesion',
     vvP.error ? 'rechazada ' + vvP.error.code : (vvP.data?.length ?? 0) + ' filas');
+  const libreP = await P.from('v_existencia_libre').select('modelo_id').limit(1);
+  dice(!!libreP.error || (libreP.data?.length ?? 0) === 0, 'v_existencia_libre sin sesion',
+    libreP.error ? 'rechazada ' + libreP.error.code : (libreP.data?.length ?? 0) + ' filas');
   const mvP = await P.rpc('mover_existencia', { p_modelo_id: 1, p_desde_id: 1, p_hacia_id: 2, p_cantidad: 1 });
   dice(!!mvP.error && !/otra ubicaci|hay /i.test(mvP.error.message), 'mover_existencia() sin sesion, rechazada',
     mvP.error ? 'rechazada ' + (mvP.error.code ?? '') : 'LA DEJO PASAR');

@@ -125,6 +125,7 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo que siguen abiertos, con dónde está cada pieza | vendedora y admin |
 | `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia | vendedora y admin |
+| `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
 | `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo o tramo) y quién | solo admin |
@@ -270,6 +271,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 - **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
   registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
   pagado sigue apartando sus piezas hasta que se cierra.
+- **Lo apartado no se vende en el mostrador.** Un pedido dice "2 de esta cadena",
+  no de dónde; lo apartado se asigna a las ubicaciones empezando por donde hay más
+  (normalmente la bodega), que es el mismo orden en que `cobrar_pedido` las toma.
+  `v_existencia_libre` hace el reparto; `v_venta_ubicacion.cantidad` es lo LIBRE
+  (con `existencia` y `apartadas` al final) y `registrar_venta` no deja vender lo
+  apartado. Mover una pieza apartada sí se puede: sigue siendo del pedido.
 - **La vitrina se abre sin sesión**, como el catálogo: lee `v_disponible_publico`
   y sus frases de marca ('TV') son públicas. No enseña nada que no esté ya en el
   enlace de WhatsApp.
@@ -288,7 +295,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 69 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 71 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
@@ -315,6 +322,9 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   la tasa de cada venta. Antes de restar, las dos partes en la misma moneda y a la
   misma tasa.
 
+- **`v_venta_ubicacion.cantidad` es lo libre, no lo que hay.** Para mover piezas o
+  contar el inventario físico se usa `existencia`. Confundirlas es mover solo lo
+  libre o vender lo apartado.
 - **Una columna que la pantalla no pide es una regla que no se aplica.** El
   mostrador no pedía `precio_minimo_bs`; el carrito creía que el mínimo era la
   etiqueta y el descuento por cantidad salió en cero durante semanas, sin un error.
