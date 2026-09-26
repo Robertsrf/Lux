@@ -61,14 +61,16 @@ src/
                 Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto
                 (detalle que pasa de pieza), ElegirVariante (la hoja de
                 medidas), TusDatos (el pedido público empieza por la
-                cédula), Graficos, Progreso, Recordatorio, CompartirCatalogo,
+                cédula), MoverUbicacion (pasar piezas de una ubicación a
+                otra), Graficos, Progreso, Recordatorio, CompartirCatalogo,
                 BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos
     venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
     publico/    Catalogo, Reserva          (sin sesión)
-    Clientes, Tasas, CatalogoPdf, Vitrina, Entrar, Verificacion   (las de las dos caras)
+    Vitrina                                (sin sesión, como el catálogo)
+    Clientes, Tasas, CatalogoPdf, Entrar, Verificacion   (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css
 ```
 
@@ -109,7 +111,7 @@ completa y cada archivo dice en su cabecera de qué depende.
 `perfiles` · `tasas` · `lotes` · `grupos_precio` · `modelos` · `ubicaciones` ·
 `existencias` · `ventas` · `venta_items` · `clientes` · `reservas` ·
 `reserva_items` · `tramos_mayoreo` · `configuracion` · `conteos` · `inversiones` ·
-`gastos_mes` · `frases`
+`gastos_mes` · `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra)
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -121,7 +123,8 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()` | solo admin |
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
-| `v_pedido_vendedora` | Los pedidos del catálogo, con dónde está cada pieza | vendedora y admin |
+| `v_pedido_vendedora` | Los pedidos del catálogo que siguen abiertos, con dónde está cada pieza | vendedora y admin |
+| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
 | `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo o tramo) y quién | solo admin |
@@ -135,8 +138,14 @@ directamente, ni "solo para leer el nombre".
 
 Toda operación que toque varias tablas va en una RPC transaccional, no en tres
 llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
-`reportar_pago`, `cerrar_dia`, `fijar_tasa`, `admin_guardar_modelo`,
-`admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
+`reportar_pago`, `cerrar_dia`, `fijar_tasa`, `mover_existencia`,
+`verificar_venta`, `anular_venta_por_verificar`, `cobrar_pedido`,
+`cancelar_pedido`, `admin_guardar_modelo`, `admin_separar_variante`,
+`admin_reasignar_grupos`, `admin_fusionar_clientes`.
+
+`apartadas_de(modelo)` es la única regla de qué piezas aparta un pedido: el
+abierto que no ha vencido y el pagado que todavía no se cobró ni se canceló. La
+usan el catálogo público, `crear_reserva` y `cobrar_pedido`.
 
 `admin_guardar_modelo` recibe también `p_variantes`: la tabla de variantes del
 formulario entera, que `guardar_variantes_de` (revocada, por dentro) guarda en la
@@ -246,6 +255,24 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   misma cuenta con la que la base guarda `ventas.total_usd`. Solo en el mostrador y
   en la administración; nunca en el catálogo público, el PDF ni la vitrina.
   "Binance" es también forma de pago.
+- **El catálogo acepta pedidos desde una pieza.** El mínimo de mayoreo (6 piezas o
+  $30) se quitó en septiembre de 2026; el mayoreo es solo el descuento por cantidad.
+- **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
+  (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
+  `mover_existencia` en una transacción y queda en `movimientos`.
+- **Vender y dejarlo por verificar.** Al cobrar, "Dejar por verificar" registra la
+  venta igual (la pieza sale del inventario; nadie más la vende) con
+  `ventas.por_verificar`, y aparece en Pedidos con quién la vendió, cómo pagó y la
+  referencia. La verifica cualquiera de las dos caras; si el pago no llega, se anula
+  y las piezas vuelven. Anular una venta ya verificada sigue siendo del
+  administrador. **El administrador también vende**: Mostrador y Pedidos están en
+  su menú.
+- **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
+  registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
+  pagado sigue apartando sus piezas hasta que se cierra.
+- **La vitrina se abre sin sesión**, como el catálogo: lee `v_disponible_publico`
+  y sus frases de marca ('TV') son públicas. No enseña nada que no esté ya en el
+  enlace de WhatsApp.
 - **Clientes.** Cada venta puede quedar a nombre de una clienta del maestro, que se
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
@@ -261,12 +288,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 61 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 69 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintidós
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veinticuatro
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

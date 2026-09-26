@@ -301,7 +301,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-61 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+69 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -386,6 +386,20 @@ de clientas a cualquiera que probara números. Por la misma razón:
   maestro (`reservas.datos_del_maestro`);
 - el catálogo no crea clientas ni cambia su ficha: con la cédula de otra, se
   podría cambiarle el teléfono.
+
+### Lo que se abre sin sesión
+El catálogo (`/publico`), la reserva por su enlace y, desde septiembre de 2026, la
+vitrina (`/vitrina`). Las tres leen `v_disponible_publico`, que no tiene ni costo
+ni piso, y las frases de marca de la superficie 'TV'. Nada más se abre a `anon`:
+`v_ventas_por_verificar`, `mover_existencia` y `movimientos` piden sesión, y
+`verificar` lo comprueba.
+
+### Una venta por verificar es una venta
+"Dejar por verificar" registra la venta de una vez (la existencia baja en ese
+momento) con `ventas.por_verificar = true`. No se guarda como pedido pendiente
+porque, mientras nadie lo aprueba, la pieza seguiría "disponible" y otra persona
+la podría vender. Verificar solo la marca como comprobada; si el pago no llega,
+`anular_venta_por_verificar` la anula y devuelve las piezas.
 
 ### Claves
 La `anon key` de Supabase es pública por diseño y va en el repo sin problema. La **`service_role` key jamás entra al repo ni al navegador.**

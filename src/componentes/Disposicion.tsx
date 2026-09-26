@@ -11,6 +11,9 @@ interface Enlace { a: string; texto: string; icono: NombreIcono }
 
 const ENLACES_ADMIN: Enlace[] = [
   { a: '/admin/inventario', texto: 'Inventario', icono: 'inventario' },
+  // El administrador tambien vende, y aprueba lo que queda por verificar.
+  { a: '/venta',            texto: 'Mostrador',  icono: 'mostrador' },
+  { a: '/venta/pedidos',    texto: 'Pedidos',    icono: 'pedidos' },
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
   { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
@@ -44,9 +47,13 @@ const ENLACES_VENTA: Enlace[] = [
   por WhatsApp y mira Mi día para saber cómo va. Cierre es una vez al día,
   Conteo una vez por semana, Guía casi nunca y Vitrina se enciende y se deja.
   Esas viven en la hoja.
+
+  Las del administrador cambiaron cuando empezo a vender: Inventario, el
+  Mostrador y Pedidos, que es donde aprueba las ventas por verificar.
+  Reportes y Lotes pasan a la hoja; se miran, no se usan a cada rato.
 */
 const PRINCIPALES_VENTA = ['/venta', '/venta/pedidos', '/venta/tablero'];
-const PRINCIPALES_ADMIN = ['/admin/inventario', '/admin/reportes', '/admin/lotes'];
+const PRINCIPALES_ADMIN = ['/admin/inventario', '/venta', '/venta/pedidos'];
 
 /**
  * Armazón de la aplicación.

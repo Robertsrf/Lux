@@ -696,6 +696,35 @@ export interface CompraCliente {
 }
 
 /**
+ * Vista v_ventas_por_verificar: una fila por pieza de cada venta que se
+ * registro sin comprobar el pago. Sin costos.
+ */
+export interface LineaPorVerificar {
+  venta_id: number;
+  fecha: string;
+  usuario_id: string;
+  vendedora: string | null;
+  metodo: MetodoPago;
+  pago_referencia: string | null;
+  cliente_id: number | null;
+  cliente_nombre: string | null;
+  cliente_telefono: string | null;
+  cliente_cedula: string | null;
+  total_bs: number;
+  total_bcv: number | null;
+  /** ventas.total_usd: los bolivares entre la tasa Binance del dia. */
+  total_binance: number;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  foto_thumb_path: string | null;
+  cantidad: number;
+  precio_unitario_bs: number;
+  ubicacion: string | null;
+}
+
+/**
  * Vista v_rebajas: una fila por linea vendida por debajo de su etiqueta.
  * Solo administrador. En dolares BCV, la moneda de la etiqueta.
  */

@@ -238,7 +238,7 @@ En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre
 **En el teléfono la navegación va ABAJO.** Cambiado en septiembre de 2026, medido antes y después: arriba ocupaba 222 px de 844, el 26 % de la pantalla, en todas las pantallas y antes de que apareciera un solo dato. Abajo son 69 px, y el título de cada pantalla pasó de estar a 246 px del borde a estar a 24.
 
 - Cuatro columnas: **tres secciones y un botón "Más"**. Objetivo táctil de 52 px, que entra hasta en un teléfono de 320 px.
-- Las tres no son las tres primeras de la lista: son **las que se tocan a diario**. Mostrador, Pedidos y Mi día para la vendedora; Inventario, Reportes y Lotes para el admin.
+- Las tres no son las tres primeras de la lista: son **las que se tocan a diario**. Mostrador, Pedidos y Mi día para la vendedora; Inventario, Mostrador y Pedidos para el admin, desde que vende y aprueba las ventas por verificar (septiembre de 2026).
 - "Más" abre una **hoja desde abajo** con TODAS las secciones, incluidas esas tres. Esconder las que ya están en la barra ahorra cuatro renglones y a cambio obliga a recordar dónde quedó cada cosa.
 - La hoja cierra con Escape, con el fondo y al elegir sección, y **devuelve el foco al botón que la abrió**.
 

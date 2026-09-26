@@ -2376,3 +2376,48 @@ table.tabla tfoot td {
   .variante-fila__fijo,
   .variante-fila__precio { min-height: 0; }
 }
+
+
+/* --- Mover de ubicacion ---------------------------------------------- */
+/* En la tarjeta del mostrador, arriba a la izquierda, frente a la lupa y
+   con su misma ropa: se ve al pasar el raton y siempre en pantalla tactil. */
+.mover-pieza {
+  position: absolute; top: var(--e-3); left: var(--e-3); z-index: 1;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  color: var(--texto-fuerte);
+  background: color-mix(in srgb, var(--blanco) 88%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  box-shadow: var(--sombra-1);
+  opacity: 0;
+  transition: opacity var(--rapido), background var(--rapido);
+}
+.mover-pieza .icono { width: 18px; height: 18px; }
+.mover-pieza:hover { background: var(--blanco); }
+.tarjeta-modelo:hover .mover-pieza,
+.mover-pieza:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .mover-pieza { opacity: 1; }
+}
+
+/* El dialogo: la misma hoja de elegir variante, con un formulario corto. */
+.mover .campo { margin-bottom: var(--e-4); }
+.mover .fila .campo { margin-bottom: 0; }
+/* "Llevar a" y "Cuantas" lado a lado tambien en el telefono: son cortos, y
+   asi el boton de mover no queda debajo del borde. */
+.mover .fila { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.mover__origen { margin: 0 0 var(--e-4); font-size: var(--t-16); color: var(--texto); }
+.mover .acciones { margin-top: var(--e-4); }
+
+
+/* --- Cerrar un pedido del catalogo ----------------------------------- */
+/* Al pie de la tarjeta del pedido, separado por una linea: primero se lee
+   que se pidio y donde esta, despues se cobra o se cancela. */
+.cerrar-pedido {
+  margin-top: var(--e-5);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linea-suave);
+}
+.cerrar-pedido .fila { margin-top: var(--e-2); }
+.cerrar-pedido .campo { margin-bottom: 0; }

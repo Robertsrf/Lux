@@ -11,6 +11,8 @@ import { useTextos } from '../../hooks/useTextos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
+import { MoverUbicacion } from '../../componentes/MoverUbicacion';
+import { Icono } from '../../componentes/Iconos';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
@@ -31,6 +33,9 @@ export function Inventario() {
   const [filtros, setFiltros] = useState<FiltrosInventario>(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // La pieza que se esta moviendo de ubicacion, si hay una.
+  const [moviendo, setMoviendo] = useState<ModeloAdmin | null>(null);
+  const [movido, setMovido] = useState<string | null>(null);
   const [lotes, setLotes] = useState<{ id: number; codigo: string }[]>([]);
   const visor = useVisorFoto();
 
@@ -182,6 +187,7 @@ export function Inventario() {
       ) : null}
 
       {reasignado ? <Aviso tono="exito">{reasignado}</Aviso> : null}
+      {movido ? <Aviso tono="exito">{movido}</Aviso> : null}
 
       <Ayuda titulo="Qué dice cada columna">
         <p>
@@ -218,6 +224,14 @@ export function Inventario() {
       </Ayuda>
 
       <VisorFoto {...visor.props} />
+
+      {moviendo ? (
+        <MoverUbicacion
+          piezas={[{ modelo_id: moviendo.id, nombre: moviendo.nombre, variante: moviendo.variante }]}
+          alCerrar={() => setMoviendo(null)}
+          alMover={(mensaje) => { setMoviendo(null); setMovido(mensaje); void recargar(); }}
+        />
+      ) : null}
 
       {error ? <Aviso tono="error">{error}</Aviso> : null}
       {errorCarga ? <Aviso tono="error" titulo="No se pudo leer el inventario">{errorCarga}</Aviso> : null}
@@ -301,6 +315,16 @@ export function Inventario() {
                       <td className="col-fija">
                         <div className="grupo-botones grupo-botones--firme">
                           <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+                          {/* Mover de ubicacion sin abrir el producto entero. */}
+                          <button
+                            type="button"
+                            className="boton boton--secundario boton--pequeno"
+                            disabled={m.existencia_total <= 0}
+                            onClick={() => { setMovido(null); setMoviendo(m); }}
+                          >
+                            <Icono nombre="mover" className="icono icono--sm" />
+                            Mover
+                          </button>
                           <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
                             Retirar
                           </button>
@@ -446,6 +470,15 @@ export function Inventario() {
                     </div>
                     <div className="grupo-botones">
                       <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+                      <button
+                        type="button"
+                        className="boton boton--secundario boton--pequeno"
+                        disabled={m.existencia_total <= 0}
+                        onClick={() => { setMovido(null); setMoviendo(m); }}
+                      >
+                        <Icono nombre="mover" className="icono icono--sm" />
+                        Mover
+                      </button>
                       <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
                         Retirar
                       </button>

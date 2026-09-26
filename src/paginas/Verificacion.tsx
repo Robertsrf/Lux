@@ -162,6 +162,25 @@ export function Verificacion() {
       bien: !bc.error && deMas.length === 0,
     });
 
+    // Mover piezas es de las dos caras. Con el mismo origen y destino la
+    // funcion dice que no sin tocar nada: ese "no" prueba que se puede usar.
+    const mv = await supabase.rpc('mover_existencia', { p_modelo_id: 1, p_desde_id: 1, p_hacia_id: 1, p_cantidad: 1 });
+    resultados.push({
+      nombre: 'Mover piezas (mover_existencia)',
+      esperado: 'Se puede ejecutar: sin destino distinto responde que elija otra ubicación',
+      obtenido: mv.error ? mv.error.message : 'MOVIÓ SIN DESTINO',
+      bien: !!mv.error && /otra ubicaci/i.test(mv.error.message),
+    });
+
+    // Las ventas por verificar: responden, y sin una columna de costo.
+    const vv = await supabase.from('v_ventas_por_verificar').select('costo_puesto_usd_snap').limit(1);
+    resultados.push({
+      nombre: 'Ventas por verificar, sin costos',
+      esperado: 'Pedir el costo tiene que fallar: la columna no existe',
+      obtenido: vv.error ? 'No existe la columna' : 'LA COLUMNA ESTÁ AHÍ',
+      bien: !!vv.error,
+    });
+
     // Las rebajas son del dueno: cuanto se dejo de cobrar y quien.
     const reb = await supabase.from('v_rebajas').select('venta_id').limit(1);
     const filasReb = reb.data?.length ?? 0;

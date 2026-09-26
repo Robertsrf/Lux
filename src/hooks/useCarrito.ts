@@ -177,7 +177,14 @@ export function useCarrito(tasa: Tasas | null) {
    * proposito: si la venta se cae por existencia, no queda una ficha de una
    * compra que nunca ocurrio.
    */
-  const cobrar = useCallback(async (metodo: MetodoPago, tipo: TipoVenta = 'detal', cliente?: ClienteDeVenta | null) => {
+  const cobrar = useCallback(async (
+    metodo: MetodoPago,
+    tipo: TipoVenta = 'detal',
+    cliente?: ClienteDeVenta | null,
+    // Por verificar: la venta se registra (la pieza sale) y queda en
+    // Pedidos hasta que alguien compruebe el pago.
+    pago?: { porVerificar?: boolean; referencia?: string | null },
+  ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     setCobrando(true);
     setError(null);
@@ -205,6 +212,8 @@ export function useCarrito(tasa: Tasas | null) {
       p_cliente_id: cliente?.id ?? null,
       p_cliente_cedula: cliente?.cedula ?? null,
       p_cliente_apellido: cliente?.apellido ?? null,
+      p_por_verificar: pago?.porVerificar ?? false,
+      p_pago_referencia: pago?.referencia?.trim() || null,
     });
 
     setCobrando(false);

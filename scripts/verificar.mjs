@@ -195,6 +195,25 @@ async function main() {
     margenes.error ? 'ERROR ' + margenes.error.code
       : (margenes.data?.length ?? 0) === 0 ? '0 filas' : 'LEE ' + margenes.data.map((f) => f.clave).join(', '));
 
+  // Mueve piezas entre ubicaciones. Con el mismo origen y destino la
+  // funcion dice que no sin tocar nada; ese "no" prueba que la puede usar.
+  const mv = await V.rpc('mover_existencia', { p_modelo_id: 1, p_desde_id: 1, p_hacia_id: 1, p_cantidad: 1 });
+  dice(!!mv.error && /otra ubicaci/i.test(mv.error.message), 'puede mover piezas (mover_existencia)',
+    mv.error ? mv.error.message : 'MOVIO SIN ORIGEN NI DESTINO');
+  // Cobra pedidos del catalogo. Con un pedido que no existe dice que no.
+  const cp = await V.rpc('cobrar_pedido', { p_reserva_id: -1, p_metodo: 'punto', p_pago_referencia: null });
+  dice(!!cp.error && /no existe/i.test(cp.error.message), 'puede cobrar pedidos (cobrar_pedido)',
+    cp.error ? cp.error.message : 'COBRO UN PEDIDO QUE NO EXISTE');
+  // Las ventas por verificar: las ve, y sin una columna de costo.
+  const vv = await V.from('v_ventas_por_verificar').select('venta_id, vendedora, total_bs').limit(1);
+  dice(!vv.error, 'v_ventas_por_verificar, sus pendientes', vv.error ? 'ERROR ' + vv.error.code : 'responde');
+  const vvCosto = await V.from('v_ventas_por_verificar').select('costo_puesto_usd_snap').limit(1);
+  dice(!!vvCosto.error, 'ninguna columna de costo en por verificar', vvCosto.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // Quien movio que es del administrador.
+  const movs = await V.from('movimientos').select('id').limit(1);
+  dice(!movs.error && (movs.data?.length ?? 0) === 0, 'movimientos: 0 filas para ella',
+    movs.error ? 'ERROR ' + movs.error.code : (movs.data?.length ?? 0) + ' filas');
+
   // Separar variantes cambia el catalogo: tampoco es de mostrador.
   const sep = await V.rpc('admin_separar_variante', { p_id: -1 });
   dice(!!sep.error, 'admin_separar_variante() le dice que no',
@@ -253,6 +272,16 @@ async function main() {
   const deMas = clavesBc.filter((c) => !permitidas.includes(c));
   dice(!bc.error && deMas.length === 0, 'buscar_cliente_publico() enmascarada',
     bc.error ? 'ERROR ' + bc.error.code : deMas.length ? 'DEVUELVE ' + deMas.join(', ') : 'solo ' + clavesBc.join(', '));
+  // La vitrina se abre sin sesion: lee sus frases de marca, y nada de las
+  // ventas ni de los movimientos.
+  const frasesP = await P.from('frases').select('id').limit(1);
+  dice(!frasesP.error, 'la vitrina lee sus frases sin sesion', frasesP.error ? 'ERROR ' + frasesP.error.code : (frasesP.data?.length ?? 0) + ' fila(s)');
+  const vvP = await P.from('v_ventas_por_verificar').select('venta_id').limit(1);
+  dice(!!vvP.error || (vvP.data?.length ?? 0) === 0, 'v_ventas_por_verificar sin sesion',
+    vvP.error ? 'rechazada ' + vvP.error.code : (vvP.data?.length ?? 0) + ' filas');
+  const mvP = await P.rpc('mover_existencia', { p_modelo_id: 1, p_desde_id: 1, p_hacia_id: 2, p_cantidad: 1 });
+  dice(!!mvP.error && !/otra ubicaci|hay /i.test(mvP.error.message), 'mover_existencia() sin sesion, rechazada',
+    mvP.error ? 'rechazada ' + (mvP.error.code ?? '') : 'LA DEJO PASAR');
   const ftP = await P.rpc('fijar_tasa', { p_tasa_venta: 0, p_tasa_bcv: 0 });
   dice(!!ftP.error && !/mayores que cero/i.test(ftP.error.message), 'fijar_tasa() sin sesion, rechazada',
     ftP.error ? 'rechazada ' + (ftP.error.code ?? '') : 'LA DEJO PASAR');

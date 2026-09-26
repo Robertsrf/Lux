@@ -16,6 +16,8 @@ import { useCarrito } from '../../hooks/useCarrito';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
+import { MoverUbicacion } from '../../componentes/MoverUbicacion';
+import { Icono } from '../../componentes/Iconos';
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
 import { METODOS_EN_DOLARES, METODOS_PAGO } from '../../lib/tipos';
@@ -40,6 +42,9 @@ const COLUMNAS = [
 ].join(', ');
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
+
+/** Las formas de pago que dejan una referencia que se comprueba en el banco. */
+const PIDE_REFERENCIA: readonly MetodoPago[] = ['pago_movil', 'transferencia', 'binance'];
 
 /**
  * Cuadricula de venta. Disenada para TOCAR, no para leer: foto grande,
@@ -81,6 +86,11 @@ export function Mostrador() {
   const [sinCliente, setSinCliente] = useState(false);
   const [meta, setMeta] = useState<MetaVendedora | null>(null);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
+  // El producto que se esta moviendo de ubicacion, si hay uno.
+  const [moviendo, setMoviendo] = useState<number | null>(null);
+  // La referencia del pago movil, la transferencia o Binance: con ella se
+  // comprueba en el banco, ahora o desde Pedidos.
+  const [referencia, setReferencia] = useState('');
   const tituloCobro = useRef<HTMLHeadingElement>(null);
   const edicionCancelada = useRef(false);
 
@@ -233,13 +243,23 @@ export function Mostrador() {
     if (m) carrito.agregar(m);
   }
 
-  async function confirmar() {
+  /**
+   * Cobrar. Con `porVerificar`, la venta se registra igual (la pieza sale
+   * del inventario, nadie mas la puede vender) pero queda en Pedidos con su
+   * nombre, hasta que alguien compruebe el pago en el banco.
+   */
+  async function confirmar(porVerificar: boolean) {
     if (!metodo) return;
-    const r = await carrito.cobrar(metodo, 'detal', cliente);
+    const r = await carrito.cobrar(metodo, 'detal', cliente, {
+      porVerificar,
+      referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
+    });
     if (r.ok) {
-      setExito(cliente && nombreCliente
-        ? `Venta registrada a nombre de ${nombreCliente}. Numero ${r.ventaId}.`
-        : `Venta registrada. Numero ${r.ventaId}.`);
+      const quien = cliente && nombreCliente ? ` a nombre de ${nombreCliente}` : '';
+      setExito(porVerificar
+        ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
+        : `Venta registrada${quien}. Numero ${r.ventaId}.`);
+      setReferencia('');
       setMetodo(null);
       setCliente(null);
       setNombreCliente(null);
@@ -264,6 +284,8 @@ export function Mostrador() {
     // Precios que ella escribio y que el tramo deja sin efecto. Se dice, no
     // se calla: si no, la clienta oye un precio y paga otro.
     const rebajasIgnoradas = conTramo && carrito.lineas.some((l) => l.precio_manual_usd !== null);
+    const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente)
+      && !carrito.cobrando && carrito.lineas.length > 0;
 
     return (
       <div className="pagina pagina--angosta mostrador">
@@ -453,6 +475,24 @@ export function Mostrador() {
           </p>
         ) : null}
 
+        {metodo && PIDE_REFERENCIA.includes(metodo) ? (
+          <div style={{ marginTop: 'var(--e-4)' }}>
+            <Campo
+              etiqueta="Referencia del pago"
+              htmlFor="cobro-referencia"
+              pista="Opcional. Con ella se comprueba en el banco, ahora o desde Pedidos."
+            >
+              <input
+                id="cobro-referencia"
+                inputMode="numeric"
+                autoComplete="off"
+                value={referencia}
+                onChange={(e) => setReferencia(e.target.value)}
+              />
+            </Campo>
+          </div>
+        ) : null}
+
         <div className="acciones">
           <button
             type="button"
@@ -460,15 +500,32 @@ export function Mostrador() {
             // Espera a que ella diga quien se lo lleva o que decida a
             // proposito que va sin nombre. No es un requisito del sistema:
             // es que saltarlo sin querer deja sin garantia a una clienta.
-            disabled={!metodo || (!cliente && !sinCliente) || carrito.cobrando || carrito.lineas.length === 0}
-            onClick={() => void confirmar()}
+            disabled={!listoParaCobrar}
+            onClick={() => void confirmar(false)}
           >
             {carrito.cobrando ? 'Registrando' : 'Registrar venta'}
+          </button>
+          {/* Si el pago todavia no se puede comprobar (un pago movil que no
+              ha llegado, una transferencia de otro banco), la venta no se
+              pierde: queda registrada y alguien la verifica en Pedidos. */}
+          <button
+            type="button"
+            className="boton boton--secundario"
+            disabled={!listoParaCobrar}
+            onClick={() => void confirmar(true)}
+          >
+            Dejar por verificar
           </button>
           <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
             Seguir agregando
           </button>
         </div>
+        {listoParaCobrar ? (
+          <p className="campo__pista">
+            "Dejar por verificar" registra la venta y la manda a Pedidos con tu nombre, para que
+            tú u otra persona compruebe el pago después.
+          </p>
+        ) : null}
 
         {/* Un boton apagado sin explicacion es una trampa: dice que no se
             puede y no dice que falta. */}
@@ -603,6 +660,18 @@ export function Mostrador() {
                   ? `Agregar ${nombreConVariante(m.nombre, m.variante)}, ${formatearBs(m.precio_bs)}`
                   : `Elegir cuál de ${m.nombre}: ${etiquetas}`}
               >
+                {/* Mover de ubicacion: ella es la que acomoda la vitrina. */}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="mover-pieza"
+                  aria-label={`Mover de ubicación ${m.nombre}`}
+                  title="Mover de ubicación"
+                  onClick={(e) => { e.stopPropagation(); setExito(null); setMoviendo(f.clave); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setMoviendo(f.clave); } }}
+                >
+                  <Icono nombre="mover" />
+                </span>
                 <span
                   role="button"
                   tabIndex={0}
@@ -663,6 +732,19 @@ export function Mostrador() {
           },
         }}
       />
+
+      {(() => {
+        const f = moviendo === null ? null : familias.find((x) => x.clave === moviendo);
+        if (!f) return null;
+        return (
+          <MoverUbicacion
+            piezas={f.variantes.map((v) => ({ modelo_id: v.modelo_id, nombre: v.nombre, variante: v.variante }))}
+            desdePreferida={ubicacionId}
+            alCerrar={() => setMoviendo(null)}
+            alMover={(mensaje) => { setMoviendo(null); setExito(mensaje); void cargar(); }}
+          />
+        );
+      })()}
 
       {abierta ? (
         <ElegirVariante

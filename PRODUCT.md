@@ -17,7 +17,8 @@ Venezuela. Dos caras con necesidades opuestas:
   tienda. Ve el precio en bolívares, en $ BCV y en $ Binance, y hasta dónde puede
   bajar cada pieza; nunca un costo.
 - **Administración (2 administradores).** Cargar inventario, fijar tasas, comparar
-  costos y márgenes. Densidad y precisión sobre respiración.
+  costos y márgenes. Densidad y precisión sobre respiración. También vende en el
+  Mostrador y aprueba en Pedidos las ventas que quedaron por verificar.
 
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el

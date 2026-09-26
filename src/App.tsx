@@ -74,18 +74,18 @@ export function App() {
           <Route path="/publico" element={<CatalogoPublico />} />
           <Route path="/reserva/:token" element={<Reserva />} />
 
-          {/* Vitrina: pantalla completa, sin barra lateral. Pide sesion
-              porque se enciende desde la tienda, pero no muestra costos. */}
+          {/* Vitrina: pantalla completa, sin barra lateral y SIN SESION,
+              como el catalogo: se abre desde el navegador del televisor sin
+              escribir un codigo. Lee lo mismo que el catalogo publico, asi
+              que no ensena nada que no este ya en el enlace de WhatsApp. */}
           {/* Lleva Suspense propio: es la unica pantalla perezosa que no
               vive dentro de Disposicion, asi que no hereda el de alla. */}
           <Route
             path="/vitrina"
             element={
-              <RutaProtegida>
-                <Suspense fallback={<Cargando texto="Encendiendo la vitrina" />}>
-                  <Vitrina />
-                </Suspense>
-              </RutaProtegida>
+              <Suspense fallback={<Cargando texto="Encendiendo la vitrina" />}>
+                <Vitrina />
+              </Suspense>
             }
           />
 

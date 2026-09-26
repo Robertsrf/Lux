@@ -139,7 +139,7 @@ export function Reserva() {
 
             <div className="total-cobro">
               <div>
-                <span className="util secundario">{reserva.piezas} piezas al mayor</span>
+                <span className="util secundario">{reserva.piezas} {reserva.piezas === 1 ? 'pieza' : 'piezas'}</span>
                 <div className="campo__pista">
                   Valen {formatearBs(precioEnBs(reserva.subtotal_usd, tasa))}
                   {reserva.descuento_pct ? `, menos ${formatearPorcentaje(reserva.descuento_pct)} de descuento` : ''}

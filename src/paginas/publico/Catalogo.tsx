@@ -126,7 +126,15 @@ export function Catalogo() {
     // cargados no hay rebaja: se paga el detal, que es lo honesto.
     const subtotal = deMonto(sumar(partes));
     const descuento = descuentoPara(tramos, piezas);
-    return { piezas, subtotal, descuento, totalUsd: aplicarDescuento(subtotal, descuento) };
+    // El tramo que viene: "3 mas y baja 5 %". Desde una pieza se puede
+    // pedir, y esto es lo que invita a llevar mas.
+    const siguiente = tramos
+      .filter((t) => t.activo && t.min_piezas > piezas)
+      .sort((x, y) => x.min_piezas - y.min_piezas)[0] ?? null;
+    return {
+      piezas, subtotal, descuento, totalUsd: aplicarDescuento(subtotal, descuento),
+      siguiente: siguiente ? { faltan: siguiente.min_piezas - piezas, pct: siguiente.descuento_pct } : null,
+    };
   }, [seleccion, tramos, porId]);
 
   // Un producto con variantes es UNA tarjeta, no dos: la cadena de 45 cm y
@@ -248,7 +256,10 @@ export function Catalogo() {
         <div className="encabezado-pagina">
           <div>
             <h1>Tu pedido</h1>
-            <p>{resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'} al mayor.</p>
+            <p>
+              {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
+              {resumen.descuento ? `, con ${formatearPorcentaje(resumen.descuento)} de descuento por cantidad` : ''}.
+            </p>
           </div>
         </div>
 
@@ -365,7 +376,7 @@ export function Catalogo() {
         <div className="encabezado-pagina">
           <div>
             <h1>Catálogo</h1>
-            <p>Toca las piezas que te gusten y armamos tu pedido al mayor.</p>
+            <p>Toca las piezas que te gusten y arma tu pedido: desde una pieza.</p>
           </div>
         </div>
 
@@ -534,6 +545,11 @@ export function Catalogo() {
             <div className="barra-carrito__resumen">
               <div className="barra-carrito__piezas">
                 {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
+                {resumen.descuento ? (
+                  <span className="barra-carrito__tramo"> · {formatearPorcentaje(resumen.descuento)} menos</span>
+                ) : resumen.siguiente ? (
+                  <span className="barra-carrito__falta"> · {resumen.siguiente.faltan} más y baja {formatearPorcentaje(resumen.siguiente.pct)}</span>
+                ) : null}
               </div>
               <div className="barra-carrito__total">
                 {formatearBs(precioEnBs(resumen.totalUsd, tasa))}

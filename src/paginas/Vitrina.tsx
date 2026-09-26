@@ -9,6 +9,15 @@ import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
 import type { Frase, ModeloVenta } from '../lib/tipos';
+
+/**
+ * Lo que la vitrina ensena de cada pieza. Sale de `v_disponible_publico`,
+ * la vista del catalogo publico: sin sesion, sin costos, y sin lo que ya
+ * esta apartado por un pedido.
+ */
+type PiezaVitrina = Pick<ModeloVenta,
+  'id' | 'sku' | 'nombre' | 'categoria' | 'variantes_nota' | 'foto_path' | 'foto_thumb_path'
+  | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante'>;
 import '../estilos/vitrina.css';
 
 const TAMANO_PAGINA = 500;
@@ -20,7 +29,7 @@ const CADA = 4;
 const SEGUNDOS = [5, 8, 12, 20] as const;
 
 type Diapositiva =
-  | { tipo: 'pieza'; familia: Familia<ModeloVenta>; n: number }
+  | { tipo: 'pieza'; familia: Familia<PiezaVitrina>; n: number }
   | { tipo: 'frase'; frase: Frase };
 
 /**
@@ -35,14 +44,15 @@ type Diapositiva =
  * mismas de la Guia del Colaborador, recortadas: lo que la vendedora diria
  * de viva voz, dicho por la pantalla mientras ella atiende a otra clienta.
  *
- * No muestra costo ni margen: lee `v_catalogo_venta`, la misma vista del
- * mostrador. Aunque quede encendida de cara al publico, no hay nada que
- * filtrar.
+ * Se abre SIN SESION, como el catalogo: en el televisor basta con el
+ * enlace. Por eso lee `v_disponible_publico`, la vista del catalogo
+ * publico, y no la del mostrador: no ensena nada que no este ya en el
+ * enlace que se manda por WhatsApp. Ni costo, ni margen, ni el piso.
  */
 export function Vitrina() {
   const textos = useTextos();
   const { secuencia } = useFrases('TV');
-  const [modelos, setModelos] = useState<ModeloVenta[]>([]);
+  const [modelos, setModelos] = useState<PiezaVitrina[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,18 +68,17 @@ export function Vitrina() {
   useEffect(() => {
     void (async () => {
       setCargando(true);
-      const acumulado: ModeloVenta[] = [];
+      const acumulado: PiezaVitrina[] = [];
       try {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
           const { data, error: err } = await supabase
-            .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, activo, ubicaciones_codigo, familia, variante')
-            .gt('existencia_total', 0)
+            .from('v_disponible_publico')
+            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante')
             .order('categoria', { ascending: true })
             .order('nombre', { ascending: true })
             .range(desde, desde + TAMANO_PAGINA - 1);
           if (err) throw err;
-          const lote = (data as unknown as ModeloVenta[] | null) ?? [];
+          const lote = (data as unknown as PiezaVitrina[] | null) ?? [];
           acumulado.push(...lote);
           if (lote.length < TAMANO_PAGINA) break;
         }
@@ -331,7 +340,7 @@ export function Vitrina() {
  * ve.
  */
 function FichaVitrina({ familia, foto, materiales }: {
-  familia: Familia<ModeloVenta>;
+  familia: Familia<PiezaVitrina>;
   foto: string | null;
   materiales: string | null;
 }) {
