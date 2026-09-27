@@ -116,7 +116,19 @@ export function useCliente(id: number | null) {
     return [...mapa.values()];
   }, [compras]);
 
-  return { cliente, compras, ventas, cargando, error, recargar: cargar };
+  /**
+   * Lo que se llevo y todavia no se comprobo que pago: su credito abierto.
+   * Se suma por venta, no por fila: `total_bs` se repite en cada pieza.
+   */
+  const porVerificar = useMemo(() => {
+    const abiertas = ventas.filter((v) => v.cabecera.por_verificar);
+    return {
+      ventas: abiertas.length,
+      totalBs: abiertas.reduce((suma, v) => suma + Number(v.cabecera.total_bs), 0),
+    };
+  }, [ventas]);
+
+  return { cliente, compras, ventas, porVerificar, cargando, error, recargar: cargar };
 }
 
 export interface DatosCliente {

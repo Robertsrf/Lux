@@ -170,6 +170,21 @@ async function main() {
   const fugaCli = await V.from('v_cliente_compras').select('costo_puesto_usd_snap').limit(1);
   dice(!!fugaCli.error, 'ninguna columna de costo en el historico',
     fugaCli.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  // La ficha cuenta el credito: lo que quedo por verificar, cuando se
+  // comprobo y lo que se anulo porque el pago no llego.
+  const credito = await V.from('v_cliente_compras')
+    .select('por_verificar, verificada_en, anulada_sin_pago, pago_referencia').limit(1);
+  dice(!credito.error, 'el historico cuenta el credito', credito.error ? 'ERROR ' + credito.error.code : 'responde');
+  // Las ventas y los pedidos no se borran, ni con la sesion del
+  // administrador. El filtro no toca ninguna fila (no hay id negativo): lo
+  // que se mira es que Postgres niegue el permiso de borrar.
+  for (const [quien, S] of [['ella', V], ['el administrador', A]]) {
+    for (const tabla of ['ventas', 'reservas']) {
+      const borrar = await S.from(tabla).delete().eq('id', -1);
+      dice(!!borrar.error, `${tabla}: ${quien} no puede borrar`,
+        borrar.error ? 'rechazada ' + borrar.error.code : 'LO PERMITIO');
+    }
+  }
   // Las envolturas del administrador le devuelven nada a ella.
   const envGastos = await V.rpc('gastos_fijos_admin');
   dice(!envGastos.error && envGastos.data === null, 'gastos_fijos_admin() le da null',
@@ -284,6 +299,10 @@ async function main() {
   const vvP = await P.from('v_ventas_por_verificar').select('venta_id').limit(1);
   dice(!!vvP.error || (vvP.data?.length ?? 0) === 0, 'v_ventas_por_verificar sin sesion',
     vvP.error ? 'rechazada ' + vvP.error.code : (vvP.data?.length ?? 0) + ' filas');
+  // La clienta que va a pagar ve a donde: cedula, telefono y banco.
+  const pagoP = await P.from('textos').select('clave, valor').like('clave', 'pago_movil_%');
+  dice(!pagoP.error && (pagoP.data?.length ?? 0) === 3, 'los datos del pago movil, sin sesion',
+    pagoP.error ? 'ERROR ' + pagoP.error.code : (pagoP.data?.length ?? 0) + ' de 3');
   const libreP = await P.from('v_existencia_libre').select('modelo_id').limit(1);
   dice(!!libreP.error || (libreP.data?.length ?? 0) === 0, 'v_existencia_libre sin sesion',
     libreP.error ? 'rechazada ' + libreP.error.code : (libreP.data?.length ?? 0) + ' filas');

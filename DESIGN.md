@@ -444,6 +444,12 @@ Una fila por variante con cuatro casillas: nombre, cantidad, costo en $ Binance 
 ### Mover de ubicación
 Un botón "Mover" con su icono (una flecha que llega a una pared) junto a Editar en el Inventario, y en el Mostrador un círculo de 38 px arriba a la izquierda de cada tarjeta, frente a la lupa y con su misma ropa. Abre la misma hoja de elegir variante con un formulario corto: si la pieza está en un solo sitio, lo dice en una frase ("Está en Vitrina 1: 3 piezas"); si está en varios, pregunta de cuál. Después "Llevar a" y "Cuántas" (por defecto, todas las que hay ahí) y el botón Mover. Con variantes, primero "Cuál".
 
+### Pago móvil, para copiar
+En la página del pedido, antes de "Cómo pagaste": un panel "Pago móvil Lux" con tres renglones separados por una línea suave. Cada uno lleva a la izquierda su etiqueta en mayúsculas (Cédula, Teléfono, Banco) y el dato en Fraunces 20 px con números tabulares, y a la derecha un botón secundario "Copiar" de 112 px de ancho y 56 de alto, al alcance del pulgar. Al tocarlo dice "Copiado" con borde y letra en verde de éxito durante dos segundos y medio, y un aviso oculto lo dice al lector de pantalla. Debajo, "Copiar los tres juntos" (44 px de alto) para mandárselos a quien paga por ella, y la pista "Toca Copiar y pégalo en la aplicación de tu banco." Si el navegador no deja copiar, la pista cambia a cómo copiarlo a mano.
+
+### El crédito en la ficha de la clienta
+Si tiene ventas por verificar, un panel "Pago por verificar" con la frase "2 ventas por Bs 1.240,00." en la letra del servicio. En cada venta del histórico: la etiqueta en alerta "Pago por verificar" junto a la del servicio; si ya se comprobó, un renglón propio "Quedó por verificar. Pago comprobado el 20 sep, 12 días después."; si se anuló porque el pago no llegó, solo la etiqueta en error "Anulada: el pago no llegó". La referencia del pago va en la línea de datos.
+
 ### Pedidos: por verificar y del catálogo
 Dos secciones con su cuenta en el título. "Por verificar el pago": cada venta en una tarjeta con la etiqueta en alerta, "Vendió Fulana · fecha, hora", los tres totales (Bs, $ BCV, $ Binance) en Fraunces 16 px, un panel "Cómo pagó" con la referencia, las piezas con de dónde salieron, y dos botones: "Pago verificado" (confirmación) y "No llegó el pago: anular" (peligro, con confirmación). "Del catálogo": la tarjeta de siempre y, al pie tras una línea, "Cerrar el pedido" con la forma de pago (la que reportó la clienta, si la reportó), la referencia y dos botones, "Cobrar y entregar" y "Cancelar pedido".
 

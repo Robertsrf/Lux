@@ -215,6 +215,22 @@ export function Verificacion() {
       bien: Boolean(fugaCompras.error),
     });
 
+    // Las ventas y los pedidos son el historico, tambien el de credito: no
+    // se borran. El filtro no toca ninguna fila (no hay id negativo); lo que
+    // se mira es que la base niegue el permiso de borrar.
+    const [borrarVenta, borrarPedido] = await Promise.all([
+      supabase.from('ventas').delete().eq('id', -1),
+      supabase.from('reservas').delete().eq('id', -1),
+    ]);
+    resultados.push({
+      nombre: 'Borrar ventas o pedidos',
+      esperado: 'Rechazado: se anulan o se cancelan, nunca se borran',
+      obtenido: borrarVenta.error && borrarPedido.error
+        ? 'Rechazado'
+        : `LO PERMITIO en ${[borrarVenta.error ? null : 'ventas', borrarPedido.error ? null : 'pedidos'].filter(Boolean).join(' y ')}`,
+      bien: Boolean(borrarVenta.error && borrarPedido.error),
+    });
+
     // El enlace publico enseña la ubicacion EN CLAVE, "V1 · BG". El nombre
     // completo no debe salir por ahi: es lo unico que hace que el codigo
     // sirva de algo.

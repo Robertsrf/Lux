@@ -268,6 +268,18 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   y las piezas vuelven. Anular una venta ya verificada sigue siendo del
   administrador. **El administrador también vende**: Mostrador y Pedidos están en
   su menú.
+- **Las ventas y los pedidos no se borran.** Se verifican, se anulan, se cancelan
+  o vencen, y se quedan. Por verificar es también el crédito de la clienta: la
+  ficha dice qué debe, cuándo se comprobó cada pago y cuánto tardó, y lo que se
+  anuló porque el pago no llegó. La base lo impide dos veces (sin permiso de
+  `delete` ni `truncate` para nadie con sesión, y el disparador
+  `historico_no_se_borra` en `ventas`, `venta_items`, `reservas` y
+  `reserva_items`, que para también al SQL Editor). No lo quites para "limpiar
+  pruebas": las pruebas se anulan.
+- **A dónde paga la clienta.** Cédula, teléfono y banco del pago móvil viven en
+  `textos` (`pago_movil_cedula`, `pago_movil_telefono`, `pago_movil_banco`) y se
+  cambian en Textos. La página del pedido los enseña con un botón de copiar cada
+  uno; se copian limpios (solo dígitos, y del banco solo el código).
 - **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
   registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
   pagado sigue apartando sus piezas hasta que se cierra.
@@ -295,12 +307,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 71 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 77 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veinticuatro
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veinticinco
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

@@ -29,6 +29,17 @@ function desdeHace(iso: string | null): string {
 }
 
 /**
+ * Cuanto tardo en comprobarse el pago de una venta que quedo por verificar.
+ * Es la mitad del historico de credito: no basta saber que pago, importa
+ * si fue al dia siguiente o al mes.
+ */
+function tardoEnPagar(desde: string, hasta: string): string {
+  const dias = Math.floor((new Date(hasta).getTime() - new Date(desde).getTime()) / 86400000);
+  if (!Number.isFinite(dias) || dias <= 0) return 'el mismo día';
+  return dias === 1 ? 'un día después' : `${dias} días después`;
+}
+
+/**
  * El maestro de clientas. Lo ven las dos caras: la vendedora lo necesita
  * con la clienta delante y el administrador para saber quien vuelve.
  *
@@ -132,7 +143,7 @@ function Tarjeta({ cliente: c }: { cliente: ClienteResumen }) {
 
 function Ficha({ id }: { id: number | null }) {
   const nueva = id === null || Number.isNaN(id);
-  const { cliente, ventas, cargando, error, recargar } = useCliente(nueva ? null : id);
+  const { cliente, ventas, porVerificar, cargando, error, recargar } = useCliente(nueva ? null : id);
   const meses = useMesesServicio();
   const [editando, setEditando] = useState(nueva);
 
@@ -221,6 +232,18 @@ function Ficha({ id }: { id: number | null }) {
           </div>
         </div>
 
+        {/* Lo que se llevo sin que se haya comprobado el pago: su credito
+            abierto. Se comprueba (o se anula) en Pedidos; aqui se cuenta. */}
+        {porVerificar.ventas > 0 ? (
+          <div className="panel">
+            <span className="panel__titulo">Pago por verificar</span>
+            <p className="servicio servicio--vigente">
+              {porVerificar.ventas === 1 ? 'Una venta' : `${porVerificar.ventas} ventas`} por {formatearBs(porVerificar.totalBs)}.
+            </p>
+            <p className="campo__pista">Se comprueban en Pedidos. Mientras tanto, siguen aquí con su fecha.</p>
+          </div>
+        ) : null}
+
         {c.notas ? <p className="prosa" style={{ marginTop: 'var(--e-4)' }}>{c.notas}</p> : null}
       </div>
 
@@ -239,11 +262,30 @@ function Ficha({ id }: { id: number | null }) {
                   <span className="compra__fecha">{formatearFecha(cabecera.fecha)}</span>
                   <span className="compra__meta">
                     {desdeHace(cabecera.fecha)} · {metodoTexto(cabecera.metodo)} · {formatearBs(cabecera.total_bs)}
+                    {cabecera.pago_referencia ? ` · ref. ${cabecera.pago_referencia}` : ''}
                   </span>
+                  {/* Una venta que quedo por verificar y ya se comprobo: el
+                      credito que se pago, y cuanto tardo. */}
+                  {cabecera.verificada_en && !cabecera.anulada_sin_pago ? (
+                    <span className="compra__meta compra__credito">
+                      Quedó por verificar. Pago comprobado el {formatearFecha(cabecera.verificada_en)}, {tardoEnPagar(cabecera.fecha, cabecera.verificada_en)}.
+                    </span>
+                  ) : null}
                 </div>
-                {cabecera.servicio_vigente
-                  ? <span className="etiqueta etiqueta--exito">Servicio hasta {formatearFecha(cabecera.servicio_hasta)}</span>
-                  : <span className="etiqueta">Servicio vencido</span>}
+                <div className="compra__etiquetas">
+                  {cabecera.anulada_sin_pago ? (
+                    <span className="etiqueta etiqueta--error">Anulada: el pago no llegó</span>
+                  ) : (
+                    <>
+                      {cabecera.por_verificar
+                        ? <span className="etiqueta etiqueta--alerta">Pago por verificar</span>
+                        : null}
+                      {cabecera.servicio_vigente
+                        ? <span className="etiqueta etiqueta--exito">Servicio hasta {formatearFecha(cabecera.servicio_hasta)}</span>
+                        : <span className="etiqueta">Servicio vencido</span>}
+                    </>
+                  )}
+                </div>
               </div>
 
               <ul className="compra__piezas">

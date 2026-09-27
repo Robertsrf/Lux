@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
@@ -164,19 +164,28 @@ export function Reserva() {
               <>
                 <h2 className="seccion-titulo">Ahora el pago</h2>
 
-                <section className="panel">
-                  <span className="panel__titulo">A donde pagar</span>
-                  <p className="campo__pista" style={{ marginTop: 'var(--e-3)', whiteSpace: 'pre-line' }}>
-                    {textos.datos_pago?.trim()
-                      || 'Escribele a la tienda por WhatsApp y te pasan los datos para pagar.'}
-                  </p>
-                </section>
+                {textos.pago_movil_cedula || textos.pago_movil_telefono || textos.pago_movil_banco ? (
+                  <PagoMovil
+                    cedula={textos.pago_movil_cedula ?? ''}
+                    telefono={textos.pago_movil_telefono ?? ''}
+                    banco={textos.pago_movil_banco ?? ''}
+                    otros={textos.datos_pago ?? ''}
+                  />
+                ) : (
+                  <section className="panel">
+                    <span className="panel__titulo">A dónde pagar</span>
+                    <p className="campo__pista" style={{ marginTop: 'var(--e-3)', whiteSpace: 'pre-line' }}>
+                      {textos.datos_pago?.trim()
+                        || 'Escribele a la tienda por WhatsApp y te pasan los datos para pagar.'}
+                    </p>
+                  </section>
+                )}
 
                 <div className="panel">
-                  <span className="panel__titulo">Como pagaste</span>
+                  <span className="panel__titulo">Cómo pagaste</span>
                   <div className="metodos-pago" style={{ marginTop: 'var(--e-3)' }}>
                     <button type="button" aria-pressed={metodo === 'pago_movil'} onClick={() => setMetodo('pago_movil')}>
-                      Pago movil
+                      Pago móvil
                     </button>
                     <button type="button" aria-pressed={metodo === 'transferencia'} onClick={() => setMetodo('transferencia')}>
                       Transferencia
@@ -229,5 +238,138 @@ export function Reserva() {
         ) : null}
       </div>
     </>
+  );
+}
+
+/* ------------------------------------------------------------ el pago */
+
+/**
+ * Copiar al portapapeles. Si el navegador no deja (un telefono viejo, o el
+ * navegador que abre WhatsApp o Instagram por dentro), se intenta por el
+ * camino viejo, que todavia funciona en casi todos.
+ */
+async function copiarTexto(texto: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = texto;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let copiado = false;
+    try { copiado = document.execCommand('copy'); } catch { copiado = false; }
+    area.remove();
+    return copiado;
+  }
+}
+
+const soloDigitos = (texto: string) => texto.replace(/\D/g, '');
+
+interface DatoPago {
+  clave: string;
+  etiqueta: string;
+  valor: string;
+  /** Lo que se copia: lo que acepta la aplicacion del banco. */
+  copia: string;
+  /** Lo que oye quien usa lector de pantalla al copiar. */
+  anuncio: string;
+}
+
+/**
+ * A donde paga la clienta: cedula, telefono y banco, cada uno con su boton
+ * de copiar. Se pegan en la aplicacion del banco sin equivocarse de un
+ * digito, que es donde se pierde un pago movil.
+ *
+ * Los datos viven en `textos` y el dueno los cambia en la pantalla de
+ * Textos. Se copian limpios: la cedula y el telefono solo con sus digitos
+ * (aunque alguien los escriba con puntos o guiones), y del banco solo el
+ * codigo, que es lo que se busca en la lista de bancos de cada aplicacion.
+ */
+function PagoMovil({ cedula, telefono, banco, otros }: {
+  cedula: string;
+  telefono: string;
+  banco: string;
+  /** El texto libre de antes (una cuenta para transferir, una nota). */
+  otros: string;
+}) {
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [fallo, setFallo] = useState(false);
+  const reloj = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(reloj.current), []);
+
+  const datos: DatoPago[] = [
+    { clave: 'cedula', etiqueta: 'Cédula', valor: cedula.trim(), copia: soloDigitos(cedula) || cedula.trim(), anuncio: 'Cédula copiada' },
+    { clave: 'telefono', etiqueta: 'Teléfono', valor: telefono.trim(), copia: soloDigitos(telefono) || telefono.trim(), anuncio: 'Teléfono copiado' },
+    { clave: 'banco', etiqueta: 'Banco', valor: banco.trim(), copia: banco.match(/\d{4}/)?.[0] ?? banco.trim(), anuncio: 'Código del banco copiado' },
+  ].filter((d) => d.valor);
+
+  // Los tres juntos, para mandarselos a quien va a pagar por ella.
+  const todos = ['Pago móvil Lux', ...datos.map((d) => `${d.etiqueta}: ${d.valor}`)].join('\n');
+
+  async function copiar(clave: string, texto: string) {
+    const listo = await copiarTexto(texto);
+    setFallo(!listo);
+    if (!listo) { setCopiado(null); return; }
+    setCopiado(clave);
+    window.clearTimeout(reloj.current);
+    reloj.current = window.setTimeout(() => setCopiado(null), 2500);
+  }
+
+  const anuncio = copiado === 'todos'
+    ? 'Los datos del pago móvil, copiados'
+    : datos.find((d) => d.clave === copiado)?.anuncio ?? '';
+
+  return (
+    <section className="panel pago-movil">
+      <span className="panel__titulo">Pago móvil Lux</span>
+      <dl className="pago-movil__datos">
+        {datos.map((d) => (
+          <div className="pago-movil__fila" key={d.clave}>
+            <div>
+              <dt className="dato__etiqueta">{d.etiqueta}</dt>
+              <dd className="dato__valor">{d.valor}</dd>
+            </div>
+            <button
+              type="button"
+              className="boton boton--secundario pago-movil__copiar"
+              data-copiado={copiado === d.clave ? '' : undefined}
+              onClick={() => void copiar(d.clave, d.copia)}
+            >
+              {copiado === d.clave ? 'Copiado' : 'Copiar'}
+              <span className="visualmente-oculto"> {d.etiqueta}</span>
+            </button>
+          </div>
+        ))}
+      </dl>
+
+      <button
+        type="button"
+        className="boton boton--secundario boton--pequeno pago-movil__todos"
+        data-copiado={copiado === 'todos' ? '' : undefined}
+        onClick={() => void copiar('todos', todos)}
+      >
+        {copiado === 'todos' ? 'Copiados los tres' : 'Copiar los tres juntos'}
+      </button>
+
+      {/* El aviso de "copiado" para quien no ve el boton cambiar. */}
+      <p className="visualmente-oculto" aria-live="polite">{anuncio}</p>
+
+      {fallo ? (
+        <p className="campo__pista">
+          Este navegador no dejó copiar. Mantén el dedo sobre el dato para
+          seleccionarlo y cópialo a mano.
+        </p>
+      ) : (
+        <p className="campo__pista">Toca Copiar y pégalo en la aplicación de tu banco.</p>
+      )}
+
+      {otros.trim() ? (
+        <p className="campo__pista" style={{ whiteSpace: 'pre-line' }}>{otros.trim()}</p>
+      ) : null}
+    </section>
   );
 }

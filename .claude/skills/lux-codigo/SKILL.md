@@ -301,7 +301,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-71 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+77 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -400,6 +400,15 @@ momento) con `ventas.por_verificar = true`. No se guarda como pedido pendiente
 porque, mientras nadie lo aprueba, la pieza seguiría "disponible" y otra persona
 la podría vender. Verificar solo la marca como comprobada; si el pago no llega,
 `anular_venta_por_verificar` la anula y devuelve las piezas.
+
+### El histórico no se borra
+`ventas`, `venta_items`, `reservas` y `reserva_items` no se borran: ni con sesión
+(sin permiso de `delete` ni `truncate`) ni desde el SQL Editor (el disparador
+`historico_no_se_borra`). Una venta equivocada se anula; un pedido, se cancela.
+El dueño usa las ventas por verificar como el crédito de sus clientas, y la ficha
+(`v_cliente_compras`) lo cuenta: por verificar, cuándo se comprobó, y las
+anuladas porque el pago no llegó, que son las únicas anuladas que entran. Si una
+función nueva necesita "quitar" algo de estas tablas, lo marca; no lo borra.
 
 ### Claves
 La `anon key` de Supabase es pública por diseño y va en el repo sin problema. La **`service_role` key jamás entra al repo ni al navegador.**

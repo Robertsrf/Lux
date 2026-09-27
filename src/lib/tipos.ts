@@ -697,6 +697,13 @@ export interface CompraCliente {
   servicio_hasta: string;
   servicio_vigente: boolean;
   variante: string | null;
+  /** Se la llevó y el pago está por comprobar: es lo que debe. */
+  por_verificar: boolean;
+  /** Si quedó por verificar, cuándo se comprobó el pago (o se anuló). */
+  verificada_en: string | null;
+  /** Se anuló porque el pago no llegó. No da servicio ni suma. */
+  anulada_sin_pago: boolean;
+  pago_referencia: string | null;
 }
 
 /**

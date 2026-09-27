@@ -1541,6 +1541,25 @@ table.tabla tfoot td {
 .compartir .grupo-botones { gap: var(--e-3); }
 .compartir .boton { min-height: 48px; }
 
+/* --- Pago movil: cada dato con su boton de copiar ---------------------
+   El dato a la izquierda en la cifra de siempre (Fraunces, numeros
+   tabulares: un 1 y un 7 no se confunden), el boton a la derecha, al
+   alcance del pulgar. Separados por una linea suave, no por cajas. */
+.pago-movil__datos { margin: 0; display: grid; gap: var(--e-3); }
+.pago-movil__fila {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-4);
+  padding-bottom: var(--e-3);
+  border-bottom: 1px solid var(--linea-suave);
+}
+.pago-movil__fila:last-child { padding-bottom: 0; border-bottom: 0; }
+.pago-movil__fila dd { margin: 0; overflow-wrap: anywhere; }
+.pago-movil__copiar { flex: none; min-width: 112px; }
+/* Pequeno de letra, no de dedo: 44 px de alto aunque sea secundario. */
+.pago-movil__todos { margin-top: var(--e-4); min-height: 44px; }
+/* Copiado: el borde y la letra en verde de exito, y la palabra cambia. El
+   color acompana; lo que avisa es la palabra. */
+.pago-movil [data-copiado] { border-color: var(--exito); color: var(--exito); }
+
 @media (max-width: 560px) {
   .compartir .grupo-botones { flex-direction: column; align-items: stretch; }
   .compartir .boton { min-height: 56px; }
@@ -1768,6 +1787,10 @@ table.tabla tfoot td {
   font-size: var(--t-12); color: var(--texto-secundario);
   font-variant-numeric: tabular-nums;
 }
+/* El credito pagado, en su propio renglon: se lee de una vez, sin
+   buscarlo al final de la linea de datos. */
+.compra__credito { display: block; margin-top: var(--e-1); color: var(--texto); }
+.compra__etiquetas { display: flex; flex-wrap: wrap; gap: var(--e-2); }
 
 .compra__piezas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
 .compra__pieza {

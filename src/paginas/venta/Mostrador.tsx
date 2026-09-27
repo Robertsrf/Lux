@@ -527,6 +527,11 @@ export function Mostrador() {
           <p className="campo__pista">
             "Dejar por verificar" registra la venta y la manda a Pedidos con tu nombre, para que
             tú u otra persona compruebe el pago después.
+            {/* Por verificar es tambien el credito de la clienta: sin su
+                nombre, no queda en su ficha. */}
+            {sinCliente
+              ? ' Sin el nombre de la clienta no queda en su ficha: si se la lleva y paga después, búscala arriba.'
+              : ' Queda también en su ficha, con la fecha.'}
           </p>
         ) : null}
 

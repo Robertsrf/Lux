@@ -65,6 +65,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 41 | `esquema-variantes-en-tabla.sql` | Las variantes se cargan en una tabla del formulario, en el mismo guardar |
 | 42 | `esquema-pedidos-y-mover.sql` | Catálogo desde una pieza, mover piezas de ubicación, ventas por verificar, pedidos que se cobran y vitrina sin sesión |
 | 43 | `esquema-apartadas-en-mostrador.sql` | El mostrador descuenta lo apartado por los pedidos, ubicación por ubicación |
+| 44 | `esquema-datos-pago-e-historico.sql` | Los datos del pago móvil para copiar, las ventas y los pedidos que no se borran, y el crédito en la ficha de la clienta |
 
 ### Los que NO se corren
 
