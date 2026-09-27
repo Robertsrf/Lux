@@ -46,6 +46,9 @@ export interface DatosPedido {
 }
 
 const soloDigitos = (s: string) => s.replace(/\D/g, '');
+
+/** La búsqueda de siempre: el maestro de clientas de la tienda. */
+const buscarEnLaTienda = (cedula: string) => supabase.rpc('buscar_cliente_publico', { p_cedula: cedula });
 const lleno = (s: string) => s.trim() !== '';
 
 /** Los datos listos para apartar, o null si todavia falta algo. */
@@ -94,11 +97,20 @@ export function queFalta(v: EstadoTusDatos): string {
  * El estado vive en el catalogo y no aqui: si vuelve a "Seguir viendo" y
  * regresa, lo que ya confirmo sigue confirmado.
  */
-export function TusDatos({ valor, alCambiar }: {
+export function TusDatos({ valor, alCambiar, buscar = buscarEnLaTienda, vendedor = null }: {
   valor: EstadoTusDatos;
   alCambiar: Dispatch<SetStateAction<EstadoTusDatos>>;
+  /**
+   * Dónde se busca la cédula. Por defecto, el maestro de la tienda. El
+   * catálogo de un revendedor busca entre SUS clientas (`rv_buscar_cliente`),
+   * que devuelve las mismas claves, enmascaradas igual.
+   */
+  buscar?: (cedula: string) => PromiseLike<{ data: unknown; error: unknown }>;
+  /** Su primer nombre, si el catálogo es de un revendedor: "Ya compraste con María". */
+  vendedor?: string | null;
 }) {
   const digitos = soloDigitos(valor.cedula);
+  const con = vendedor ? `con ${vendedor}` : 'con nosotros';
 
   // Busca cuando deja de escribir. Una cedula a medio escribir no se
   // busca: "123456" puede ser el principio de la de otra persona.
@@ -115,7 +127,7 @@ export function TusDatos({ valor, alCambiar }: {
     let vigente = true;
     const espera = setTimeout(() => {
       void (async () => {
-        const { data, error } = await supabase.rpc('buscar_cliente_publico', { p_cedula: digitos });
+        const { data, error } = await buscar(digitos);
         if (!vigente) return;
         const r = data as ({ encontrada: boolean } & Partial<Hallada>) | null;
         alCambiar((v) => {
@@ -140,7 +152,7 @@ export function TusDatos({ valor, alCambiar }: {
       })();
     }, 600);
     return () => { vigente = false; clearTimeout(espera); };
-  }, [digitos, valor.buscadaPara, alCambiar]);
+  }, [digitos, valor.buscadaPara, alCambiar, buscar]);
 
   const cambiar = (campo: 'cedula' | 'nombre' | 'apellido' | 'telefono', texto: string) =>
     alCambiar((v) => ({ ...v, [campo]: texto }));
@@ -165,7 +177,7 @@ export function TusDatos({ valor, alCambiar }: {
       <Campo
         etiqueta="Cédula"
         htmlFor="r-cedula"
-        pista="Empieza por aquí. Si ya compraste con nosotros, no tienes que escribir nada más."
+        pista={`Empieza por aquí. Si ya compraste ${con}, no tienes que escribir nada más.`}
       >
         <input
           id="r-cedula"
@@ -183,10 +195,12 @@ export function TusDatos({ valor, alCambiar }: {
 
       {valor.estado === 'encontrada' && h ? (
         <div className="clienta-hallada">
-          <span className="panel__titulo">Ya compraste con nosotros</span>
+          <span className="panel__titulo">Ya compraste {con}</span>
           <p className="clienta-hallada__nombre">{quien}</p>
           {h.telefono_final ? (
-            <p className="clienta-hallada__dato">Te escribimos al número que termina en {h.telefono_final}.</p>
+            <p className="clienta-hallada__dato">
+              {vendedor ? 'Te escribe' : 'Te escribimos'} al número que termina en {h.telefono_final}.
+            </p>
           ) : null}
           <div className="acciones acciones--sueltas">
             <button type="button" className="boton" onClick={() => alCambiar((v) => ({ ...v, estado: 'confirmada' }))}>
@@ -207,7 +221,7 @@ export function TusDatos({ valor, alCambiar }: {
       {valor.estado === 'confirmada' && h ? (
         <div className="clienta-hallada">
           <p className="clienta-hallada__dato">
-            El pedido va a nombre de <strong>{quien}</strong>
+            {vendedor ? 'El apartado' : 'El pedido'} va a nombre de <strong>{quien}</strong>
             {h.telefono_final ? `, al número que termina en ${h.telefono_final}` : ''}.
           </p>
           {h.faltan.length > 0 ? (
@@ -239,9 +253,11 @@ export function TusDatos({ valor, alCambiar }: {
         <>
           <p className="campo__pista tus-datos__aviso">
             {valor.estado === 'nueva'
-              ? 'Es tu primera compra con nosotros. Déjanos tus datos.'
+              ? `Es tu primera compra ${con}. ${vendedor ? 'Déjale' : 'Déjanos'} tus datos.`
               : valor.estado === 'actualizar'
-                ? 'Tus datos nuevos van con este pedido. En la tienda actualizamos tu ficha.'
+                ? (vendedor
+                    ? `Tus datos nuevos van con este apartado. ${vendedor} actualiza tu ficha.`
+                    : 'Tus datos nuevos van con este pedido. En la tienda actualizamos tu ficha.')
                 : 'No pudimos revisar tu cédula. Escribe tus datos y seguimos.'}
           </p>
           <div className="fila">

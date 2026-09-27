@@ -15,7 +15,7 @@ import type {
   ValorCategoriaFila, ValorInventario, VentaPorDia,
 } from '../../lib/tipos';
 
-const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad' };
+const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad', revendedor: 'Revendedor' };
 
 const PERIODOS = [
   { dias: 7, texto: 'Últimos 7 días' },
@@ -145,7 +145,7 @@ export function Reportes() {
         usd: deMonto(sumar(filas.map((x) => aMonto(x.rebaja_usd)))),
       };
     };
-    return { regateo: de('regateo'), tramo: de('tramo'), sinDato: de(null) };
+    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), sinDato: de(null) };
   }, [rebajas]);
 
   const dormidos = useMemo(
@@ -354,6 +354,17 @@ export function Reportes() {
                 {resumenRebajas.tramo.piezas} pieza{resumenRebajas.tramo.piezas === 1 ? '' : 's'} · lo puso el tramo
               </div>
             </div>
+            {/* Lo que se le dejó al revendedor: es el precio del programa,
+                no una negociación, y va aparte para no inflar el regateo. */}
+            {resumenRebajas.revendedor.piezas > 0 ? (
+              <div className="tablero__celda">
+                <span className="dato__etiqueta">A revendedores</span>
+                <div className="tablero__cifra">{formatearBcv(resumenRebajas.revendedor.usd)}</div>
+                <div className="tablero__meta">
+                  {resumenRebajas.revendedor.piezas} pieza{resumenRebajas.revendedor.piezas === 1 ? '' : 's'} · su descuento al retirar
+                </div>
+              </div>
+            ) : null}
             {resumenRebajas.sinDato.piezas > 0 ? (
               <div className="tablero__celda">
                 <span className="dato__etiqueta">Sin motivo guardado</span>

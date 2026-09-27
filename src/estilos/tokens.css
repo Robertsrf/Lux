@@ -3,7 +3,12 @@
    Lenguaje de formas: redondeado y calido. El estuche, no la caja.
    ===================================================================== */
 
-:root {
+/* `.tema-rv--lux` es la paleta Lux del catálogo de un revendedor. Va aquí,
+   en el mismo bloque, para que los colores de la casa sigan viviendo en un
+   solo sitio: sin ella, la muestra "Lux" dentro de una página vestida de
+   otra paleta heredaba los colores de esa. Ver estilos/revendedor.css. */
+:root,
+.tema-rv--lux {
   /* --- Paleta de marca (no se toca) --- */
   --verde-profundo: #1F4045;
   --oro-arena:      #D0AE8A;

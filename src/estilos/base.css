@@ -212,6 +212,10 @@ button:disabled { cursor: not-allowed; }
 }
 
 .pila { display: grid; gap: var(--e-4); }
+/* Un hijo de una rejilla no baja de lo que mide su contenido: una tabla
+   ancha dentro de una tarjeta la estiraba más allá de la pantalla, en vez
+   de desplazarse dentro de su envoltura. Medido a 390 px en Pedidos. */
+.pila > * { min-width: 0; }
 .rejilla { display: grid; gap: var(--e-4); }
 .rejilla--2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .rejilla--3 { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
@@ -2484,3 +2488,34 @@ table.tabla tfoot td {
 }
 .cerrar-pedido .fila { margin-top: var(--e-2); }
 .cerrar-pedido .campo { margin-bottom: 0; }
+
+/* --- Una persona del equipo en la lista del dueño ---------------------
+   Revendedores y vendedoras del local: el nombre en la letra de la prosa,
+   sus datos debajo, y cómo va en celdas de tablero. Dentro de la ficha las
+   celdas son paneles, no tarjetas: tarjeta dentro de tarjeta está
+   prohibido. Se distinguen por el fondo, sin borde. */
+.ficha-persona__cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e-3); flex-wrap: wrap; }
+.ficha-persona__nombre { font-family: var(--fuente-prosa); font-size: var(--t-20); line-height: 1.2; color: var(--texto-fuerte); }
+.ficha-persona__dato { font-size: var(--t-12); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+.ficha-persona .tablero { margin-top: var(--e-4); }
+.ficha-persona .tablero__celda {
+  padding: var(--e-4);
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radio-md);
+  box-shadow: none;
+}
+
+/* --- El código de entrada, que se enseña una sola vez -----------------
+   Es un dato que se dicta por teléfono: display serif con números
+   tabulares y aire entre letras, para que un 8 y una B no se confundan.
+   Se selecciona entero de un toque. */
+.codigo-entrada {
+  display: block;
+  margin: var(--e-2) 0 var(--e-3);
+  font-family: var(--fuente-display); font-size: var(--t-28); font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.08em;
+  color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+  user-select: all;
+}

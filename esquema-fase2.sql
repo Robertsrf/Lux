@@ -154,7 +154,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_piezas int;
   v_usd    numeric(12,4);
@@ -183,7 +183,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function validar_minimo_mayoreo() from public, anon, authenticated;
 

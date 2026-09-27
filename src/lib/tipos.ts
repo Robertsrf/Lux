@@ -788,7 +788,7 @@ export interface Rebaja {
   rebaja_usd: number;
   rebaja_pct: number;
   /** Null en las ventas anteriores a que se guardara el motivo. */
-  motivo_rebaja: 'regateo' | 'tramo' | null;
+  motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | null;
 }
 
 /** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */
@@ -798,4 +798,244 @@ export interface ClienteDeVenta {
   nombre?: string | null;
   apellido?: string | null;
   telefono?: string | null;
+}
+
+/* ------------------------------------------------------------ revendedores
+   Todo sale de esquema-revendedores.sql. El revendedor no tiene sesion de
+   Supabase: lo suyo llega por las funciones `rv_*` con su testigo. */
+
+/** La misma lista que el `check` de `revendedores.paleta`. */
+export type PaletaRevendedor = 'lux' | 'noche' | 'vino' | 'grafito' | 'ciruela' | 'oliva';
+
+/** rv_perfil_publico: lo que su catalogo dice de el. */
+export interface PerfilRevendedor {
+  usuario: string;
+  nombre: string;
+  catalogo_nombre: string;
+  telefono: string | null;
+  paleta: PaletaRevendedor;
+  logo_path: string | null;
+  /** Cuanto dura un apartado antes de volver a la tienda. */
+  dias_apartado: number;
+}
+
+/** rv_catalogo_publico: sus piezas a SU precio. Sin ubicacion: a su clienta no le dice nada. */
+export type ModeloRevendedor = Omit<ModeloPublico, 'ubicaciones_codigo'>;
+
+/** rv_tope: cuanto puede tener apartado a la vez, a lo que el le paga a Lux. */
+export interface TopeRevendedor {
+  /** Null si el dueno le fijo el tope a mano. */
+  nivel: number | null;
+  niveles: number;
+  tope_usd: number;
+  usado_usd: number;
+  libre_usd: number;
+  retirado_usd: number;
+  siguiente_tope_usd: number | null;
+  falta_para_subir_usd: number | null;
+  vencidos_recientes: number;
+  bajado: boolean;
+  manual: boolean;
+}
+
+export interface MesRevendedor {
+  /** "2026-09". */
+  mes: string;
+  piezas: number;
+  vendido_usd: number;
+  ganancia_usd: number;
+}
+
+/** rv_resumen: lo que ve al entrar a su panel. */
+export interface ResumenRevendedor extends PerfilRevendedor {
+  /** El que escribio el; null si usa su nombre. */
+  catalogo_propio: string | null;
+  descuento_pct: number;
+  sobre_etiqueta_usd: number;
+  dias_apartado: number;
+  /** Cuantos apartados vencidos en la ventana lo bajan un nivel. */
+  vencidos_para_bajar: number;
+  dias_ventana: number;
+  tope: TopeRevendedor;
+  mes: { piezas: number; vendido_usd: number; pagado_usd: number; ganancia_usd: number };
+  meses: MesRevendedor[];
+  /** Lo que sus clientas le deben, en dolares BCV. */
+  credito_usd: number;
+  abiertos: number;
+  por_vencer: number;
+  vencidos: number;
+}
+
+/** rv_piezas: en cuanto le sale cada pieza y en cuanto la vende. */
+export interface PiezaRevendedor {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  variantes_nota: string | null;
+  foto_path: string | null;
+  foto_thumb_path: string | null;
+  familia: number;
+  variante: string | null;
+  disponible: number;
+  /** La etiqueta de la tienda. */
+  etiqueta_usd: number;
+  /** Lo que le paga a Lux. */
+  precio_lux_usd: number;
+  /** Lo minimo que puede cobrar: la etiqueta mas diez centavos. */
+  minimo_usd: number;
+  /** Lo que cobra: el suyo, o el minimo. */
+  precio_usd: number;
+  /** El que puso el, si puso uno. */
+  precio_propio: number | null;
+  ganancia_usd: number;
+}
+
+export type EstadoApartado = 'abierto' | 'vencido' | 'retirado' | 'cancelado';
+
+/** Lo que su clienta le pago a EL. */
+export interface AbonoApartado {
+  fecha: string;
+  metodo: MetodoPago;
+  monto_bs: number;
+  monto_usd: number | null;
+  monto_bcv: number;
+  referencia: string | null;
+}
+
+/** rv_apartados: un apartado suyo, con sus dos cuentas. */
+export interface ApartadoRevendedor {
+  id: number;
+  token: string;
+  estado: EstadoApartado;
+  creado_en: string;
+  expira_en: string;
+  retirado_en: string | null;
+  cancelado_en: string | null;
+  motivo: string | null;
+  cliente: { id: number; nombre: string; apellido: string | null; telefono: string | null; cedula: string | null };
+  items: {
+    modelo_id: number; sku: string; nombre: string; variante: string | null;
+    foto_thumb_path: string | null; cantidad: number;
+    /** Lo que le cobra a su clienta. */
+    precio_usd: number;
+    /** Lo que le paga a Lux. */
+    precio_lux_usd: number;
+  }[];
+  /** Lo que su clienta le paga por todo. */
+  total_usd: number;
+  /** Lo que el le paga a Lux al retirar. */
+  lux_usd: number;
+  abonado_usd: number;
+  /** Lo que su clienta todavia le debe, en dolares BCV. */
+  falta_usd: number;
+  abonos: AbonoApartado[];
+}
+
+/** rv_clientes: sus clientas, con lo que compraron y lo que le deben. */
+export interface ClienteRevendedor {
+  id: number;
+  nombre: string;
+  apellido: string | null;
+  cedula: string | null;
+  telefono: string | null;
+  notas: string | null;
+  creado_en: string;
+  abiertos: number;
+  compras: number;
+  comprado_usd: number;
+  falta_usd: number;
+  ultima: string | null;
+}
+
+/** rv_ver_apartado: la pagina de su clienta. Su precio y nada de Lux. */
+export interface ApartadoPublico {
+  usuario: string;
+  catalogo_nombre: string;
+  /** Su primer nombre. */
+  revendedor: string;
+  telefono: string | null;
+  paleta: PaletaRevendedor;
+  logo_path: string | null;
+  estado: EstadoApartado;
+  creado_en: string;
+  expira_en: string;
+  clienta: string;
+  items: { nombre: string; variante: string | null; foto_thumb_path: string | null; cantidad: number; precio_usd: number }[];
+  total_usd: number;
+  falta_usd: number;
+}
+
+/** v_revendedores: como va cada uno. Solo el administrador. */
+export interface RevendedorAdmin {
+  id: number;
+  nombre: string;
+  usuario: string;
+  telefono: string | null;
+  cedula: string | null;
+  catalogo_nombre: string | null;
+  paleta: PaletaRevendedor;
+  logo_path: string | null;
+  /** El suyo, si tiene uno; null si va con el general. */
+  descuento_pct: number | null;
+  descuento_efectivo_pct: number;
+  tope_manual_usd: number | null;
+  activo: boolean;
+  notas: string | null;
+  creado_en: string;
+  nivel: number | null;
+  niveles: number;
+  tope_usd: number;
+  usado_usd: number;
+  libre_usd: number;
+  retirado_usd: number;
+  siguiente_tope_usd: number | null;
+  falta_para_subir_usd: number | null;
+  vencidos_recientes: number;
+  bajado: boolean;
+  abiertos: number;
+  piezas_mes: number;
+  pagado_mes_usd: number;
+  clientas: number;
+  ultima_actividad: string | null;
+}
+
+/** v_apartados_revendedor: lo que se retira en la tienda, con lo que el paga. */
+export interface ApartadoEnTienda {
+  id: number;
+  creado_en: string;
+  expira_en: string;
+  revendedor_id: number;
+  revendedor: string;
+  revendedor_telefono: string | null;
+  clienta: string;
+  piezas: number;
+  /** Lo que paga a Lux, en dolares BCV. */
+  total_usd: number;
+  /** Lo que valen a la etiqueta de la tienda. */
+  lista_usd: number;
+  items: {
+    modelo_id: number; sku: string; nombre: string; variante: string | null;
+    foto_thumb_path: string | null; cantidad: number; precio_usd: number;
+    donde: string | null;
+  }[];
+}
+
+/* ------------------------------------------------ vendedoras del local
+   esquema-vendedoras.sql. Las cuentas las crea la funcion de servidor
+   `vendedoras`; aqui solo como va cada una. */
+
+/** v_vendedoras: sus ventas del local, sin lo que retiran los revendedores. Solo el dueno. */
+export interface VendedoraAdmin {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  /** Los dos primeros digitos de su codigo. Null en la cuenta de antes, que entra con cuatro. */
+  numero_vendedora: number | null;
+  creado_en: string;
+  piezas_hoy: number;
+  piezas_mes: number;
+  ventas_mes: number;
+  total_mes_bcv: number;
+  ultima_venta: string | null;
 }

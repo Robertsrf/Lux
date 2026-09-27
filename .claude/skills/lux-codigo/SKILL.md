@@ -301,7 +301,8 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-82 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+115 comprobaciones con las dos sesiones (119 si hay `LUX_REVENDEDOR` con el
+código de un revendedor de prueba): que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -364,12 +365,16 @@ RLS filtra filas, no columnas. Por eso:
 
 **Nunca hagas que el frontend de la vendedora consulte `modelos` directamente**, ni siquiera "solo para leer el nombre". Si necesitas un campo nuevo del lado de la vendedora, agrégalo a la vista.
 
-### PIN de 4 dígitos
-Supabase Auth usa correo + contraseña; se arma un correo sintético (`vendedora@lux.local`) y la contraseña se deriva del PIN.
+### El PIN de las vendedoras
+Supabase Auth usa correo + contraseña; se arma un correo sintético y la contraseña se deriva del PIN (`contrasenaDesdePin`, `lux.<PIN>.emory`).
 
-Sé honesto sobre la limitación en comentarios del código: 4 dígitos son 10.000 combinaciones y el código es público. Por eso:
+Desde septiembre de 2026 cada vendedora del local tiene su código de **ocho dígitos**: su número (dos) y su PIN (seis). La cuenta es `vendedoraNN@lux.local`. Las crea, pausa y les cambia el PIN la función de servidor `supabase/functions/vendedoras`, con la llave maestra; la pantalla Vendedoras solo la llama. **La receta de la contraseña vive en dos sitios, `src/lib/auth.ts` y esa función, y tienen que decir lo mismo**, o nadie entra. La cuenta de antes (`vendedora@lux.local`, cuatro dígitos, `scripts/derivar-pin.mjs`) sigue entrando hasta que el dueño le dé su código propio.
+
+Un código de ocho dígitos se prueba SOLO contra su cuenta de vendedora: probarlo también contra las de administrador le sumaría a esas un intento fallido por cada error al teclear.
+
+Sé honesto sobre la limitación en comentarios del código: seis dígitos son un millón de combinaciones por cuenta (cuatro, en la de antes, diez mil) y el código es público. Por eso:
 - **Los administradores usan contraseña larga real**, no PIN.
-- El PIN es solo para la vendedora, cuyo alcance máximo es leer el catálogo de venta y registrar ventas.
+- El PIN es solo para las vendedoras, cuyo alcance máximo es leer el catálogo de venta y registrar ventas.
 - Rate limiting de Auth activado en Supabase.
 
 No escribas código que "compense" esto con validaciones en el navegador. No compensan nada.
@@ -393,6 +398,28 @@ vitrina (`/vitrina`). Las tres leen `v_disponible_publico`, que no tiene ni cost
 ni piso, y las frases de marca de la superficie 'TV'. Nada más se abre a `anon`:
 `v_ventas_por_verificar`, `mover_existencia` y `movimientos` piden sesión, y
 `verificar` lo comprueba.
+
+Desde septiembre de 2026 también el catálogo de un revendedor (`/r/:usuario`) y el
+apartado de su clienta (`/apartado/:token`), por funciones de definidor que no
+devuelven ni costo, ni piso, ni lo que él paga a Lux.
+
+### Un revendedor NO tiene sesión de Supabase
+Aquí `authenticated` quiere decir "personal de la tienda": `existencias` acepta
+cambios de cualquier sesión, `clientes` se lee entera, `fijar_tasa` la ejecuta
+cualquiera. Con la vendedora vale. A un revendedor con sesión le daría todo eso
+desde la consola.
+
+Por eso el revendedor entra con un código propio (`rv_entrar`: doce caracteres,
+59 bits, se guarda su sha256) y recibe un testigo que va como `p_sesion` en cada
+`rv_*`. Para la base es `anon`: todo lo que `verificar` comprueba de quien no
+tiene sesión le aplica a él, sin cerrar una sola puerta nueva.
+
+- Una función de su panel empieza SIEMPRE por `rv_de_sesion(p_sesion)` y filtra por
+  el `revendedor_id` que devuelve. Una que se salte eso le enseña los apartados de
+  los demás.
+- El error de sesión es el `28000`; `rpcRv` (`lib/revendedor.ts`) lo reconoce y lo
+  manda a entrar otra vez.
+- Nunca le crees una cuenta en Authentication, ni "para que entre más fácil".
 
 ### Una venta por verificar es una venta
 "Dejar por verificar" registra la venta de una vez (la existencia baja en ese

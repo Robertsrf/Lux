@@ -173,6 +173,33 @@ export function centavoArriba(valor: number): number {
   return Number((m + 99n) / 100n) / 100;
 }
 
+/** El total de unas lineas de precio por cantidad, sin pasar por coma flotante. */
+export function totalDeLineas(lineas: { precio: number | null | undefined; cantidad: number }[]): number {
+  return deMonto(sumar(lineas.map((l) => porCantidad(aMonto(l.precio ?? 0), l.cantidad))));
+}
+
+/**
+ * El precio de un revendedor puesto como "la etiqueta de la tienda mas X",
+ * al centavo hacia arriba y nunca por debajo de su minimo. Es lo que escribe
+ * el boton de poner todas sus piezas de una vez; quien manda es
+ * `rv_fijar_precios`, que rechaza cualquier precio bajo el minimo.
+ */
+export function precioSobreEtiqueta(etiquetaUsd: number, extraUsd: number, minimoUsd: number): number {
+  const propuesto = centavoArriba(deMonto(aMonto(etiquetaUsd) + aMonto(extraUsd)));
+  return propuesto < minimoUsd ? minimoUsd : propuesto;
+}
+
+/** Lo que gana un revendedor por pieza: su precio menos lo que le paga a Lux. */
+export function gananciaPorPieza(precioUsd: number, precioLuxUsd: number): number {
+  return deMonto(aMonto(precioUsd) - aMonto(precioLuxUsd));
+}
+
+/** Esa ganancia, en por ciento entero de SU precio (lo que cobra). */
+export function gananciaPct(precioUsd: number, precioLuxUsd: number): number {
+  if (!precioUsd || precioUsd <= 0) return 0;
+  return Math.round((gananciaPorPieza(precioUsd, precioLuxUsd) / precioUsd) * 100);
+}
+
 /** Un numero redondeado a cuatro decimales, como `numeric(12,4)`. */
 export function aCuatroDecimales(valor: number): number {
   return deMonto(aMonto(valor));

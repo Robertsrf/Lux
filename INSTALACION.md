@@ -67,6 +67,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 43 | `esquema-apartadas-en-mostrador.sql` | El mostrador descuenta lo apartado por los pedidos, ubicación por ubicación |
 | 44 | `esquema-datos-pago-e-historico.sql` | Los datos del pago móvil para copiar, las ventas y los pedidos que no se borran, y el crédito en la ficha de la clienta |
 | 45 | `esquema-abonos.sql` | Pagar por partes: la venta queda por verificar diciendo cuánto falta, y cada abono se carga con su referencia |
+| 46 | `esquema-revendedores.sql` | Revendedores: su catálogo con su precio, apartados de 15 días que salen de lo libre, su panel con su código, el tope por niveles y el cobro al retirar en Pedidos |
+| 47 | `esquema-vendedoras.sql` | Las vendedoras del local, cada una con su número y su código; su meta y "Mi día" sin lo que retiran los revendedores. Necesita además la función de servidor `vendedoras` (sección 3.1) |
 
 ### Los que NO se corren
 
@@ -79,22 +81,59 @@ Se quedan en el repo como historia de por qué el modelo es como es.
 - `esquema-limpieza-pruebas.sql` — **borra todos los datos**. Se escribió para
   limpiar las pruebas de las tres fases y ya cumplió.
 
-## 3. Los tres usuarios
+## 3. Los usuarios de la tienda
 
-En **Authentication → Users**, crea tres con correo sintético:
+Los administradores se crean a mano, una vez. Las vendedoras del local, **no**:
+se crean desde la pantalla **Vendedoras** (sección 3.1). En **Authentication →
+Users**, crea estos con correo sintético:
 
 | Correo | Contraseña | Rol |
 |---|---|---|
 | `admin@lux.local` | larga y real, nunca un PIN | admin |
 | `socio@lux.local` | larga y real | admin |
-| `vendedora@lux.local` | `node scripts/derivar-pin.mjs <PIN>` | vendedora |
 
 Luego, en `perfiles`, ponle a cada uno su `rol` y su `nombre`.
+
+`vendedora@lux.local` (con `node scripts/derivar-pin.mjs <PIN>` de cuatro
+dígitos) es la cuenta de antes. Sigue entrando mientras exista; en una
+instalación nueva no hace falta crearla. Desde Vendedoras se le da su código
+propio y pasa a ser una más.
+
+### 3.1 La función de servidor `vendedoras`
+
+Crear la cuenta de una vendedora, cambiarle el PIN o pausarla pide la llave
+maestra de Supabase, que no puede estar en el sitio. Lo hace
+`supabase/functions/vendedoras/index.ts`, que corre en el servidor de Supabase
+y comprueba que quien la llama es administrador. Se publica **una vez** (y otra
+cada vez que cambie ese archivo), de una de estas dos formas:
+
+```bash
+npx supabase functions deploy vendedoras --use-api
+```
+
+o en el panel: **Edge Functions → Deploy a new function → Via editor**, nombre
+`vendedoras`, pega el contenido del archivo y **Deploy**. Deja activado "Verify
+JWT". No hace falta ponerle secretos: Supabase le da sola la URL y la llave.
+
+Sin publicarla, la pantalla Vendedoras lo dice al intentar crear una, y
+`npm run verificar` marca sus tres comprobaciones como "NO ESTA PUBLICADA".
+
+**El código de una vendedora** son ocho dígitos: su número (dos) y su PIN
+(seis). La cuenta es `vendedoraNN@lux.local` y la contraseña sale del PIN con la
+misma receta de `src/lib/auth.ts`. Se enseña una sola vez al crearla o al darle
+PIN nuevo.
 
 **El código del administrador ve costos, márgenes y puede retirar inventario, y
 este sitio es estático.** Tiene que ser largo y no solo dígitos: seis cifras
 numéricas son un millón de combinaciones y se prueban enteras. Activa además el
 rate limiting de Auth en Supabase.
+
+**Los revendedores no son usuarios de Supabase y no se crean aquí.** Se crean en
+la pantalla **Revendedores** del administrador, que da a cada uno su código de
+doce caracteres una sola vez. No tocan Authentication: para la base son
+visitantes sin sesión con la llave de su propio panel (ver la cabecera de
+`esquema-revendedores.sql`). No crees nunca una cuenta de Supabase para un
+revendedor: con sesión vería todo lo que ve la vendedora.
 
 ## 4. El bucket de fotos
 
@@ -116,6 +155,11 @@ npm run dev
 npm run respaldo          # saca los datos. Escribe FUERA del repositorio.
 npm run verificar         # comprueba que la vendedora sigue sin ver costos.
 ```
+
+Si en el entorno hay `LUX_REVENDEDOR` con el código de un revendedor de prueba,
+también entra como él y mira que su panel no traiga costos; sin la variable, esas
+cuatro se saltan. Es lo único que escribe: la sesión que abre, y la cierra al
+terminar.
 
 `verificar` pide los dos códigos y no escribe nada: son todo lecturas. Córrelo
 **después de tocar una vista, un permiso, una función o una política**, y antes
@@ -140,7 +184,7 @@ con `.github/workflows/desplegar.yml`.
 
 ## Comprobar que quedó bien
 
-Abre **Verificación**, que es de administrador. Son dieciocho pruebas en vivo con
+Abre **Verificación**, que es de administrador. Son veintinueve pruebas en vivo con
 la sesión que tengas abierta: tablas revocadas, vistas de costo, la nómina
 rechazada para todos, el maestro de clientas sin costo congelado y que
 `registrar_venta` siga siendo una sola, también para un navegador que aún no se

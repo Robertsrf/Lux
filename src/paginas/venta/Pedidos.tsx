@@ -3,16 +3,19 @@ import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
+import { CargarAbono } from '../../componentes/CargarAbono';
 import {
-  abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, faltaTrasAbono, formatearBcv,
-  formatearBinance, formatearBs, formatearFecha, margenDeAbono, precioEnBs,
+  binanceDesdeBs, bsDeBcv, cuentaRegresiva, formatearBcv,
+  formatearBinance, formatearBs, formatearFecha, formatearMonto, precioEnBs,
 } from '../../lib/dinero';
 import type { Tasas } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
+import { diasParaVencer } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
-import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
-import type { Abono, LineaPedido, LineaPorVerificar, MetodoPago } from '../../lib/tipos';
+import { useSesion } from '../../hooks/useSesion';
+import { METODOS_PAGO } from '../../lib/tipos';
+import type { Abono, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago } from '../../lib/tipos';
 
 const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
 const textoMetodo = (m: MetodoPago | null) => METODOS_PAGO.find((x) => x.valor === m)?.texto ?? 'Sin forma de pago';
@@ -33,12 +36,17 @@ const hora = (iso: string) => new Intl.DateTimeFormat('es-VE', { hour: 'numeric'
  *      (la venta se registra sola, con las piezas del pedido) o se cancelan.
  *      Antes no habia como cerrarlos: un pedido pagado se quedaba en la
  *      lista para siempre.
+ *   3. Apartados de revendedores. Su clienta aparto desde el catalogo de
+ *      el; el viene a la tienda, paga SU precio y se lleva las piezas. Lo
+ *      que su clienta le paga a el no se ve aqui: es de su negocio.
  */
 export function Pedidos() {
   const { tasa } = useTasa();
+  const { esAdmin } = useSesion();
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [porVerificar, setPorVerificar] = useState<LineaPorVerificar[]>([]);
   const [abonos, setAbonos] = useState<Abono[]>([]);
+  const [apartados, setApartados] = useState<ApartadoEnTienda[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -46,9 +54,10 @@ export function Pedidos() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    const [pedidos, ventas] = await Promise.all([
+    const [pedidos, ventas, deRevendedores] = await Promise.all([
       supabase.from('v_pedido_vendedora').select('*').order('creado_en', { ascending: false }),
       supabase.from('v_ventas_por_verificar').select('*').order('fecha', { ascending: false }),
+      supabase.from('v_apartados_revendedor').select('*').order('expira_en'),
     ]);
     const filas = (ventas.data as unknown as LineaPorVerificar[] | null) ?? [];
     // Los abonos, solo de las que se cobraron por partes.
@@ -56,12 +65,13 @@ export function Pedidos() {
     const deAbonos = parciales.length > 0
       ? await supabase.from('v_abonos').select('*').in('venta_id', parciales).order('fecha')
       : null;
-    // Tres consultas, tres errores mirados.
-    const fallo = pedidos.error ?? ventas.error ?? deAbonos?.error ?? null;
+    // Cuatro consultas, cuatro errores mirados.
+    const fallo = pedidos.error ?? ventas.error ?? deAbonos?.error ?? deRevendedores.error ?? null;
     setError(fallo ? mensajeDeError(fallo) : null);
     setLineas((pedidos.data as unknown as LineaPedido[] | null) ?? []);
     setPorVerificar(filas);
     setAbonos((deAbonos?.data as unknown as Abono[] | null) ?? []);
+    setApartados((deRevendedores.data as unknown as ApartadoEnTienda[] | null) ?? []);
     setCargando(false);
   }, []);
 
@@ -98,14 +108,14 @@ export function Pedidos() {
 
   if (cargando) return <Cargando texto="Buscando pedidos" />;
 
-  const nada = pedidos.length === 0 && ventas.length === 0;
+  const nada = pedidos.length === 0 && ventas.length === 0 && apartados.length === 0;
 
   return (
     <div className="pagina mostrador">
       <div className="encabezado-pagina">
         <div>
           <h1>Pedidos</h1>
-          <p>Las ventas que esperan comprobar el pago y lo que armaron desde el catálogo.</p>
+          <p>Las ventas que esperan comprobar el pago, lo que armaron desde el catálogo y lo que vienen a retirar los revendedores.</p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => { setAviso(null); void cargar(); }}>Actualizar</button>
       </div>
@@ -117,7 +127,7 @@ export function Pedidos() {
         <Vacio titulo="No hay nada pendiente">
           <p>
             Aquí llegan las ventas que se dejan por verificar en el mostrador y los pedidos del
-            catálogo público, con la ubicación de cada pieza.
+            catálogo público, con la ubicación de cada pieza, y los apartados de los revendedores.
           </p>
         </Vacio>
       ) : null}
@@ -271,6 +281,19 @@ export function Pedidos() {
                 </div>
               );
             })}
+          </div>
+        </>
+      ) : null}
+
+      {/* ------------------------------------ apartados de revendedores */}
+
+      {apartados.length > 0 ? (
+        <>
+          <h2 className="seccion-titulo">De revendedores · {apartados.length}</h2>
+          <div className="pila">
+            {apartados.map((a) => (
+              <ApartadoDeRevendedor key={a.id} apartado={a} tasa={tasa} esAdmin={esAdmin} alTerminar={alTerminar} />
+            ))}
           </div>
         </>
       ) : null}
@@ -430,7 +453,21 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, alTerminar }: {
       </div>
 
       {cabecera.pago_parcial && falta > 0 && tasa ? (
-        <CargarAbono ventaId={cabecera.venta_id} falta={falta} tasa={tasa} alTerminar={alTerminar} />
+        <CargarAbono
+          id={cabecera.venta_id}
+          falta={falta}
+          tasa={tasa}
+          registrar={async (metodo, monto, referencia) => {
+            const { data, error: err } = await supabase.rpc('registrar_abono', {
+              p_venta_id: cabecera.venta_id, p_metodo: metodo, p_monto: monto, p_referencia: referencia,
+            });
+            if (err) throw new Error(mensajeDeError(err));
+            return Number(data ?? 0);
+          }}
+          alGuardar={(resta) => alTerminar(resta > 0
+            ? `Abono cargado en la venta ${cabecera.venta_id}. Faltan ${formatearBcv(resta)}, hoy ${formatearBs(bsDeBcv(resta, tasa.tasa_bcv))}.`
+            : `Abono cargado: la venta ${cabecera.venta_id} quedó pagada completa. Falta verificarla.`)}
+        />
       ) : null}
 
       {error ? <p className="campo__error" role="alert">{error}</p> : null}
@@ -452,117 +489,127 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, alTerminar }: {
 }
 
 /**
- * El abono siguiente de una venta por partes: forma de pago, cuanto y la
- * referencia. Antes de guardarlo dice cuanto va a faltar, con la misma
- * cuenta que la base (`anotar_abono`): en dolares BCV, y en bolivares a la
- * tasa de hoy.
+ * El apartado de un revendedor, listo para retirar. Viene el, paga lo suyo
+ * y se lleva las piezas: "Cobrar y entregar" registra la venta a SU precio
+ * (`cobrar_apartado`), con las piezas tomadas de donde dice "Dónde está".
+ *
+ * Lo que su clienta le paga a el no aparece aqui. Son dos deudas
+ * separadas: la tienda cobra lo suyo, haya cobrado el o no.
  */
-function CargarAbono({ ventaId, falta, tasa, alTerminar }: {
-  ventaId: number;
-  falta: number;
-  tasa: Tasas;
+function ApartadoDeRevendedor({ apartado: a, tasa, esAdmin, alTerminar }: {
+  apartado: ApartadoEnTienda;
+  tasa: Tasas | null;
+  esAdmin: boolean;
   alTerminar: (mensaje: string) => void;
 }) {
-  const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
-  const [monto, setMonto] = useState('');
+  const [metodo, setMetodo] = useState<MetodoPago | ''>('');
   const [referencia, setReferencia] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const totalBs = tasa ? precioEnBs(Number(a.total_usd), tasa) : null;
 
-  const enDolares = METODOS_EN_DOLARES.includes(metodo);
-  const valor = Number(monto.replace(',', '.'));
-  const hayMonto = Number.isFinite(valor) && valor > 0;
-  const pagado = hayMonto ? abonoEnBcv(valor, enDolares, tasa) : null;
-  const despues = pagado ? faltaTrasAbono(falta, pagado.bcv, margenDeAbono(enDolares, tasa)) : null;
-  const faltaBs = bsDeBcv(falta, tasa.tasa_bcv);
-  // Lo que falta, escrito en la moneda de esta forma de pago: el boton
-  // "Lo que falta" lo pone en el campo sin sacar cuentas. En dolares, al
-  // centavo hacia arriba: hacia abajo dejaria debiendo unos centimos.
-  const enDolaresFalta = binanceDesdeBs(faltaBs, tasa.tasa_venta);
-  const faltaEnSuMoneda = enDolares
-    ? (enDolaresFalta === null ? null : centavoArriba(enDolaresFalta))
-    : faltaBs;
-
-  async function guardar() {
-    if (!hayMonto || despues?.pasa) return;
-    setGuardando(true);
+  async function cobrar(porVerificar: boolean) {
+    if (!metodo) return;
+    setTrabajando(true);
     setError(null);
-    const { data, error: err } = await supabase.rpc('registrar_abono', {
-      p_venta_id: ventaId,
-      p_metodo: metodo,
-      p_monto: valor,
-      p_referencia: PIDE_REFERENCIA.includes(metodo) ? referencia.trim() || null : null,
+    const { data, error: err } = await supabase.rpc('cobrar_apartado', {
+      p_apartado_id: a.id, p_metodo: metodo,
+      p_pago_referencia: referencia.trim() || null, p_por_verificar: porVerificar,
     });
-    setGuardando(false);
+    setTrabajando(false);
     if (err) { setError(mensajeDeError(err)); return; }
-    const resta = Number(data ?? 0);
-    alTerminar(resta > 0
-      ? `Abono cargado en la venta ${ventaId}. Faltan ${formatearBcv(resta)}, hoy ${formatearBs(bsDeBcv(resta, tasa.tasa_bcv))}.`
-      : `Abono cargado: la venta ${ventaId} quedó pagada completa. Falta verificarla.`);
+    alTerminar(porVerificar
+      ? `Apartado entregado: venta ${data as number}, por verificar el pago.`
+      : `Apartado cobrado y entregado: venta ${data as number}.`);
+  }
+
+  async function soltar() {
+    if (!window.confirm(`¿Soltar el apartado de ${a.revendedor}? Sus piezas vuelven a estar libres en la tienda.`)) return;
+    setTrabajando(true);
+    setError(null);
+    const { error: err } = await supabase.rpc('admin_cancelar_apartado', { p_apartado_id: a.id, p_motivo: null });
+    setTrabajando(false);
+    if (err) { setError(mensajeDeError(err)); return; }
+    alTerminar('Apartado soltado: las piezas volvieron a la tienda.');
   }
 
   return (
-    <div className="cargar-abono">
-      <h3 className="cargar-abono__titulo">Cargar otro abono</h3>
-      <div className="fila">
-        <div className="campo">
-          <label htmlFor={`ab-metodo-${ventaId}`}>Cómo pagó</label>
-          <select id={`ab-metodo-${ventaId}`} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
-            {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
-          </select>
+    <div className="tarjeta">
+      <div className="encabezado-pagina" style={{ marginBottom: 'var(--e-4)' }}>
+        <div>
+          <h2>{a.revendedor}</h2>
+          <p>
+            Para {a.clienta} · {a.revendedor_telefono ?? 'sin teléfono'} · apartado el {formatearFecha(a.creado_en)} ·
+            {' '}{a.piezas} {a.piezas === 1 ? 'pieza' : 'piezas'}
+          </p>
+          {/* Lo que paga el, en las tres formas en que puede pagarlo. */}
+          <p className="pedido__total">
+            {formatearBcv(Number(a.total_usd))}
+            {totalBs !== null ? <> · {formatearBs(totalBs)}</> : null}
+            {totalBs !== null && tasa ? <> · {formatearBinance(binanceDesdeBs(totalBs, tasa.tasa_venta))}</> : null}
+          </p>
         </div>
-        <div className="campo">
-          <label htmlFor={`ab-monto-${ventaId}`}>{enDolares ? 'Cuánto · $' : 'Cuánto · Bs'}</label>
-          <input
-            id={`ab-monto-${ventaId}`}
-            inputMode="decimal"
-            autoComplete="off"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-            aria-describedby={`ab-pista-${ventaId}`}
-          />
-          <button
-            type="button"
-            className="boton boton--secundario boton--pequeno cargar-abono__todo"
-            onClick={() => setMonto(faltaEnSuMoneda !== null ? faltaEnSuMoneda.toFixed(2) : '')}
-          >
-            Lo que falta
-          </button>
-        </div>
+        <span className="etiqueta etiqueta--alerta">{diasParaVencer(a.expira_en)}</span>
       </div>
-      {PIDE_REFERENCIA.includes(metodo) ? (
-        <div className="campo">
-          <label htmlFor={`ab-ref-${ventaId}`}>Referencia</label>
-          <input
-            id={`ab-ref-${ventaId}`}
-            inputMode="numeric"
-            autoComplete="off"
-            value={referencia}
-            onChange={(e) => setReferencia(e.target.value)}
-          />
+
+      <div className="tabla-envoltura">
+        <table className="tabla">
+          <thead>
+            <tr><th></th><th>Pieza</th><th>Dónde está</th><th className="num">Cantidad</th><th className="num">C/u · $ BCV</th></tr>
+          </thead>
+          <tbody>
+            {a.items.map((i) => {
+              const foto = urlPublicaFoto(i.foto_thumb_path);
+              return (
+                <tr key={i.modelo_id}>
+                  <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
+                  <td>
+                    <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
+                    <div className="celda-nota">{i.sku}</div>
+                  </td>
+                  <td className="util">{i.donde ?? '—'}</td>
+                  <td className="num">{i.cantidad}</td>
+                  <td className="num precio">{formatearMonto(Number(i.precio_usd))}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="cerrar-pedido">
+        <span className="panel__titulo">Retirar y pagar</span>
+        <div className="fila">
+          <div className="campo">
+            <label htmlFor={`ra-metodo-${a.id}`}>Cómo pagó</label>
+            <select id={`ra-metodo-${a.id}`} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago | '')}>
+              <option value="">Elige la forma de pago</option>
+              {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+            </select>
+          </div>
+          <div className="campo">
+            <label htmlFor={`ra-ref-${a.id}`}>Referencia</label>
+            <input id={`ra-ref-${a.id}`} value={referencia} onChange={(e) => setReferencia(e.target.value)} autoComplete="off" />
+          </div>
         </div>
-      ) : null}
-
-      <p className="campo__pista" id={`ab-pista-${ventaId}`} aria-live="polite">
-        {!despues
-          ? `Faltan ${formatearBcv(falta)}, hoy ${formatearBs(faltaBs)}.`
-          : despues.pasa
-            ? `Es más de lo que falta: faltan ${formatearBs(faltaBs)}.`
-            : despues.falta > 0
-              ? `Después de este abono faltarán ${formatearBcv(despues.falta)}, hoy ${formatearBs(bsDeBcv(despues.falta, tasa.tasa_bcv))}.`
-              : 'Con este abono queda pagada completa.'}
-      </p>
-
-      {error ? <p className="campo__error" role="alert">{error}</p> : null}
-      <div className="acciones">
-        <button
-          type="button"
-          className="boton boton--secundario"
-          disabled={guardando || !hayMonto || Boolean(despues?.pasa)}
-          onClick={() => void guardar()}
-        >
-          {guardando ? 'Guardando' : 'Cargar abono'}
-        </button>
+        {error ? <p className="campo__error" role="alert">{error}</p> : null}
+        <div className="acciones">
+          <button type="button" className="boton boton--confirmar" disabled={!metodo || trabajando} onClick={() => void cobrar(false)}>
+            {trabajando ? 'Guardando' : 'Cobrar y entregar'}
+          </button>
+          <button type="button" className="boton boton--secundario" disabled={!metodo || trabajando} onClick={() => void cobrar(true)}>
+            Entregar, pago por verificar
+          </button>
+          {esAdmin ? (
+            <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void soltar()}>
+              Soltar apartado
+            </button>
+          ) : null}
+        </div>
+        <p className="campo__pista">
+          Se registra la venta a su precio, a nombre de quien la cobra. Si el pago queda por verificar,
+          aparece arriba hasta que alguien lo compruebe.
+        </p>
       </div>
     </div>
   );

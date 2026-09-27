@@ -11,7 +11,7 @@ alma de pieza de marca es el catálogo en PDF.
 Sistema de inventario y ventas de una joyería hipoalergénica en Sabana de Mendoza,
 Venezuela. Dos caras con necesidades opuestas:
 
-- **Mostrador (1 vendedora).** Teléfono Android de gama baja, luz fuerte de tienda,
+- **Mostrador (las vendedoras del local, cada una con su código).** Teléfono Android de gama baja, luz fuerte de tienda,
   una mano ocupada con joyas. Registrar una venta en menos de 10 segundos. También
   fija la tasa del día: la tasa se mueve durante el día y ella es la que está en la
   tienda. Ve el precio en bolívares, en $ BCV y en $ Binance, y hasta dónde puede
@@ -19,6 +19,15 @@ Venezuela. Dos caras con necesidades opuestas:
 - **Administración (2 administradores).** Cargar inventario, fijar tasas, comparar
   costos y márgenes. Densidad y precisión sobre respiración. También vende en el
   Mostrador y aprueba en Pedidos las ventas que quedaron por verificar.
+
+Y desde septiembre de 2026, **fuera de la tienda: los revendedores.** Personas que el
+dueño elige una por una para vender las joyas a su propia clientela. Cada uno tiene
+un catálogo con su nombre y su paleta ("joyas Lux by Emory" debajo), que manda por
+WhatsApp, y un panel en su teléfono: en cuánto le sale cada pieza, su precio (nunca
+menos que el de la tienda), sus apartados, lo que cada clienta le debe y lo que va
+ganando. Para él el sistema es una herramienta de su negocio, no de la tienda: ve
+precios, nunca un costo, y entra con un código, no con una cuenta de la tienda.
+Retira y paga en la tienda, y entrega en persona.
 
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el

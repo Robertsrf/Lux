@@ -55,10 +55,12 @@ infla todos los precios de la tienda a la vez, y ya pasó una vez.
 src/paginas/venta/       lo que usa la vendedora. Va en el bundle principal.
 src/paginas/admin/       lo que usa el dueño. Viaja en archivos aparte.
 src/paginas/publico/     el catálogo que se comparte por WhatsApp. Sin sesión.
+src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
+                         panel, con su código. El panel viaja aparte.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             45 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    82 comprobaciones de seguridad.
+esquema*.sql             47 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    115 comprobaciones de seguridad (119 con LUX_REVENDEDOR).
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 
@@ -193,8 +195,26 @@ tocan: guardan su tasa congelada, y eso es a propósito.
 tienda vende a diario no ocurre. Si ocurre, se reactiva con un clic y no se
 pierde nada.
 
-**El PIN.** Rótalo cuando cambie el personal. Son cuatro dígitos, diez mil
-combinaciones, y el sitio es estático: cualquiera puede leer la receta en el
-bundle. Aguanta porque la vendedora no puede ver ni borrar nada, no porque el
-PIN sea fuerte. Los administradores usan contraseña larga real, y eso no se
-cambia por comodidad.
+**El PIN.** Cada vendedora del local tiene el suyo, de seis dígitos, dentro de su
+código de ocho. Cuando una se va, se **pausa** en Vendedoras (sus ventas se
+quedan); si alguien vio el código de otra, se le da **PIN nuevo**. El sitio es
+estático y cualquiera puede leer la receta en el bundle: aguanta porque una
+vendedora no puede ver costos ni borrar nada, no porque el PIN sea fuerte. La
+cuenta de antes, de cuatro dígitos, conviene pasarla a código propio desde
+Vendedoras. Los administradores usan contraseña larga real, y eso no se cambia
+por comodidad.
+
+**La función de servidor `vendedoras`.** Si se cambia
+`supabase/functions/vendedoras/index.ts`, hay que publicarla otra vez
+(INSTALACION.md, 3.1): el build de GitHub Pages no la sube.
+
+**La sesión de un revendedor.** Dura 30 días desde la última vez que entró; después
+vuelve a escribir su código. Si un revendedor deja de trabajar con la tienda, se
+**pausa** en Revendedores (su catálogo deja de verse y su sesión se cierra en el
+acto) o se le da **código nuevo** si cree que alguien vio el suyo. No se borra:
+sus apartados y ventas son histórico.
+
+**Los apartados de revendedores.** Vencen solos a los 15 días y la pieza vuelve a
+la tienda; no hace falta hacer nada. Lo que sí conviene mirar de vez en cuando en
+Revendedores es "Apartado por revendedores": es inventario de la tienda que no se
+puede vender en el mostrador mientras dure.

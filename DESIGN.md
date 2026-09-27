@@ -249,6 +249,8 @@ Apagados, nunca saturados. Ningún otro color existe; si hace falta uno nuevo, n
 
 **La regla del color medido.** Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.
 
+**La regla de la paleta del revendedor.** La única excepción a "ningún otro color". El catálogo y el panel de un revendedor pueden llevar una de seis paletas (`lux`, `noche`, `vino`, `grafito`, `ciruela`, `oliva`, en `estilos/revendedor.css`), cada una con los mismos papeles que la de Lux y cada par de texto medido a 4,5:1; el peor de cada una va anotado en la cabecera del archivo. No hay selector de color libre. Debajo de su nombre siempre dice "Joyas Lux by Emory".
+
 **La regla de las dos monedas.** En este negocio hay dos dólares y valen distinto. Todo "$" en pantalla dice cuál es: "$20,00 BCV" (el de la etiqueta) o "$14,50 Binance" (el que se compra afuera). En una tabla la moneda va en la cabecera ("Costo · $ Binance") y la celda lleva la cifra sola. Un "$" pelado es un defecto.
 
 ## Typography
@@ -455,8 +457,8 @@ En el cobro, justo debajo de la forma de pago y con sus mismos botones, "Pagó t
 
 En Pedidos, la tarjeta de una venta por partes lleva la etiqueta "Pago por partes" y, en lugar de "Cómo pagó", un panel "Abonos": cada abono en un renglón con el monto en Fraunces 16 px y debajo la fecha, la hora, la forma de pago, la referencia y quién lo cargó; al final "Faltan $6,00 BCV, hoy Bs 660,00" o, en verde de éxito, "Pagada completa. Falta comprobarla en el banco y verificarla." Al pie, tras una línea, "Cargar otro abono": forma de pago, cuánto (con un botón "Lo que falta" de 44 px que lo escribe solo) y la referencia, con una frase viva de cuánto faltará después. "Pago verificado" queda apagado mientras falte algo.
 
-### Pedidos: por verificar y del catálogo
-Dos secciones con su cuenta en el título. "Por verificar el pago": cada venta en una tarjeta con la etiqueta en alerta, "Vendió Fulana · fecha, hora", los tres totales (Bs, $ BCV, $ Binance) en Fraunces 16 px, un panel "Cómo pagó" con la referencia, las piezas con de dónde salieron, y dos botones: "Pago verificado" (confirmación) y "No llegó el pago: anular" (peligro, con confirmación). "Del catálogo": la tarjeta de siempre y, al pie tras una línea, "Cerrar el pedido" con la forma de pago (la que reportó la clienta, si la reportó), la referencia y dos botones, "Cobrar y entregar" y "Cancelar pedido".
+### Pedidos: por verificar, del catálogo y de revendedores
+Tres secciones con su cuenta en el título. La tercera, "De revendedores", es la tarjeta del pedido del catálogo con lo que el revendedor paga (en $ BCV, bolívares y $ Binance), las piezas con dónde está cada una y, al pie, "Retirar y pagar": forma de pago, referencia, "Cobrar y entregar" (confirmación), "Entregar, pago por verificar" y, solo para el administrador, "Soltar apartado" (peligro). Las dos primeras: "Por verificar el pago": cada venta en una tarjeta con la etiqueta en alerta, "Vendió Fulana · fecha, hora", los tres totales (Bs, $ BCV, $ Binance) en Fraunces 16 px, un panel "Cómo pagó" con la referencia, las piezas con de dónde salieron, y dos botones: "Pago verificado" (confirmación) y "No llegó el pago: anular" (peligro, con confirmación). "Del catálogo": la tarjeta de siempre y, al pie tras una línea, "Cerrar el pedido" con la forma de pago (la que reportó la clienta, si la reportó), la referencia y dos botones, "Cobrar y entregar" y "Cancelar pedido".
 
 ### Confirmar la tasa
 La única acción que cambia todos los precios de un toque pide un segundo paso en la misma tarjeta, no en una ventana: un panel que dice cada tasa "antes → después" con cuánto sube o baja en oro de texto, y dos botones, "Sí, fijarla" y "Corregir". Un cero de más se ve antes de que cueste.
@@ -469,6 +471,25 @@ La barra flotante del carrito, reutilizada: aparece en cuanto cambia un campo, e
 
 ### Indicador con comparación (Reportes)
 Celda de tablero: etiqueta, valor y una línea que lo compara con el período anterior del mismo largo ("+12 % contra los 30 días anteriores"). El signo y las palabras cargan el mensaje; el color (éxito si sube, alerta de texto si baja) solo acompaña. Si la cifra lleva su moneda detrás, el valor baja a 28 px para caber en 160.
+
+### El catálogo de un revendedor
+El catálogo de la tienda con su ropa: la paleta que él eligió va en `<html>` (`useTemaRv`), así también se visten la hoja de variantes y el visor. En la cabecera, su logo en un círculo crema de 48 px (56 en escritorio), el nombre de su catálogo en Fraunces crema y debajo "Joyas Lux by Emory" en label del acento; a la derecha "Escribir a María", el secundario sobre el ancla. Las tarjetas son las del catálogo público sin la clave de ubicación. Apartar pide la cédula igual que el pedido de la tienda, pero habla por él ("Ya compraste con María"), y antes del botón un panel "Cómo funciona" en EB Garamond: cuántos días guarda las piezas y a quién se le paga.
+
+La página del apartado de su clienta lleva su misma cabecera, un aviso en alerta con "Quedan 12 días · hasta el 09/10" y lo que le falta en bolívares de hoy y en $ BCV, del mismo tamaño. Nada de lo que él le paga a Lux.
+
+### El panel del revendedor
+El armazón de la tienda (`Armazon`: barra lateral en escritorio, abajo en el teléfono con Inicio, Apartados, Clientas y Más) vestido con su paleta, y su marca arriba de la barra lateral. **Inicio** repite la forma de Costos: lo que ganó en el mes en Fraunces 56 px con "ganaste este mes" en label, y al lado, en un panel, lo que sus clientas le deben. Debajo, su tope como barra de avance con una frase del nivel ("Cuando hayas retirado $77,50 BCV más, tu tope sube a $150,00 BCV"), su enlace para compartir y sus meses en tabla (en el teléfono se cae "Vendiste").
+
+**Apartados**: pestañas envueltas (Vigentes, Te deben, Todos), y cada apartado en una tarjeta con la etiqueta de cuánto queda, las piezas como líneas de cobro ("A tu clienta $22,00 BCV · te sale $15,00 BCV", ×2), lo que le ha pagado y lo que falta, y "Para retirar lleva $48,75 BCV a la tienda". Cargar un abono se abre con un botón: abierto en cada tarjeta, la lista medía tres pantallas en el teléfono. **Mis precios**: una fila por pieza con "Te sale" en Fraunces y su precio en un campo que dice debajo cuánto gana y en qué por ciento; lo cambiado queda en borrador con la barra de guardar de Costos.
+
+### Elegir paleta
+Seis radios de verdad, vestidos, en rejilla de 132 px: una muestra de 16 px de radio con el ancla arriba (44 px) y una raya del acento, el papel abajo (18 px), y el nombre en label. Cada muestra lleva la clase de su paleta y dibuja con los tokens, así los colores no se repiten en TypeScript. La elegida lleva borde de 2 px en tinta y la sombra de hover; con el teclado, el anillo de foco.
+
+### El código de entrada (revendedores y vendedoras)
+`.codigo-entrada`: se enseña una sola vez, al crear la cuenta o al darle uno nuevo, en Fraunces 28 px con números tabulares y 0,08 em entre letras, seleccionable de un toque, para dictarlo por teléfono sin confundir un 8 con una B. El de un revendedor son doce letras y números, con "Mandárselo por WhatsApp" (confirmación) que manda su catálogo, su panel y el código en un solo mensaje. El de una vendedora del local son ocho dígitos partidos en su número y su PIN ("03 482915"), con "Copiar el código" y "Ya se lo di". No se guarda: si lo pierde, se le da otro.
+
+### Las fichas del equipo (Vendedoras y Revendedores)
+`.ficha-persona`: una tarjeta por persona con el nombre en EB Garamond 20 px, sus datos debajo en Jost 12 px y su estado en una píldora a la derecha (activa, en pausa, nivel). Cómo va, en tres celdas de tablero que dentro de la ficha son paneles sin borde, y al pie las acciones en secundario, con Pausar en peligro. **Vendedoras** y **Revendedores** son dos pantallas: son dos cosas aparte, y la de Vendedoras lo dice en su primera línea.
 
 ## Do's and Don'ts
 

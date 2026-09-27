@@ -25,11 +25,16 @@ function correoDesdeUsuario(usuario: string): string {
  *    ventas. No puede leer costos ni borrar nada: lo impide RLS, no el PIN.
  *  - Hay que activar el rate limiting de Auth en Supabase.
  *  - Hay que rotar el PIN cuando cambie el personal.
+ *  - Las vendedoras que crea el administrador desde su pantalla llevan PIN
+ *    de SEIS digitos (un millon de combinaciones por cuenta): con varias
+ *    vendedoras hay varias puertas. Los cuatro digitos quedan solo para la
+ *    cuenta de antes, hasta que el dueno le de su codigo propio.
  *
  * No agregues validaciones en el navegador para "compensar" esto. No compensan.
  *
- * OJO: si cambias esta receta, cambia tambien scripts/derivar-pin.mjs, que es
- * lo que usa el admin para saber que contrasena ponerle al usuario en Supabase.
+ * OJO: si cambias esta receta, cambia tambien scripts/derivar-pin.mjs (la
+ * vendedora de antes) y supabase/functions/vendedoras (las del local, que
+ * crea el administrador desde su pantalla). Si no coinciden, nadie entra.
  */
 function contrasenaDesdePin(pin: string): string {
   return `lux.${pin.trim()}.emory`;
@@ -59,6 +64,18 @@ export async function entrarConCodigo(codigo: string) {
   const limpio = codigo.trim();
   if (!limpio) {
     return { error: { message: 'Escribe tu codigo.' } as { message: string } };
+  }
+
+  // Ocho dígitos: una vendedora del local. Los dos primeros son su número
+  // (su cuenta es vendedora03@lux.local) y los seis últimos, su PIN. Se
+  // prueba SOLO esa cuenta: si se probaran también las de administrador,
+  // cada error al teclear les sumaría un intento fallido.
+  if (/^\d{8}$/.test(limpio)) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: correoDesdeUsuario(`vendedora${limpio.slice(0, 2)}`),
+      password: contrasenaDesdePin(limpio.slice(2)),
+    });
+    return { error: error ?? null };
   }
 
   // Un PIN de cuatro digitos es del mostrador: se prueba de primero.

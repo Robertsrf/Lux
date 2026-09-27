@@ -54,24 +54,38 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 
 ```
 src/
-  lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts
+  lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts,
+                revendedor.ts (su sesión, sus enlaces, las paletas),
+                vendedoras.ts (llama a la función de servidor de las cuentas)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
-                useInventario, useTextos, useFrases, useConsejos
-  componentes/  Disposicion (armazón y navegación), Piezas (Aviso, Campo,
-                Cargando, Vacio, Filtros, Ayuda), Iconos, Marca, VisorFoto
-                (detalle que pasa de pieza), ElegirVariante (la hoja de
-                medidas), TusDatos (el pedido público empieza por la
-                cédula), MoverUbicacion (pasar piezas de una ubicación a
-                otra), Graficos, Progreso, Recordatorio, CompartirCatalogo,
-                BuscadorCliente, RutaProtegida
+                useInventario, useTextos, useFrases, useConsejos,
+                useTemaRv (viste la página con la paleta de un revendedor)
+  componentes/  Disposicion (las secciones de la tienda), Armazon (la barra
+                lateral y la de abajo, de la tienda y del revendedor), Piezas
+                (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
+                Marca, VisorFoto (detalle que pasa de pieza), ElegirVariante
+                (la hoja de medidas), TusDatos (el pedido público empieza por
+                la cédula), MoverUbicacion (pasar piezas de una ubicación a
+                otra), CargarAbono (un abono en dólares BCV, de la tienda y
+                del revendedor), Graficos, Progreso, Recordatorio,
+                CompartirCatalogo, BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
-                Costos, Inversiones, Reportes, Textos
+                Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras
     venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
     publico/    Catalogo, Reserva          (sin sesión)
+    revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
+                (/apartado/:token)         (sin sesión, como el catálogo)
+                EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
+                InicioRv, ApartadosRv, ClientesRv, PreciosRv, MiCatalogoRv
+                                           (con SU código, no con Supabase)
     Vitrina                                (sin sesión, como el catálogo)
     Clientes, Tasas, CatalogoPdf, Entrar, Verificacion   (las de las dos caras)
-  estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css
+  estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
+                revendedor.css (las seis paletas de su catálogo, medidas)
+supabase/functions/vendedoras   crea, pausa y cambia el PIN de las vendedoras
+                del local con la llave maestra, en el servidor de Supabase.
+                Se publica aparte (INSTALACION.md, 3.1); no va en el build.
 ```
 
 - **TypeScript estricto, sin `any`.** Dominio en español, API de React en inglés:
@@ -87,6 +101,10 @@ src/
 
 ### Las dos caras
 
+La del mostrador la usan **las vendedoras del local**, cada una con su código de
+ocho dígitos (su número y su PIN), creadas por el dueño en la pantalla
+Vendedoras. Hacen todas lo mismo; el código es para saber quién vendió qué.
+
 | | Mostrador (vendedora) | Administración |
 |---|---|---|
 | Dónde | Android de gama baja, una mano, luz de tienda | Escritorio, y también el teléfono |
@@ -97,6 +115,14 @@ Por debajo de 900 px la navegación vive **abajo**: barra de cuatro columnas con
 tres secciones diarias y un botón "Más". No es una hamburguesa arriba a la
 izquierda, y no por moda: esa esquina es la que peor alcanza el pulgar de quien
 sostiene el teléfono con una mano y joyas con la otra.
+
+### Y fuera de la tienda: los revendedores
+
+Personas elegidas por el dueño que venden las joyas a su propia clientela. Cada
+uno tiene su catálogo (`/#/r/<usuario>`, con su nombre y su paleta) y su panel
+(`/#/rv`), con el mismo armazón que la tienda vestido de sus colores. **No es una
+tercera cara con sesión de Supabase**: entra con un código que le da el dueño, y
+para la base es alguien sin sesión (ver "Los revendedores" en las reglas).
 
 ---
 
@@ -112,7 +138,19 @@ completa y cada archivo dice en su cabecera de qué depende.
 `existencias` · `ventas` · `venta_items` · `clientes` · `reservas` ·
 `reserva_items` · `tramos_mayoreo` · `configuracion` · `conteos` · `inversiones` ·
 `gastos_mes` · `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra) ·
-`abonos` (cada pago de una venta cobrada por partes)
+`abonos` (cada pago de una venta cobrada por partes).
+`perfiles.numero_vendedora` es el número de cada vendedora del local (los dos
+primeros dígitos de su código); null en los administradores y en la cuenta de
+antes.
+
+De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
+funciones): `revendedores` (con la huella de su código, nunca el código) ·
+`revendedor_sesiones` · `revendedor_precios` (el que él le pone a cada pieza) ·
+`revendedor_clientes` (sus clientas, que no son las del maestro) · `apartados` ·
+`apartado_items` (los tres precios congelados: etiqueta, lo que paga a Lux y lo
+que cobra a su clienta) · `apartado_abonos` (lo que su clienta le paga a ÉL).
+`apartados`, sus líneas y sus abonos no se borran, como las ventas.
+`ventas.revendedor_id` dice qué venta fue a un revendedor.
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -130,7 +168,10 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
-| `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo o tramo) y quién | solo admin |
+| `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo o revendedor) y quién | solo admin |
+| `v_apartados_revendedor` | Los apartados de revendedores que se pueden retirar hoy: lo que él paga y dónde está cada pieza. Nada de lo que él cobra a su clienta | vendedora y admin |
+| `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes | solo admin |
+| `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
@@ -144,7 +185,31 @@ llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `mover_existencia`,
 `verificar_venta`, `anular_venta_por_verificar`, `cobrar_pedido`,
 `cancelar_pedido`, `cobrar_con_abono`, `registrar_abono`, `admin_guardar_modelo`,
-`admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
+`admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`,
+`cobrar_apartado` (el revendedor retira y paga, de las dos caras),
+`admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`.
+
+Las cuentas de las vendedoras del local no se tocan desde SQL: las crea, pausa y
+les cambia el PIN la función de servidor `supabase/functions/vendedoras`, con la
+llave maestra, después de comprobar que quien llama es administrador activo.
+Solo actúa sobre perfiles `vendedora`. Su receta de contraseña es la de
+`contrasenaDesdePin()` (`src/lib/auth.ts`): si cambia una, cambia la otra.
+
+Las del revendedor se llaman `rv_*` y reciben `p_sesion` delante: `rv_entrar`
+(código → testigo), `rv_salir`, `rv_resumen`, `rv_piezas`, `rv_fijar_precios`,
+`rv_apartados`, `rv_abonar`, `rv_cancelar_apartado`, `rv_clientes`,
+`rv_guardar_cliente`, `rv_ajustes`. Todas empiezan por `rv_de_sesion(p_sesion)`,
+que dice quién es o lanza el error `28000`. Las de su catálogo no llevan testigo:
+`rv_perfil_publico`, `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
+con las mismas claves que `buscar_cliente_publico`), `rv_apartar`,
+`rv_ver_apartado`.
+
+Tres fórmulas, una vez cada una, revocadas a todos: `rv_precio_lux(modelo, %)` (la
+etiqueta menos su descuento, sin bajar de `piso_margen_de`, al centavo hacia
+arriba), `rv_minimo_clienta(lista)` (etiqueta + `revendedor_sobre_etiqueta_usd`)
+y `rv_falta_de(apartado)`. El tope sale de `rv_escalera()` (los niveles, desde
+`configuracion`) y `rv_tope(revendedor)`; la pantalla del dueño enseña la
+escalera, no la recalcula.
 
 `falta_bcv_de(venta)` es la única cuenta de cuánto falta de una venta cobrada por
 partes, en dólares BCV. La leen `v_ventas_por_verificar`, `v_cliente_compras`,
@@ -152,8 +217,9 @@ partes, en dólares BCV. La leen `v_ventas_por_verificar`, `v_cliente_compras`,
 antes de guardar (`abonoEnBcv`, `faltaTrasAbono` de `lib/dinero.ts`).
 
 `apartadas_de(modelo)` es la única regla de qué piezas aparta un pedido: el
-abierto que no ha vencido y el pagado que todavía no se cobró ni se canceló. La
-usan el catálogo público, `crear_reserva` y `cobrar_pedido`.
+abierto que no ha vencido y el pagado que todavía no se cobró ni se canceló, y el
+apartado de un revendedor que sigue abierto y no ha vencido. La usan el catálogo
+público, `crear_reserva`, `cobrar_pedido`, `rv_apartar` y `cobrar_apartado`.
 
 `admin_guardar_modelo` recibe también `p_variantes`: la tabla de variantes del
 formulario entera, que `guardar_variantes_de` (revocada, por dentro) guarda en la
@@ -223,6 +289,17 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   los días que abre la tienda (`configuracion.dias_abiertos_mes`). La ve en "Tu día"
   y en el Mostrador. Sin el dato de días ve solo la del mes; nunca un número viejo.
   La meta de piezas premium y su umbral los fija el dueño en Costos.
+  **Se mide con lo vendido en el local**: lo que un revendedor retira y paga no
+  cuenta ni en su meta ni en "Mi día" (`ventas.revendedor_id is null`). Para el
+  dueño sí es dinero de la tienda y sigue en Reportes y Costos (decisión del
+  27/09/2026: vendedoras del local y revendedores son dos cosas aparte).
+- **Las vendedoras del local.** Todas hacen lo mismo que la vendedora de siempre;
+  cada una con su código para saber quién vendió qué. El dueño las crea, les
+  cambia el PIN y las pausa en Vendedoras; pausada no entra y sus ventas se
+  quedan. PIN de seis dígitos: con varias vendedoras hay varias puertas, y una
+  sesión de vendedora toca existencias y lee el maestro de clientas. La cuenta
+  de antes (`vendedora@lux.local`, cuatro dígitos) sigue entrando hasta que el
+  dueño le dé su código propio.
 - **Lo que puede negociar, ella lo ve; los márgenes, no.** `descuento_max_mostrador_pct`
   (cuánto puede rebajar de la etiqueta) está en su lista de claves legibles; cada
   tarjeta del mostrador dice su mínimo y en el cobro escribe lo que cobra por pieza. `margen_minimo_pct` **nunca** entra en esa
@@ -317,18 +394,50 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   sus datos. El catálogo **no crea** clientas ni cambia su ficha: una clienta nace
   cuando alguien le cobra. La reserva guarda `cliente_id` y en Pedidos sale "Ya es
   clienta".
+- **Los revendedores** (decisiones del dueño del 27/09/2026, en la cabecera de
+  `esquema-revendedores.sql`). Solo quien él crea en Revendedores: no es para todo
+  el mundo, y por eso no importa que salgan más baratos que el tramo del 15 %.
+  - **Lo que le sale:** la etiqueta menos `revendedor_descuento_pct` (25 %), nunca
+    por debajo de `piso_margen_de`, el piso del tramo, que ya trae mercancía a la
+    brecha de hoy, flete, merma, empaque, la parte del mes de alquiler y sueldos y
+    el margen mínimo. Las piezas donde el piso no deja rebaja no salen en su
+    catálogo. Puede tener un descuento propio (`revendedores.descuento_pct`).
+  - **Lo que cobra:** lo pone él, nunca menos que la etiqueta más
+    `revendedor_sobre_etiqueta_usd` ($0,10). No le hace la competencia a la tienda.
+    Si la etiqueta sube por encima de su precio, manda el mínimo.
+  - **Apartar:** su clienta aparta desde `/#/r/<usuario>`; las piezas salen de lo
+    libre (`apartadas_de`) hasta `revendedor_dias_apartado` (15) días. Vencido no
+    se guarda: se calcula. Él lo cancela a tiempo o vence solo.
+  - **Dos deudas, separadas.** Lo que su clienta le paga a él lo lleva en su panel
+    (`apartado_abonos`, en dólares BCV como `abonos`). Lo que él le paga a Lux se
+    cobra al retirar, en Pedidos: `cobrar_apartado` registra la venta tipo `mayor`
+    a su precio, con `revendedor_id` y `motivo_rebaja = 'revendedor'`. Él entrega
+    en persona.
+  - **El tope:** cuánto puede tener apartado a la vez, a lo que le paga a Lux.
+    Empieza en $100, sube $50 por nivel hasta $200 cuando ha retirado y pagado dos
+    veces la suma de sus topes anteriores ($200 para el 2, $500 para el 3), y baja
+    un nivel mientras tenga dos vencidos en 30 días. Todo en `configuracion`,
+    `revendedor_*`, y se cambia en Revendedores. El dueño puede fijarle uno a mano.
+  - **No tiene sesión de Supabase, y no debe tenerla nunca.** Toda la base da por
+    hecho que tener sesión es ser de la tienda (`existencias` acepta cambios de
+    cualquier sesión, `clientes` se lee entera). Entra con un código de doce
+    caracteres (59 bits, se guarda la huella) y cada `rv_*` recibe su testigo. Si
+    alguna vez se piensa en darle una cuenta, primero hay que cerrar todo lo que
+    hoy se abre a `authenticated`.
+  - **Su paleta:** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
+    excepción a "ningún otro color", y no hay selector de color libre.
 
 ---
 
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 82 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 115 comprobaciones con las dos sesiones (119 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veinticinco
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintinueve
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -372,6 +481,17 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   mayor recibió su descuento y la página se veía perfecta.
 - **Los heredoc de Bash se comen las barras invertidas.** Para editar código con
   `\d`, la herramienta de edición, no un heredoc.
+- **Una variable de CSS que usa otra se resuelve donde se declara.** `--texto` vale
+  `var(--verde-profundo)` en `:root`; cambiar `--verde-profundo` en un contenedor no
+  cambia `--texto` ahí dentro. Por eso `.tema-rv` vuelve a derivar los tokens de
+  texto y sombra, y `.tema-rv--lux` está en el bloque de `:root` de `tokens.css`: sin
+  eso, la muestra "Lux" salía del color de la página donde estaba.
+- **Dos erratas viejas impedían instalar desde cero**, y nadie lo sabía porque en
+  producción ya estaba todo corrido: un `$` suelto en `esquema-fase2.sql` y la
+  palabra `creoq` al principio de `esquema-descuentos.sql` (corregidas en
+  septiembre de 2026). Salieron al montar la instalación entera en una base
+  Postgres en memoria (PGlite) para probar `esquema-revendedores.sql`: es la
+  forma de probar un `.sql` grande sin tocar la base de producción.
 
 ---
 

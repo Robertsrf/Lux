@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTextos } from '../hooks/useTextos';
 
 /**
@@ -25,13 +26,22 @@ function enlacePublico(): string {
   return `${origin}${base}#/publico`;
 }
 
-export function CompartirCatalogo({ titulo = 'Enviar el catálogo' }: { titulo?: string }) {
+export function CompartirCatalogo({ titulo = 'Enviar el catálogo', enlace: propio, mensaje: suyo, pista }: {
+  titulo?: string;
+  /** Otro enlace: el catálogo de un revendedor. Por defecto, el de la tienda. */
+  enlace?: string;
+  /** El texto que va antes del enlace. Por defecto, el de Textos. */
+  mensaje?: string;
+  /** Lo que se lee debajo de los botones. */
+  pista?: ReactNode;
+}) {
   const textos = useTextos();
   const [copiado, setCopiado] = useState(false);
   const [fallo, setFallo] = useState(false);
 
-  const enlace = useMemo(enlacePublico, []);
-  const mensaje = `${textos.mensaje_whatsapp?.trim() || MENSAJE_POR_DEFECTO}\n\n${enlace}`;
+  const deLaTienda = useMemo(enlacePublico, []);
+  const enlace = propio ?? deLaTienda;
+  const mensaje = `${suyo?.trim() || textos.mensaje_whatsapp?.trim() || MENSAJE_POR_DEFECTO}\n\n${enlace}`;
 
   const copiar = useCallback(() => {
     void (async () => {
@@ -86,8 +96,7 @@ export function CompartirCatalogo({ titulo = 'Enviar el catálogo' }: { titulo?:
         </p>
       ) : (
         <p className="campo__pista">
-          La clienta ve las piezas disponibles y aparta las que quiera. Lo que
-          aparte te aparece aquí, en Pedidos.
+          {pista ?? 'La clienta ve las piezas disponibles y aparta las que quiera. Lo que aparte te aparece aquí, en Pedidos.'}
         </p>
       )}
     </section>

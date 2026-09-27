@@ -102,6 +102,27 @@ export async function subirFoto(sku: string, foto: FotoProcesada): Promise<Rutas
   return { foto_path: rutaGrande, foto_thumb_path: rutaThumb };
 }
 
+/**
+ * El logo de un revendedor, para la cabecera de su catálogo. Se dibuja a
+ * 56 px en un círculo: con 400 px de lado sobra para cualquier pantalla, y
+ * pesa menos que una sola miniatura del catálogo.
+ */
+export async function subirLogoRevendedor(usuario: string, archivo: File): Promise<string> {
+  if (!archivo.type.startsWith('image/')) {
+    throw new Error('Ese archivo no es una imagen. Sube el logo en JPG, PNG o WebP.');
+  }
+  const logo = await imageCompression(archivo, {
+    fileType: 'image/webp', initialQuality: 0.85, useWebWorker: true,
+    maxWidthOrHeight: 400, maxSizeMB: 0.06,
+  });
+  const ruta = `revendedores/${usuario.replace(/[^a-z0-9-]/g, '_')}/${Date.now()}.webp`;
+  const subida = await supabase.storage.from(BUCKET).upload(ruta, logo, {
+    contentType: 'image/webp', upsert: false, cacheControl: '31536000',
+  });
+  if (subida.error) throw subida.error;
+  return ruta;
+}
+
 /** El bucket es publico de lectura: las fotos van al catalogo (Fase 3). */
 export function urlPublicaFoto(ruta: string | null | undefined): string | null {
   if (!ruta) return null;

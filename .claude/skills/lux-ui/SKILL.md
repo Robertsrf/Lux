@@ -98,6 +98,25 @@ Estados funcionales que la paleta no cubre. Manténlos apagados, nunca saturados
 
 Ningún otro color. Si necesitas uno nuevo, no lo necesitas.
 
+### La única excepción: el catálogo de un revendedor
+
+El catálogo y el panel de un revendedor son SUYOS, y el dueño decidió (septiembre
+de 2026) que pueda vestirlos con otra paleta. No hay selector de color libre: hay
+seis (`lux`, `noche`, `vino`, `grafito`, `ciruela`, `oliva`) en
+`estilos/revendedor.css`, cada una con los mismos papeles que la de Lux (ancla,
+acento, crema, papel, salvia, tinta y sus variantes de texto) y **cada par de texto
+medido a 4,5:1**; el peor de cada una está anotado en la cabecera del archivo. Se
+aplican en `<html>` con `useTemaRv`, así también se visten la hoja de variantes y
+el visor.
+
+- Una paleta nueva se mide entera antes de entrar, par por par, contra los fondos
+  reales. Y se agrega en tres sitios a la vez: el `check` de
+  `revendedores.paleta`, `PALETAS` de `lib/revendedor.ts` y el CSS.
+- `.tema-rv--lux` vive en el bloque de `:root` de `tokens.css`: los colores de la
+  casa no se copian.
+- Debajo de su nombre siempre dice "Joyas Lux by Emory". La paleta es suya; la
+  joya sigue siendo de la casa.
+
 ### Reglas de contraste
 
 - Texto de cuerpo sobre crema → **verde profundo** o `--tinta`. Nunca oro.

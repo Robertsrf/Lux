@@ -29,6 +29,10 @@ import { Cargando, LimiteDeError } from './componentes/Piezas';
 import { Entrar } from './paginas/Entrar';
 import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
 import { Reserva } from './paginas/publico/Reserva';
+// El catalogo de un revendedor y el apartado de su clienta tambien son una
+// puerta que llega por WhatsApp, con datos moviles: viajan contados.
+import { CatalogoRevendedor } from './paginas/revendedor/CatalogoRevendedor';
+import { ApartadoPublico } from './paginas/revendedor/ApartadoPublico';
 
 import { Mostrador } from './paginas/venta/Mostrador';
 import { Tablero } from './paginas/venta/Tablero';
@@ -51,6 +55,12 @@ const Verificacion = lazy(() => import('./paginas/Verificacion').then((m) => ({ 
 const CatalogoPdf = lazy(() => import('./paginas/CatalogoPdf').then((m) => ({ default: m.CatalogoPdf })));
 const Vitrina = lazy(() => import('./paginas/Vitrina').then((m) => ({ default: m.Vitrina })));
 const Clientes = lazy(() => import('./paginas/Clientes').then((m) => ({ default: m.Clientes })));
+const Revendedores = lazy(() => import('./paginas/admin/Revendedores').then((m) => ({ default: m.Revendedores })));
+const Vendedoras = lazy(() => import('./paginas/admin/Vendedoras').then((m) => ({ default: m.Vendedoras })));
+// El panel del revendedor va aparte: lo abre el, de vez en cuando, y no
+// tiene por que pesarle a la clienta que abre un catalogo.
+const EntrarRevendedor = lazy(() => import('./paginas/revendedor/EntrarRevendedor').then((m) => ({ default: m.EntrarRevendedor })));
+const PanelRevendedor = lazy(() => import('./paginas/revendedor/Panel').then((m) => ({ default: m.PanelRevendedor })));
 
 /** GitHub Pages no reescribe rutas: se usa HashRouter (/#/admin/inventario). */
 function Inicio() {
@@ -73,6 +83,21 @@ export function App() {
           {/* Publico: sin sesion. Es el enlace que se comparte. */}
           <Route path="/publico" element={<CatalogoPublico />} />
           <Route path="/reserva/:token" element={<Reserva />} />
+
+          {/* Revendedores. Su catalogo y el apartado de su clienta, sin
+              sesion. Su panel, con SU codigo: para la base no tiene sesion
+              de Supabase (ver esquema-revendedores.sql), asi que no pasa
+              por RutaProtegida ni por la sesion de la tienda. */}
+          <Route path="/r/:usuario" element={<CatalogoRevendedor />} />
+          <Route path="/apartado/:token" element={<ApartadoPublico />} />
+          <Route
+            path="/rv/entrar"
+            element={<Suspense fallback={<Cargando texto="Abriendo" />}><EntrarRevendedor /></Suspense>}
+          />
+          <Route
+            path="/rv/*"
+            element={<Suspense fallback={<Cargando texto="Abriendo tu panel" />}><PanelRevendedor /></Suspense>}
+          />
 
           {/* Vitrina: pantalla completa, sin barra lateral y SIN SESION,
               como el catalogo: se abre desde el navegador del televisor sin
@@ -128,6 +153,8 @@ export function App() {
             {/* La direccion vieja, por si quedo guardada en un marcador. */}
             <Route path="/admin/tasas" element={<Navigate to="/tasas" replace />} />
             <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
+            <Route path="/admin/revendedores" element={soloAdmin(<Revendedores />)} />
+            <Route path="/admin/vendedoras" element={soloAdmin(<Vendedoras />)} />
           </Route>
 
           <Route path="/" element={<Inicio />} />

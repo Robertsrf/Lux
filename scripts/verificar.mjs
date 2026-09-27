@@ -327,6 +327,107 @@ async function main() {
   dice(!!ftP.error && !/mayores que cero/i.test(ftP.error.message), 'fijar_tasa() sin sesion, rechazada',
     ftP.error ? 'rechazada ' + (ftP.error.code ?? '') : 'LA DEJO PASAR');
 
+  /*
+    LOS REVENDEDORES (esquema-revendedores.sql)
+
+    Para la base un revendedor es alguien SIN sesión con la llave de su
+    cajón: todo lo de arriba sobre la clienta le aplica a él. Aquí se mira
+    lo nuevo: que sus tablas no se abran a nadie en crudo, que las fórmulas
+    que llevan el piso de margen no respondan fuera de las funciones de
+    definidor, que la vendedora cobre sus apartados y no toque lo demás, y
+    que su catálogo público no traiga ni lo que él le paga a Lux.
+  */
+  console.log('\nLOS REVENDEDORES');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V]]) {
+    for (const tabla of ['revendedores', 'revendedor_sesiones', 'apartados', 'apartado_items', 'revendedor_clientes']) {
+      const { data, error } = await S.from(tabla).select('*').limit(1);
+      dice(!!error || (data?.length ?? 0) === 0, `${tabla} en crudo: ${quien}`,
+        error ? 'rechazada ' + error.code : (data?.length ?? 0) + ' filas');
+    }
+    const lux = await S.rpc('rv_precio_lux', { p_modelo_id: 1, p_descuento_pct: 25 });
+    dice(!!lux.error, `rv_precio_lux(): ${quien}, rechazada`, lux.error ? 'rechazada ' + lux.error.code : 'RESPONDIO ' + lux.data);
+    const adm = await S.rpc('admin_guardar_revendedor', { p_id: null, p_nombre: 'Prueba', p_usuario: 'prueba-verificar' });
+    dice(!!adm.error, `admin_guardar_revendedor(): ${quien}, rechazada`, adm.error ? 'rechazada' : 'LO CREO');
+    const lista = await S.from('v_revendedores').select('id').limit(1);
+    dice(!!lista.error || (lista.data?.length ?? 0) === 0, `v_revendedores: ${quien}`,
+      lista.error ? 'rechazada ' + lista.error.code : (lista.data?.length ?? 0) + ' filas');
+  }
+  // Ella cobra los apartados que se retiran en la tienda.
+  const enTienda = await V.from('v_apartados_revendedor').select('id, total_usd, items').limit(1);
+  dice(!enTienda.error, 'v_apartados_revendedor, su trabajo', enTienda.error ? 'ERROR ' + enTienda.error.code : 'responde');
+  const cobroRv = await V.rpc('cobrar_apartado', { p_apartado_id: -1, p_metodo: 'punto' });
+  dice(!!cobroRv.error && /no existe/i.test(cobroRv.error.message), 'puede cobrar apartados (cobrar_apartado)',
+    cobroRv.error ? cobroRv.error.message : 'COBRO UNO QUE NO EXISTE');
+  const enTiendaP = await P.from('v_apartados_revendedor').select('id').limit(1);
+  dice(!!enTiendaP.error || (enTiendaP.data?.length ?? 0) === 0, 'v_apartados_revendedor sin sesion',
+    enTiendaP.error ? 'rechazada ' + enTiendaP.error.code : (enTiendaP.data?.length ?? 0) + ' filas');
+  const cobroP = await P.rpc('cobrar_apartado', { p_apartado_id: -1, p_metodo: 'punto' });
+  dice(!!cobroP.error && !/no existe/i.test(cobroP.error.message), 'cobrar_apartado() sin sesion, rechazada',
+    cobroP.error ? 'rechazada ' + (cobroP.error.code ?? '') : 'LA DEJO PASAR');
+  // El dueño ve cómo va cada uno y la escalera del tope.
+  const listaA = await A.from('v_revendedores').select('id, nivel, tope_usd').limit(1);
+  dice(!listaA.error, 'v_revendedores para el administrador', listaA.error ? 'ERROR ' + listaA.error.code : 'responde');
+  const esc = await A.rpc('rv_escalera');
+  dice(!esc.error && (esc.data?.length ?? 0) > 0, 'rv_escalera(), los niveles',
+    esc.error ? 'ERROR ' + esc.error.code : (esc.data?.length ?? 0) + ' niveles');
+  // Su catálogo público: responde sin sesión y no trae lo que él paga a Lux.
+  const catRv = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select('id, precio_usd').limit(1);
+  dice(!catRv.error, 'rv_catalogo_publico() sin sesion', catRv.error ? 'ERROR ' + catRv.error.code : 'responde');
+  for (const col of ['precio_lux_usd', 'costo_puesto_usd', 'piso_tramo_usd']) {
+    const f = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select(col).limit(1);
+    dice(!!f.error, col + ' no sale en su catalogo', f.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  }
+  // Sin un testigo de verdad, su panel no abre.
+  const panel = await P.rpc('rv_resumen', { p_sesion: 'f'.repeat(64) });
+  dice(!!panel.error && panel.error.code === '28000', 'rv_resumen() con un testigo inventado',
+    panel.error ? 'rechazada ' + panel.error.code : 'ABRIO UN PANEL');
+
+  /*
+    LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
+    servidor `vendedoras`). La vista es del dueño; la función crea cuentas
+    con la llave maestra, así que tiene que decirle que no a todos menos a
+    él. 'listar' no toca nada: solo responde si el permiso deja pasar.
+  */
+  console.log('\nLAS VENDEDORAS DEL LOCAL');
+  for (const [quien, S, filas] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { data, error } = await S.from('v_vendedoras').select('id, numero_vendedora').limit(1);
+    const bien = filas ? !error : (!!error || (data?.length ?? 0) === 0);
+    dice(bien, `v_vendedoras: ${quien}`, error ? (filas ? 'ERROR ' : 'rechazada ') + error.code : (data?.length ?? 0) + ' fila(s)');
+  }
+  const estadoFn = async (S) => {
+    const { error } = await S.functions.invoke('vendedoras', { body: { accion: 'listar' } });
+    return error ? (error.context?.status ?? 0) : 200;
+  };
+  for (const [quien, S, esperado] of [['sin sesion', P, 401], ['ella', V, 403], ['el administrador', A, 200]]) {
+    const estado = await estadoFn(S);
+    dice(estado === esperado, `funcion vendedoras: ${quien} (${esperado})`,
+      estado === 404 ? 'NO ESTA PUBLICADA: ver INSTALACION.md' : 'responde ' + estado);
+  }
+
+  // Con el código de un revendedor de prueba (LUX_REVENDEDOR en el entorno),
+  // se entra como él y se mira lo que ve. Sin la variable, se salta.
+  if (process.env.LUX_REVENDEDOR) {
+    const R = cliente();
+    const ent = await R.rpc('rv_entrar', { p_codigo: process.env.LUX_REVENDEDOR });
+    dice(!ent.error, 'el revendedor entra con su codigo', ent.error ? ent.error.message : ent.data?.nombre);
+    if (!ent.error) {
+      const s = ent.data.sesion;
+      const piezas = await R.rpc('rv_piezas', { p_sesion: s }).limit(1);
+      const claves = Object.keys(piezas.data?.[0] ?? {});
+      const deCosto = claves.filter((c) => /costo|piso|margen|operativo/.test(c));
+      dice(!piezas.error && deCosto.length === 0, 'rv_piezas() sin costo, piso ni margen',
+        piezas.error ? 'ERROR ' + piezas.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : claves.length + ' columnas');
+      const res = await R.rpc('rv_resumen', { p_sesion: s });
+      dice(!res.error && res.data?.tope, 'rv_resumen(), su panel', res.error ? 'ERROR ' + res.error.code : 'responde');
+      const ajeno = await R.from('v_catalogo_venta').select('id').limit(1);
+      dice(!!ajeno.error || (ajeno.data?.length ?? 0) === 0, 'el revendedor no lee el catalogo de venta',
+        ajeno.error ? 'rechazada ' + ajeno.error.code : (ajeno.data?.length ?? 0) + ' filas');
+      await R.rpc('rv_salir', { p_sesion: s });
+    }
+  } else {
+    console.log('  (sin LUX_REVENDEDOR: se saltan las que entran como revendedor)');
+  }
+
   console.log('');
   if (fallos) {
     console.log(fallos + ' COMPROBACION(ES) MAL. No publiques hasta entender por que.');

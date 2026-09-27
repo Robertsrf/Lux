@@ -355,6 +355,41 @@ export function Verificacion() {
       bien: noExiste,
     });
 
+    // Revendedores (esquema-revendedores.sql). Sus tablas no se leen en
+    // crudo con ninguna sesión, y lo que él paga a Lux sale de una fórmula
+    // que solo corre dentro de las funciones de definidor.
+    const rvCrudo = await supabase.from('revendedores').select('id').limit(1);
+    resultados.push({
+      nombre: 'Tabla revendedores, en crudo',
+      esperado: 'Rechazada para todos: se lee por sus funciones',
+      obtenido: rvCrudo.error ? `Rechazada: ${rvCrudo.error.message}` : 'DEVOLVIO DATOS',
+      bien: Boolean(rvCrudo.error),
+    });
+
+    const rvLux = await supabase.rpc('rv_precio_lux', { p_modelo_id: 1, p_descuento_pct: 25 });
+    resultados.push({
+      nombre: 'Lo que un revendedor paga, fuera de sus funciones',
+      esperado: 'Rechazada para todos: lleva el piso de margen dentro',
+      obtenido: rvLux.error ? `Rechazada: ${rvLux.error.message}` : `RESPONDIO ${String(rvLux.data)}`,
+      bien: Boolean(rvLux.error),
+    });
+
+    const rvLista = await supabase.from('v_revendedores').select('id').limit(1);
+    resultados.push({
+      nombre: 'Vista v_revendedores',
+      esperado: esAdmin ? 'Responde: es tuya' : 'Ninguna fila: es del administrador',
+      obtenido: rvLista.error ? `Fallo: ${rvLista.error.message}` : `${rvLista.data?.length ?? 0} fila(s)`,
+      bien: !rvLista.error && (esAdmin || (rvLista.data?.length ?? 0) === 0),
+    });
+
+    const vdLista = await supabase.from('v_vendedoras').select('id').limit(1);
+    resultados.push({
+      nombre: 'Vista v_vendedoras',
+      esperado: esAdmin ? 'Responde: es tuya' : 'Ninguna fila: es del administrador',
+      obtenido: vdLista.error ? `Fallo: ${vdLista.error.message}` : `${vdLista.data?.length ?? 0} fila(s)`,
+      bien: !vdLista.error && (esAdmin || (vdLista.data?.length ?? 0) === 0),
+    });
+
     setPruebas(resultados);
     setCorriendo(false);
   }, [esAdmin]);

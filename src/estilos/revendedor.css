@@ -1,0 +1,262 @@
+/* =====================================================================
+   Lux by Emory — revendedores.
+
+   LA ÚNICA EXCEPCIÓN A "NINGÚN OTRO COLOR"
+   El catálogo de un revendedor es SUYO: lleva su nombre y, si quiere, otra
+   paleta que no es la de Lux. Lo decidió el dueño (27/09/2026). Lo que no
+   cambia es la regla que manda sobre todas: cada par de texto a 4,5:1,
+   medido. Por eso no hay selector de color libre, hay seis paletas.
+
+   CÓMO SE APLICA
+   La clase va en <html> (useTemaRv), no en un contenedor: así también se
+   visten el fondo del body, la hoja de elegir variante y el visor, que
+   cuelgan de la raíz. Cada paleta cambia los PRIMITIVOS (--verde-profundo,
+   --oro-arena, --crema...) y `.tema-rv` vuelve a derivar aquí los tokens
+   que tokens.css deriva en :root. Sin eso, --texto seguiría valiendo el
+   verde de Lux: una variable que usa otra se resuelve donde se declara.
+
+   LO MEDIDO, peor par de cada una (texto sobre fondo real):
+     lux      oro de texto / crema 4,68 · crema 66 % / ancla 4,87
+     noche    oro de texto / crema 5,08 · oro de texto / papel 5,40
+     vino     crema 66 % / ancla 5,46   · oro de texto / crema 5,69
+     grafito  oro de texto / crema 4,90 · oro de texto / papel 5,21
+     ciruela  oro de texto / crema 5,93 · crema 66 % / ancla 5,99
+     oliva    crema 66 % / ancla 5,27   · oro de texto / crema 5,58
+   Pares medidos en cada una: texto sobre papel, blanco y panel hondo;
+   secundario y oro de texto sobre blanco, papel, panel y crema; crema,
+   crema al 66 y al 72 % y el acento sobre el ancla; tinta sobre el acento
+   y sobre crema. Bordes (salvia sobre blanco) a 3:1 o más.
+   ===================================================================== */
+
+.tema-rv {
+  --texto:             var(--verde-profundo);
+  --texto-fuerte:      var(--tinta);
+  --texto-secundario:  var(--salvia-texto);
+  --texto-sobre-verde: var(--crema);
+
+  /* La sombra se tiñe del ancla de cada paleta, como la de Lux del verde. */
+  --sombra-1: 0 1px 2px color-mix(in srgb, var(--verde-profundo) 5%, transparent),
+              0 2px 8px color-mix(in srgb, var(--verde-profundo) 4%, transparent);
+  --sombra-2: 0 2px 4px color-mix(in srgb, var(--verde-profundo) 6%, transparent),
+              0 8px 24px color-mix(in srgb, var(--verde-profundo) 7%, transparent);
+  --sombra-3: 0 4px 8px color-mix(in srgb, var(--verde-profundo) 8%, transparent),
+              0 16px 40px color-mix(in srgb, var(--verde-profundo) 10%, transparent);
+  --anillo-foco: 0 0 0 3px color-mix(in srgb, var(--verde-profundo) 18%, transparent);
+  --anillo-oro:  0 0 0 3px color-mix(in srgb, var(--oro-arena) 40%, transparent);
+}
+
+/* Lux: la de la casa. Sus colores NO se repiten aquí: `.tema-rv--lux` está
+   en el bloque de :root de tokens.css, que es su única fuente. */
+
+.tema-rv--noche {
+  --verde-profundo: #1E2B45;  --oro-arena: #D6BF95;  --crema: #F0EBE0;  --salvia: #7D8799;
+  --tinta: #121A2B;           --papel: #F5F2EB;      --panel: #FAF8F3;  --panel-hondo: #ECE7DC;
+  --linea: #DCD6CA;           --linea-suave: #EAE5DA; --verde-suave: #EEF1F6;
+  --salvia-texto: #4E5870;    --oro-texto: #7A5E33;
+}
+
+.tema-rv--vino {
+  --verde-profundo: #5B1F2E;  --oro-arena: #E6BBA8;  --crema: #F4EAE3;  --salvia: #9A8488;
+  --tinta: #2E1017;           --papel: #F8F1EE;      --panel: #FCF7F5;  --panel-hondo: #F1E5E0;
+  --linea: #E6D6D0;           --linea-suave: #F0E6E2; --verde-suave: #F7EEF0;
+  --salvia-texto: #6B5156;    --oro-texto: #8A4A38;
+}
+
+.tema-rv--grafito {
+  --verde-profundo: #2A2A2D;  --oro-arena: #D4C4A4;  --crema: #EFEDE8;  --salvia: #8A8A8F;
+  --tinta: #151517;           --papel: #F5F4F1;      --panel: #FAF9F7;  --panel-hondo: #ECEAE5;
+  --linea: #DDDAD3;           --linea-suave: #EBE9E4; --verde-suave: #F1F1F2;
+  --salvia-texto: #5A5A60;    --oro-texto: #7A6334;
+}
+
+.tema-rv--ciruela {
+  --verde-profundo: #3F2444;  --oro-arena: #DBBBD0;  --crema: #F3ECF1;  --salvia: #968799;
+  --tinta: #221226;           --papel: #F7F2F6;      --panel: #FBF8FA;  --panel-hondo: #EFE6EE;
+  --linea: #E2D6E0;           --linea-suave: #EEE6EC; --verde-suave: #F4EEF4;
+  --salvia-texto: #64526A;    --oro-texto: #7C4A6B;
+}
+
+.tema-rv--oliva {
+  --verde-profundo: #363D22;  --oro-arena: #D8C58E;  --crema: #F1EEE0;  --salvia: #8C9178;
+  --tinta: #1C2010;           --papel: #F5F4EB;      --panel: #FAF9F2;  --panel-hondo: #ECEADC;
+  --linea: #DEDBC9;           --linea-suave: #EBE9DC; --verde-suave: #F1F3EA;
+  --salvia-texto: #585E45;    --oro-texto: #6F5C24;
+}
+
+/* --- La cabecera de su catálogo --------------------------------------
+   Su nombre manda; debajo, de quién son las joyas. El logo, si Lux se lo
+   subió, en un círculo crema: sobre el ancla cualquier logo se lee. */
+
+.rv-marca { display: flex; align-items: center; gap: var(--e-3); min-width: 0; }
+.rv-marca__logo {
+  width: 48px; height: 48px; flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--crema);
+  border: 1px solid color-mix(in srgb, var(--crema) 40%, transparent);
+}
+.rv-marca__texto { min-width: 0; }
+.rv-marca__nombre {
+  display: block;
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  line-height: 1.15; letter-spacing: -0.015em;
+  color: var(--crema);
+  overflow-wrap: anywhere;
+}
+.rv-marca__de {
+  display: block; margin-top: 2px;
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+
+/* El botón de escribirle, sobre el ancla: el secundario de la barra
+   lateral, que ya está medido ahí. */
+.barra .boton--secundario {
+  background: color-mix(in srgb, var(--crema) 12%, transparent);
+  color: var(--crema);
+  border-color: color-mix(in srgb, var(--crema) 26%, transparent);
+  box-shadow: none;
+}
+.barra .boton--secundario:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--crema) 22%, transparent);
+  border-color: var(--crema); color: var(--crema);
+}
+
+@media (min-width: 721px) {
+  .rv-marca__nombre { font-size: var(--t-28); }
+  .rv-marca__logo { width: 56px; height: 56px; }
+}
+
+/* --- Elegir paleta ----------------------------------------------------
+   Radios de verdad, vestidos. Cada muestra lleva la clase de SU paleta y
+   dibuja con los tokens: los colores no se repiten aquí ni en TypeScript. */
+
+.paletas {
+  display: grid; gap: var(--e-3);
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  margin: 0; padding: 0; border: 0;
+}
+.paletas legend {
+  margin-bottom: var(--e-3);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.paleta { position: relative; display: block; cursor: pointer; }
+.paleta input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.paleta__muestra {
+  display: grid; grid-template-rows: 44px 18px;
+  overflow: hidden;
+  border-radius: var(--radio-md);
+  border: 1px solid var(--linea);
+  background: var(--papel);
+  transition: box-shadow var(--rapido), border-color var(--rapido), transform var(--medio);
+}
+.paleta__ancla { background: var(--verde-profundo); display: flex; align-items: flex-end; padding: var(--e-2); }
+.paleta__acento { width: 28px; height: 4px; border-radius: var(--radio-pill); background: var(--oro-arena); }
+.paleta__papel { background: var(--papel); border-top: 1px solid var(--linea-suave); }
+.paleta__nombre {
+  display: block; margin-top: var(--e-2);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  text-align: center;
+}
+.paleta:hover .paleta__muestra { border-color: var(--salvia); }
+.paleta input:focus-visible + .paleta__muestra { box-shadow: var(--anillo-foco); border-color: var(--verde-profundo); }
+.paleta input:checked + .paleta__muestra {
+  border: 2px solid var(--texto-fuerte);
+  box-shadow: var(--sombra-2);
+}
+.paleta input:checked ~ .paleta__nombre { color: var(--texto-fuerte); }
+
+/* --- Sus precios ------------------------------------------------------
+   Una fila por pieza: la foto, qué es, en cuánto le sale, y su precio con
+   lo que gana. En el teléfono, su precio baja a su propio renglón: es lo
+   que se toca. */
+
+.rv-precios { display: grid; gap: var(--e-3); }
+.rv-precio {
+  display: grid; align-items: center; gap: var(--e-4);
+  grid-template-columns: 56px minmax(0, 1fr) auto 168px;
+  padding: var(--e-3) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+}
+.rv-precio--cambiado { border-color: var(--salvia); background: var(--panel); }
+.rv-precio__foto {
+  width: 56px; height: 56px; border-radius: var(--radio);
+  object-fit: cover; background: var(--panel-hondo);
+}
+.rv-precio__nombre { font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.25; color: var(--texto-fuerte); }
+.rv-precio__dato { font-size: var(--t-12); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+.rv-precio__sale { text-align: right; }
+.rv-precio__sale .dato__valor { font-size: var(--t-16); }
+.rv-precio__campo input { width: 100%; font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rv-precio__gana { display: block; margin-top: var(--e-1); font-size: var(--t-12); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+/* Toda cifra de dinero en display serif, también las chicas. */
+.rv-precio__gana strong,
+.rv-precio__cifra {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-14); font-variant-numeric: tabular-nums;
+}
+.rv-precio__gana strong { color: var(--exito); }
+.rv-precio__cifra { color: var(--texto-fuerte); }
+
+@media (max-width: 720px) {
+  .rv-precio {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    row-gap: var(--e-3);
+  }
+  .rv-precio__campo { grid-column: 1 / -1; }
+}
+
+/* Poner todas de una vez: una línea, no un formulario. */
+.rv-todas { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e-3); }
+.rv-todas .campo { flex: 0 1 180px; margin: 0; }
+
+/* --- Los meses del revendedor ----------------------------------------- */
+
+.rv-meses td, .rv-meses th { white-space: nowrap; }
+
+/* --- Los apartados en su panel ---------------------------------------- */
+
+.rv-apartado__pie {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: var(--e-2) var(--e-4);
+  margin-top: var(--e-4);
+}
+.rv-apartado__lux { font-size: var(--t-14); color: var(--texto); }
+.rv-apartado__lux strong { font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Pestañas de estado: un juego pequeño y fijo, que se envuelve. */
+.rv-filtro { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-bottom: var(--e-5); }
+.rv-filtro button {
+  min-height: 44px; padding: 0 var(--e-4);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  cursor: pointer;
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.rv-filtro button:hover { border-color: var(--salvia); }
+.rv-filtro button[aria-pressed='true'] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+
+/* Una ficha de clienta que no es enlace: no sube al pasar por encima,
+   porque subir promete que se abre. Sus botones son los que se tocan. */
+.cliente-tarjeta--fija:hover { transform: none; box-shadow: var(--sombra-1); border-color: var(--linea-suave); }
+
+/* Sus meses en el teléfono: el mes, las piezas y lo que ganó. Lo vendido
+   se cae; es lo que menos le importa leer de un vistazo. */
+@media (max-width: 560px) {
+  .rv-meses__vendido { display: none; }
+}
+
+/* Cargar un abono se abre al tocarlo: abierto en cada tarjeta, la lista de
+   apartados medía tres pantallas en el teléfono. */
+.rv-abonar { margin-top: var(--e-4); }
