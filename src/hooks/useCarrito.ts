@@ -182,8 +182,10 @@ export function useCarrito(tasa: Tasas | null) {
     tipo: TipoVenta = 'detal',
     cliente?: ClienteDeVenta | null,
     // Por verificar: la venta se registra (la pieza sale) y queda en
-    // Pedidos hasta que alguien compruebe el pago.
-    pago?: { porVerificar?: boolean; referencia?: string | null },
+    // Pedidos hasta que alguien compruebe el pago. Con `abono`, pago solo
+    // una parte: la venta queda por verificar diciendo cuanto falta, y el
+    // resto se carga en Pedidos con su referencia cuando lo pague.
+    pago?: { porVerificar?: boolean; referencia?: string | null; abono?: number | null },
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     setCobrando(true);
@@ -191,30 +193,48 @@ export function useCarrito(tasa: Tasas | null) {
 
     const conTramo = descuentoPara(tramos, lineas.reduce((n, l) => n + l.cantidad, 0)) !== null;
 
-    const { data, error: err } = await supabase.rpc('registrar_venta', {
-      p_tipo: tipo,
-      p_metodo: metodo,
-      p_items: lineas.map((l) => ({
-        modelo_id: l.modelo_id,
-        ubicacion_id: l.ubicacion_id,
-        cantidad: l.cantidad,
-        // Solo se manda lo que ELLA negocio, y solo sin tramo. El descuento
-        // por cantidad no se manda: lo calcula la base con su escalera, que
-        // es la unica que manda. Mandarlo desde aqui seria dejar que el
-        // navegador decidiera el precio.
-        precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
-          ? l.precio_manual_usd
-          : null,
-      })),
+    const items = lineas.map((l) => ({
+      modelo_id: l.modelo_id,
+      ubicacion_id: l.ubicacion_id,
+      cantidad: l.cantidad,
+      // Solo se manda lo que ELLA negocio, y solo sin tramo. El descuento
+      // por cantidad no se manda: lo calcula la base con su escalera, que
+      // es la unica que manda. Mandarlo desde aqui seria dejar que el
+      // navegador decidiera el precio.
+      precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
+        ? l.precio_manual_usd
+        : null,
+    }));
+    const quien = {
       p_cliente_nombre: cliente?.nombre ?? null,
       p_cliente_telefono: cliente?.telefono ?? null,
-      p_notas: null,
       p_cliente_id: cliente?.id ?? null,
       p_cliente_cedula: cliente?.cedula ?? null,
       p_cliente_apellido: cliente?.apellido ?? null,
-      p_por_verificar: pago?.porVerificar ?? false,
-      p_pago_referencia: pago?.referencia?.trim() || null,
-    });
+    };
+    const referencia = pago?.referencia?.trim() || null;
+
+    // Por partes es otra funcion, no un parametro mas de `registrar_venta`:
+    // registra la venta y su primer abono en la misma transaccion, y si el
+    // abono no vale, la venta no queda.
+    const { data, error: err } = pago?.abono
+      ? await supabase.rpc('cobrar_con_abono', {
+        p_tipo: tipo,
+        p_metodo: metodo,
+        p_items: items,
+        p_abono: pago.abono,
+        p_pago_referencia: referencia,
+        ...quien,
+      })
+      : await supabase.rpc('registrar_venta', {
+        p_tipo: tipo,
+        p_metodo: metodo,
+        p_items: items,
+        ...quien,
+        p_notas: null,
+        p_por_verificar: pago?.porVerificar ?? false,
+        p_pago_referencia: referencia,
+      });
 
     setCobrando(false);
     if (err) {

@@ -125,6 +125,54 @@ export function binanceDesdeBs(bs: number | null | undefined, tasaVenta: number 
   return bs / tasaVenta;
 }
 
+/**
+ * Medio centavo de dolar: la tolerancia de `falta_bcv_de` en la base. Los
+ * bolivares se redondean a centimos y la vuelta a dolares nunca da exacta;
+ * sin esto, una venta pagada al centimo quedaria debiendo 0,0001.
+ */
+export const MEDIO_CENTAVO = 0.005;
+
+/**
+ * Un abono, como lo anota la base (`anotar_abono`): si fue en dolares, se
+ * pasa a bolivares a la tasa Binance, redondeado a centimos; y de bolivares
+ * a dolares BCV, que es lo que se resta de la deuda.
+ */
+export function abonoEnBcv(monto: number, enDolares: boolean, tasa: Tasas): { bs: number; bcv: number } {
+  // `bsDeBcv(x, 1)` es `round(x, 2)` sin pasar por coma flotante.
+  const centimos = bsDeBcv(monto, 1);
+  const bs = enDolares ? bsDeBcv(centimos, tasa.tasa_venta) : centimos;
+  return { bs, bcv: bs / tasa.tasa_bcv };
+}
+
+/**
+ * Cuanto se puede pasar un abono de lo que falta sin que sea un error, en
+ * dolares BCV. La misma regla que `anotar_abono`: medio centavo, o un
+ * centavo de la moneda en que paga si paga en dolares (un dolar no se parte
+ * en milesimas, y quien paga lo que falta lo redondea al centavo).
+ */
+export function margenDeAbono(enDolares: boolean, tasa: Tasas): number {
+  return enDolares ? Math.max(MEDIO_CENTAVO, (0.01 * tasa.tasa_venta) / tasa.tasa_bcv) : MEDIO_CENTAVO;
+}
+
+/**
+ * Lo que falta despues de un abono, en dolares BCV, con la tolerancia de la
+ * base. `pasa` dice si el abono es mas de lo que falta: la base lo rechaza.
+ */
+export function faltaTrasAbono(
+  faltaBcv: number,
+  abonoBcv: number,
+  margen: number = MEDIO_CENTAVO,
+): { falta: number; pasa: boolean } {
+  const resto = faltaBcv - abonoBcv;
+  return { falta: resto < MEDIO_CENTAVO ? 0 : resto, pasa: resto < -margen };
+}
+
+/** Un monto redondeado al centavo HACIA ARRIBA: lo que se pide para saldar. */
+export function centavoArriba(valor: number): number {
+  const m = aMonto(valor);                       // escala 4
+  return Number((m + 99n) / 100n) / 100;
+}
+
 /** Un numero redondeado a cuatro decimales, como `numeric(12,4)`. */
 export function aCuatroDecimales(valor: number): number {
   return deMonto(aMonto(valor));

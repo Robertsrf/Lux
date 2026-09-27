@@ -3,12 +3,16 @@ import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
-import { binanceDesdeBs, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs, formatearFecha, precioEnBs } from '../../lib/dinero';
+import {
+  abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, faltaTrasAbono, formatearBcv,
+  formatearBinance, formatearBs, formatearFecha, margenDeAbono, precioEnBs,
+} from '../../lib/dinero';
+import type { Tasas } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
 import { useTasa } from '../../hooks/useTasa';
-import { METODOS_PAGO } from '../../lib/tipos';
-import type { LineaPedido, LineaPorVerificar, MetodoPago } from '../../lib/tipos';
+import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
+import type { Abono, LineaPedido, LineaPorVerificar, MetodoPago } from '../../lib/tipos';
 
 const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
 const textoMetodo = (m: MetodoPago | null) => METODOS_PAGO.find((x) => x.valor === m)?.texto ?? 'Sin forma de pago';
@@ -22,6 +26,8 @@ const hora = (iso: string) => new Intl.DateTimeFormat('es-VE', { hour: 'numeric'
  *      del inventario, pero el pago todavia no se comprobo en el banco. Cada
  *      una dice quien la vendio. La comprueba cualquiera, vendedora o
  *      administrador; si el pago no llega, se anula y las piezas vuelven.
+ *      Las que se cobraron por partes dicen cuanto falta y aqui se carga
+ *      cada abono con su referencia; se verifican cuando no falta nada.
  *   2. Pedidos del catalogo. Cada pieza trae SU UBICACION: la vendedora
  *      recorre la tienda una sola vez y despacha en orden. Se cobran aqui
  *      (la venta se registra sola, con las piezas del pedido) o se cancelan.
@@ -32,6 +38,7 @@ export function Pedidos() {
   const { tasa } = useTasa();
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [porVerificar, setPorVerificar] = useState<LineaPorVerificar[]>([]);
+  const [abonos, setAbonos] = useState<Abono[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -43,11 +50,18 @@ export function Pedidos() {
       supabase.from('v_pedido_vendedora').select('*').order('creado_en', { ascending: false }),
       supabase.from('v_ventas_por_verificar').select('*').order('fecha', { ascending: false }),
     ]);
-    // Dos consultas, dos errores mirados.
-    const fallo = pedidos.error ?? ventas.error;
+    const filas = (ventas.data as unknown as LineaPorVerificar[] | null) ?? [];
+    // Los abonos, solo de las que se cobraron por partes.
+    const parciales = [...new Set(filas.filter((f) => f.pago_parcial).map((f) => f.venta_id))];
+    const deAbonos = parciales.length > 0
+      ? await supabase.from('v_abonos').select('*').in('venta_id', parciales).order('fecha')
+      : null;
+    // Tres consultas, tres errores mirados.
+    const fallo = pedidos.error ?? ventas.error ?? deAbonos?.error ?? null;
     setError(fallo ? mensajeDeError(fallo) : null);
     setLineas((pedidos.data as unknown as LineaPedido[] | null) ?? []);
-    setPorVerificar((ventas.data as unknown as LineaPorVerificar[] | null) ?? []);
+    setPorVerificar(filas);
+    setAbonos((deAbonos?.data as unknown as Abono[] | null) ?? []);
     setCargando(false);
   }, []);
 
@@ -115,7 +129,14 @@ export function Pedidos() {
           <h2 className="seccion-titulo">Por verificar el pago · {ventas.length}</h2>
           <div className="pila">
             {ventas.map(({ cabecera, items }) => (
-              <VentaPorVerificar key={cabecera.venta_id} cabecera={cabecera} items={items} alTerminar={alTerminar} />
+              <VentaPorVerificar
+                key={cabecera.venta_id}
+                cabecera={cabecera}
+                items={items}
+                abonos={abonos.filter((a) => a.venta_id === cabecera.venta_id)}
+                tasa={tasa}
+                alTerminar={alTerminar}
+              />
             ))}
           </div>
         </>
@@ -273,15 +294,24 @@ export function Pedidos() {
 /**
  * Una venta que se cobro sin comprobar el pago. Dice quien la vendio, como
  * pago y con que referencia: lo necesario para buscarla en el banco.
+ *
+ * Si se cobro por partes, en vez de "como pago" lleva sus abonos, cuanto
+ * falta y el formulario para cargar el siguiente. Mientras falte algo no se
+ * verifica: la base tampoco lo deja.
  */
-function VentaPorVerificar({ cabecera, items, alTerminar }: {
+function VentaPorVerificar({ cabecera, items, abonos, tasa, alTerminar }: {
   cabecera: LineaPorVerificar;
   items: LineaPorVerificar[];
+  abonos: Abono[];
+  tasa: Tasas | null;
   alTerminar: (mensaje: string) => void;
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const piezas = items.reduce((n, i) => n + i.cantidad, 0);
+  const falta = Number(cabecera.falta_bcv ?? 0);
+  const faltaBs = tasa ? bsDeBcv(falta, tasa.tasa_bcv) : null;
+  const recibidoBs = abonos.reduce((s, a) => s + Number(a.monto_bs), 0);
 
   async function verificar() {
     setTrabajando(true);
@@ -293,7 +323,12 @@ function VentaPorVerificar({ cabecera, items, alTerminar }: {
   }
 
   async function anular() {
-    if (!window.confirm('¿El pago no llegó? La venta se anula y las piezas vuelven a su ubicación.')) return;
+    // Si ya abono algo, se dice: las piezas vuelven, pero ese dinero esta en
+    // la cuenta de la tienda y hay que devolverlo o acordarlo con ella.
+    const aviso = recibidoBs > 0
+      ? `Ya abonó ${formatearBs(recibidoBs)}. Si la anulas, las piezas vuelven a su ubicación y ese dinero hay que devolvérselo o acordarlo con ella. ¿Anular?`
+      : '¿El pago no llegó? La venta se anula y las piezas vuelven a su ubicación.';
+    if (!window.confirm(aviso)) return;
     setTrabajando(true);
     setError(null);
     const { error: err } = await supabase.rpc('anular_venta_por_verificar', { p_venta_id: cabecera.venta_id, p_motivo: null });
@@ -320,18 +355,54 @@ function VentaPorVerificar({ cabecera, items, alTerminar }: {
             {formatearBs(cabecera.total_bs)} · {formatearBcv(cabecera.total_bcv)} · {formatearBinance(cabecera.total_binance)}
           </p>
         </div>
-        <span className="etiqueta etiqueta--alerta">Por verificar</span>
+        <span className="etiqueta etiqueta--alerta">{cabecera.pago_parcial ? 'Pago por partes' : 'Por verificar'}</span>
       </div>
 
-      <div className="panel" style={{ marginBottom: 'var(--e-4)' }}>
-        <span className="panel__titulo">Cómo pagó</span>
-        <div className="dato__valor">{textoMetodo(cabecera.metodo)}</div>
-        <div className="campo__pista">
-          {cabecera.pago_referencia ? `Ref. ${cabecera.pago_referencia}` : 'Sin referencia anotada'}
-          {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''}
-          {cabecera.cliente_telefono ? ` · ${cabecera.cliente_telefono}` : ''}
+      {cabecera.pago_parcial ? (
+        <div className="panel" style={{ marginBottom: 'var(--e-4)' }}>
+          <span className="panel__titulo">Abonos</span>
+          <ul className="abonos">
+            {abonos.map((a) => (
+              <li className="abono" key={a.id}>
+                <div>
+                  <div className="abono__monto">
+                    {a.monto_usd !== null ? `${formatearBinance(a.monto_usd)} · ` : ''}{formatearBs(a.monto_bs)}
+                  </div>
+                  <div className="campo__pista">
+                    {formatearFecha(a.fecha)}, {hora(a.fecha)} · {textoMetodo(a.metodo)}
+                    {a.referencia ? ` · Ref. ${a.referencia}` : ''}
+                    {a.registrado_por ? ` · lo cargó ${a.registrado_por}` : ''}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {falta > 0 ? (
+            <p className="abonos__falta">
+              Faltan <strong>{formatearBcv(falta)}</strong>
+              {faltaBs !== null ? <>, hoy <strong>{formatearBs(faltaBs)}</strong></> : null}
+              {faltaBs !== null && tasa ? <> ({formatearBinance(binanceDesdeBs(faltaBs, tasa.tasa_venta))})</> : null}.
+            </p>
+          ) : (
+            <p className="abonos__falta abonos__falta--listo">Pagada completa. Falta comprobarla en el banco y verificarla.</p>
+          )}
+          <div className="campo__pista">
+            {cabecera.cliente_cedula ? `C.I. ${cabecera.cliente_cedula}` : ''}
+            {cabecera.cliente_cedula && cabecera.cliente_telefono ? ' · ' : ''}
+            {cabecera.cliente_telefono ?? ''}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="panel" style={{ marginBottom: 'var(--e-4)' }}>
+          <span className="panel__titulo">Cómo pagó</span>
+          <div className="dato__valor">{textoMetodo(cabecera.metodo)}</div>
+          <div className="campo__pista">
+            {cabecera.pago_referencia ? `Ref. ${cabecera.pago_referencia}` : 'Sin referencia anotada'}
+            {cabecera.cliente_cedula ? ` · C.I. ${cabecera.cliente_cedula}` : ''}
+            {cabecera.cliente_telefono ? ` · ${cabecera.cliente_telefono}` : ''}
+          </div>
+        </div>
+      )}
 
       <div className="tabla-envoltura">
         <table className="tabla">
@@ -358,13 +429,139 @@ function VentaPorVerificar({ cabecera, items, alTerminar }: {
         </table>
       </div>
 
+      {cabecera.pago_parcial && falta > 0 && tasa ? (
+        <CargarAbono ventaId={cabecera.venta_id} falta={falta} tasa={tasa} alTerminar={alTerminar} />
+      ) : null}
+
       {error ? <p className="campo__error" role="alert">{error}</p> : null}
       <div className="acciones">
-        <button type="button" className="boton boton--confirmar" disabled={trabajando} onClick={() => void verificar()}>
+        <button
+          type="button"
+          className="boton boton--confirmar"
+          disabled={trabajando || falta > 0}
+          onClick={() => void verificar()}
+        >
           {trabajando ? 'Guardando' : 'Pago verificado'}
         </button>
         <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
           No llegó el pago: anular
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * El abono siguiente de una venta por partes: forma de pago, cuanto y la
+ * referencia. Antes de guardarlo dice cuanto va a faltar, con la misma
+ * cuenta que la base (`anotar_abono`): en dolares BCV, y en bolivares a la
+ * tasa de hoy.
+ */
+function CargarAbono({ ventaId, falta, tasa, alTerminar }: {
+  ventaId: number;
+  falta: number;
+  tasa: Tasas;
+  alTerminar: (mensaje: string) => void;
+}) {
+  const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
+  const [monto, setMonto] = useState('');
+  const [referencia, setReferencia] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const enDolares = METODOS_EN_DOLARES.includes(metodo);
+  const valor = Number(monto.replace(',', '.'));
+  const hayMonto = Number.isFinite(valor) && valor > 0;
+  const pagado = hayMonto ? abonoEnBcv(valor, enDolares, tasa) : null;
+  const despues = pagado ? faltaTrasAbono(falta, pagado.bcv, margenDeAbono(enDolares, tasa)) : null;
+  const faltaBs = bsDeBcv(falta, tasa.tasa_bcv);
+  // Lo que falta, escrito en la moneda de esta forma de pago: el boton
+  // "Lo que falta" lo pone en el campo sin sacar cuentas. En dolares, al
+  // centavo hacia arriba: hacia abajo dejaria debiendo unos centimos.
+  const enDolaresFalta = binanceDesdeBs(faltaBs, tasa.tasa_venta);
+  const faltaEnSuMoneda = enDolares
+    ? (enDolaresFalta === null ? null : centavoArriba(enDolaresFalta))
+    : faltaBs;
+
+  async function guardar() {
+    if (!hayMonto || despues?.pasa) return;
+    setGuardando(true);
+    setError(null);
+    const { data, error: err } = await supabase.rpc('registrar_abono', {
+      p_venta_id: ventaId,
+      p_metodo: metodo,
+      p_monto: valor,
+      p_referencia: PIDE_REFERENCIA.includes(metodo) ? referencia.trim() || null : null,
+    });
+    setGuardando(false);
+    if (err) { setError(mensajeDeError(err)); return; }
+    const resta = Number(data ?? 0);
+    alTerminar(resta > 0
+      ? `Abono cargado en la venta ${ventaId}. Faltan ${formatearBcv(resta)}, hoy ${formatearBs(bsDeBcv(resta, tasa.tasa_bcv))}.`
+      : `Abono cargado: la venta ${ventaId} quedó pagada completa. Falta verificarla.`);
+  }
+
+  return (
+    <div className="cargar-abono">
+      <h3 className="cargar-abono__titulo">Cargar otro abono</h3>
+      <div className="fila">
+        <div className="campo">
+          <label htmlFor={`ab-metodo-${ventaId}`}>Cómo pagó</label>
+          <select id={`ab-metodo-${ventaId}`} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
+            {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor={`ab-monto-${ventaId}`}>{enDolares ? 'Cuánto · $' : 'Cuánto · Bs'}</label>
+          <input
+            id={`ab-monto-${ventaId}`}
+            inputMode="decimal"
+            autoComplete="off"
+            value={monto}
+            onChange={(e) => setMonto(e.target.value)}
+            aria-describedby={`ab-pista-${ventaId}`}
+          />
+          <button
+            type="button"
+            className="boton boton--secundario boton--pequeno cargar-abono__todo"
+            onClick={() => setMonto(faltaEnSuMoneda !== null ? faltaEnSuMoneda.toFixed(2) : '')}
+          >
+            Lo que falta
+          </button>
+        </div>
+      </div>
+      {PIDE_REFERENCIA.includes(metodo) ? (
+        <div className="campo">
+          <label htmlFor={`ab-ref-${ventaId}`}>Referencia</label>
+          <input
+            id={`ab-ref-${ventaId}`}
+            inputMode="numeric"
+            autoComplete="off"
+            value={referencia}
+            onChange={(e) => setReferencia(e.target.value)}
+          />
+        </div>
+      ) : null}
+
+      <p className="campo__pista" id={`ab-pista-${ventaId}`} aria-live="polite">
+        {!despues
+          ? `Faltan ${formatearBcv(falta)}, hoy ${formatearBs(faltaBs)}.`
+          : despues.pasa
+            ? `Es más de lo que falta: faltan ${formatearBs(faltaBs)}.`
+            : despues.falta > 0
+              ? `Después de este abono faltarán ${formatearBcv(despues.falta)}, hoy ${formatearBs(bsDeBcv(despues.falta, tasa.tasa_bcv))}.`
+              : 'Con este abono queda pagada completa.'}
+      </p>
+
+      {error ? <p className="campo__error" role="alert">{error}</p> : null}
+      <div className="acciones">
+        <button
+          type="button"
+          className="boton boton--secundario"
+          disabled={guardando || !hayMonto || Boolean(despues?.pasa)}
+          onClick={() => void guardar()}
+        >
+          {guardando ? 'Guardando' : 'Cargar abono'}
         </button>
       </div>
     </div>

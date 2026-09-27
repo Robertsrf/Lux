@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../componentes/Piezas';
-import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
+import { bsDeBcv, formatearBcv, formatearBinance, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { nombreConVariante } from '../lib/familias';
 import { guardarCliente, useBuscarClientes, useCliente, useMesesServicio } from '../hooks/useClientes';
+import { useTasa } from '../hooks/useTasa';
 import { METODOS_PAGO } from '../lib/tipos';
 import type { ClienteResumen, MetodoPago } from '../lib/tipos';
 
@@ -143,7 +144,8 @@ function Tarjeta({ cliente: c }: { cliente: ClienteResumen }) {
 
 function Ficha({ id }: { id: number | null }) {
   const nueva = id === null || Number.isNaN(id);
-  const { cliente, ventas, porVerificar, cargando, error, recargar } = useCliente(nueva ? null : id);
+  const { cliente, ventas, porVerificar, abonosPorVenta, cargando, error, recargar } = useCliente(nueva ? null : id);
+  const { tasa } = useTasa();
   const meses = useMesesServicio();
   const [editando, setEditando] = useState(nueva);
 
@@ -240,7 +242,15 @@ function Ficha({ id }: { id: number | null }) {
             <p className="servicio servicio--vigente">
               {porVerificar.ventas === 1 ? 'Una venta' : `${porVerificar.ventas} ventas`} por {formatearBs(porVerificar.totalBs)}.
             </p>
-            <p className="campo__pista">Se comprueban en Pedidos. Mientras tanto, siguen aquí con su fecha.</p>
+            {/* Lo que de verdad debe: lo que falta de las cobradas por
+                partes. En dolares BCV, y en bolivares a la tasa de hoy. */}
+            {porVerificar.faltaBcv > 0 ? (
+              <p className="servicio">
+                Le falta pagar {formatearBcv(porVerificar.faltaBcv)}
+                {tasa ? `, hoy ${formatearBs(bsDeBcv(porVerificar.faltaBcv, tasa.tasa_bcv))}` : ''}.
+              </p>
+            ) : null}
+            <p className="campo__pista">Se comprueban en Pedidos, y ahí se cargan los abonos. Mientras tanto, siguen aquí con su fecha.</p>
           </div>
         ) : null}
 
@@ -278,7 +288,7 @@ function Ficha({ id }: { id: number | null }) {
                   ) : (
                     <>
                       {cabecera.por_verificar
-                        ? <span className="etiqueta etiqueta--alerta">Pago por verificar</span>
+                        ? <span className="etiqueta etiqueta--alerta">{cabecera.pago_parcial ? 'Pago por partes' : 'Pago por verificar'}</span>
                         : null}
                       {cabecera.servicio_vigente
                         ? <span className="etiqueta etiqueta--exito">Servicio hasta {formatearFecha(cabecera.servicio_hasta)}</span>
@@ -287,6 +297,33 @@ function Ficha({ id }: { id: number | null }) {
                   )}
                 </div>
               </div>
+
+              {/* Los abonos de una venta por partes: cuando pago cada cosa
+                  y con que referencia. Es el historico de su credito. */}
+              {cabecera.pago_parcial ? (
+                <div className="panel compra__abonos">
+                  <span className="panel__titulo">Abonos</span>
+                  <ul className="abonos">
+                    {(abonosPorVenta.get(cabecera.venta_id) ?? []).map((a) => (
+                      <li className="abono" key={a.id}>
+                        <div className="abono__monto">
+                          {a.monto_usd !== null ? `${formatearBinance(a.monto_usd)} · ` : ''}{formatearBs(a.monto_bs)}
+                        </div>
+                        <div className="campo__pista">
+                          {formatearFecha(a.fecha)} · {metodoTexto(a.metodo)}
+                          {a.referencia ? ` · ref. ${a.referencia}` : ''}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {!cabecera.anulada_sin_pago && Number(cabecera.falta_bcv) > 0 ? (
+                    <p className="abonos__falta">
+                      Faltan <strong>{formatearBcv(cabecera.falta_bcv)}</strong>
+                      {tasa ? <>, hoy <strong>{formatearBs(bsDeBcv(cabecera.falta_bcv, tasa.tasa_bcv))}</strong></> : null}.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <ul className="compra__piezas">
                 {piezas.map((p) => {

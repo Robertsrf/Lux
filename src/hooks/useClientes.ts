@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
-import type { ClienteResumen, CompraCliente } from '../lib/tipos';
+import type { Abono, ClienteResumen, CompraCliente } from '../lib/tipos';
 
 const COLUMNAS =
   'id, cedula, cedula_digitos, nombre, apellido, nombre_completo, telefono, notas, creado_en,'
@@ -67,35 +67,37 @@ export function useBuscarClientes(limite = 30, soloConTexto = false) {
 }
 
 /**
- * La ficha de una clienta y todo lo que se ha llevado.
+ * La ficha de una clienta, todo lo que se ha llevado y sus abonos.
  *
- * Son dos consultas y se miran LOS DOS errores. Mirar solo la primera es
+ * Son tres consultas y se miran LOS TRES errores. Mirar solo la primera es
  * como se perdieron los descuentos al mayor durante semanas: la segunda
  * fallaba, el `?? []` la dejaba vacia y la pantalla se veia perfecta.
  */
 export function useCliente(id: number | null) {
   const [cliente, setCliente] = useState<ClienteResumen | null>(null);
   const [compras, setCompras] = useState<CompraCliente[]>([]);
+  const [abonos, setAbonos] = useState<Abono[]>([]);
   // Sin id no hay nada que abrir: la ficha en blanco no pasa por "Cargando".
   const [cargando, setCargando] = useState(id !== null);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (id === null) { setCliente(null); setCompras([]); setCargando(false); return; }
+    if (id === null) { setCliente(null); setCompras([]); setAbonos([]); setCargando(false); return; }
     setCargando(true);
 
-    const [ficha, historico] = await Promise.all([
+    const [ficha, historico, pagos] = await Promise.all([
       supabase.from('v_clientes').select(COLUMNAS).eq('id', id).maybeSingle(),
       supabase.from('v_cliente_compras').select('*').eq('cliente_id', id)
         .order('fecha', { ascending: false }),
+      supabase.from('v_abonos').select('*').eq('cliente_id', id).order('fecha'),
     ]);
 
-    if (ficha.error) setError(mensajeDeError(ficha.error));
-    else if (historico.error) setError(mensajeDeError(historico.error));
-    else setError(null);
+    const fallo = ficha.error ?? historico.error ?? pagos.error;
+    setError(fallo ? mensajeDeError(fallo) : null);
 
     setCliente((ficha.data as ClienteResumen | null) ?? null);
     setCompras((historico.data as CompraCliente[] | null) ?? []);
+    setAbonos((pagos.data as Abono[] | null) ?? []);
     setCargando(false);
   }, [id]);
 
@@ -119,16 +121,26 @@ export function useCliente(id: number | null) {
   /**
    * Lo que se llevo y todavia no se comprobo que pago: su credito abierto.
    * Se suma por venta, no por fila: `total_bs` se repite en cada pieza.
+   * `faltaBcv` es lo que de verdad debe: lo que falta de las que se
+   * cobraron por partes, en dolares BCV.
    */
   const porVerificar = useMemo(() => {
     const abiertas = ventas.filter((v) => v.cabecera.por_verificar);
     return {
       ventas: abiertas.length,
       totalBs: abiertas.reduce((suma, v) => suma + Number(v.cabecera.total_bs), 0),
+      faltaBcv: abiertas.reduce((suma, v) => suma + Number(v.cabecera.falta_bcv ?? 0), 0),
     };
   }, [ventas]);
 
-  return { cliente, compras, ventas, porVerificar, cargando, error, recargar: cargar };
+  /** Los abonos de cada venta, en el orden en que llegaron. */
+  const abonosPorVenta = useMemo(() => {
+    const mapa = new Map<number, Abono[]>();
+    for (const a of abonos) mapa.set(a.venta_id, [...(mapa.get(a.venta_id) ?? []), a]);
+    return mapa;
+  }, [abonos]);
+
+  return { cliente, compras, ventas, porVerificar, abonosPorVenta, cargando, error, recargar: cargar };
 }
 
 export interface DatosCliente {

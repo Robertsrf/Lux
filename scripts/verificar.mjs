@@ -130,6 +130,9 @@ async function main() {
   }
   const tablas = await V.from('modelos').select('costo_unitario_usd').limit(1);
   dice(!!tablas.error, 'la tabla modelos, en crudo', tablas.error ? 'rechazada ' + tablas.error.code : 'RESPONDIO');
+  // Los abonos se escriben por sus funciones y se leen por `v_abonos`.
+  const abCrudo = await V.from('abonos').select('id').limit(1);
+  dice(!!abCrudo.error, 'la tabla abonos, en crudo', abCrudo.error ? 'rechazada ' + abCrudo.error.code : 'RESPONDIO');
 
   console.log('\nLA VENDEDORA SI PUEDE TRABAJAR');
   const cv = await V.from('v_catalogo_venta').select('id, precio_usd, precio_minimo_usd').limit(5);
@@ -173,7 +176,7 @@ async function main() {
   // La ficha cuenta el credito: lo que quedo por verificar, cuando se
   // comprobo y lo que se anulo porque el pago no llego.
   const credito = await V.from('v_cliente_compras')
-    .select('por_verificar, verificada_en, anulada_sin_pago, pago_referencia').limit(1);
+    .select('por_verificar, verificada_en, anulada_sin_pago, pago_referencia, pago_parcial, falta_bcv').limit(1);
   dice(!credito.error, 'el historico cuenta el credito', credito.error ? 'ERROR ' + credito.error.code : 'responde');
   // Las ventas y los pedidos no se borran, ni con la sesion del
   // administrador. El filtro no toca ninguna fila (no hay id negativo): lo
@@ -303,6 +306,17 @@ async function main() {
   const pagoP = await P.from('textos').select('clave, valor').like('clave', 'pago_movil_%');
   dice(!pagoP.error && (pagoP.data?.length ?? 0) === 3, 'los datos del pago movil, sin sesion',
     pagoP.error ? 'ERROR ' + pagoP.error.code : (pagoP.data?.length ?? 0) + ' de 3');
+  // Los abonos: ella los lee (son su trabajo en Pedidos); sin sesion, nada.
+  const abV = await V.from('v_abonos').select('venta_id, monto_bs, monto_bcv, referencia').limit(1);
+  dice(!abV.error, 'v_abonos, los pagos por partes', abV.error ? 'ERROR ' + abV.error.code : 'responde');
+  const faltaV = await V.from('v_ventas_por_verificar').select('pago_parcial, falta_bcv').limit(1);
+  dice(!faltaV.error, 'por verificar dice cuanto falta', faltaV.error ? 'ERROR ' + faltaV.error.code : 'responde');
+  const abP = await P.from('v_abonos').select('venta_id').limit(1);
+  dice(!!abP.error || (abP.data?.length ?? 0) === 0, 'v_abonos sin sesion',
+    abP.error ? 'rechazada ' + abP.error.code : (abP.data?.length ?? 0) + ' filas');
+  const abonoP = await P.rpc('registrar_abono', { p_venta_id: -1, p_metodo: 'pago_movil', p_monto: 1 });
+  dice(!!abonoP.error && !/ya no est/i.test(abonoP.error.message), 'registrar_abono() sin sesion, rechazada',
+    abonoP.error ? 'rechazada ' + (abonoP.error.code ?? '') : 'LA DEJO PASAR');
   const libreP = await P.from('v_existencia_libre').select('modelo_id').limit(1);
   dice(!!libreP.error || (libreP.data?.length ?? 0) === 0, 'v_existencia_libre sin sesion',
     libreP.error ? 'rechazada ' + libreP.error.code : (libreP.data?.length ?? 0) + ' filas');

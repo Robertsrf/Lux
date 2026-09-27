@@ -156,6 +156,11 @@ export const METODOS_PAGO: { valor: MetodoPago; texto: string }[] = [
  * la base guarda de cada venta.
  */
 export const METODOS_EN_DOLARES: readonly MetodoPago[] = ['efectivo_usd', 'binance'];
+// La base tiene la misma lista en `metodo_en_dolares()` (esquema-abonos.sql):
+// si cambia una, cambia la otra.
+
+/** Las formas de pago que dejan un numero de referencia para buscar en el banco. */
+export const PIDE_REFERENCIA: readonly MetodoPago[] = ['pago_movil', 'transferencia', 'binance'];
 
 /** Vista v_venta_ubicacion: existencia por ubicacion, sin una sola cifra de costo. */
 export interface ModeloEnUbicacion {
@@ -704,6 +709,10 @@ export interface CompraCliente {
   /** Se anuló porque el pago no llegó. No da servicio ni suma. */
   anulada_sin_pago: boolean;
   pago_referencia: string | null;
+  /** Se cobro por partes: tiene abonos en `v_abonos`. */
+  pago_parcial: boolean;
+  /** Lo que falta en dolares BCV. Cero si se cobro completa o ya se pago. */
+  falta_bcv: number;
 }
 
 /**
@@ -733,6 +742,28 @@ export interface LineaPorVerificar {
   cantidad: number;
   precio_unitario_bs: number;
   ubicacion: string | null;
+  /** Se cobro por partes: tiene abonos en `v_abonos`. */
+  pago_parcial: boolean;
+  /** Lo que falta en dolares BCV (`falta_bcv_de`). Cero si ya esta pagada. */
+  falta_bcv: number;
+}
+
+/**
+ * Vista v_abonos: cada pago de una venta cobrada por partes. En bolivares
+ * lo que se recibio, en dolares si fue en dolares, y en dolares BCV lo que
+ * resto de la deuda, a la tasa del dia del abono.
+ */
+export interface Abono {
+  id: number;
+  venta_id: number;
+  fecha: string;
+  metodo: MetodoPago;
+  monto_bs: number;
+  monto_usd: number | null;
+  monto_bcv: number;
+  referencia: string | null;
+  registrado_por: string | null;
+  cliente_id: number | null;
 }
 
 /**

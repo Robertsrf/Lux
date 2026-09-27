@@ -2036,6 +2036,46 @@ table.tabla tfoot td {
 }
 .cobro-dolares strong { font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
 
+/* "Pago todo" / "Pago una parte": los mismos botones de la forma de pago,
+   justo debajo, porque es la misma pregunta seguida. */
+.cobro-parte { margin-top: var(--e-3); }
+
+/* --- Abonos: una venta cobrada por partes ----------------------------
+   Cada abono en un renglon: el monto en la cifra de siempre y debajo
+   cuando, como y la referencia. Lo que falta cierra la lista, en la letra
+   del texto y con las cifras en Fraunces, para que se lea de una vez. */
+.abonos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.abono { padding-bottom: var(--e-3); border-bottom: 1px solid var(--linea-suave); }
+.abono:last-child { padding-bottom: 0; border-bottom: 0; }
+.abono__monto {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-16); font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+}
+.abonos__falta {
+  margin: var(--e-4) 0 var(--e-2);
+  font-size: var(--t-16); line-height: 1.4;
+  color: var(--texto-fuerte);
+}
+.abonos__falta strong { font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+.abonos__falta--listo { color: var(--exito); font-weight: 500; }
+.compra__abonos { margin: 0 0 var(--e-4); }
+
+/* Cargar el abono siguiente: al pie de la tarjeta, tras una linea, como el
+   "Cerrar el pedido" de los del catalogo. */
+.cargar-abono {
+  margin-top: var(--e-4);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linea);
+}
+.cargar-abono__titulo {
+  margin: 0 0 var(--e-3);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.cargar-abono__todo { margin-top: var(--e-2); min-height: 44px; }
+
 /* --- Visor: pasar de pieza sin salir --------------------------------- */
 
 /* Siempre a la vista: el deslizar sin boton es un gesto que nadie

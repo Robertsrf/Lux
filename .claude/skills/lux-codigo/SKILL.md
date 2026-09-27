@@ -301,7 +301,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-77 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
+82 comprobaciones con las dos sesiones: que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
 
@@ -409,6 +409,16 @@ El dueño usa las ventas por verificar como el crédito de sus clientas, y la fi
 (`v_cliente_compras`) lo cuenta: por verificar, cuándo se comprobó, y las
 anuladas porque el pago no llegó, que son las únicas anuladas que entran. Si una
 función nueva necesita "quitar" algo de estas tablas, lo marca; no lo borra.
+`abonos` tampoco se borra.
+
+### Una venta por partes
+`cobrar_con_abono` registra la venta por verificar con `pago_parcial` y anota el
+primer abono en la misma transacción; `registrar_abono` anota los siguientes. Lo
+que falta sale de `falta_bcv_de`, **en dólares BCV**: la deuda es en la unidad
+ancla, y un abono en bolívares se convierte a la tasa BCV del día en que llega. No
+se guarda "lo que falta" en ninguna columna: se calcula de la venta y sus abonos.
+`verificar_venta` no deja verificar mientras falte algo. Una venta por verificar
+sin `pago_parcial` se cobró completa y solo espera que alguien mire el banco.
 
 ### Claves
 La `anon key` de Supabase es pública por diseño y va en el repo sin problema. La **`service_role` key jamás entra al repo ni al navegador.**

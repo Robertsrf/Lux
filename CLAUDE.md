@@ -111,7 +111,8 @@ completa y cada archivo dice en su cabecera de qué depende.
 `perfiles` · `tasas` · `lotes` · `grupos_precio` · `modelos` · `ubicaciones` ·
 `existencias` · `ventas` · `venta_items` · `clientes` · `reservas` ·
 `reserva_items` · `tramos_mayoreo` · `configuracion` · `conteos` · `inversiones` ·
-`gastos_mes` · `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra)
+`gastos_mes` · `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra) ·
+`abonos` (cada pago de una venta cobrada por partes)
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -124,7 +125,8 @@ completa y cada archivo dice en su cabecera de qué depende.
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo que siguen abiertos, con dónde está cada pieza | vendedora y admin |
-| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia | vendedora y admin |
+| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia y, si es por partes, cuánto falta | vendedora y admin |
+| `v_abonos` | Cada abono de una venta por partes: cuándo, cómo, cuánto, la referencia y quién lo cargó | vendedora y admin |
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
@@ -141,8 +143,13 @@ Toda operación que toque varias tablas va en una RPC transaccional, no en tres
 llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `mover_existencia`,
 `verificar_venta`, `anular_venta_por_verificar`, `cobrar_pedido`,
-`cancelar_pedido`, `admin_guardar_modelo`, `admin_separar_variante`,
-`admin_reasignar_grupos`, `admin_fusionar_clientes`.
+`cancelar_pedido`, `cobrar_con_abono`, `registrar_abono`, `admin_guardar_modelo`,
+`admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`.
+
+`falta_bcv_de(venta)` es la única cuenta de cuánto falta de una venta cobrada por
+partes, en dólares BCV. La leen `v_ventas_por_verificar`, `v_cliente_compras`,
+`registrar_abono` y `verificar_venta`; la pantalla repite la cuenta para enseñarla
+antes de guardar (`abonoEnBcv`, `faltaTrasAbono` de `lib/dinero.ts`).
 
 `apartadas_de(modelo)` es la única regla de qué piezas aparta un pedido: el
 abierto que no ha vencido y el pagado que todavía no se cobró ni se canceló. La
@@ -280,6 +287,15 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   `textos` (`pago_movil_cedula`, `pago_movil_telefono`, `pago_movil_banco`) y se
   cambian en Textos. La página del pedido los enseña con un botón de copiar cada
   uno; se copian limpios (solo dígitos, y del banco solo el código).
+- **Pagar por partes.** En el cobro, "Pagó una parte": cuánto pagó ahora y la
+  referencia. La venta se registra por verificar (`cobrar_con_abono`, con
+  `ventas.pago_parcial`) diciendo cuánto falta, y en Pedidos se carga cada abono
+  siguiente con su referencia (`registrar_abono`). No se verifica mientras falte
+  algo. **Lo que falta se cuenta en dólares BCV**: una venta de Bs 1.000 a tasa
+  100 son $10; si abona Bs 400 faltan $6, que a tasa 110 son Bs 660. Un abono en
+  dólares se pasa a bolívares a la tasa Binance del día. Tolerancia: medio centavo
+  de dólar BCV, o un centavo de dólar si paga en dólares. Los abonos no se
+  borran, como las ventas.
 - **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
   registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
   pagado sigue apartando sus piezas hasta que se cierra.
@@ -307,7 +323,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 77 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
+npm run verificar     # 82 comprobaciones con las dos sesiones. Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
-  binanceDesdeBs, formatearBcv, formatearBinance, formatearBs, formatearPorcentaje, formatearTasa,
-  porcentajeRebajado, rebajaMaximaPct,
+  abonoEnBcv, binanceDesdeBs, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
+  formatearPorcentaje, formatearTasa, porcentajeRebajado, rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
@@ -20,7 +20,7 @@ import { MoverUbicacion } from '../../componentes/MoverUbicacion';
 import { Icono } from '../../componentes/Iconos';
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
-import { METODOS_EN_DOLARES, METODOS_PAGO } from '../../lib/tipos';
+import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
 import type { ClienteDeVenta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
 /*
@@ -46,8 +46,6 @@ const COLUMNAS = [
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
 
-/** Las formas de pago que dejan una referencia que se comprueba en el banco. */
-const PIDE_REFERENCIA: readonly MetodoPago[] = ['pago_movil', 'transferencia', 'binance'];
 
 /**
  * Cuadricula de venta. Disenada para TOCAR, no para leer: foto grande,
@@ -94,6 +92,10 @@ export function Mostrador() {
   // La referencia del pago movil, la transferencia o Binance: con ella se
   // comprueba en el banco, ahora o desde Pedidos.
   const [referencia, setReferencia] = useState('');
+  // Pago solo una parte: cuanto pago ahora, en bolivares o en dolares segun
+  // la forma de pago. Lo demas lo carga quien este cuando pague, en Pedidos.
+  const [parcial, setParcial] = useState(false);
+  const [abono, setAbono] = useState('');
   const tituloCobro = useRef<HTMLHeadingElement>(null);
   const edicionCancelada = useRef(false);
 
@@ -253,16 +255,26 @@ export function Mostrador() {
    */
   async function confirmar(porVerificar: boolean) {
     if (!metodo) return;
+    // Lo que falta se dice con las cifras de antes de cobrar: despues, el
+    // carrito ya esta vacio.
+    const falta = parcial ? faltaDeLaVenta() : null;
     const r = await carrito.cobrar(metodo, 'detal', cliente, {
-      porVerificar,
+      porVerificar: porVerificar || parcial,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
+      abono: parcial ? Number(abono.replace(',', '.')) : null,
     });
     if (r.ok) {
       const quien = cliente && nombreCliente ? ` a nombre de ${nombreCliente}` : '';
-      setExito(porVerificar
-        ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
-        : `Venta registrada${quien}. Numero ${r.ventaId}.`);
+      setExito(falta
+        ? `Venta ${r.ventaId}${quien} registrada con un abono de ${formatearBs(falta.abonoBs)}. `
+          + `Faltan ${formatearBcv(falta.falta)}, hoy ${formatearBs(falta.faltaBs)}: queda en Pedidos, `
+          + 'y ahí se carga el otro abono cuando pague.'
+        : porVerificar
+          ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
+          : `Venta registrada${quien}. Numero ${r.ventaId}.`);
       setReferencia('');
+      setParcial(false);
+      setAbono('');
       setMetodo(null);
       setCliente(null);
       setNombreCliente(null);
@@ -270,6 +282,23 @@ export function Mostrador() {
       setPaso('venta');
       await Promise.all([cargar(), cargarMeta()]);
     }
+  }
+
+  /**
+   * Si paga solo una parte: cuanto abona y cuanto falta, con la misma cuenta
+   * que hace la base con el primer abono (`anotar_abono`). Lo que falta va en
+   * dolares BCV, la unidad ancla, y en bolivares a la tasa de hoy: si paga
+   * lo demas otro dia, son los mismos dolares a la tasa de ese dia. Null
+   * mientras no haya un monto con que calcularlo.
+   */
+  function faltaDeLaVenta() {
+    const totalBcv = carrito.totales.totalBcv;
+    const monto = Number(abono.replace(',', '.'));
+    if (!tasa || !metodo || totalBcv === null || !Number.isFinite(monto) || monto <= 0) return null;
+    const pagado = abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa);
+    const { falta, pasa } = faltaTrasAbono(totalBcv, pagado.bcv);
+    const faltaBs = bsDeBcv(falta, tasa.tasa_bcv);
+    return { abonoBs: pagado.bs, falta, faltaBs, faltaBinance: binanceDesdeBs(faltaBs, tasa.tasa_venta), pasa };
   }
 
   function aplicarPrecio(modeloId: number, ubicacionIdLinea: number, valor: string) {
@@ -289,6 +318,9 @@ export function Mostrador() {
     const rebajasIgnoradas = conTramo && carrito.lineas.some((l) => l.precio_manual_usd !== null);
     const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente)
       && !carrito.cobrando && carrito.lineas.length > 0;
+    const previa = parcial ? faltaDeLaVenta() : null;
+    // Una parte de verdad: algo, y menos que el total.
+    const abonoValido = previa !== null && !previa.pasa && previa.falta > 0;
 
     return (
       <div className="pagina pagina--angosta mostrador">
@@ -478,10 +510,44 @@ export function Mostrador() {
           </p>
         ) : null}
 
+        {/* Todo o una parte. Una parte deja la venta por verificar,
+            diciendo cuanto falta; lo demas se carga en Pedidos, abono por
+            abono, cada uno con su referencia. */}
+        {metodo ? (
+          <div className="metodos-pago cobro-parte" role="group" aria-label="Cuánto pagó">
+            <button type="button" aria-pressed={!parcial} onClick={() => setParcial(false)}>
+              Pagó todo
+            </button>
+            <button type="button" aria-pressed={parcial} onClick={() => setParcial(true)}>
+              Pagó una parte
+            </button>
+          </div>
+        ) : null}
+
+        {metodo && parcial ? (
+          <div style={{ marginTop: 'var(--e-4)' }}>
+            <Campo
+              etiqueta={enDolares ? 'Cuánto pagó ahora · $' : 'Cuánto pagó ahora · Bs'}
+              htmlFor="cobro-abono"
+              pista={enDolares
+                ? 'En dólares. Se pasa a bolívares a la tasa Binance de hoy.'
+                : `De ${formatearBs(t.totalBs)} que es el total.`}
+            >
+              <input
+                id="cobro-abono"
+                inputMode="decimal"
+                autoComplete="off"
+                value={abono}
+                onChange={(e) => setAbono(e.target.value)}
+              />
+            </Campo>
+          </div>
+        ) : null}
+
         {metodo && PIDE_REFERENCIA.includes(metodo) ? (
           <div style={{ marginTop: 'var(--e-4)' }}>
             <Campo
-              etiqueta="Referencia del pago"
+              etiqueta={parcial ? 'Referencia de este abono' : 'Referencia del pago'}
               htmlFor="cobro-referencia"
               pista="Opcional. Con ella se comprueba en el banco, ahora o desde Pedidos."
             >
@@ -496,34 +562,69 @@ export function Mostrador() {
           </div>
         ) : null}
 
-        <div className="acciones">
-          <button
-            type="button"
-            className="boton boton--confirmar"
-            // Espera a que ella diga quien se lo lleva o que decida a
-            // proposito que va sin nombre. No es un requisito del sistema:
-            // es que saltarlo sin querer deja sin garantia a una clienta.
-            disabled={!listoParaCobrar}
-            onClick={() => void confirmar(false)}
-          >
-            {carrito.cobrando ? 'Registrando' : 'Registrar venta'}
-          </button>
-          {/* Si el pago todavia no se puede comprobar (un pago movil que no
-              ha llegado, una transferencia de otro banco), la venta no se
-              pierde: queda registrada y alguien la verifica en Pedidos. */}
-          <button
-            type="button"
-            className="boton boton--secundario"
-            disabled={!listoParaCobrar}
-            onClick={() => void confirmar(true)}
-          >
-            Dejar por verificar
-          </button>
-          <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
-            Seguir agregando
-          </button>
-        </div>
-        {listoParaCobrar ? (
+        {/* Lo que falta, dicho antes de cobrar: es lo que ella le dice a
+            la clienta. En dolares BCV y en bolivares de hoy. */}
+        {previa && parcial ? (
+          previa.pasa || previa.falta === 0 ? (
+            <p className="campo__error" role="alert">
+              {previa.pasa
+                ? `Eso es más que el total de la venta, ${formatearBs(t.totalBs)}.`
+                : 'Eso ya es el total: toca "Pagó todo".'}
+            </p>
+          ) : (
+            <p className="cobro-dolares" aria-live="polite">
+              Faltan <strong>{formatearBcv(previa.falta)}</strong>, hoy <strong>{formatearBs(previa.faltaBs)}</strong>
+              {enDolares ? <> ({formatearBinance(previa.faltaBinance)})</> : null}.
+              {' '}Queda en Pedidos por verificar; cuando pague lo demás, se carga ahí el otro
+              abono con su referencia.
+            </p>
+          )
+        ) : null}
+
+        {parcial ? (
+          <div className="acciones">
+            <button
+              type="button"
+              className="boton boton--confirmar"
+              disabled={!listoParaCobrar || !abonoValido}
+              onClick={() => void confirmar(true)}
+            >
+              {carrito.cobrando ? 'Registrando' : 'Registrar el abono'}
+            </button>
+            <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
+              Seguir agregando
+            </button>
+          </div>
+        ) : (
+          <div className="acciones">
+            <button
+              type="button"
+              className="boton boton--confirmar"
+              // Espera a que ella diga quien se lo lleva o que decida a
+              // proposito que va sin nombre. No es un requisito del sistema:
+              // es que saltarlo sin querer deja sin garantia a una clienta.
+              disabled={!listoParaCobrar}
+              onClick={() => void confirmar(false)}
+            >
+              {carrito.cobrando ? 'Registrando' : 'Registrar venta'}
+            </button>
+            {/* Si el pago todavia no se puede comprobar (un pago movil que no
+                ha llegado, una transferencia de otro banco), la venta no se
+                pierde: queda registrada y alguien la verifica en Pedidos. */}
+            <button
+              type="button"
+              className="boton boton--secundario"
+              disabled={!listoParaCobrar}
+              onClick={() => void confirmar(true)}
+            >
+              Dejar por verificar
+            </button>
+            <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
+              Seguir agregando
+            </button>
+          </div>
+        )}
+        {listoParaCobrar && !parcial ? (
           <p className="campo__pista">
             "Dejar por verificar" registra la venta y la manda a Pedidos con tu nombre, para que
             tú u otra persona compruebe el pago después.
@@ -542,6 +643,12 @@ export function Mostrador() {
             {!cliente && !sinCliente
               ? 'Falta decir quién se lo lleva. Si no quiere dar sus datos, toca "Cobrar sin registrarla".'
               : 'Falta elegir cómo paga.'}
+          </p>
+        ) : parcial && !previa ? (
+          <p className="campo__pista">Falta escribir cuánto pagó ahora.</p>
+        ) : parcial && sinCliente ? (
+          <p className="campo__pista">
+            Sin el nombre de la clienta, lo que debe no queda en su ficha: búscala arriba.
           </p>
         ) : null}
       </div>
