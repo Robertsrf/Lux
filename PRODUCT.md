@@ -18,7 +18,8 @@ Venezuela. Dos caras con necesidades opuestas:
   bajar cada pieza; nunca un costo.
 - **Administración (2 administradores).** Cargar inventario, fijar tasas, comparar
   costos y márgenes. Densidad y precisión sobre respiración. También vende en el
-  Mostrador y aprueba en Pedidos las ventas que quedaron por verificar.
+  Mostrador y aprueba en Pedidos las ventas que quedaron por verificar. Y lleva
+  la caja: anota cada gasto del día, y ve lo que entró y salió por forma de pago.
 
 Y desde septiembre de 2026, **fuera de la tienda: los revendedores.** Personas que el
 dueño elige una por una para vender las joyas a su propia clientela. Cada uno tiene

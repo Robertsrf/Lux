@@ -57,6 +57,7 @@ const Vitrina = lazy(() => import('./paginas/Vitrina').then((m) => ({ default: m
 const Clientes = lazy(() => import('./paginas/Clientes').then((m) => ({ default: m.Clientes })));
 const Revendedores = lazy(() => import('./paginas/admin/Revendedores').then((m) => ({ default: m.Revendedores })));
 const Vendedoras = lazy(() => import('./paginas/admin/Vendedoras').then((m) => ({ default: m.Vendedoras })));
+const Caja = lazy(() => import('./paginas/admin/Caja').then((m) => ({ default: m.Caja })));
 // El panel del revendedor va aparte: lo abre el, de vez en cuando, y no
 // tiene por que pesarle a la clienta que abre un catalogo.
 const EntrarRevendedor = lazy(() => import('./paginas/revendedor/EntrarRevendedor').then((m) => ({ default: m.EntrarRevendedor })));
@@ -155,6 +156,7 @@ export function App() {
             <Route path="/admin/reportes" element={soloAdmin(<Reportes />)} />
             <Route path="/admin/revendedores" element={soloAdmin(<Revendedores />)} />
             <Route path="/admin/vendedoras" element={soloAdmin(<Vendedoras />)} />
+            <Route path="/admin/caja" element={soloAdmin(<Caja />)} />
           </Route>
 
           <Route path="/" element={<Inicio />} />

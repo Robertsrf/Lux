@@ -1039,3 +1039,91 @@ export interface VendedoraAdmin {
   total_mes_bcv: number;
   ultima_venta: string | null;
 }
+
+/* ------------------------------------------------------------ la caja
+   esquema-caja.sql. Lo que entra solo (ventas y abonos) y lo que se anota
+   a mano (lo que sale, y lo que entra sin ser venta). Solo el dueno. */
+
+export type TipoCaja = 'salida' | 'entrada';
+
+/**
+ * Las categorias de la caja. La base tiene la misma lista en
+ * `caja_categoria_valida()` (esquema-caja.sql): si cambia una, cambia la otra.
+ */
+export const CATEGORIAS_CAJA: { valor: string; texto: string; tipo: TipoCaja }[] = [
+  { valor: 'alquiler', texto: 'Alquiler', tipo: 'salida' },
+  { valor: 'sueldos', texto: 'Sueldos y pagos al personal', tipo: 'salida' },
+  { valor: 'servicios', texto: 'Servicios: luz, agua, internet', tipo: 'salida' },
+  { valor: 'empaque', texto: 'Empaque: bolsas, cajas, etiquetas', tipo: 'salida' },
+  { valor: 'mercancia', texto: 'Mercancía y proveedores', tipo: 'salida' },
+  { valor: 'transporte', texto: 'Transporte y envíos', tipo: 'salida' },
+  { valor: 'publicidad', texto: 'Publicidad', tipo: 'salida' },
+  { valor: 'mantenimiento', texto: 'Limpieza y mantenimiento', tipo: 'salida' },
+  { valor: 'comisiones', texto: 'Comisiones, impuestos y trámites', tipo: 'salida' },
+  { valor: 'retiro', texto: 'Retiro del dueño', tipo: 'salida' },
+  { valor: 'otro_gasto', texto: 'Otro gasto', tipo: 'salida' },
+  { valor: 'aporte', texto: 'Aporte del dueño', tipo: 'entrada' },
+  { valor: 'otro_ingreso', texto: 'Otro ingreso', tipo: 'entrada' },
+];
+
+/** v_caja: cada movimiento anotado. Los anulados se quedan, pero no cuentan. */
+export interface MovimientoCaja {
+  id: number;
+  tipo: TipoCaja;
+  /** El dia al que pertenece (YYYY-MM-DD), no cuando se anoto. */
+  fecha: string;
+  categoria: string;
+  concepto: string;
+  metodo: MetodoPago;
+  monto_bs: number;
+  /** Lo pagado en dolares, si fue en dolares. */
+  monto_usd: number | null;
+  monto_bcv: number;
+  referencia: string | null;
+  registrado_por: string | null;
+  registrado_en: string;
+  anulado_en: string | null;
+  anulado_por: string | null;
+  anulado_motivo: string | null;
+}
+
+/**
+ * admin_caja_por_metodo: cuanto entro y salio en cada forma de pago, en su
+ * moneda. En las de bolivares, las columnas en dolares vienen null.
+ */
+export interface CajaPorMetodo {
+  metodo: MetodoPago;
+  en_dolares: boolean;
+  /** Ventas y abonos que entraron por aqui. */
+  cobros: number;
+  entro_bs: number;
+  entro_usd: number | null;
+  entro_bcv: number;
+  salio_bs: number;
+  salio_usd: number | null;
+  salio_bcv: number;
+  /** Lo que entro de ventas que siguen por verificar. */
+  por_verificar_bs: number;
+  por_verificar_usd: number | null;
+  por_verificar_bcv: number;
+}
+
+/** admin_caja_por_dia: solo los dias en que algo se movio. */
+export interface CajaPorDia {
+  fecha: string;
+  cobros: number;
+  anotados: number;
+  entro_bs: number;
+  entro_bcv: number;
+  salio_bs: number;
+  salio_bcv: number;
+}
+
+/** admin_caja_por_categoria: lo anotado, agrupado. Las ventas no tienen categoria. */
+export interface CajaPorCategoria {
+  tipo: TipoCaja;
+  categoria: string;
+  movimientos: number;
+  bs: number;
+  bcv: number;
+}

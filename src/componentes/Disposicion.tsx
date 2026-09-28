@@ -12,6 +12,9 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   // El administrador tambien vende, y aprueba lo que queda por verificar.
   { a: '/venta',            texto: 'Mostrador',  icono: 'mostrador' },
   { a: '/venta/pedidos',    texto: 'Pedidos',    icono: 'pedidos' },
+  // Lo que entra y lo que sale de la tienda. Se toca a diario, al anotar
+  // cada gasto: va junto a lo del dia y no al fondo con las cuentas.
+  { a: '/admin/caja',       texto: 'Caja',       icono: 'caja' },
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
   { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/vendedoras', texto: 'Vendedoras', icono: 'vendedoras' },

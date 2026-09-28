@@ -8,6 +8,10 @@ dist/
 # scripts de verificacion desechables
 prueba-temporal.mjs
 
+# Correcciones de datos de una sola vez: llevan nombres de clientas, no son
+# parte de la instalacion y no se vuelven a correr.
+correccion-*.sql
+
 # Los originales de marca SI se versionan: son la fuente de los assets.
 # (npm run logos los regenera en src/marca y public/marca)
 

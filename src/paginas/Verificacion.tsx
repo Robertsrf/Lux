@@ -390,6 +390,25 @@ export function Verificacion() {
       bien: !vdLista.error && (esAdmin || (vdLista.data?.length ?? 0) === 0),
     });
 
+    // La caja (esquema-caja.sql): lo que vende la tienda, en qué gasta y el
+    // sueldo de cada una. La tabla no se lee en crudo ni con la sesión del
+    // dueño; la vista le da filas solo a él.
+    const cajaCruda = await supabase.from('caja_movimientos').select('id').limit(1);
+    resultados.push({
+      nombre: 'Tabla caja_movimientos, en crudo',
+      esperado: 'Rechazada para todos: se lee por v_caja',
+      obtenido: cajaCruda.error ? `Rechazada: ${cajaCruda.error.message}` : 'DEVOLVIO DATOS',
+      bien: Boolean(cajaCruda.error),
+    });
+
+    const caja = await supabase.from('v_caja').select('id').limit(1);
+    resultados.push({
+      nombre: 'Vista v_caja',
+      esperado: esAdmin ? 'Responde: es tuya' : 'Ninguna fila: es del administrador',
+      obtenido: caja.error ? `Fallo: ${caja.error.message}` : `${caja.data?.length ?? 0} fila(s)`,
+      bien: !caja.error && (esAdmin || (caja.data?.length ?? 0) === 0),
+    });
+
     setPruebas(resultados);
     setCorriendo(false);
   }, [esAdmin]);

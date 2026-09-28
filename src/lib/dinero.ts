@@ -136,6 +136,9 @@ export const MEDIO_CENTAVO = 0.005;
  * Un abono, como lo anota la base (`anotar_abono`): si fue en dolares, se
  * pasa a bolivares a la tasa Binance, redondeado a centimos; y de bolivares
  * a dolares BCV, que es lo que se resta de la deuda.
+ *
+ * Es tambien la receta de un movimiento de la caja (`admin_anotar_caja`):
+ * un dolar que sale vale lo mismo que un dolar que entra.
  */
 export function abonoEnBcv(monto: number, enDolares: boolean, tasa: Tasas): { bs: number; bcv: number } {
   // `bsDeBcv(x, 1)` es `round(x, 2)` sin pasar por coma flotante.
@@ -171,6 +174,20 @@ export function faltaTrasAbono(
 export function centavoArriba(valor: number): number {
   const m = aMonto(valor);                       // escala 4
   return Number((m + 99n) / 100n) / 100;
+}
+
+/**
+ * La suma de unas cifras que llegan de la base, sin pasar por coma
+ * flotante. Los totales de la caja (lo que entro y salio en cada forma de
+ * pago) se suman aqui, no con un `+` suelto en la pantalla.
+ */
+export function sumarCifras(valores: (number | null | undefined)[]): number {
+  return deMonto(sumar(valores.map((v) => aMonto(v ?? 0))));
+}
+
+/** Una resta de dos cifras de la base, en la misma escala y sin coma flotante. */
+export function restarCifras(a: number | null | undefined, b: number | null | undefined): number {
+  return deMonto(aMonto(a ?? 0) - aMonto(b ?? 0));
 }
 
 /** El total de unas lineas de precio por cantidad, sin pasar por coma flotante. */
@@ -363,7 +380,8 @@ export function bcvDesdeBs(bs: number | null | undefined, tasaBcv: number | null
 
 export function formatearBs(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
-  return 'Bs ' + NUM(2, 2).format(valor);
+  // El signo va delante de la moneda, como en los dolares: "−Bs 120,00".
+  return (valor < 0 ? '−Bs ' : 'Bs ') + NUM(2, 2).format(Math.abs(valor));
 }
 
 /** Recibe el porcentaje ya en unidades de porcentaje (12.5 -> "12,5 %"). */

@@ -69,6 +69,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 45 | `esquema-abonos.sql` | Pagar por partes: la venta queda por verificar diciendo cuánto falta, y cada abono se carga con su referencia |
 | 46 | `esquema-revendedores.sql` | Revendedores: su catálogo con su precio, apartados de 15 días que salen de lo libre, su panel con su código, el tope por niveles y el cobro al retirar en Pedidos |
 | 47 | `esquema-vendedoras.sql` | Las vendedoras del local, cada una con su número y su código; su meta y "Mi día" sin lo que retiran los revendedores. Necesita además la función de servidor `vendedoras` (sección 3.1) |
+| 48 | `esquema-caja.sql` | La caja: lo que sale de la tienda se anota, lo que entra (ventas y abonos) entra solo; día por día y mes por mes, por forma de pago. Solo el administrador |
 
 ### Los que NO se corren
 

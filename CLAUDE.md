@@ -71,7 +71,8 @@ src/
                 CompartirCatalogo, BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
-                Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras
+                Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
+                Caja (lo que entra y lo que sale, día por día y mes por mes)
     venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
     publico/    Catalogo, Reserva          (sin sesión)
     revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
@@ -137,8 +138,12 @@ completa y cada archivo dice en su cabecera de qué depende.
 `perfiles` · `tasas` · `lotes` · `grupos_precio` · `modelos` · `ubicaciones` ·
 `existencias` · `ventas` · `venta_items` · `clientes` · `reservas` ·
 `reserva_items` · `tramos_mayoreo` · `configuracion` · `conteos` · `inversiones` ·
-`gastos_mes` · `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra) ·
-`abonos` (cada pago de una venta cobrada por partes).
+`frases` · `movimientos` (quién movió qué pieza de una ubicación a otra) ·
+`abonos` (cada pago de una venta cobrada por partes) · `caja_movimientos` (lo que
+sale de la tienda, y lo que entra sin ser venta, anotado por el dueño; revocada
+a todos, se lee por `v_caja`, se anula y no se borra).
+Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
+`gastos_fijos_partidas()`.
 `perfiles.numero_vendedora` es el número de cada vendedora del local (los dos
 primeros dígitos de su código); null en los administradores y en la cuenta de
 antes.
@@ -172,6 +177,7 @@ que cobra a su clienta) · `apartado_abonos` (lo que su clienta le paga a ÉL).
 | `v_apartados_revendedor` | Los apartados de revendedores que se pueden retirar hoy: lo que él paga y dónde está cada pieza. Nada de lo que él cobra a su clienta | vendedora y admin |
 | `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
+| `v_caja` | Cada movimiento anotado en la caja, con quién lo anotó y, si se anuló, quién y por qué | solo admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
@@ -187,7 +193,15 @@ llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `cancelar_pedido`, `cobrar_con_abono`, `registrar_abono`, `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`,
 `cobrar_apartado` (el revendedor retira y paga, de las dos caras),
-`admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`.
+`admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
+`admin_anotar_caja`, `admin_anular_caja`.
+
+`caja_flujo(desde, hasta)` es la única regla de qué dinero entró y salió: las
+ventas cobradas completas por su total, las ventas por partes abono por abono y
+lo anotado en la caja, sin anuladas, con los días cortados en la hora de
+Venezuela. Revocada a todos; la leen `admin_caja_por_metodo`,
+`admin_caja_por_dia` y `admin_caja_por_categoria`, que rechazan a quien no sea
+administrador.
 
 Las cuentas de las vendedoras del local no se tocan desde SQL: las crea, pausa y
 les cambia el PIN la función de servidor `supabase/functions/vendedoras`, con la
@@ -373,6 +387,18 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   dólares se pasa a bolívares a la tasa Binance del día. Tolerancia: medio centavo
   de dólar BCV, o un centavo de dólar si paga en dólares. Los abonos no se
   borran, como las ventas.
+- **La caja** (pedida por el dueño el 27/09/2026). Lo que entra y lo que sale de
+  la tienda, día por día y mes por mes, en la pantalla Caja del administrador.
+  **Lo que entra no se anota: entra solo** (ventas y abonos, por `caja_flujo`);
+  se anota lo que sale y lo poco que entra sin ser venta (el dueño mete dinero a
+  la caja). Cada movimiento se congela con la receta de un abono: en su moneda,
+  en bolívares a la tasa Binance y en dólares BCV, con **la tasa del día del
+  movimiento**, no la de hoy. Por forma de pago en su moneda, para cuadrar la
+  gaveta, y el total en $ BCV y bolívares. Las categorías son una lista fija, en
+  `caja_categoria_valida()` y en `CATEGORIAS_CAJA` a la vez. **No es la
+  ganancia** (esa sigue en Reportes) **ni toca Costos**: los precios siguen
+  saliendo de los gastos fijos que el dueño escribe allí. Uno es el plan, el
+  otro es lo que pasó. Solo el administrador; se anula, no se borra.
 - **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
   registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
   pagado sigue apartando sus piezas hasta que se cierra.
@@ -432,12 +458,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 115 comprobaciones con las dos sesiones (119 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 126 comprobaciones con las dos sesiones (130 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace veintinueve
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y una
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

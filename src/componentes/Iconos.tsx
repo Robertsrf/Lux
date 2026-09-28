@@ -11,7 +11,7 @@ export type NombreIcono =
   | 'inventario' | 'reportes' | 'lotes' | 'grupos' | 'tramos'
   | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
-  | 'clientes' | 'agregar' | 'quitar' | 'mover' | 'revendedores' | 'vendedoras';
+  | 'clientes' | 'agregar' | 'quitar' | 'mover' | 'revendedores' | 'vendedoras' | 'caja';
 
 const TRAZOS: Record<NombreIcono, string> = {
   inventario: 'M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z M3.5 7.5 12 12l8.5-4.5 M12 12v9',
@@ -48,6 +48,9 @@ const TRAZOS: Record<NombreIcono, string> = {
   /* Vendedoras del local: la persona de `clientes` con su gafete de la
      tienda en el pecho. */
   vendedoras: 'M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M4.5 20.5a7.5 7.5 0 0 1 15 0 M13.5 16.5h3',
+  /* La caja: una gaveta, con lo que entra (flecha que baja) y lo que sale
+     (flecha que sube). */
+  caja:       'M3.5 13.5h17v6a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-6Z M9.5 17h5 M8 3.5V10 M5.5 7.5 8 10l2.5-2.5 M16 10V3.5 M13.5 6 16 3.5 18.5 6',
 };
 
 export function Icono({ nombre, className = 'icono' }: { nombre: NombreIcono; className?: string }) {

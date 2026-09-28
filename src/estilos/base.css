@@ -2519,3 +2519,198 @@ table.tabla tfoot td {
   overflow-wrap: anywhere;
   user-select: all;
 }
+
+
+/* =====================================================================
+   La caja: lo que entra y lo que sale (esquema-caja.sql)
+
+   Anotar a un lado y las cuentas al otro. En el teléfono, y en una
+   computadora angosta, anotar va primero: es a lo que se entra todos los
+   días. Las cuentas son un libro, no un tablero: cada forma de pago en su
+   renglón y en su moneda, y el total al pie. Lo que se pregunta es si
+   cuadra la gaveta, y eso se lee por renglones, no en una cifra gigante.
+   ===================================================================== */
+
+.caja { display: grid; gap: var(--e-5); align-items: start; }
+.caja__anotar, .caja__cuentas, .caja__cuentas > * { min-width: 0; }
+.caja__cuentas { display: grid; gap: var(--e-5); }
+.caja__anotar .ayuda { margin: var(--e-4) 0 0; }
+
+/* Las dos columnas solo caben con la barra lateral de 244 px al lado si
+   la pantalla pasa de 1240: por debajo, el libro de cuatro columnas se
+   quedaba en 428 px y partía las cifras. A 1280, con el formulario en 340,
+   al libro le quedan 520 px dentro de su tarjeta: medido, cabe. */
+@media (min-width: 1240px) {
+  .caja { grid-template-columns: minmax(300px, 340px) minmax(0, 1fr); }
+}
+/* El formulario se queda a la vista mientras se baja por la lista, si
+   cabe entero: más bajo que la pantalla, lo de abajo quedaría fuera. */
+@media (min-width: 1240px) and (min-height: 860px) {
+  .caja__anotar { position: sticky; top: var(--e-5); }
+}
+@media (max-width: 1239px) {
+  .caja__anotar { max-width: 700px; }
+}
+
+/* Un día o un mes, y cuál. */
+.caja__periodo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); }
+.caja__vista { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.caja__periodo .caja__vista { flex: 0 1 300px; }
+.caja__fecha { width: auto; flex: 1 1 200px; max-width: 280px; }
+
+.caja-anotar > h2 { margin-bottom: var(--e-4); }
+.caja-anotar__que { margin: var(--e-2) 0 var(--e-4); }
+.caja-anotar .fila { margin-bottom: var(--hueco-campos); }
+/* Reserva su línea aunque esté vacía: que el botón no salte al escribir. */
+.caja-anotar__equivale { min-height: 1.4em; }
+.caja-anotar .acciones { margin-top: var(--e-3); }
+.caja-anotar .aviso { margin: var(--e-4) 0 0; }
+
+/* --- El libro ---------------------------------------------------------
+   Una tabla sin cabecera verde: vive dentro de una tarjeta, y la cabecera
+   de las tablas grandes es para cuando la tabla ES la tarjeta. Cifras en
+   Fraunces con números tabulares, como todo dinero. */
+/* La red de seguridad: si algún día una cifra no cabe (un mes de millones
+   de bolívares), el libro se desliza dentro de su tarjeta y la página no
+   se sale de la pantalla. */
+.libro-envoltura { overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--salvia) transparent; }
+.libro {
+  width: 100%;
+  border-collapse: separate; border-spacing: 0;
+  font-size: var(--t-14);
+}
+/* La cabecera puede partirse en dos líneas ("Entró · $ BCV"): así la
+   columna mide lo que mide su cifra, no su título. */
+.libro thead th {
+  padding: 0 var(--e-2) var(--e-2);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  line-height: 1.3;
+  color: var(--texto-secundario);
+  text-align: left; vertical-align: bottom;
+  border-bottom: 1px solid var(--linea);
+}
+/* `.num` no deja partir líneas, y aquí la cabecera sí tiene que poder. */
+.libro thead th.num { text-align: right; white-space: normal; }
+.libro tbody th, .libro tbody td {
+  padding: var(--e-3) var(--e-2);
+  border-bottom: 1px solid var(--linea-suave);
+  vertical-align: top;
+}
+.libro tbody th { text-align: left; font-weight: 400; }
+.libro tbody tr:last-child > * { border-bottom: 0; }
+
+.libro__forma { display: block; font-weight: 500; color: var(--texto-fuerte); }
+.libro__nota {
+  display: block; margin-top: 2px;
+  font-size: var(--t-12); line-height: 1.4;
+  color: var(--texto-secundario);
+}
+.libro__nota--alerta { color: var(--alerta-texto); font-weight: 500; }
+.libro__cifra {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-16); font-variant-numeric: tabular-nums;
+  color: var(--texto);
+  white-space: nowrap;
+}
+.libro__cifra--queda { color: var(--texto-fuerte); }
+
+/* El pie, en el fondo de panel: lo que se lee al final, como el total de
+   una factura. */
+.libro tfoot th, .libro tfoot td { padding: var(--e-3) var(--e-2); background: var(--panel); }
+.libro tfoot th {
+  text-align: left;
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.libro tfoot tr:first-child > * { border-top: 1px solid var(--linea); }
+.libro tfoot tr:last-child > :first-child { border-bottom-left-radius: var(--radio-md); }
+.libro tfoot tr:last-child > :last-child { border-bottom-right-radius: var(--radio-md); }
+
+/* Un día del mes lleva a ese día. */
+.libro__dia {
+  min-height: 32px; padding: 0;
+  font: inherit; font-weight: 500;
+  color: var(--texto);
+  background: none; border: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--linea);
+  text-underline-offset: 3px;
+  transition: color var(--rapido), text-decoration-color var(--rapido);
+}
+.libro__dia:hover { color: var(--texto-fuerte); text-decoration-color: currentColor; }
+
+.libro__detalle { display: none; }
+.libro__detalle span { white-space: nowrap; }
+.libro__resumen { display: none; margin: var(--e-3) 0 0; font-size: var(--t-14); color: var(--texto); }
+.libro__resumen strong {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--texto-fuerte);
+}
+
+.caja__verificar {
+  margin: var(--e-4) 0 0;
+  font-size: var(--t-14); line-height: 1.5;
+  color: var(--alerta-texto);
+}
+.caja__verificar a { color: inherit; }
+
+/* En el teléfono se enseña menos, no lo mismo apretado: cada forma de
+   pago dice lo que queda, y lo que entró y salió baja a una línea bajo
+   su nombre. En el día por día se cae "Queda". */
+@media (max-width: 600px) {
+  .libro .solo-ancho { display: none; }
+  .libro__detalle { display: block; }
+  .libro__resumen { display: block; }
+}
+
+/* --- En qué se fue ---------------------------------------------------- */
+.caja-partes { list-style: none; margin: 0; padding: 0; }
+.caja-partes__fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 3.5em;
+  gap: var(--e-3); align-items: baseline;
+  padding: var(--e-3) 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.caja-partes__fila:last-child { border-bottom: 0; }
+.caja-partes__nombre { font-weight: 500; color: var(--texto-fuerte); }
+.caja-partes__parte {
+  text-align: right;
+  font-size: var(--t-12); font-variant-numeric: tabular-nums;
+  color: var(--texto-secundario);
+}
+.caja-partes .libro__cifra { text-align: right; }
+.panel .caja-partes__fila { border-bottom-color: var(--linea); }
+
+/* --- Lo anotado ------------------------------------------------------- */
+.caja-lista { list-style: none; margin: 0; padding: 0; }
+.caja-mov { padding: var(--e-3) 0; border-bottom: 1px solid var(--linea-suave); }
+.caja-mov:first-child { padding-top: 0; }
+.caja-mov:last-child { padding-bottom: 0; border-bottom: 0; }
+.caja-mov__cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-3); }
+.caja-mov__concepto {
+  font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.3;
+  color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+}
+.caja-mov__monto {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-16); font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+  white-space: nowrap;
+}
+.caja-mov__pie {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e-2) var(--e-3); flex-wrap: wrap;
+  margin-top: var(--e-1);
+}
+.caja-mov__meta { font-size: var(--t-12); line-height: 1.5; color: var(--texto-secundario); }
+.caja-mov__meta .etiqueta { margin-right: var(--e-1); }
+.caja-mov__anulado { margin: var(--e-1) 0 0; font-size: var(--t-12); color: var(--texto-secundario); }
+.caja-mov--anulado .caja-mov__concepto,
+.caja-mov--anulado .caja-mov__monto {
+  color: var(--texto-secundario);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}

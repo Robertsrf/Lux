@@ -383,6 +383,41 @@ async function main() {
     panel.error ? 'rechazada ' + panel.error.code : 'ABRIO UN PANEL');
 
   /*
+    LA CAJA (esquema-caja.sql). Enseña cuánto vende la tienda, en qué
+    gasta y el sueldo de cada una: solo el dueño. Las llamadas que escriben
+    se prueban con datos que la función rechaza antes de escribir (monto
+    cero): si responde ese "no", la pudo ejecutar.
+  */
+  console.log('\nLA CAJA, SOLO EL DUENO');
+  const hoy = new Date().toISOString().slice(0, 10);
+  for (const [quien, S, filas] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { data, error } = await S.from('v_caja').select('id, concepto, monto_bcv').limit(1);
+    const bien = filas ? !error : (!!error || (data?.length ?? 0) === 0);
+    dice(bien, `v_caja: ${quien}`, error ? (filas ? 'ERROR ' : 'rechazada ') + error.code : (data?.length ?? 0) + ' fila(s)');
+  }
+  for (const [quien, S, abre] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { error } = await S.rpc('admin_caja_por_metodo', { p_desde: hoy, p_hasta: hoy });
+    dice(abre ? !error : !!error, `admin_caja_por_metodo(): ${quien}`,
+      error ? (abre ? 'ERROR ' + error.message : 'rechazada') : 'responde');
+  }
+  for (const [quien, S] of [['ella', V], ['el administrador', A]]) {
+    const crudo = await S.from('caja_movimientos').select('id').limit(1);
+    dice(!!crudo.error, `caja_movimientos en crudo: ${quien}`, crudo.error ? 'rechazada ' + crudo.error.code : 'RESPONDIO');
+  }
+  const flujo = await A.rpc('caja_flujo', { p_desde: hoy, p_hasta: hoy });
+  dice(!!flujo.error, 'caja_flujo() cerrada hasta para el dueno', flujo.error ? 'rechazada ' + flujo.error.code : 'RESPONDIO');
+  const anotar = (S) => S.rpc('admin_anotar_caja', {
+    p_tipo: 'salida', p_fecha: null, p_categoria: 'otro_gasto', p_concepto: 'verificar',
+    p_metodo: 'efectivo_bs', p_monto: 0, p_referencia: null,
+  });
+  const anotaElla = await anotar(V);
+  dice(!!anotaElla.error && /Solo un administrador/.test(anotaElla.error.message), 'admin_anotar_caja(): ella no anota',
+    anotaElla.error ? anotaElla.error.message : 'LO ACEPTO');
+  const anotaEl = await anotar(A);
+  dice(!!anotaEl.error && /mayor que cero/.test(anotaEl.error.message), 'admin_anotar_caja(): el dueno si (monto cero)',
+    anotaEl.error ? anotaEl.error.message : 'ACEPTO UN CERO');
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a
