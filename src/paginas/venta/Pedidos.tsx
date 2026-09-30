@@ -931,11 +931,17 @@ function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTermi
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Lo que él paga en la tienda se carga con un botón, como en las ventas
+  // por verificar: casi siempre paga desde su panel.
+  const [abonando, setAbonando] = useState(false);
   const total = Number(a.total_usd);
   const falta = Number(a.lux_falta_bcv ?? 0);
   const pagado = Number(a.lux_pagado_bcv ?? 0);
   const conDinero = abonos.some((x) => !x.anulado_en);
   const porCobrar = a.fase === 'por_pagar_lux' || a.fase === 'en_revision';
+  // Recibe pagos mientras se le cobra; vencido, solo el administrador (un
+  // pago tardío que completa lo vuelve a poner en revisión para aprobarlo).
+  const recibePagos = falta > 0 && (porCobrar || (a.fase === 'vencido' && esAdmin));
 
   async function hacer(rpc: string, mensaje: (dato: unknown) => string) {
     setTrabajando(true);
@@ -1021,12 +1027,12 @@ function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTermi
         </p>
       ) : null}
 
-      {porCobrar && falta > 0 && tasa ? (
+      {recibePagos && abonando && tasa ? (
         <CargarAbono
           id={-a.id}
           falta={falta}
           tasa={tasa}
-          titulo="Pagó en la tienda"
+          titulo={`Cargar lo que pagó ${a.revendedor}`}
           preguntarSiLlego
           registrar={async (metodo, monto, referencia, verificadoYa) => {
             const { data, error: err } = await supabase.rpc('abonar_apartado', {
@@ -1046,6 +1052,11 @@ function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTermi
         {(porCobrar || (a.fase === 'vencido' && esAdmin)) ? (
           <button type="button" className="boton boton--confirmar" disabled={trabajando || falta > 0} onClick={aprobar}>
             {trabajando ? 'Guardando' : 'Aprobar'}
+          </button>
+        ) : null}
+        {recibePagos && tasa ? (
+          <button type="button" className="boton boton--secundario" disabled={trabajando} onClick={() => setAbonando((x) => !x)}>
+            {abonando ? 'No cargar pago' : 'Cargar un pago'}
           </button>
         ) : null}
         {a.fase === 'vendido' ? (

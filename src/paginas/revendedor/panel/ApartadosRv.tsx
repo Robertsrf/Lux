@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Aviso, Cargando, Vacio } from '../../../componentes/Piezas';
 import { CargarAbono } from '../../../componentes/CargarAbono';
 import { FilaPago, montoDePago, textoMetodo } from '../../../componentes/ListaAbonos';
@@ -37,7 +38,9 @@ export function ApartadosRv() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<Filtro>('por_hacer');
+  // Inicio manda aquí con ?ver=deben, desde "Tus clientas te deben".
+  const [parametros] = useSearchParams();
+  const [filtro, setFiltro] = useState<Filtro>(parametros.get('ver') === 'deben' ? 'deben' : 'por_hacer');
   const [ahora, setAhora] = useState(Date.now());
 
   const cargar = useCallback(async () => {
@@ -71,6 +74,7 @@ export function ApartadosRv() {
   if (cargando) return <Cargando texto="Buscando tus pedidos" />;
 
   const visibles = grupos[filtro];
+  const teDeben = grupos.deben.reduce((n, a) => n + Number(a.falta_usd), 0);
 
   return (
     <div className="pagina">
@@ -96,6 +100,15 @@ export function ApartadosRv() {
           Todos · {grupos.todos.length}
         </button>
       </div>
+
+      {filtro === 'deben' && grupos.deben.length > 0 ? (
+        <p className="abonos__falta" style={{ marginBottom: 'var(--e-4)' }}>
+          Tus clientas te deben <strong>{formatearBcv(teDeben)}</strong>
+          {tasa ? <>, hoy <strong>{formatearBs(bsDeBcv(teDeben, tasa.tasa_bcv))}</strong></> : null}
+          {grupos.deben.length === 1 ? ', en 1 pedido' : `, en ${grupos.deben.length} pedidos`}.
+          {' '}Cada vez que una te pague, toca "Cargar un pago" en su pedido y se lo vas restando.
+        </p>
+      ) : null}
 
       {visibles.length === 0 ? (
         <Vacio titulo={filtro === 'por_hacer' ? 'No tienes nada pendiente' : filtro === 'deben' ? 'Nadie te debe' : 'Todavía no hay pedidos'}>
@@ -146,6 +159,7 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
   const porRevisar = a.abonos.filter((b) => b.estado === 'por_revisar');
   const puedeConfirmar = sinConfirmar && abonado >= minimo - 0.005;
   const puedeAbonar = falta > 0 && !['vencido', 'cancelado'].includes(fase);
+  const plazoClientaPaso = falta > 0 && (a.vence_clienta_en ? new Date(a.vence_clienta_en).getTime() <= ahora : false);
   const puedeCancelar = ['esperando_pago', 'por_confirmar', 'por_pagar_lux'].includes(fase) && luxPagado <= 0;
 
   async function llamar(funcion: string, args: Record<string, unknown>, mensaje: string) {
@@ -266,6 +280,21 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
                       No me llegó
                     </button>
                   </div>
+                ) : b.estado === 'recibido' && b.id && fase !== 'cancelado' ? (
+                  <div className="abono__acciones">
+                    <button
+                      type="button" className="boton boton--peligro boton--pequeno" disabled={trabajando}
+                      onClick={() => {
+                        if (!window.confirm(`¿Quitar el pago de ${montoDePago(b)}? Deja de contar en lo que te ha pagado ${primer} y vuelve a lo que te debe. Queda tachado en la lista.`)) return;
+                        void llamar('rv_revisar_pago', {
+                          p_abono_id: b.id, p_llego: false,
+                          p_motivo: b.origen === 'clienta' ? 'no llegó' : 'lo quitó el revendedor',
+                        }, 'Listo: ese pago ya no cuenta.');
+                      }}
+                    >
+                      Quitar
+                    </button>
+                  </div>
                 ) : null}
               </FilaPago>
             ))}
@@ -275,11 +304,16 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
           <p className="abonos__falta">
             Te faltan <strong>{formatearBcv(falta)}</strong>
             {tasa ? <>, hoy <strong>{formatearBs(bsDeBcv(falta, tasa.tasa_bcv))}</strong></> : null}
-            {a.vence_clienta_en ? <>, hasta el {formatearFechaHora(a.vence_clienta_en)}</> : null}.
+            {a.vence_clienta_en && !plazoClientaPaso ? <>, hasta el {formatearFechaHora(a.vence_clienta_en)}</> : null}.
           </p>
         ) : (
           <p className="abonos__falta abonos__falta--listo">Te pagó completo.</p>
         )}
+        {plazoClientaPaso ? (
+          <p className="campo__error">
+            Se le pasó el plazo que le diste: era hasta el {formatearFechaHora(a.vence_clienta_en)}. Igual puedes seguir cargando lo que te pague.
+          </p>
+        ) : null}
       </div>
 
       {sinConfirmar ? (
@@ -364,7 +398,7 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
             id={a.id}
             falta={falta}
             tasa={tasa}
-            titulo={`Cargar lo que te pagó ${primer}`}
+            titulo={`Cargar un pago de ${primer}`}
             registrar={async (metodo, monto, referencia) => {
               try {
                 return Number(await rpcRv<number>('rv_abonar', {
@@ -389,8 +423,10 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
             {trabajando ? 'Guardando' : 'Confirmar el pedido'}
           </button>
         ) : null}
-        {puedeAbonar && tasa && !abonando ? (
-          <button type="button" className="boton boton--secundario" onClick={() => setAbonando(true)}>Cargar lo que te pagó</button>
+        {puedeAbonar && tasa ? (
+          <button type="button" className={abonando || sinConfirmar ? 'boton boton--secundario' : 'boton boton--confirmar'} onClick={() => setAbonando((x) => !x)}>
+            {abonando ? 'No cargar pago' : 'Cargar un pago'}
+          </button>
         ) : null}
         {a.cliente.telefono ? (
           <a className="boton boton--secundario" href={enlaceWhatsApp(a.cliente.telefono, mensajeClienta)} target="_blank" rel="noopener noreferrer">

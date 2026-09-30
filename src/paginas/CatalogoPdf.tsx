@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
 import { CompartirCatalogo } from '../componentes/CompartirCatalogo';
+import { VisitasCatalogo } from '../componentes/VisitasCatalogo';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
@@ -96,6 +97,7 @@ export function CatalogoPdf() {
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
       <div className="sin-impresion">
+        <VisitasCatalogo />
         <CompartirCatalogo titulo="Enlace del catálogo en línea" />
       </div>
 

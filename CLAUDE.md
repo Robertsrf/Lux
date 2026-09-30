@@ -56,7 +56,8 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 src/
   lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts,
                 revendedor.ts (su sesión, sus enlaces, las paletas),
-                vendedoras.ts (llama a la función de servidor de las cuentas)
+                vendedoras.ts (llama a la función de servidor de las cuentas),
+                visitas.ts (el catálogo público cuenta su visita)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario, useTextos, useFrases, useConsejos,
                 useTemaRv (viste la página con la paleta de un revendedor)
@@ -64,7 +65,8 @@ src/
                 lateral y la de abajo, de la tienda y del revendedor), Piezas
                 (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
                 Marca, VisorFoto (detalle que pasa de pieza), ElegirVariante
-                (la hoja de medidas), TusDatos (el pedido público empieza por
+                (la hoja de medidas), VisitasCatalogo (cuánta gente abre el
+                catálogo, en la pantalla Catálogo), TusDatos (el pedido público empieza por
                 la cédula), MoverUbicacion (pasar piezas de una ubicación a
                 otra), CargarAbono (un abono en dólares BCV, de la tienda y
                 del revendedor), ListaAbonos (cada abono con lo que quedaba
@@ -150,7 +152,10 @@ nunca borrado) · `abono_cambios` (lo que decía un abono antes de cada
 corrección, quién y por qué; revocada, se lee por `v_abono_cambios`) ·
 `caja_movimientos` (lo que
 sale de la tienda, y lo que entra sin ser venta, anotado por el dueño; revocada
-a todos, se lee por `v_caja`, se anula y no se borra).
+a todos, se lee por `v_caja`, se anula y no se borra) ·
+`catalogo_visitas` (un teléfono por día que abrió el catálogo público, con un
+número al azar que guarda su navegador; revocada a todos, se escribe por
+`registrar_visita` y se lee por `visitas_catalogo`).
 Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
 `gastos_fijos_partidas()`.
 `perfiles.numero_vendedora` es el número de cada vendedora del local (los dos
@@ -212,6 +217,12 @@ primero la vuelve por partes), `admin_guardar_modelo`,
 `cobrar_apartado` (la del navegador viejo: pasa por la aprobación),
 `admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
 `admin_anotar_caja`, `admin_anular_caja`.
+
+`registrar_visita(visitante)` la llama el catálogo público al abrirse, sin
+sesión; con sesión no cuenta (es alguien de la tienda). `visitas_catalogo(días)`
+da un renglón por día (personas, veces que lo abrieron y pedidos que entraron
+por el catálogo), solo a quien es personal activo: `es_personal()`, no
+`es_admin()`, porque la vendedora también la ve.
 
 Las del apartado (`esquema-abonos-y-apartados.sql`): `apartar_en_tienda` (el
 mostrador aparta), `abonar_pedido`, `entregar_pedido` (la venta nace aquí, con
@@ -488,6 +499,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 - **La vitrina se abre sin sesión**, como el catálogo: lee `v_disponible_publico`
   y sus frases de marca ('TV') son públicas. No enseña nada que no esté ya en el
   enlace de WhatsApp.
+- **Las visitas al catálogo** (pedido del dueño del 30/09/2026). La pantalla
+  Catálogo, de las dos caras, dice cuántas personas abrieron el catálogo en
+  línea hoy, en 7 y en 30 días, y cuántos pedidos entraron por él. Una visita es
+  un teléfono en un día; lo que abre la tienda con su sesión no cuenta. Es solo
+  una cuenta: no guarda de quién, y no se le enseña a la clienta. Los catálogos
+  de los revendedores no cuentan aquí.
 - **Clientes.** Cada venta puede quedar a nombre de una clienta del maestro, que se
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
@@ -531,6 +548,10 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     panel (`apartado_abonos`, en dólares BCV). Apartado para su clienta: al menos
     el 40 % y el plazo que él fija en su panel (`revendedores.dias_credito`; sin
     él, su clienta paga todo). Es su crédito: a Lux le paga todo en el día igual.
+    Él carga cada pago de ella en su pedido ("Cargar un pago", `rv_abonar`),
+    también después de retirar la pieza, hasta que no le deba nada; el que cargó
+    mal lo quita (`rv_revisar_pago` con "no llegó": queda tachado, no se borra).
+    Su Inicio dice cuánto le deben y lleva a "Te deben".
   - **El tope:** cuánto puede tener apartado a la vez, a lo que le paga a Lux.
     Empieza en $100, sube $50 por nivel hasta $200 cuando ha retirado y pagado dos
     veces la suma de sus topes anteriores ($200 para el 2, $500 para el 3), y baja
@@ -552,7 +573,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 154 comprobaciones con las dos sesiones (159 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 159 comprobaciones con las dos sesiones (164 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 

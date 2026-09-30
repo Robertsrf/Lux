@@ -301,7 +301,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-154 comprobaciones con las dos sesiones (159 si hay `LUX_REVENDEDOR` con el
+159 comprobaciones con las dos sesiones (164 si hay `LUX_REVENDEDOR` con el
 código de un revendedor de prueba): que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.

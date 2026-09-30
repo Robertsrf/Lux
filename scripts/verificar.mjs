@@ -471,6 +471,30 @@ async function main() {
     reglaV.error ? 'ERROR ' + reglaV.error.code : (reglaV.data?.length ?? 0) + ' de 2');
 
   /*
+    LAS VISITAS AL CATALOGO (esquema-visitas-catalogo.sql). El catalogo
+    publico cuenta sin sesion; la cuenta la leen las dos caras, solo
+    cifras. La visita se prueba con un visitante vacio, que la funcion
+    ignora: asi verificar no infla la cifra de la tienda.
+  */
+  console.log('\nLAS VISITAS AL CATALOGO');
+  const visitaP = await P.rpc('registrar_visita', { p_visitante: null });
+  dice(!visitaP.error, 'registrar_visita() abre sin sesion', visitaP.error ? 'ERROR ' + visitaP.error.code : 'responde');
+  const cuentaP = await P.rpc('visitas_catalogo', { p_dias: 7 });
+  dice(cuentaP.error?.code === '42501', 'visitas_catalogo() cerrada sin sesion',
+    cuentaP.error ? 'rechazada ' + (cuentaP.error.code ?? '') : 'RESPONDIO');
+  const tablaP = await P.from('catalogo_visitas').select('dia').limit(1);
+  dice(tablaP.error?.code === '42501', 'catalogo_visitas cerrada sin sesion',
+    tablaP.error ? 'rechazada ' + (tablaP.error.code ?? '') : 'SE LEYO');
+  const tablaV = await V.from('catalogo_visitas').select('dia').limit(1);
+  dice(tablaV.error?.code === '42501', 'catalogo_visitas cerrada tambien con sesion (solo por su funcion)',
+    tablaV.error ? 'rechazada ' + (tablaV.error.code ?? '') : 'SE LEYO');
+  const cuentaV = await V.rpc('visitas_catalogo', { p_dias: 7 });
+  const clavesVisita = Object.keys(cuentaV.data?.[0] ?? {}).sort().join(',');
+  dice(!cuentaV.error && cuentaV.data?.length === 7 && clavesVisita === 'dia,pedidos,veces,visitantes',
+    'ella lee siete dias de visitas, solo cifras',
+    cuentaV.error ? 'ERROR ' + cuentaV.error.code : `${cuentaV.data?.length} dias · ${clavesVisita}`);
+
+  /*
     LA CAJA (esquema-caja.sql). Enseña cuánto vende la tienda, en qué
     gasta y el sueldo de cada una: solo el dueño. Las llamadas que escriben
     se prueban con datos que la función rechaza antes de escribir (monto

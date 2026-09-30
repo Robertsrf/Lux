@@ -1346,3 +1346,14 @@ export interface CajaPorCategoria {
   bs: number;
   bcv: number;
 }
+
+/** Un día de visitas al catálogo en línea (`visitas_catalogo`). Solo cuentas. */
+export interface VisitaDia {
+  dia: string;
+  /** Teléfonos distintos que lo abrieron ese día. */
+  visitantes: number;
+  /** Cuántas veces lo abrieron entre todos. */
+  veces: number;
+  /** Pedidos que entraron por el catálogo ese día. */
+  pedidos: number;
+}

@@ -14,6 +14,7 @@ import { ElegirVariante } from '../../componentes/ElegirVariante';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
+import { registrarVisita } from '../../lib/visitas';
 import type { ModeloPublico, Tramo } from '../../lib/tipos';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante';
@@ -105,6 +106,10 @@ export function Catalogo() {
   // once. Ahora las cuenta la base, que es donde estan los datos: la
   // clienta baja once filas en vez de ochenta y ocho, y el dia que el
   // catalogo tenga mil piezas seguira bajando once.
+  // Una visita por teléfono y por día: la tienda ve la cuenta en Catálogo.
+  // Va aparte de cargar(), que se repite con cada búsqueda.
+  useEffect(() => { registrarVisita(); }, []);
+
   useEffect(() => {
     void (async () => {
       const { data } = await supabase.rpc('categorias_publicas');

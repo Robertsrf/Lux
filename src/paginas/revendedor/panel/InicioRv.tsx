@@ -83,6 +83,11 @@ export function InicioRv() {
             <span className="dato__etiqueta">Tus clientas te deben</span>
             <div className="dato__valor dato__valor--grande">{formatearBcv(credito)}</div>
             {tasa && credito > 0 ? <div className="campo__pista">Hoy son {formatearBs(bsDeBcv(credito, tasa.tasa_bcv))}.</div> : null}
+            {credito > 0 ? (
+              <Link className="boton boton--secundario boton--pequeno" style={{ marginTop: 'var(--e-3)' }} to="/rv/apartados?ver=deben">
+                Cargar lo que te pagan
+              </Link>
+            ) : null}
             <div className="campo__pista">
               {resumen.abiertos === 1 ? '1 pedido abierto.' : `${formatearEntero(resumen.abiertos)} pedidos abiertos.`}
             </div>

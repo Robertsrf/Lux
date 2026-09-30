@@ -74,6 +74,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 50 | `esquema-revendedores-plazos.sql` | El pedido del revendedor en dos plazos: 2 horas para que su clienta le pague a él (a su pago móvil), 1 día desde que él confirma para pagarle a Lux, la tienda aprueba y ahí se registra la venta a nombre de su clienta, que entra al maestro. Vender desde su panel y sus días de crédito |
 | 51 | `esquema-abonos-pedidos-de-antes.sql` | Los pedidos que ya estaban abiertos antes del apartado también reciben abonos: les congela el precio a cada pieza repartiendo su total de siempre en proporción a la etiqueta |
 | 52 | `esquema-abonos-ventas-por-verificar.sql` | Las ventas que quedaron por verificar reciben abonos: el primero las vuelve por partes y la caja cuenta lo que de verdad llegó |
+| 53 | `esquema-visitas-catalogo.sql` | Cuánta gente abre el catálogo en línea: un teléfono por día, sin sesión y sin datos de nadie; lo ven la vendedora y el administrador en la pantalla Catálogo, con los pedidos que entraron por él |
 
 ### Los que NO se corren
 

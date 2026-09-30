@@ -38,6 +38,8 @@ const ENLACES_VENTA: EnlaceNav[] = [
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
   { a: '/tasas',          texto: 'Tasas',     icono: 'tasas' },
+  // El PDF, el enlace para WhatsApp y cuánta gente lo abre.
+  { a: '/catalogo',       texto: 'Catálogo',  icono: 'catalogo' },
   { a: '/venta/guia',     texto: 'Guía',      icono: 'catalogo' },
   { a: '/vitrina',        texto: 'Vitrina',   icono: 'vitrina' },
 ];
