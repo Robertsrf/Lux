@@ -111,9 +111,9 @@ export function MiCatalogoRv() {
 
         <div className="panel">
           <span className="panel__titulo">Tu logo</span>
-          {logo ? <img className="rv-marca__logo" src={logo} alt="Tu logo" /> : null}
+          {logo ? <img className="rv-marca__logo rv-marca__logo--muestra" src={logo} alt="Tu logo" /> : null}
           <p className="campo__pista">
-            {logo ? 'Para cambiarlo, mándale el nuevo a Lux por WhatsApp.' : 'Mándale tu logo a Lux por WhatsApp, cuadrado, y lo sube a tu catálogo.'}
+            {logo ? 'Para cambiarlo, mándale el nuevo a Lux por WhatsApp.' : 'Mándale tu logo a Lux por WhatsApp y lo sube a tu catálogo tal como es, sin recortarlo. Mejor con fondo transparente.'}
           </p>
         </div>
       </div>

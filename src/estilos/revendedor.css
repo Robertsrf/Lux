@@ -85,15 +85,24 @@
 
 /* --- La cabecera de su catálogo --------------------------------------
    Su nombre manda; debajo, de quién son las joyas. El logo, si Lux se lo
-   subió, en un círculo crema: sobre el ancla cualquier logo se lee. */
+   subió, tal como es: en su proporción, sin recortarlo ni meterlo en un
+   círculo (decisión del dueño, 30/09/2026). Cada sitio decide el alto; el
+   ancho sale solo. Un logo muy ancho se frena para no empujar el nombre.
+   Como no lleva fondo, uno oscuro sin fondo propio se pierde sobre el
+   ancla: el logo se sube pensado para su paleta. */
 
 .rv-marca { display: flex; align-items: center; gap: var(--e-3); min-width: 0; }
 .rv-marca__logo {
-  width: 48px; height: 48px; flex: 0 0 auto;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--crema);
-  border: 1px solid color-mix(in srgb, var(--crema) 40%, transparent);
+  display: block; flex: 0 0 auto;
+  height: 48px; width: auto;
+  max-width: min(160px, 40vw);
+  object-fit: contain;
+}
+/* La muestra, donde se revisa cómo quedó (su ficha y "Mi catálogo"):
+   más grande, sobre el papel, y con todo su ancho. */
+.rv-marca__logo.rv-marca__logo--muestra {
+  height: 96px; max-width: 100%;
+  margin: var(--e-3) 0;
 }
 .rv-marca__texto { min-width: 0; }
 .rv-marca__nombre {
@@ -125,8 +134,19 @@
 
 @media (min-width: 721px) {
   .rv-marca__nombre { font-size: var(--t-28); }
-  .rv-marca__logo { width: 56px; height: 56px; }
+  .rv-marca__logo { height: 56px; }
 }
+
+/* --- Dónde entran a su panel (pantalla Revendedores) -------------------
+   El enlace a la vista, entero y partible, con copiar y abrir debajo. */
+.rv-entrada { margin-bottom: var(--e-5); }
+.rv-entrada__enlace {
+  margin: var(--e-2) 0 var(--e-3);
+  font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+}
+.rv-entrada .boton { min-height: 44px; }
+.rv-entrada [data-copiado] { border-color: var(--exito); color: var(--exito); }
 
 /* --- Elegir paleta ----------------------------------------------------
    Radios de verdad, vestidos. Cada muestra lleva la clase de SU paleta y

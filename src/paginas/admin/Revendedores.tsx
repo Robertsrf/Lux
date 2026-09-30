@@ -3,6 +3,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearBcv, formatearEntero, formatearFecha, formatearMonto } from '../../lib/dinero';
 import { subirLogoRevendedor, urlPublicaFoto } from '../../lib/fotos';
+import { copiarTexto } from '../../componentes/PagoMovil';
 import {
   PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, usuarioDesdeNombre,
 } from '../../lib/revendedor';
@@ -51,8 +52,17 @@ const NUEVO: Formulario = {
 function mensajeDeBienvenida(nombre: string, usuario: string, codigo: string): string {
   const primer = nombre.trim().split(/\s+/)[0];
   return `Hola ${primer}, ya tienes tu catálogo de joyas Lux by Emory: ${enlaceCatalogoRv(usuario)}\n\n`
-    + `Tu panel, para ver en cuánto te sale cada pieza, poner tus precios y llevar tus apartados: ${enlacePanelRv()}\n`
+    + `Tu panel, para ver en cuánto te sale cada pieza, poner tus precios y llevar tus pedidos: ${enlacePanelRv()}\n`
     + `Tu código para entrar: ${codigo}\n\nGuárdalo, es solo tuyo.`;
+}
+
+/** Los dos enlaces otra vez, sin el código: ese se ve una sola vez. */
+function mensajeDelPanel(nombre: string, usuario: string): string {
+  const primer = nombre.trim().split(/\s+/)[0];
+  return `Hola ${primer}, aquí están tus enlaces de Lux by Emory.\n\n`
+    + `Tu panel (entras con tu código): ${enlacePanelRv()}\n`
+    + `Tu catálogo, para tus clientas: ${enlaceCatalogoRv(usuario)}\n\n`
+    + 'Si perdiste tu código, avísame y te doy uno nuevo.';
 }
 
 /**
@@ -77,6 +87,7 @@ export function Revendedores() {
   const [subiendo, setSubiendo] = useState(false);
   const [codigo, setCodigo] = useState<{ nombre: string; usuario: string; telefono: string | null; codigo: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [enlaceCopiado, setEnlaceCopiado] = useState<boolean | null>(null);
 
   const cargar = useCallback(async () => {
     const [rv, esc, cfg] = await Promise.all([
@@ -226,7 +237,7 @@ export function Revendedores() {
           <h1>Revendedores</h1>
           <p>
             Quienes venden las joyas de Lux a su propia clientela: cada uno con su catálogo, su panel y su
-            tope. Aparta de tu inventario; paga al retirar en la tienda.
+            tope. Su clienta le paga a él; él te paga en el día y tú lo apruebas en Pedidos.
           </p>
         </div>
         {!form ? (
@@ -238,6 +249,37 @@ export function Revendedores() {
 
       {error ? <Aviso tono="error" titulo="Algo no salió">{error}</Aviso> : null}
       {aviso ? <Aviso tono="exito">{aviso}</Aviso> : null}
+
+      {/* Dónde entran: el mismo enlace para todos, cada uno con su código.
+          Aquí para no tener que dar un código nuevo solo porque perdió el
+          enlace. */}
+      <div className="panel rv-entrada">
+        <span className="panel__titulo">Dónde entran a su panel</span>
+        <p className="rv-entrada__enlace">{enlacePanelRv()}</p>
+        <div className="grupo-botones">
+          <button
+            type="button"
+            className="boton boton--secundario boton--pequeno"
+            data-copiado={enlaceCopiado ? '' : undefined}
+            onClick={() => {
+              void copiarTexto(enlacePanelRv()).then((listo) => {
+                setEnlaceCopiado(listo);
+                if (listo) window.setTimeout(() => setEnlaceCopiado(null), 2500);
+              });
+            }}
+          >
+            {enlaceCopiado ? 'Copiado' : 'Copiar el enlace'}
+          </button>
+          <a className="boton boton--secundario boton--pequeno" href={enlacePanelRv()} target="_blank" rel="noopener noreferrer">
+            Abrir
+          </a>
+        </div>
+        <p className="campo__pista" aria-live="polite">
+          {enlaceCopiado === false
+            ? 'Este navegador no dejó copiar: mantén el dedo sobre el enlace y cópialo a mano.'
+            : 'Es el mismo para todos: cada uno entra con su código. Tú no entras con tu sesión, entra él con el suyo.'}
+        </p>
+      </div>
 
       {codigo ? (
         <div className="tarjeta" style={{ marginBottom: 'var(--e-5)' }}>
@@ -290,13 +332,13 @@ export function Revendedores() {
             <Campo etiqueta="Nombre del catálogo" htmlFor="rv-catalogo" pista="Vacío, su nombre. Él lo puede cambiar desde su panel.">
               <input id="rv-catalogo" value={form.catalogo} onChange={(e) => cambiar('catalogo', e.target.value)} maxLength={60} autoComplete="off" />
             </Campo>
-            <Campo etiqueta="Logo" htmlFor="rv-logo" pista={subiendo ? 'Subiendo el logo' : 'Cuadrado. Se comprime antes de subir.'}>
+            <Campo etiqueta="Logo" htmlFor="rv-logo" pista={subiendo ? 'Subiendo el logo' : 'En su forma: no se recorta. Mejor con fondo transparente. Se comprime antes de subir.'}>
               <input id="rv-logo" type="file" accept="image/*" onChange={(e) => void subirLogo(e.target.files?.[0])} disabled={subiendo} />
             </Campo>
           </div>
           {form.logo ? (
             <div className="grupo-botones" style={{ marginTop: 'var(--e-3)' }}>
-              <img className="rv-marca__logo" src={urlPublicaFoto(form.logo) ?? ''} alt="Logo" />
+              <img className="rv-marca__logo rv-marca__logo--muestra" src={urlPublicaFoto(form.logo) ?? ''} alt="Logo" />
               <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => cambiar('logo', '')}>Quitar el logo</button>
             </div>
           ) : null}
@@ -349,7 +391,7 @@ export function Revendedores() {
           <div className="tablero__celda">
             <span className="dato__etiqueta">Te pagaron este mes</span>
             <div className="tablero__cifra tablero__cifra--dinero">{formatearBcv(totales.pagado)}</div>
-            <div className="tablero__meta">al retirar en la tienda</div>
+            <div className="tablero__meta">aprobado en Pedidos</div>
           </div>
           <div className="tablero__celda">
             <span className="dato__etiqueta">Activos</span>
@@ -389,13 +431,13 @@ export function Revendedores() {
                 <div className="tablero__celda">
                   <span className="dato__etiqueta">Este mes</span>
                   <div className="tablero__cifra tablero__cifra--dinero">{formatearBcv(Number(r.pagado_mes_usd))}</div>
-                  <div className="tablero__meta">{r.piezas_mes} {r.piezas_mes === 1 ? 'pieza retirada' : 'piezas retiradas'}</div>
+                  <div className="tablero__meta">{r.piezas_mes} {r.piezas_mes === 1 ? 'pieza vendida' : 'piezas vendidas'}</div>
                 </div>
                 <div className="tablero__celda">
                   <span className="dato__etiqueta">Clientas</span>
                   <div className="tablero__cifra">{formatearEntero(r.clientas)}</div>
                   <div className="tablero__meta">
-                    {r.vencidos_recientes > 0 ? `${r.vencidos_recientes} ${r.vencidos_recientes === 1 ? 'apartado vencido' : 'apartados vencidos'} hace poco` : 'Ningún apartado vencido hace poco'}
+                    {r.vencidos_recientes > 0 ? `${r.vencidos_recientes} ${r.vencidos_recientes === 1 ? 'pedido que dejó vencer' : 'pedidos que dejó vencer'} hace poco` : 'Ningún pedido vencido hace poco'}
                   </div>
                 </div>
               </div>
@@ -411,6 +453,17 @@ export function Revendedores() {
                 <button type="button" className="boton boton--secundario" onClick={() => editar(r)}>Editar</button>
                 <button type="button" className="boton boton--secundario" onClick={() => void codigoNuevo(r)}>Código nuevo</button>
                 <a className="boton boton--secundario" href={enlaceCatalogoRv(r.usuario)} target="_blank" rel="noopener noreferrer">Ver su catálogo</a>
+                {/* Sin el código: ese se ve una sola vez. Si también lo
+                    perdió, "Código nuevo". */}
+                {r.telefono ? (
+                  <a
+                    className="boton boton--secundario"
+                    href={enlaceWhatsApp(r.telefono, mensajeDelPanel(r.nombre, r.usuario))}
+                    target="_blank" rel="noopener noreferrer"
+                  >
+                    Mandarle su panel
+                  </a>
+                ) : null}
                 <button type="button" className={r.activo ? 'boton boton--peligro' : 'boton'} onClick={() => void pausar(r)}>
                   {r.activo ? 'Pausar' : 'Activar'}
                 </button>
