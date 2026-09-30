@@ -77,7 +77,7 @@ export function PanelRevendedor() {
 
   const logo = urlPublicaFoto(resumen?.logo_path);
   const marca = (
-    <div className="rv-marca">
+    <div className="rv-marca rv-marca--apilada">
       {logo ? <img className="rv-marca__logo" src={logo} alt="" /> : null}
       <div className="rv-marca__texto">
         <span className="rv-marca__nombre">{resumen?.catalogo_nombre ?? sesion.nombre}</span>

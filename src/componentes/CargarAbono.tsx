@@ -17,7 +17,7 @@ import type { MetodoPago } from '../lib/tipos';
  * abonos de su clienta: la misma deuda en dólares BCV, la misma tolerancia
  * y el mismo botón "Lo que falta". Quién guarda lo decide la pantalla.
  */
-export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', preguntarSiLlego = false, registrar, alGuardar }: {
+export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', preguntarSiLlego = false, inicial, registrar, alGuardar }: {
   /** Para que los campos de dos tarjetas no compartan id. */
   id: number;
   /** Lo que falta, en dólares BCV. */
@@ -29,13 +29,15 @@ export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', pre
    * Lo que se paga en persona queda verificado solo: el dinero está en la mano.
    */
   preguntarSiLlego?: boolean;
+  /** Lo que ya se sabe del pago: la forma y la referencia que reportó la clienta. */
+  inicial?: { metodo?: MetodoPago | null; referencia?: string | null };
   /** Guarda en la base y devuelve lo que falta después, o lanza el error ya dicho. */
   registrar: (metodo: MetodoPago, monto: number, referencia: string | null, verificado: boolean) => Promise<number>;
   alGuardar: (resta: number) => void;
 }) {
-  const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
+  const [metodo, setMetodo] = useState<MetodoPago>(inicial?.metodo ?? 'pago_movil');
   const [monto, setMonto] = useState('');
-  const [referencia, setReferencia] = useState('');
+  const [referencia, setReferencia] = useState(inicial?.referencia ?? '');
   const [llego, setLlego] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);

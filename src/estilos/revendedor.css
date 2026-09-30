@@ -98,6 +98,16 @@
   max-width: min(160px, 40vw);
   object-fit: contain;
 }
+/* En la barra lateral de su panel (244 px): el logo arriba, más grande, y
+   su nombre debajo, los dos centrados. Al lado no cabían: un logo ancho le
+   quitaba el sitio al nombre. Pedido por el dueño el 30/09/2026. */
+.rv-marca--apilada {
+  flex-direction: column; align-items: center;
+  gap: var(--e-2); text-align: center;
+}
+.rv-marca--apilada .rv-marca__logo { height: 72px; max-width: 100%; }
+.rv-marca--apilada .rv-marca__nombre { font-size: var(--t-20); }
+
 /* La muestra, donde se revisa cómo quedó (su ficha y "Mi catálogo"):
    más grande, sobre el papel, y con todo su ancho. */
 .rv-marca__logo.rv-marca__logo--muestra {

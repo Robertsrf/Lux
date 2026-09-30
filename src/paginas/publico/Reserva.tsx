@@ -166,7 +166,9 @@ export function Reserva() {
               }} />
             ) : null}
 
-            {!conAbonos && reserva.pago_reportado_en ? (
+            {/* Su pago reportado a la antigua (sin monto), mientras la tienda
+                no lo haya cargado como abono. */}
+            {reserva.pago_reportado_en && pagos.length === 0 ? (
               <section className="panel">
                 <span className="panel__titulo">Tu pago</span>
                 <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>

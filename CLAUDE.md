@@ -469,9 +469,13 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   otro es lo que pasó. Solo el administrador; se anula, no se borra.
 - **Los pedidos se cierran.** En Pedidos se entregan (`entregar_pedido`, con las
   piezas de donde haya existencia) o se cancelan. Uno pagado sigue apartando sus
-  piezas hasta que se entrega. Los de antes del apartado (sin precio congelado)
-  se siguen cobrando completos con `cobrar_pedido`; esa misma función, con un
-  pedido nuevo, pasa por `entregar_pedido`: hay un solo camino de pedido a venta.
+  piezas hasta que se entrega. Los que ya estaban abiertos antes del apartado se
+  congelaron con `esquema-abonos-pedidos-de-antes.sql` (`congelar_pedido_de_antes`:
+  su total de siempre repartido entre sus piezas en proporción a la etiqueta) y
+  reciben abonos como los nuevos, de la vendedora y del administrador. Solo uno
+  que no se pudo repartir (una pieza sin precio) se sigue cobrando completo con
+  `cobrar_pedido`; esa misma función, con un pedido congelado, pasa por
+  `entregar_pedido`: hay un solo camino de pedido a venta.
 - **Lo apartado no se vende en el mostrador.** Un pedido dice "2 de esta cadena",
   no de dónde; lo apartado se asigna a las ubicaciones empezando por donde hay más
   (normalmente la bodega), que es el mismo orden en que la entrega las toma.

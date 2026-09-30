@@ -527,6 +527,15 @@ function PedidoDeTienda({ cabecera: c, items, abonos, tasa, esAdmin, ahora, alTe
               {pagado > verificado ? (
                 <div className="campo__pista">{formatearBcv(pagado - verificado)} todavía sin comprobar en el banco.</div>
               ) : null}
+              {/* Un pedido de antes, con el pago reportado sin monto: lo
+                  que reportó se enseña, y se carga como abono al
+                  comprobarlo (el formulario de abajo ya lo trae). */}
+              {c.pago_reportado_en && !conDinero && c.pago_referencia ? (
+                <div className="campo__pista">
+                  Reportó un pago sin monto: {textoMetodo(c.pago_metodo)}, ref. {c.pago_referencia}
+                  {c.pago_fecha ? ` del ${formatearFecha(c.pago_fecha)}` : ''}. Cuando lo veas en el banco, cárgalo abajo.
+                </div>
+              ) : null}
             </>
           ) : !c.pago_reportado_en ? (
             <>
@@ -583,6 +592,7 @@ function PedidoDeTienda({ cabecera: c, items, abonos, tasa, esAdmin, ahora, alTe
           tasa={tasa}
           titulo={pagado > 0 ? 'Cargar otro abono' : 'Cargar el pago'}
           preguntarSiLlego
+          inicial={!conDinero && c.pago_reportado_en ? { metodo: c.pago_metodo, referencia: c.pago_referencia } : undefined}
           registrar={async (metodo, monto, referencia, verificadoYa) => {
             const { data, error: err } = await supabase.rpc('abonar_pedido', {
               p_reserva_id: c.reserva_id, p_metodo: metodo, p_monto: monto,
