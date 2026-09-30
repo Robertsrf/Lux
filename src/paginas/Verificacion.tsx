@@ -409,6 +409,28 @@ export function Verificacion() {
       bien: !caja.error && (esAdmin || (caja.data?.length ?? 0) === 0),
     });
 
+    // El apartado (esquema-abonos-y-apartados.sql): cada pieza de un pedido
+    // guarda su precio congelado, y nadie lo reescribe en crudo, ni el
+    // dueño. El filtro no toca ninguna fila; se mira que niegue el permiso.
+    const precioCongelado = await supabase.from('reserva_items').update({ cantidad: 1 }).eq('id', -1);
+    resultados.push({
+      nombre: 'Reescribir el precio de un pedido',
+      esperado: 'Rechazado: se cambia solo por sus funciones',
+      obtenido: precioCongelado.error ? `Rechazado: ${precioCongelado.error.message}` : 'LO PERMITIO',
+      bien: precioCongelado.error?.code === '42501',
+    });
+
+    // Los abonos se corrigen por su función, que deja escrito el cambio.
+    const corregir = await supabase.rpc('editar_abono', {
+      p_abono_id: -1, p_metodo: 'pago_movil', p_monto: 1, p_referencia: null,
+    });
+    resultados.push({
+      nombre: 'Corregir un abono',
+      esperado: 'Responde: dice que ese abono no existe',
+      obtenido: corregir.error ? corregir.error.message : 'CORRIGIO UNO QUE NO EXISTE',
+      bien: Boolean(corregir.error && /no existe/i.test(corregir.error.message)),
+    });
+
     setPruebas(resultados);
     setCorriendo(false);
   }, [esAdmin]);

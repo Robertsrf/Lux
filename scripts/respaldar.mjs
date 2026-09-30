@@ -32,11 +32,21 @@ const TABLAS = [
   'configuracion', 'consejos', 'conteo_detalle', 'conteos', 'existencias',
   'frases', 'frases_categorias', 'grupos_precio', 'inversiones', 'kit_items',
   'kits', 'perfiles', 'reserva_items', 'reservas', 'tasas', 'textos',
+  // Faltaban: las clientas y quién movió qué pieza. Se leen directo.
+  'clientes', 'movimientos',
   'tramos_mayoreo', 'ubicaciones', 'ventas',
 ];
 
 /** Las revocadas: van por admin_respaldo(), que sí trae las filas retiradas. */
-const POR_FUNCION = ['modelos', 'lotes', 'venta_items'];
+const POR_FUNCION = [
+  'modelos', 'lotes', 'venta_items',
+  // El dinero que no se lee en crudo: los abonos y sus cambios, la caja y
+  // lo de los revendedores (sin sus sesiones, que son llaves). Ver
+  // admin_respaldo en esquema-abonos-y-apartados.sql.
+  'abonos', 'abono_cambios', 'caja_movimientos',
+  'revendedores', 'revendedor_precios', 'revendedor_clientes',
+  'apartados', 'apartado_items', 'apartado_abonos',
+];
 
 function leerEnv() {
   const f = path.join(RAIZ, '.env');

@@ -44,6 +44,7 @@ export function InicioRv() {
   const pct = t.tope_usd > 0 ? (Number(t.usado_usd) / Number(t.tope_usd)) * 100 : null;
   const mes = resumen.mes;
   const credito = Number(resumen.credito_usd);
+  const fases = resumen.fases ?? {};
 
   return (
     <div className="pagina">
@@ -54,10 +55,15 @@ export function InicioRv() {
         </div>
       </div>
 
-      {resumen.por_vencer > 0 ? (
-        <Aviso tono="alerta" titulo={resumen.por_vencer === 1 ? 'Un apartado vence en los próximos 3 días' : `${resumen.por_vencer} apartados vencen en los próximos 3 días`}>
-          Si tu clienta ya pagó, retíralo en la tienda antes de que venza; si no, cancélalo y la pieza queda libre.
-          {' '}<Link to="/rv/apartados">Ver apartados</Link>
+      {/* Lo que espera algo de él, en una frase y con el enlace. */}
+      {(fases.por_confirmar ?? 0) + (fases.por_pagar_lux ?? 0) + (fases.vendido ?? 0) > 0 ? (
+        <Aviso tono="alerta" titulo="Tienes pedidos que esperan por ti">
+          {[
+            fases.por_confirmar ? `${fases.por_confirmar} con un pago de tu clienta por confirmar` : null,
+            fases.por_pagar_lux ? `${fases.por_pagar_lux} por pagarle a Lux antes de que se venza tu plazo` : null,
+            fases.vendido ? `${fases.vendido} aprobado${fases.vendido === 1 ? '' : 's'}, por retirar en la tienda` : null,
+          ].filter(Boolean).join('; ')}.
+          {' '}<Link to="/rv/apartados">Ver pedidos</Link>
         </Aviso>
       ) : null}
 
@@ -78,7 +84,7 @@ export function InicioRv() {
             <div className="dato__valor dato__valor--grande">{formatearBcv(credito)}</div>
             {tasa && credito > 0 ? <div className="campo__pista">Hoy son {formatearBs(bsDeBcv(credito, tasa.tasa_bcv))}.</div> : null}
             <div className="campo__pista">
-              {resumen.abiertos === 1 ? '1 apartado abierto.' : `${formatearEntero(resumen.abiertos)} apartados abiertos.`}
+              {resumen.abiertos === 1 ? '1 pedido abierto.' : `${formatearEntero(resumen.abiertos)} pedidos abiertos.`}
             </div>
           </div>
         </div>
@@ -100,7 +106,7 @@ export function InicioRv() {
         titulo="Mándalo por WhatsApp"
         enlace={enlaceCatalogoRv(resumen.usuario)}
         mensaje={`Hola, te comparto mi catálogo de joyas. Aparta las que te gusten desde ahí:`}
-        pista="Tu clienta ve las piezas a tu precio y las aparta. Te aparecen en Apartados."
+        pista="Tu clienta ve las piezas a tu precio y las pide. Te aparecen en Pedidos."
       />
 
       <h2 className="seccion-titulo">Tus últimos meses</h2>
@@ -138,16 +144,23 @@ export function InicioRv() {
             etiqueta: tu clienta nunca lo encuentra más barato en la tienda.
           </li>
           <li>
-            Tu clienta aparta desde tu catálogo y la pieza queda guardada {formatearEntero(resumen.dias_apartado)} días.
-            Si no la retiras en ese plazo, vuelve sola a la tienda.
+            Tu clienta pide desde tu catálogo (o vendes tú desde <Link to="/rv/vender">Vender</Link>) y las piezas
+            quedan apartadas {formatearEntero(resumen.horas_pago ?? 0)} horas mientras te paga a ti, a tu pago móvil.
+            Cuando te avisa que pagó, siguen apartadas hasta que tú lo confirmes.
           </li>
           <li>
-            Para retirar vas a la tienda y pagas lo que te sale. Lo que tu clienta te debe a ti lo llevas en
-            {' '}<Link to="/rv/apartados">Apartados</Link>, abono por abono.
+            {resumen.dias_credito
+              ? `Puede pagarte al menos el ${formatearEntero(resumen.inicial_pct ?? 0)} % y el resto en ${formatearEntero(resumen.dias_credito)} días: es tu crédito, lo llevas en Pedidos pago por pago.`
+              : 'Sin días de crédito en Mi catálogo, tu clienta te paga el total antes de que confirmes.'}
           </li>
           <li>
-            Tu tope es cuánto puedes tener apartado a la vez. Sube cuando pagas lo que apartas; baja si se te
-            vencen {formatearEntero(resumen.vencidos_para_bajar)} apartados en {formatearEntero(resumen.dias_ventana)} días.
+            Al confirmar tienes {formatearEntero(resumen.horas_para_pagar ?? 0)} horas para pagarle a Lux lo que te
+            sale, desde <Link to="/rv/apartados">Pedidos</Link>. La tienda lo comprueba, lo aprueba y retiras tus
+            piezas. Si se te pasa el plazo, vuelven a la tienda.
+          </li>
+          <li>
+            Tu tope es cuánto puedes tener apartado a la vez. Sube cuando pagas lo que apartas; baja si
+            dejas vencer {formatearEntero(resumen.vencidos_para_bajar)} pedidos confirmados en {formatearEntero(resumen.dias_ventana)} días.
           </li>
         </ul>
       </Ayuda>

@@ -440,6 +440,43 @@ export function aplicarDescuento(subtotal: number | null, descuentoPct: number |
   return deMonto((aMonto(subtotal) * aMonto(100 - pct)) / aMonto(100));
 }
 
+/**
+ * Lo minimo para apartar, en dolares BCV: el porcentaje de la configuracion
+ * sobre el total. Solo para enseñarlo antes de guardar; la que manda es la
+ * base (`apartar_en_tienda`, `pedido_al_dia`), con la misma cuenta.
+ */
+export function minimoParaApartar(totalBcv: number, pct: number): number {
+  return deMonto((aMonto(totalBcv) * aMonto(pct)) / aMonto(100));
+}
+
+/**
+ * Cuanto falta para un plazo, en palabras cortas: "42 min", "5 h 12 min" o
+ * "3 días". Null si ya paso o no hay plazo (uno infinito llega como null).
+ * Los plazos de 2 y 24 horas del revendedor se leen en horas; los 15 dias
+ * del apartado, en dias.
+ */
+export function tiempoRestante(iso: string | null | undefined, ahora: number = Date.now()): string | null {
+  if (!iso) return null;
+  const faltan = new Date(iso).getTime() - ahora;
+  if (!Number.isFinite(faltan) || faltan <= 0) return null;
+  const minutos = Math.floor(faltan / 60000);
+  if (minutos < 60) return `${Math.max(minutos, 1)} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 48) return `${horas} h ${String(minutos % 60).padStart(2, '0')} min`;
+  const dias = Math.floor(horas / 24);
+  return `${dias} días`;
+}
+
+/** Fecha y hora cortas: "09/10/2026, 3:40 p. m.". */
+export function formatearFechaHora(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return '—';
+  return new Intl.DateTimeFormat('es-VE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(fecha);
+}
+
 /** Cuantos minutos y segundos faltan para una fecha, ya formateados. */
 export function cuentaRegresiva(iso: string | null | undefined): string | null {
   if (!iso) return null;

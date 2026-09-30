@@ -301,7 +301,7 @@ revés la pantalla enseña algo que la base todavía no hace, y en este sistema
 
 ### 8. Antes de publicar, `npm run verificar`
 
-126 comprobaciones con las dos sesiones (130 si hay `LUX_REVENDEDOR` con el
+152 comprobaciones con las dos sesiones (157 si hay `LUX_REVENDEDOR` con el
 código de un revendedor de prueba): que la vendedora no ve costos, que sí
 puede trabajar, que el administrador sí ve lo suyo y que la clienta solo ve el
 catálogo. Sale con código 1 si algo se abrió.
@@ -429,7 +429,7 @@ la podría vender. Verificar solo la marca como comprobada; si el pago no llega,
 `anular_venta_por_verificar` la anula y devuelve las piezas.
 
 ### El histórico no se borra
-`ventas`, `venta_items`, `reservas` y `reserva_items` no se borran: ni con sesión
+`ventas`, `venta_items`, `reservas`, `reserva_items`, `abonos` y `abono_cambios` no se borran: ni con sesión
 (sin permiso de `delete` ni `truncate`) ni desde el SQL Editor (el disparador
 `historico_no_se_borra`). Una venta equivocada se anula; un pedido, se cancela.
 El dueño usa las ventas por verificar como el crédito de sus clientas, y la ficha
@@ -438,14 +438,27 @@ anuladas porque el pago no llegó, que son las únicas anuladas que entran. Si u
 función nueva necesita "quitar" algo de estas tablas, lo marca; no lo borra.
 `abonos` tampoco se borra.
 
-### Una venta por partes
-`cobrar_con_abono` registra la venta por verificar con `pago_parcial` y anota el
-primer abono en la misma transacción; `registrar_abono` anota los siguientes. Lo
-que falta sale de `falta_bcv_de`, **en dólares BCV**: la deuda es en la unidad
-ancla, y un abono en bolívares se convierte a la tasa BCV del día en que llega. No
-se guarda "lo que falta" en ninguna columna: se calcula de la venta y sus abonos.
-`verificar_venta` no deja verificar mientras falte algo. Una venta por verificar
-sin `pago_parcial` se cobró completa y solo espera que alguien mire el banco.
+### El apartado: el pedido aparta, los abonos lo pagan, la venta nace al final
+Desde el 30/09/2026 (`esquema-abonos-y-apartados.sql`). Un pedido de la tienda
+o de un revendedor **aparta sin descontar** (`apartadas_de`) y guarda el precio
+congelado de cada pieza. Los abonos cuelgan del pedido (`abonos.reserva_id` o
+`apartado_id`). La venta se registra al entregar o al aprobar, **por un solo
+camino**: `vender_congelado`, con `pago_parcial` y sus abonos enlazados. Así la
+caja cuenta cada abono el día que llegó y nunca el total otra vez; un disparador
+no deja que un abono cuelgue de una venta cobrada completa.
+
+- Lo que falta sale de `saldo_padre_bcv` (y `falta_bcv_de`, `falta_pedido_bcv`),
+  **en dólares BCV**. No se guarda en ninguna columna. Lo que quedaba tras cada
+  abono sale de la vista interna `abonos_saldo`: una cuenta, un sitio.
+- La receta de un abono es `montos_de_abono`, con las tasas que se le pasen: las
+  de hoy para uno nuevo, **las del propio abono para corregirlo**.
+- Lo que reporta alguien sin sesión es un aviso (`origen` clienta o revendedor):
+  no entra a `caja_flujo` hasta que alguien lo verifica.
+- Un abono se corrige o se anula, nunca se borra, y cada cambio va a
+  `abono_cambios`. La vendedora solo toca abonos sin verificar de pedidos
+  abiertos, y nunca anula efectivo (`abono_se_puede_tocar`).
+- Las ventas por partes de antes siguen con `registrar_abono` y
+  `verificar_venta`, que ahora verifica también sus abonos.
 
 ### Claves
 La `anon key` de Supabase es pública por diseño y va en el repo sin problema. La **`service_role` key jamás entra al repo ni al navegador.**

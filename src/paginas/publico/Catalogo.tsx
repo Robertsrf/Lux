@@ -338,8 +338,9 @@ export function Catalogo() {
         </div>
 
         <p className="campo__pista">
-          Al apartar, las piezas quedan tuyas mientras pagas. El pago lo cargas
-          en la pantalla siguiente.
+          Al apartar, las piezas quedan tuyas mientras pagas. En la pantalla
+          siguiente pagas completo, o solo una parte para apartarlas unos días
+          y pagar lo demás por partes; ahí te decimos cuánto y hasta cuándo.
         </p>
 
         <div className="acciones">

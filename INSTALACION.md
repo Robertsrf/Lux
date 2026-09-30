@@ -70,6 +70,8 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 46 | `esquema-revendedores.sql` | Revendedores: su catálogo con su precio, apartados de 15 días que salen de lo libre, su panel con su código, el tope por niveles y el cobro al retirar en Pedidos |
 | 47 | `esquema-vendedoras.sql` | Las vendedoras del local, cada una con su número y su código; su meta y "Mi día" sin lo que retiran los revendedores. Necesita además la función de servidor `vendedoras` (sección 3.1) |
 | 48 | `esquema-caja.sql` | La caja: lo que sale de la tienda se anota, lo que entra (ventas y abonos) entra solo; día por día y mes por mes, por forma de pago. Solo el administrador |
+| 49 | `esquema-abonos-y-apartados.sql` | El apartado: se paga al menos el 40 % y hay 15 días para terminar (en el catálogo y en el mostrador, donde reemplaza a "Pagó una parte"); todo pedido recibe abonos con su referencia, que se corrigen con historial; el precio de cada pieza se congela al apartar; la venta nace al entregar; cerrar con dinero es del administrador (devolución a la caja). Amplía el respaldo |
+| 50 | `esquema-revendedores-plazos.sql` | El pedido del revendedor en dos plazos: 2 horas para que su clienta le pague a él (a su pago móvil), 1 día desde que él confirma para pagarle a Lux, la tienda aprueba y ahí se registra la venta a nombre de su clienta, que entra al maestro. Vender desde su panel y sus días de crédito |
 
 ### Los que NO se corren
 
@@ -159,7 +161,7 @@ npm run verificar         # comprueba que la vendedora sigue sin ver costos.
 
 Si en el entorno hay `LUX_REVENDEDOR` con el código de un revendedor de prueba,
 también entra como él y mira que su panel no traiga costos; sin la variable, esas
-cuatro se saltan. Es lo único que escribe: la sesión que abre, y la cierra al
+cinco se saltan. Es lo único que escribe: la sesión que abre, y la cierra al
 terminar.
 
 `verificar` pide los dos códigos y no escribe nada: son todo lecturas. Córrelo
@@ -185,7 +187,7 @@ con `.github/workflows/desplegar.yml`.
 
 ## Comprobar que quedó bien
 
-Abre **Verificación**, que es de administrador. Son veintinueve pruebas en vivo con
+Abre **Verificación**, que es de administrador. Son treinta y tres pruebas en vivo con
 la sesión que tengas abierta: tablas revocadas, vistas de costo, la nómina
 rechazada para todos, el maestro de clientas sin costo congelado y que
 `registrar_venta` siga siendo una sola, también para un navegador que aún no se

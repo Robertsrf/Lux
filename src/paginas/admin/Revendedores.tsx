@@ -14,7 +14,8 @@ import '../../estilos/revendedor.css';
 const REGLAS: { clave: string; etiqueta: string; pista: string }[] = [
   { clave: 'revendedor_descuento_pct', etiqueta: 'Descuento al revendedor · %', pista: 'Cuánto por debajo de la etiqueta le sale cada pieza. Nunca baja del margen mínimo de Costos.' },
   { clave: 'revendedor_sobre_etiqueta_usd', etiqueta: 'Su precio sobre la etiqueta · $ BCV', pista: 'Lo mínimo que su precio pasa del de la tienda.' },
-  { clave: 'revendedor_dias_apartado', etiqueta: 'Días de apartado', pista: 'Lo que dura un apartado antes de volver solo a la tienda.' },
+  { clave: 'revendedor_horas_pago', etiqueta: 'Horas para que su clienta le pague', pista: 'Lo que aparta un pedido de su catálogo mientras ella le paga. Al reportar el pago, espera a que él lo confirme.' },
+  { clave: 'revendedor_horas_para_pagar', etiqueta: 'Horas para pagarle a Lux', pista: 'Desde que él confirma el pago de su clienta. Si no paga todo a tiempo, las piezas vuelven a la tienda.' },
   { clave: 'revendedor_tope_inicial_usd', etiqueta: 'Tope al empezar · $ BCV', pista: 'Lo que puede tener apartado un revendedor nuevo, a su precio.' },
   { clave: 'revendedor_tope_paso_usd', etiqueta: 'Sube por nivel · $ BCV', pista: 'Cuánto crece el tope en cada nivel.' },
   { clave: 'revendedor_tope_maximo_usd', etiqueta: 'Tope más alto · $ BCV', pista: 'El techo: de aquí no pasa por niveles.' },

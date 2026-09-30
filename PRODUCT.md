@@ -25,10 +25,16 @@ Y desde septiembre de 2026, **fuera de la tienda: los revendedores.** Personas q
 dueño elige una por una para vender las joyas a su propia clientela. Cada uno tiene
 un catálogo con su nombre y su paleta ("joyas Lux by Emory" debajo), que manda por
 WhatsApp, y un panel en su teléfono: en cuánto le sale cada pieza, su precio (nunca
-menos que el de la tienda), sus apartados, lo que cada clienta le debe y lo que va
+menos que el de la tienda), sus pedidos, lo que cada clienta le debe y lo que va
 ganando. Para él el sistema es una herramienta de su negocio, no de la tienda: ve
 precios, nunca un costo, y entra con un código, no con una cuenta de la tienda.
-Retira y paga en la tienda, y entrega en persona.
+Su clienta le paga a él, a su pago móvil; él confirma y tiene un día para pagarle a
+Lux, la tienda lo aprueba y él retira. Su clienta entra al maestro de la tienda con
+esa venta. También vende desde su panel, y da a su clienta el crédito que él quiera.
+
+Y desde el 30/09/2026, **el apartado**: toda clienta puede apartar pagando una parte
+(el 40 %) y terminar de pagar en 15 días, abono por abono con su referencia; si no
+termina, lo abonado se queda. En el mostrador reemplazó a vender a crédito.
 
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el

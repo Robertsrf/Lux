@@ -4,7 +4,8 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
-  formatearPorcentaje, formatearTasa, porcentajeRebajado, rebajaMaximaPct,
+  formatearFechaHora, formatearPorcentaje, formatearTasa, minimoParaApartar, porcentajeRebajado,
+  rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
@@ -20,7 +21,7 @@ import { MoverUbicacion } from '../../componentes/MoverUbicacion';
 import { Icono } from '../../componentes/Iconos';
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
-import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
+import { METODOS_EN_DOLARES, METODOS_EN_PERSONA, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
 import type { ClienteDeVenta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 
 /*
@@ -92,10 +93,15 @@ export function Mostrador() {
   // La referencia del pago movil, la transferencia o Binance: con ella se
   // comprueba en el banco, ahora o desde Pedidos.
   const [referencia, setReferencia] = useState('');
-  // Pago solo una parte: cuanto pago ahora, en bolivares o en dolares segun
-  // la forma de pago. Lo demas lo carga quien este cuando pague, en Pedidos.
-  const [parcial, setParcial] = useState(false);
+  // Lo aparta: paga una parte (al menos el minimo), la pieza se queda en la
+  // tienda y tiene unos dias para pagar lo demas. Reemplazo a "Pago una
+  // parte", en que se la llevaba debiendo. `abono` es lo que paga ahora, en
+  // bolivares o en dolares segun la forma de pago.
+  const [aparta, setAparta] = useState(false);
   const [abono, setAbono] = useState('');
+  // Las dos cifras del apartado, de la configuracion (las ve la vendedora).
+  // Sin ellas no se ofrece apartar: no se inventa un minimo.
+  const [reglaApartado, setReglaApartado] = useState<{ pct: number; dias: number } | null>(null);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
   const edicionCancelada = useRef(false);
 
@@ -110,6 +116,17 @@ export function Mostrador() {
   }, []);
 
   useEffect(() => { void cargarMeta(); }, [cargarMeta]);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('configuracion').select('clave, valor').in('clave', ['apartado_inicial_pct', 'apartado_dias']);
+      const mapa = new Map(((data as { clave: string; valor: number }[] | null) ?? []).map((c) => [c.clave, Number(c.valor)]));
+      const pct = mapa.get('apartado_inicial_pct');
+      const dias = mapa.get('apartado_dias');
+      setReglaApartado(pct && dias ? { pct, dias } : null);
+    })();
+  }, []);
 
   // El mostrador arranca en la primera vitrina, no en la bodega.
   useEffect(() => {
@@ -255,50 +272,81 @@ export function Mostrador() {
    */
   async function confirmar(porVerificar: boolean) {
     if (!metodo) return;
-    // Lo que falta se dice con las cifras de antes de cobrar: despues, el
-    // carrito ya esta vacio.
-    const falta = parcial ? faltaDeLaVenta() : null;
     const r = await carrito.cobrar(metodo, 'detal', cliente, {
-      porVerificar: porVerificar || parcial,
+      porVerificar,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
-      abono: parcial ? Number(abono.replace(',', '.')) : null,
     });
     if (r.ok) {
       const quien = cliente && nombreCliente ? ` a nombre de ${nombreCliente}` : '';
-      setExito(falta
-        ? `Venta ${r.ventaId}${quien} registrada con un abono de ${formatearBs(falta.abonoBs)}. `
-          + `Faltan ${formatearBcv(falta.falta)}, hoy ${formatearBs(falta.faltaBs)}: queda en Pedidos, `
-          + 'y ahí se carga el otro abono cuando pague.'
-        : porVerificar
-          ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
-          : `Venta registrada${quien}. Numero ${r.ventaId}.`);
-      setReferencia('');
-      setParcial(false);
-      setAbono('');
-      setMetodo(null);
-      setCliente(null);
-      setNombreCliente(null);
-      setSinCliente(false);
-      setPaso('venta');
-      await Promise.all([cargar(), cargarMeta()]);
+      setExito(porVerificar
+        ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
+        : `Venta registrada${quien}. Numero ${r.ventaId}.`);
+      await despuesDeCobrar();
     }
   }
 
   /**
-   * Si paga solo una parte: cuanto abona y cuanto falta, con la misma cuenta
-   * que hace la base con el primer abono (`anotar_abono`). Lo que falta va en
-   * dolares BCV, la unidad ancla, y en bolivares a la tasa de hoy: si paga
-   * lo demas otro dia, son los mismos dolares a la tasa de ese dia. Null
-   * mientras no haya un monto con que calcularlo.
+   * Apartar: paga una parte, la pieza se queda. Con `verificado`, quien
+   * cobra ya vio el pago en el banco (en efectivo o punto siempre lo está).
    */
-  function faltaDeLaVenta() {
+  async function apartarAhora(verificado: boolean) {
+    if (!metodo || !cliente) return;
+    const previa = cuentaDelApartado();
+    const r = await carrito.apartar(cliente, {
+      metodo,
+      monto: Number(abono.replace(',', '.')),
+      referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
+      verificado,
+    });
+    if (r.ok) {
+      const falta = Number(r.falta_bcv);
+      setExito(`Apartado a nombre de ${nombreCliente ?? 'la clienta'}, con ${previa ? formatearBs(previa.abonoBs) : 'su pago'}. `
+        + `Faltan ${formatearBcv(falta)}${tasa ? `, hoy ${formatearBs(bsDeBcv(falta, tasa.tasa_bcv))}` : ''}. `
+        + `Tiene hasta el ${formatearFechaHora(r.vence_apartado_en)} para pagar lo demás; si no, pierde lo abonado y las `
+        + 'piezas vuelven a la venta. Guárdalas aparte con su nombre: el apartado queda en Pedidos.');
+      await despuesDeCobrar();
+    }
+  }
+
+  async function despuesDeCobrar() {
+    setReferencia('');
+    setAparta(false);
+    setAbono('');
+    setMetodo(null);
+    setCliente(null);
+    setNombreCliente(null);
+    setSinCliente(false);
+    setPaso('venta');
+    await Promise.all([cargar(), cargarMeta()]);
+  }
+
+  /**
+   * Si lo aparta: el mínimo, cuánto paga ahora y cuánto falta, con la misma
+   * cuenta que la base (`apartar_en_tienda`). Lo que falta va en dólares
+   * BCV, la unidad ancla, y en bolívares a la tasa de hoy: si paga lo demás
+   * otro día, son los mismos dólares a la tasa de ese día. Null mientras no
+   * haya con qué calcularlo.
+   */
+  function cuentaDelApartado() {
     const totalBcv = carrito.totales.totalBcv;
+    if (!tasa || !metodo || totalBcv === null || !reglaApartado) return null;
+    const minimo = minimoParaApartar(totalBcv, reglaApartado.pct);
     const monto = Number(abono.replace(',', '.'));
-    if (!tasa || !metodo || totalBcv === null || !Number.isFinite(monto) || monto <= 0) return null;
-    const pagado = abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa);
-    const { falta, pasa } = faltaTrasAbono(totalBcv, pagado.bcv);
+    const hay = Number.isFinite(monto) && monto > 0;
+    const pagado = hay ? abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa) : null;
+    const { falta, pasa } = faltaTrasAbono(totalBcv, pagado?.bcv ?? 0);
     const faltaBs = bsDeBcv(falta, tasa.tasa_bcv);
-    return { abonoBs: pagado.bs, falta, faltaBs, faltaBinance: binanceDesdeBs(faltaBs, tasa.tasa_venta), pasa };
+    return {
+      hay,
+      minimo,
+      minimoBs: bsDeBcv(minimo, tasa.tasa_bcv),
+      abonoBs: pagado?.bs ?? 0,
+      llega: pagado !== null && pagado.bcv >= minimo - 0.005,
+      falta,
+      faltaBs,
+      faltaBinance: binanceDesdeBs(faltaBs, tasa.tasa_venta),
+      pasa,
+    };
   }
 
   function aplicarPrecio(modeloId: number, ubicacionIdLinea: number, valor: string) {
@@ -318,9 +366,11 @@ export function Mostrador() {
     const rebajasIgnoradas = conTramo && carrito.lineas.some((l) => l.precio_manual_usd !== null);
     const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente)
       && !carrito.cobrando && carrito.lineas.length > 0;
-    const previa = parcial ? faltaDeLaVenta() : null;
-    // Una parte de verdad: algo, y menos que el total.
-    const abonoValido = previa !== null && !previa.pasa && previa.falta > 0;
+    const previa = aparta ? cuentaDelApartado() : null;
+    // Un apartado de verdad: con la clienta, al menos el minimo, y menos
+    // que el total (pagado entero es una venta, no un apartado).
+    const apartadoValido = previa !== null && previa.llega && !previa.pasa && previa.falta > 0 && Boolean(cliente);
+    const enPersona = metodo !== null && METODOS_EN_PERSONA.includes(metodo);
 
     return (
       <div className="pagina pagina--angosta mostrador">
@@ -510,24 +560,29 @@ export function Mostrador() {
           </p>
         ) : null}
 
-        {/* Todo o una parte. Una parte deja la venta por verificar,
-            diciendo cuanto falta; lo demas se carga en Pedidos, abono por
-            abono, cada uno con su referencia. */}
-        {metodo ? (
-          <div className="metodos-pago cobro-parte" role="group" aria-label="Cuánto pagó">
-            <button type="button" aria-pressed={!parcial} onClick={() => setParcial(false)}>
+        {/* Se lo lleva o lo aparta. Apartar: paga al menos el minimo, la
+            pieza se queda aqui y tiene unos dias para pagar lo demas; si no,
+            pierde lo abonado. Lo demas se carga en Pedidos, abono por abono. */}
+        {metodo && reglaApartado ? (
+          <div className="metodos-pago cobro-parte" role="group" aria-label="Se lo lleva o lo aparta">
+            <button type="button" aria-pressed={!aparta} onClick={() => setAparta(false)}>
               Pagó todo
             </button>
-            <button type="button" aria-pressed={parcial} onClick={() => setParcial(true)}>
-              Pagó una parte
+            <button type="button" aria-pressed={aparta} onClick={() => setAparta(true)}>
+              Lo aparta
             </button>
           </div>
         ) : null}
 
-        {metodo && parcial ? (
+        {metodo && aparta && reglaApartado ? (
           <div style={{ marginTop: 'var(--e-4)' }}>
+            <p className="cobro-dolares">
+              Para apartar paga al menos el {reglaApartado.pct} %: <strong>{previa ? formatearBs(previa.minimoBs) : '—'}</strong>
+              {previa ? <> ({formatearBcv(previa.minimo)})</> : null}. Tiene {reglaApartado.dias} días para pagar lo demás;
+              {' '}si no, pierde lo abonado y las piezas vuelven a la venta.
+            </p>
             <Campo
-              etiqueta={enDolares ? 'Cuánto pagó ahora · $' : 'Cuánto pagó ahora · Bs'}
+              etiqueta={enDolares ? 'Cuánto paga ahora · $' : 'Cuánto paga ahora · Bs'}
               htmlFor="cobro-abono"
               pista={enDolares
                 ? 'En dólares. Se pasa a bolívares a la tasa Binance de hoy.'
@@ -547,7 +602,7 @@ export function Mostrador() {
         {metodo && PIDE_REFERENCIA.includes(metodo) ? (
           <div style={{ marginTop: 'var(--e-4)' }}>
             <Campo
-              etiqueta={parcial ? 'Referencia de este abono' : 'Referencia del pago'}
+              etiqueta={aparta ? 'Referencia de este pago' : 'Referencia del pago'}
               htmlFor="cobro-referencia"
               pista="Opcional. Con ella se comprueba en el banco, ahora o desde Pedidos."
             >
@@ -564,33 +619,48 @@ export function Mostrador() {
 
         {/* Lo que falta, dicho antes de cobrar: es lo que ella le dice a
             la clienta. En dolares BCV y en bolivares de hoy. */}
-        {previa && parcial ? (
+        {previa && previa.hay && aparta ? (
           previa.pasa || previa.falta === 0 ? (
             <p className="campo__error" role="alert">
               {previa.pasa
-                ? `Eso es más que el total de la venta, ${formatearBs(t.totalBs)}.`
-                : 'Eso ya es el total: toca "Pagó todo".'}
+                ? `Eso es más que el total, ${formatearBs(t.totalBs)}.`
+                : 'Eso ya es el total: toca "Pagó todo" y regístrala como venta.'}
+            </p>
+          ) : !previa.llega ? (
+            <p className="campo__error" role="alert">
+              No llega al mínimo para apartar: {formatearBs(previa.minimoBs)}.
             </p>
           ) : (
             <p className="cobro-dolares" aria-live="polite">
-              Faltan <strong>{formatearBcv(previa.falta)}</strong>, hoy <strong>{formatearBs(previa.faltaBs)}</strong>
+              Faltarán <strong>{formatearBcv(previa.falta)}</strong>, hoy <strong>{formatearBs(previa.faltaBs)}</strong>
               {enDolares ? <> ({formatearBinance(previa.faltaBinance)})</> : null}.
-              {' '}Queda en Pedidos por verificar; cuando pague lo demás, se carga ahí el otro
-              abono con su referencia.
+              {' '}Queda en Pedidos, y ahí se carga cada abono con su referencia.
             </p>
           )
         ) : null}
 
-        {parcial ? (
+        {aparta ? (
           <div className="acciones">
             <button
               type="button"
               className="boton boton--confirmar"
-              disabled={!listoParaCobrar || !abonoValido}
-              onClick={() => void confirmar(true)}
+              disabled={!listoParaCobrar || !apartadoValido}
+              onClick={() => void apartarAhora(true)}
             >
-              {carrito.cobrando ? 'Registrando' : 'Registrar el abono'}
+              {carrito.cobrando ? 'Apartando' : 'Apartar'}
             </button>
+            {/* Un pago movil que todavia no se ve en el banco no detiene el
+                apartado: queda por verificar en Pedidos. */}
+            {!enPersona ? (
+              <button
+                type="button"
+                className="boton boton--secundario"
+                disabled={!listoParaCobrar || !apartadoValido}
+                onClick={() => void apartarAhora(false)}
+              >
+                Apartar, pago por verificar
+              </button>
+            ) : null}
             <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
               Seguir agregando
             </button>
@@ -624,7 +694,7 @@ export function Mostrador() {
             </button>
           </div>
         )}
-        {listoParaCobrar && !parcial ? (
+        {listoParaCobrar && !aparta ? (
           <p className="campo__pista">
             "Dejar por verificar" registra la venta y la manda a Pedidos con tu nombre, para que
             tú u otra persona compruebe el pago después.
@@ -644,12 +714,12 @@ export function Mostrador() {
               ? 'Falta decir quién se lo lleva. Si no quiere dar sus datos, toca "Cobrar sin registrarla".'
               : 'Falta elegir cómo paga.'}
           </p>
-        ) : parcial && !previa ? (
-          <p className="campo__pista">Falta escribir cuánto pagó ahora.</p>
-        ) : parcial && sinCliente ? (
+        ) : aparta && sinCliente ? (
           <p className="campo__pista">
-            Sin el nombre de la clienta, lo que debe no queda en su ficha: búscala arriba.
+            Un apartado va a nombre de alguien: búscala arriba o regístrala con su cédula.
           </p>
+        ) : aparta && !previa?.hay ? (
+          <p className="campo__pista">Falta escribir cuánto paga ahora.</p>
         ) : null}
       </div>
     );

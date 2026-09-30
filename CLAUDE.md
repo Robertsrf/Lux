@@ -67,7 +67,11 @@ src/
                 (la hoja de medidas), TusDatos (el pedido público empieza por
                 la cédula), MoverUbicacion (pasar piezas de una ubicación a
                 otra), CargarAbono (un abono en dólares BCV, de la tienda y
-                del revendedor), Graficos, Progreso, Recordatorio,
+                del revendedor), ListaAbonos (cada abono con lo que quedaba
+                después, verificar, corregir con historial y "no llegó"),
+                ReportarPago (un pago a distancia con su referencia, sin
+                sesión o del revendedor), PagoMovil (datos para copiar, de
+                Lux o del revendedor), Graficos, Progreso, Recordatorio,
                 CompartirCatalogo, BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
@@ -78,7 +82,8 @@ src/
     revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
                 (/apartado/:token)         (sin sesión, como el catálogo)
                 EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
-                InicioRv, ApartadosRv, ClientesRv, PreciosRv, MiCatalogoRv
+                InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
+                ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
                                            (con SU código, no con Supabase)
     Vitrina                                (sin sesión, como el catálogo)
     Clientes, Tasas, CatalogoPdf, Entrar, Verificacion   (las de las dos caras)
@@ -139,7 +144,11 @@ completa y cada archivo dice en su cabecera de qué depende.
 `existencias` · `ventas` · `venta_items` · `clientes` · `reservas` ·
 `reserva_items` · `tramos_mayoreo` · `configuracion` · `conteos` · `inversiones` ·
 `frases` · `movimientos` (quién movió qué pieza de una ubicación a otra) ·
-`abonos` (cada pago de una venta cobrada por partes) · `caja_movimientos` (lo que
+`abonos` (cada pago de un pedido de la tienda, de lo que un revendedor le paga
+a Lux o de una venta por partes de antes; verificado o no, anulado si no llegó,
+nunca borrado) · `abono_cambios` (lo que decía un abono antes de cada
+corrección, quién y por qué; revocada, se lee por `v_abono_cambios`) ·
+`caja_movimientos` (lo que
 sale de la tienda, y lo que entra sin ser venta, anotado por el dueño; revocada
 a todos, se lee por `v_caja`, se anula y no se borra).
 Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
@@ -151,9 +160,13 @@ antes.
 De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
 funciones): `revendedores` (con la huella de su código, nunca el código) ·
 `revendedor_sesiones` · `revendedor_precios` (el que él le pone a cada pieza) ·
-`revendedor_clientes` (sus clientas, que no son las del maestro) · `apartados` ·
-`apartado_items` (los tres precios congelados: etiqueta, lo que paga a Lux y lo
-que cobra a su clienta) · `apartado_abonos` (lo que su clienta le paga a ÉL).
+`revendedor_clientes` (sus clientas; entran al maestro de la tienda cuando se
+aprueba su pedido) · `apartados` (su pedido: `expira_en` es el plazo de la fase
+en que va) · `apartado_items` (los tres precios congelados: etiqueta, lo que
+paga a Lux y lo que cobra a su clienta) · `apartado_abonos` (lo que su clienta
+le paga a ÉL; lo que ella reporta es un aviso hasta que él lo confirma).
+`reservas` y `reserva_items` guardan el precio congelado de cada pieza y ya no
+se escriben con ninguna sesión: solo por sus funciones.
 `apartados`, sus líneas y sus abonos no se borran, como las ventas.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
 
@@ -167,14 +180,16 @@ que cobra a su clienta) · `apartado_abonos` (lo que su clienta le paga a ÉL).
 | `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()` | solo admin |
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
-| `v_pedido_vendedora` | Los pedidos del catálogo que siguen abiertos, con dónde está cada pieza | vendedora y admin |
+| `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
+| `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
+| `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
 | `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia y, si es por partes, cuánto falta | vendedora y admin |
 | `v_abonos` | Cada abono de una venta por partes: cuándo, cómo, cuánto, la referencia y quién lo cargó | vendedora y admin |
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
 | `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo o revendedor) y quién | solo admin |
-| `v_apartados_revendedor` | Los apartados de revendedores que se pueden retirar hoy: lo que él paga y dónde está cada pieza. Nada de lo que él cobra a su clienta | vendedora y admin |
+| `v_apartados_revendedor` | Los pedidos de revendedores desde que él confirma: su fase, lo que le paga a Lux, lo pagado y lo que falta, la clienta (cédula y teléfono) y dónde está cada pieza; los aprobados hasta que se los lleva. Nada de lo que él cobra a su clienta | vendedora y admin |
 | `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
 | `v_caja` | Cada movimiento anotado en la caja, con quién lo anotó y, si se anuló, quién y por qué | solo admin |
@@ -190,11 +205,32 @@ Toda operación que toque varias tablas va en una RPC transaccional, no en tres
 llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `mover_existencia`,
 `verificar_venta`, `anular_venta_por_verificar`, `cobrar_pedido`,
-`cancelar_pedido`, `cobrar_con_abono`, `registrar_abono`, `admin_guardar_modelo`,
+`cancelar_pedido`, `cobrar_con_abono` (ya no la llama la pantalla),
+`registrar_abono`, `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`,
-`cobrar_apartado` (el revendedor retira y paga, de las dos caras),
+`cobrar_apartado` (la del navegador viejo: pasa por la aprobación),
 `admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
 `admin_anotar_caja`, `admin_anular_caja`.
+
+Las del apartado (`esquema-abonos-y-apartados.sql`): `apartar_en_tienda` (el
+mostrador aparta), `abonar_pedido`, `entregar_pedido` (la venta nace aquí, con
+los precios congelados), `editar_abono`, `anular_abono`, `verificar_abono`
+(cada cambio queda en `abono_cambios`), `cerrar_pedido_vencido` (archiva un
+apartado vencido: el dinero se queda) y `admin_cerrar_pedido` (cerrar con
+dinero: se devuelve, y sale de la caja como "devolución", o se queda). Sin
+sesión, `reportar_abono` (la clienta reporta un pago desde su enlace). Las del
+pedido del revendedor en la tienda (`esquema-revendedores-plazos.sql`):
+`abonar_apartado`, `aprobar_apartado` (registra la venta a nombre de su
+clienta), `marcar_entregado` y `admin_cerrar_apartado`.
+
+Por dentro, revocadas: `precio_de_linea` (el tramo y el regateo, la regla de
+`registrar_venta`, `crear_reserva` y `apartar_en_tienda`), `vender_congelado`
+(la única que registra una venta con precios que no son los de hoy),
+`anotar_abono_en` y `montos_de_abono` (la receta de un abono), `pedido_al_dia`
+y `apartado_al_dia` (mueven el plazo), `cliente_de_revendedor`. Lo que falta
+sale de `saldo_padre_bcv` (y de `falta_bcv_de`, `falta_pedido_bcv`); la fase, de
+`fase_pedido` y `rv_fase_de`; lo que quedaba tras cada abono, de las vistas
+internas `abonos_saldo` y `apartado_abonos_saldo`.
 
 `caja_flujo(desde, hasta)` es la única regla de qué dinero entró y salió: las
 ventas cobradas completas por su total, las ventas por partes abono por abono y
@@ -212,11 +248,14 @@ Solo actúa sobre perfiles `vendedora`. Su receta de contraseña es la de
 Las del revendedor se llaman `rv_*` y reciben `p_sesion` delante: `rv_entrar`
 (código → testigo), `rv_salir`, `rv_resumen`, `rv_piezas`, `rv_fijar_precios`,
 `rv_apartados`, `rv_abonar`, `rv_cancelar_apartado`, `rv_clientes`,
-`rv_guardar_cliente`, `rv_ajustes`. Todas empiezan por `rv_de_sesion(p_sesion)`,
+`rv_guardar_cliente`, `rv_ajustes`, `rv_confirmar`, `rv_revisar_pago`,
+`rv_pagar_lux`, `rv_vender` y `rv_datos_pago` (su pago móvil y sus días de
+crédito; aparte de `rv_ajustes` para que el navegador viejo no los borre).
+Todas empiezan por `rv_de_sesion(p_sesion)`,
 que dice quién es o lanza el error `28000`. Las de su catálogo no llevan testigo:
 `rv_perfil_publico`, `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
 con las mismas claves que `buscar_cliente_publico`), `rv_apartar`,
-`rv_ver_apartado`.
+`rv_ver_apartado` y `rv_reportar_pago` (su clienta le avisa que pagó).
 
 Tres fórmulas, una vez cada una, revocadas a todos: `rv_precio_lux(modelo, %)` (la
 etiqueta menos su descuento, sin bajar de `piso_margen_de`, al centavo hacia
@@ -231,9 +270,13 @@ partes, en dólares BCV. La leen `v_ventas_por_verificar`, `v_cliente_compras`,
 antes de guardar (`abonoEnBcv`, `faltaTrasAbono` de `lib/dinero.ts`).
 
 `apartadas_de(modelo)` es la única regla de qué piezas aparta un pedido: el
-abierto que no ha vencido y el pagado que todavía no se cobró ni se canceló, y el
-apartado de un revendedor que sigue abierto y no ha vencido. La usan el catálogo
-público, `crear_reserva`, `cobrar_pedido`, `rv_apartar` y `cobrar_apartado`.
+abierto que no ha vencido; el confirmado mientras esté pagado (con dinero
+verificado), mientras le corra su plazo de apartado o si es de antes del
+apartado; y el pedido de un revendedor que sigue abierto y cuyo `expira_en` no
+ha pasado (ese plazo ya es el de su fase). Sin sumar abonos: mira columnas que
+mantienen `pedido_al_dia` y `apartado_al_dia`, porque se evalúa por cada pieza
+del catálogo público. La usan el catálogo público, `crear_reserva`,
+`cobrar_pedido`, `apartar_en_tienda`, `rv_apartar` y la entrega.
 
 `admin_guardar_modelo` recibe también `p_variantes`: la tabla de variantes del
 formulario entera, que `guardar_variantes_de` (revocada, por dentro) guarda en la
@@ -378,15 +421,37 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   `textos` (`pago_movil_cedula`, `pago_movil_telefono`, `pago_movil_banco`) y se
   cambian en Textos. La página del pedido los enseña con un botón de copiar cada
   uno; se copian limpios (solo dígitos, y del banco solo el código).
-- **Pagar por partes.** En el cobro, "Pagó una parte": cuánto pagó ahora y la
-  referencia. La venta se registra por verificar (`cobrar_con_abono`, con
-  `ventas.pago_parcial`) diciendo cuánto falta, y en Pedidos se carga cada abono
-  siguiente con su referencia (`registrar_abono`). No se verifica mientras falte
-  algo. **Lo que falta se cuenta en dólares BCV**: una venta de Bs 1.000 a tasa
-  100 son $10; si abona Bs 400 faltan $6, que a tasa 110 son Bs 660. Un abono en
-  dólares se pasa a bolívares a la tasa Binance del día. Tolerancia: medio centavo
-  de dólar BCV, o un centavo de dólar si paga en dólares. Los abonos no se
-  borran, como las ventas.
+- **El apartado** (decisión del dueño del 30/09/2026). Toda clienta puede
+  apartar pagando al menos `apartado_inicial_pct` (40 %) de su pedido; tiene
+  `apartado_dias` (15) para pagar lo demás, abono por abono con su referencia.
+  Si no termina a tiempo, **lo abonado no se devuelve** y las piezas vuelven a
+  la venta solas. Vale en el catálogo (la clienta reporta sus pagos desde su
+  enlace, `reportar_abono`) y en el mostrador, donde **reemplazó a "Pagó una
+  parte"**: ya no se vende a crédito (la pieza se llevaba debiendo); con
+  "Lo aparta" la pieza se queda (`apartar_en_tienda`). Las ventas por partes
+  que ya existían siguen recibiendo abonos hasta pagarse.
+  - **El pedido aparta, los abonos lo pagan, la venta nace al entregar.** Los
+    precios se congelan al apartar (`reserva_items.precio_usd`); `entregar_pedido`
+    registra la venta con ellos, `pago_parcial`, y le enlaza los abonos: la caja
+    cuenta cada abono el día que llegó y nunca el total otra vez. Se entrega solo
+    con todo el dinero verificado.
+  - **Lo que reporta alguien sin sesión es un aviso**, no dinero: no entra a la
+    caja hasta que alguien de la tienda lo verifica ("Llegó"). El efectivo y el
+    punto no se reportan: los carga la tienda, y quedan verificados.
+  - **Lo que falta se cuenta en dólares BCV**: un pedido de $10 a tasa 100 son
+    Bs 1.000; si abona Bs 400 faltan $6, que a tasa 110 son Bs 660. Un abono en
+    dólares se pasa a bolívares a la tasa Binance del día. Tolerancia: medio
+    centavo de dólar BCV, o un centavo de dólar si paga en dólares.
+  - **Los abonos se corrigen, no se borran.** La tienda corrige (`editar_abono`)
+    o dice que no llegó (`anular_abono`) un abono SIN verificar mientras su
+    pedido siga abierto; verificado o cerrado, solo el administrador. La
+    vendedora no anula un abono en efectivo ni lo pasa a otra forma de pago (el
+    efectivo es lo que se puede esconder). Se recalcula con las tasas del día
+    del abono. Cada cambio queda en `abono_cambios` y Pedidos lo enseña.
+  - **Cancelar con dinero es del administrador** (`admin_cerrar_pedido`,
+    `admin_cerrar_apartado`): se devuelve (sale de la caja como "Devolución",
+    el día que se devuelve) o se queda. Un apartado vencido lo archiva
+    cualquiera: el dinero se queda, como dice la regla.
 - **La caja** (pedida por el dueño el 27/09/2026). Lo que entra y lo que sale de
   la tienda, día por día y mes por mes, en la pantalla Caja del administrador.
   **Lo que entra no se anota: entra solo** (ventas y abonos, por `caja_flujo`);
@@ -395,16 +460,21 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   en bolívares a la tasa Binance y en dólares BCV, con **la tasa del día del
   movimiento**, no la de hoy. Por forma de pago en su moneda, para cuadrar la
   gaveta, y el total en $ BCV y bolívares. Las categorías son una lista fija, en
-  `caja_categoria_valida()` y en `CATEGORIAS_CAJA` a la vez. **No es la
+  `caja_categoria_valida()` y en `CATEGORIAS_CAJA` a la vez (con "devolucion",
+  la que anota sola `admin_cerrar_pedido` al devolver un pedido con dinero).
+  Los abonos entran solos, sin anular y, si los reportó alguien sin sesión,
+  solo después de verificarse. **No es la
   ganancia** (esa sigue en Reportes) **ni toca Costos**: los precios siguen
   saliendo de los gastos fijos que el dueño escribe allí. Uno es el plan, el
   otro es lo que pasó. Solo el administrador; se anula, no se borra.
-- **Los pedidos del catálogo se cierran.** En Pedidos se cobran (`cobrar_pedido`
-  registra la venta con sus piezas, de donde haya existencia) o se cancelan. Uno
-  pagado sigue apartando sus piezas hasta que se cierra.
+- **Los pedidos se cierran.** En Pedidos se entregan (`entregar_pedido`, con las
+  piezas de donde haya existencia) o se cancelan. Uno pagado sigue apartando sus
+  piezas hasta que se entrega. Los de antes del apartado (sin precio congelado)
+  se siguen cobrando completos con `cobrar_pedido`; esa misma función, con un
+  pedido nuevo, pasa por `entregar_pedido`: hay un solo camino de pedido a venta.
 - **Lo apartado no se vende en el mostrador.** Un pedido dice "2 de esta cadena",
   no de dónde; lo apartado se asigna a las ubicaciones empezando por donde hay más
-  (normalmente la bodega), que es el mismo orden en que `cobrar_pedido` las toma.
+  (normalmente la bodega), que es el mismo orden en que la entrega las toma.
   `v_existencia_libre` hace el reparto; `v_venta_ubicacion.cantidad` es lo LIBRE
   (con `existencia` y `apartadas` al final) y `registrar_venta` no deja vender lo
   apartado. Mover una pieza apartada sí se puede: sigue siendo del pedido.
@@ -431,19 +501,36 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   - **Lo que cobra:** lo pone él, nunca menos que la etiqueta más
     `revendedor_sobre_etiqueta_usd` ($0,10). No le hace la competencia a la tienda.
     Si la etiqueta sube por encima de su precio, manda el mínimo.
-  - **Apartar:** su clienta aparta desde `/#/r/<usuario>`; las piezas salen de lo
-    libre (`apartadas_de`) hasta `revendedor_dias_apartado` (15) días. Vencido no
-    se guarda: se calcula. Él lo cancela a tiempo o vence solo.
-  - **Dos deudas, separadas.** Lo que su clienta le paga a él lo lleva en su panel
-    (`apartado_abonos`, en dólares BCV como `abonos`). Lo que él le paga a Lux se
-    cobra al retirar, en Pedidos: `cobrar_apartado` registra la venta tipo `mayor`
-    a su precio, con `revendedor_id` y `motivo_rebaja = 'revendedor'`. Él entrega
-    en persona.
+  - **El pedido, en dos plazos** (decisión del 30/09/2026, en la cabecera de
+    `esquema-revendedores-plazos.sql`). Su clienta pide desde `/#/r/<usuario>`
+    (o él vende desde su panel, `rv_vender`) y las piezas salen de lo libre
+    `revendedor_horas_pago` (2) horas mientras ella le paga A ÉL, a su pago
+    móvil. Cuando ella reporta el pago, las piezas siguen apartadas **hasta que
+    él confirme** (el dueño lo eligió así: la clienta que pagó no pierde sus
+    piezas). Al confirmar (`rv_confirmar`) el pedido llega a Pedidos y él tiene
+    `revendedor_horas_para_pagar` (24) horas para pagarle a Lux, en uno o varios
+    pagos (`rv_pagar_lux`). La tienda lo comprueba y lo **aprueba**
+    (`aprobar_apartado`): ahí se registra la venta tipo `mayor` a su precio, con
+    `revendedor_id`, `motivo_rebaja = 'revendedor'` y **a nombre de su clienta**,
+    que entra al maestro si no estaba (sin tocar la ficha si estaba); la pieza
+    sale del inventario y queda por entregar hasta que él se la lleva
+    (`marcar_entregado`). Si se le pasa el día con un pago parcial, el pedido
+    vence y el administrador decide si se le devuelve: pagar un centavo no aparta
+    para siempre.
+  - **`expira_en` es el plazo de la fase** (infinito mientras espera que alguien
+    confirme un pago), así las comprobaciones de siempre siguen bien. Lo mueve
+    `apartado_al_dia`; la fase la dice `rv_fase_de`.
+  - **Dos deudas, separadas.** Lo que su clienta le paga a él lo lleva en su
+    panel (`apartado_abonos`, en dólares BCV). Apartado para su clienta: al menos
+    el 40 % y el plazo que él fija en su panel (`revendedores.dias_credito`; sin
+    él, su clienta paga todo). Es su crédito: a Lux le paga todo en el día igual.
   - **El tope:** cuánto puede tener apartado a la vez, a lo que le paga a Lux.
     Empieza en $100, sube $50 por nivel hasta $200 cuando ha retirado y pagado dos
     veces la suma de sus topes anteriores ($200 para el 2, $500 para el 3), y baja
-    un nivel mientras tenga dos vencidos en 30 días. Todo en `configuracion`,
-    `revendedor_*`, y se cambia en Revendedores. El dueño puede fijarle uno a mano.
+    un nivel mientras tenga dos vencidos en 30 días. Para bajar cuentan solo los
+    que él dejó vencer después de confirmar, no los que su clienta no pagó en dos
+    horas. Todo en `configuracion`, `revendedor_*`, y se cambia en Revendedores.
+    El dueño puede fijarle uno a mano.
   - **No tiene sesión de Supabase, y no debe tenerla nunca.** Toda la base da por
     hecho que tener sesión es ser de la tienda (`existencias` acepta cambios de
     cualquier sesión, `clientes` se lee entera). Entra con un código de doce
@@ -458,12 +545,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 126 comprobaciones con las dos sesiones (130 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 152 comprobaciones con las dos sesiones (157 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y una
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y tres
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -512,6 +599,20 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   cambia `--texto` ahí dentro. Por eso `.tema-rv` vuelve a derivar los tokens de
   texto y sombra, y `.tema-rv--lux` está en el bloque de `:root` de `tokens.css`: sin
   eso, la muestra "Lux" salía del color de la página donde estaba.
+- **Dos caminos a la venta cuentan dos veces en la caja.** La caja cuenta el
+  total de una venta cobrada completa, y abono por abono la de por partes. Si
+  un pedido con abonos se cerrara por el `cobrar_pedido` de antes (una venta
+  "completa"), su dinero entraría dos veces. Por eso hay UN camino de pedido a
+  venta (`vender_congelado`, detrás de `entregar_pedido` y `aprobar_apartado`),
+  las funciones viejas pasan por él, y un disparador en `abonos` no deja que un
+  abono cuelgue de una venta que no sea por partes. Se vio en la revisión del
+  30/09/2026, antes de publicar.
+- **Una vista tampoco presta permiso a las funciones que llama por dentro.**
+  `v_pedido_vendedora` y `v_abonos_detalle` usan `saldo_padre_bcv` y
+  `total_padre_bcv`: si esas se revocan a `authenticated`, Pedidos entero
+  responde "permission denied". Las que no llevan costo se abren a la tienda;
+  las que sí (`precio_de_linea`, con el costo de la pieza) se quedan cerradas y
+  solo las llaman funciones de definidor.
 - **Dos erratas viejas impedían instalar desde cero**, y nadie lo sabía porque en
   producción ya estaba todo corrido: un `$` suelto en `esquema-fase2.sql` y la
   palabra `creoq` al principio de `esquema-descuentos.sql` (corregidas en

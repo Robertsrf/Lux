@@ -162,6 +162,14 @@ export const METODOS_EN_DOLARES: readonly MetodoPago[] = ['efectivo_usd', 'binan
 /** Las formas de pago que dejan un numero de referencia para buscar en el banco. */
 export const PIDE_REFERENCIA: readonly MetodoPago[] = ['pago_movil', 'transferencia', 'binance'];
 
+/**
+ * Las que se pagan en persona: el dinero esta en la mano, asi que un abono
+ * asi queda verificado al cargarlo, y nadie sin sesion puede reportarlo.
+ * La base tiene la misma lista en `abonar_pedido`, `reportar_abono` y
+ * compania (esquema-abonos-y-apartados.sql).
+ */
+export const METODOS_EN_PERSONA: readonly MetodoPago[] = ['efectivo_bs', 'efectivo_usd', 'punto'];
+
 /** Vista v_venta_ubicacion: existencia por ubicacion, sin una sola cifra de costo. */
 export interface ModeloEnUbicacion {
   ubicacion_id: number;
@@ -360,6 +368,34 @@ interface ItemReserva {
 type FormaEntrega = 'tienda' | 'envio';
 type EmpresaEnvio = 'domesa' | 'mrw';
 
+/**
+ * En que va un pedido de la tienda: la regla es `fase_pedido` de la base.
+ *   esperando_pago  recien hecho, dentro de sus minutos
+ *   reportado       pedido de antes del apartado, con el pago reportado sin monto
+ *   apartado        pago al menos el minimo; le corre su plazo
+ *   pagado          pagado entero con dinero verificado; espera entregarse
+ *   vencido         se le paso el plazo sin pagar
+ */
+export type FasePedido =
+  | 'esperando_pago' | 'reportado' | 'apartado' | 'pagado' | 'vencido'
+  | 'entregado' | 'cancelado' | 'cerrado';
+
+/** Como va un pago reportado: lo revisa la tienda (o el revendedor, si es a el). */
+export type EstadoPago = 'por_revisar' | 'recibido' | 'no_llego';
+
+/** Un pago en el enlace de la clienta: de la referencia, solo los cuatro ultimos. */
+export interface PagoPublico {
+  fecha: string;
+  metodo: MetodoPago;
+  monto_bs: number;
+  monto_usd: number | null;
+  monto_bcv: number;
+  referencia_final: string | null;
+  estado: EstadoPago;
+  /** Lo que faltaba despues de este pago, en dolares BCV. Null si no llego. */
+  falta_despues_bcv: number | null;
+}
+
 export interface ReservaVista {
   cliente_apellido?: string | null;
   cliente_telefono?: string | null;
@@ -380,6 +416,18 @@ export interface ReservaVista {
   descuento_pct: number | null;
   total_usd: number | null;
   items: ItemReserva[];
+  /* Desde esquema-abonos-y-apartados.sql. Opcionales: el navegador nuevo
+     puede llegar un momento antes que el SQL. */
+  fase?: FasePedido;
+  /** Si sus piezas tienen el precio congelado: solo esos reciben abonos. */
+  con_precio?: boolean;
+  vence_apartado_en?: string | null;
+  falta_bcv?: number;
+  inicial_pct?: number | null;
+  /** Lo minimo para apartar, en dolares BCV. */
+  minimo_bcv?: number | null;
+  apartado_dias?: number | null;
+  abonos?: PagoPublico[];
 }
 
 /** Vista v_pedido_vendedora: una fila por pieza, con su ubicacion. */
@@ -415,6 +463,29 @@ export interface LineaPedido {
   variante: string | null;
   /** La clienta del maestro con esa cedula, si ya existia al apartar. */
   cliente_id: number | null;
+  /* Desde esquema-abonos-y-apartados.sql. */
+  /** Lo armo la clienta en el catalogo, o lo aparto la tienda en el mostrador. */
+  origen: 'catalogo' | 'tienda';
+  fase: FasePedido;
+  vence_apartado_en: string | null;
+  pagado_en: string | null;
+  /** Lo pagado que no se anulo, verificado o no, en dolares BCV. */
+  pagado_bcv: number;
+  /** Lo pagado y ya comprobado en el banco. */
+  verificado_bcv: number;
+  falta_bcv: number;
+  /** Cuantos pagos esperan que alguien los compruebe. */
+  por_revisar: number;
+  /** Sus piezas tienen precio congelado: se paga por abonos y se entrega. */
+  con_precio: boolean;
+  /** El precio congelado de esta linea, en dolares BCV. */
+  precio_linea_usd: number | null;
+  subtotal_usd: number | null;
+  descuento_pct: number | null;
+  /** Lo minimo para apartar, en dolares BCV. */
+  minimo_bcv: number | null;
+  /** Quien lo aparto en el mostrador. */
+  creado_por: string | null;
 }
 
 /** Lo que devuelve admin_sugerir_precio: el resultado y todo el camino. */
@@ -680,6 +751,8 @@ export interface ClienteResumen {
    * nada que ella haya pagado.
    */
   total_bcv: number;
+  /** Llego como clienta de este revendedor. Null: clienta de la tienda. */
+  revendedor?: string | null;
 }
 
 /** Vista v_cliente_compras: una fila por pieza que se llevo. */
@@ -713,6 +786,8 @@ export interface CompraCliente {
   pago_parcial: boolean;
   /** Lo que falta en dolares BCV. Cero si se cobro completa o ya se pago. */
   falta_bcv: number;
+  /** La compro por medio de este revendedor. */
+  revendedor?: string | null;
 }
 
 /**
@@ -767,6 +842,57 @@ export interface Abono {
 }
 
 /**
+ * Vista v_abonos_detalle: cada abono con su historia. Cuelga de un pedido
+ * de la tienda, del pedido de un revendedor (lo que el le paga a Lux) o de
+ * una venta; los de un pedido que ya se entrego tienen las dos.
+ */
+export interface AbonoDetalle {
+  id: number;
+  venta_id: number | null;
+  reserva_id: number | null;
+  apartado_id: number | null;
+  fecha: string;
+  /** Quien lo anoto: la tienda, o lo reporto alguien sin sesion. */
+  origen: 'tienda' | 'clienta' | 'revendedor';
+  metodo: MetodoPago;
+  monto_bs: number;
+  monto_usd: number | null;
+  monto_bcv: number;
+  /** Las del dia del abono: con ellas se recalcula si se corrige. */
+  tasa_bcv: number;
+  tasa_venta: number;
+  referencia: string | null;
+  pago_fecha: string | null;
+  pago_cedula: string | null;
+  pago_telefono: string | null;
+  registrado_por: string | null;
+  verificado_en: string | null;
+  verificado_por: string | null;
+  anulado_en: string | null;
+  anulado_por: string | null;
+  anulado_motivo: string | null;
+  editado_en: string | null;
+  editado_por: string | null;
+  cambios: number;
+  total_bcv: number;
+  /** Lo que faltaba despues de este abono. Null si se anulo. */
+  falta_despues_bcv: number | null;
+  cliente_id: number | null;
+}
+
+/** Vista v_abono_cambios: lo que decia un abono antes de cada cambio. */
+export interface AbonoCambio {
+  id: number;
+  abono_id: number;
+  cambiado_en: string;
+  cambiado_por: string | null;
+  que: 'editado' | 'anulado';
+  antes: { metodo: MetodoPago; monto_bs: number; monto_usd: number | null; monto_bcv: number; referencia: string | null };
+  despues: { metodo: MetodoPago; monto_bs: number; monto_usd: number | null; monto_bcv: number; referencia: string | null } | null;
+  motivo: string | null;
+}
+
+/**
  * Vista v_rebajas: una fila por linea vendida por debajo de su etiqueta.
  * Solo administrador. En dolares BCV, la moneda de la etiqueta.
  */
@@ -815,9 +941,32 @@ export interface PerfilRevendedor {
   telefono: string | null;
   paleta: PaletaRevendedor;
   logo_path: string | null;
-  /** Cuanto dura un apartado antes de volver a la tienda. */
+  /** Ya no se usa (esquema-revendedores-plazos.sql): llega en cero. */
   dias_apartado: number;
+  /* Desde esquema-revendedores-plazos.sql. */
+  pago_movil_cedula?: string | null;
+  pago_movil_telefono?: string | null;
+  pago_movil_banco?: string | null;
+  /** Dias que el le da a su clienta para pagarle un apartado. Null: no da. */
+  dias_credito?: number | null;
+  /** Horas que espera un pedido de su catalogo a que su clienta pague. */
+  horas_pago?: number | null;
+  /** Lo minimo para apartar, en por ciento. */
+  inicial_pct?: number | null;
 }
+
+/**
+ * En que va un pedido de revendedor: la regla es `rv_fase_de` de la base.
+ *   esperando_pago  su clienta tiene 2 horas para pagarle
+ *   por_confirmar   ella reporto; espera que el confirme (sin plazo)
+ *   por_pagar_lux   confirmado; tiene su dia para pagarle a Lux
+ *   en_revision     reporto a Lux todo; espera que la tienda apruebe
+ *   vendido         la tienda aprobo: venta registrada, por entregar
+ *   entregado       se lo llevo
+ */
+export type FaseRv =
+  | 'esperando_pago' | 'por_confirmar' | 'por_pagar_lux' | 'en_revision'
+  | 'vendido' | 'entregado' | 'vencido' | 'cancelado';
 
 /** rv_catalogo_publico: sus piezas a SU precio. Sin ubicacion: a su clienta no le dice nada. */
 export type ModeloRevendedor = Omit<ModeloPublico, 'ubicaciones_codigo'>;
@@ -864,6 +1013,11 @@ export interface ResumenRevendedor extends PerfilRevendedor {
   abiertos: number;
   por_vencer: number;
   vencidos: number;
+  /* Desde esquema-revendedores-plazos.sql. */
+  /** Cuantos pedidos tiene en cada fase (solo las que llevan algo). */
+  fases?: Partial<Record<FaseRv, number>>;
+  horas_pago?: number | null;
+  horas_para_pagar?: number | null;
 }
 
 /** rv_piezas: en cuanto le sale cada pieza y en cuanto la vende. */
@@ -901,6 +1055,27 @@ export interface AbonoApartado {
   monto_usd: number | null;
   monto_bcv: number;
   referencia: string | null;
+  /* Desde esquema-revendedores-plazos.sql. */
+  id?: number;
+  /** Lo reporto ella desde su enlace, o lo cargo el. */
+  origen?: 'clienta' | 'revendedor';
+  pago_cedula?: string | null;
+  pago_telefono?: string | null;
+  estado?: EstadoPago;
+  falta_despues_bcv?: number | null;
+}
+
+/** Lo que el le pago a Lux por un pedido: lo comprueba la tienda. */
+export interface PagoLux {
+  id: number;
+  fecha: string;
+  metodo: MetodoPago;
+  monto_bs: number;
+  monto_usd: number | null;
+  monto_bcv: number;
+  referencia: string | null;
+  estado: EstadoPago;
+  falta_despues_bcv: number | null;
 }
 
 /** rv_apartados: un apartado suyo, con sus dos cuentas. */
@@ -930,6 +1105,22 @@ export interface ApartadoRevendedor {
   /** Lo que su clienta todavia le debe, en dolares BCV. */
   falta_usd: number;
   abonos: AbonoApartado[];
+  /* Desde esquema-revendedores-plazos.sql. */
+  fase?: FaseRv;
+  origen?: 'catalogo' | 'panel';
+  reportado_en?: string | null;
+  confirmado_en?: string | null;
+  /** Hasta cuando tiene para pagarle a Lux. */
+  plazo_lux_en?: string | null;
+  /** Hasta cuando su clienta tiene para pagarle a el, si le dio credito. */
+  vence_clienta_en?: string | null;
+  entregado_en?: string | null;
+  /** Lo minimo que ella paga para que el confirme, en dolares BCV. */
+  minimo_usd?: number;
+  lux_pagado_usd?: number;
+  lux_verificado_usd?: number;
+  lux_falta_usd?: number;
+  pagos_lux?: PagoLux[];
 }
 
 /** rv_clientes: sus clientas, con lo que compraron y lo que le deben. */
@@ -964,6 +1155,17 @@ export interface ApartadoPublico {
   items: { nombre: string; variante: string | null; foto_thumb_path: string | null; cantidad: number; precio_usd: number }[];
   total_usd: number;
   falta_usd: number;
+  /* Desde esquema-revendedores-plazos.sql. */
+  fase?: FaseRv;
+  confirmado_en?: string | null;
+  vence_clienta_en?: string | null;
+  pago_movil_cedula?: string | null;
+  pago_movil_telefono?: string | null;
+  pago_movil_banco?: string | null;
+  dias_credito?: number | null;
+  inicial_pct?: number | null;
+  minimo_usd?: number | null;
+  abonos?: PagoPublico[];
 }
 
 /** v_revendedores: como va cada uno. Solo el administrador. */
@@ -1019,6 +1221,22 @@ export interface ApartadoEnTienda {
     foto_thumb_path: string | null; cantidad: number; precio_usd: number;
     donde: string | null;
   }[];
+  /* Desde esquema-revendedores-plazos.sql. */
+  fase: FaseRv;
+  confirmado_en: string | null;
+  /** Hasta cuando tiene para pagarle a Lux. */
+  plazo_lux_en: string | null;
+  clienta_cedula: string | null;
+  clienta_telefono: string | null;
+  /** Lo que reporto, verificado o no, en dolares BCV. */
+  lux_pagado_bcv: number;
+  lux_verificado_bcv: number;
+  lux_falta_bcv: number;
+  por_revisar: number;
+  venta_id: number | null;
+  entregado_en: string | null;
+  /** Su cedula ya esta en el maestro de la tienda. */
+  ya_es_clienta: boolean;
 }
 
 /* ------------------------------------------------ vendedoras del local
@@ -1062,6 +1280,7 @@ export const CATEGORIAS_CAJA: { valor: string; texto: string; tipo: TipoCaja }[]
   { valor: 'comisiones', texto: 'Comisiones, impuestos y trámites', tipo: 'salida' },
   { valor: 'retiro', texto: 'Retiro del dueño', tipo: 'salida' },
   { valor: 'otro_gasto', texto: 'Otro gasto', tipo: 'salida' },
+  { valor: 'devolucion', texto: 'Devolución de un pedido', tipo: 'salida' },
   { valor: 'aporte', texto: 'Aporte del dueño', tipo: 'entrada' },
   { valor: 'otro_ingreso', texto: 'Otro ingreso', tipo: 'entrada' },
 ];

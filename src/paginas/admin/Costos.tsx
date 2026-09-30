@@ -52,6 +52,12 @@ const VENDEDORA: Dato[] = [
     pista: 'Precio de etiqueta desde el que una pieza cuenta como premium en su tablero.' },
   { clave: 'meta_premium_dia', etiqueta: 'Piezas premium por día', paso: '1',
     pista: 'Cuántas de las piezas de cada día tienen que ser premium. Empuja el ticket, no solo el conteo.' },
+  // El apartado (esquema-abonos-y-apartados.sql): vale en el mostrador, en
+  // el catálogo y para las clientas de los revendedores.
+  { clave: 'apartado_inicial_pct', etiqueta: 'Para apartar se paga al menos %', paso: '1',
+    pista: 'Del total del pedido. Vale en el mostrador, en el catálogo y para las clientas de los revendedores.' },
+  { clave: 'apartado_dias', etiqueta: 'Días para terminar de pagar un apartado', paso: '1',
+    pista: 'Si no termina a tiempo, pierde lo abonado y las piezas vuelven a la venta. Los revendedores ponen su propio plazo.' },
 ];
 
 /* Casi nunca se tocan. Viven plegadas. */

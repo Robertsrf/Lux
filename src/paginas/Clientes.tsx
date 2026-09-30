@@ -186,6 +186,7 @@ function Ficha({ id }: { id: number | null }) {
             {c.cedula ? `C.I. ${c.cedula}` : 'Sin cédula'}
             {c.telefono ? ` · ${c.telefono}` : ''}
             {` · clienta desde el ${formatearFecha(c.creado_en)}`}
+            {c.revendedor ? ` · llegó por ${c.revendedor}` : ''}
           </p>
         </div>
         <button type="button" className="boton boton--secundario" onClick={() => setEditando(true)}>
@@ -273,6 +274,8 @@ function Ficha({ id }: { id: number | null }) {
                   <span className="compra__meta">
                     {desdeHace(cabecera.fecha)} · {metodoTexto(cabecera.metodo)} · {formatearBs(cabecera.total_bs)}
                     {cabecera.pago_referencia ? ` · ref. ${cabecera.pago_referencia}` : ''}
+                    {/* Se la vendió un revendedor: el precio es lo que él le pagó a Lux. */}
+                    {cabecera.revendedor ? ` · por medio de ${cabecera.revendedor}, a su precio con Lux` : ''}
                   </span>
                   {/* Una venta que quedo por verificar y ya se comprobo: el
                       credito que se pago, y cuanto tardo. */}

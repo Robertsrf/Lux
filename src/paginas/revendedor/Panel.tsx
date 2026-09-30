@@ -14,21 +14,24 @@ import { ApartadosRv } from './panel/ApartadosRv';
 import { ClientesRv } from './panel/ClientesRv';
 import { PreciosRv } from './panel/PreciosRv';
 import { MiCatalogoRv } from './panel/MiCatalogoRv';
+import { VenderRv } from './panel/VenderRv';
 import '../../estilos/revendedor.css';
 
 const ENLACES: EnlaceNav[] = [
   { a: '/rv',           texto: 'Inicio',      icono: 'dia' },
-  { a: '/rv/apartados', texto: 'Apartados',   icono: 'pedidos' },
+  { a: '/rv/apartados', texto: 'Pedidos',     icono: 'pedidos' },
+  { a: '/rv/vender',    texto: 'Vender',      icono: 'mostrador' },
   { a: '/rv/clientes',  texto: 'Clientas',    icono: 'clientes' },
   { a: '/rv/precios',   texto: 'Mis precios', icono: 'grupos' },
   { a: '/rv/catalogo',  texto: 'Mi catálogo', icono: 'catalogo' },
 ];
 
 /*
-  Las tres de todos los días: cómo va, los apartados (donde carga lo que le
-  pagan) y sus clientas. Precios y catálogo se tocan de vez en cuando.
+  Las tres de todos los días: cómo va, sus pedidos (donde confirma, le paga
+  a Lux y carga lo que le pagan) y vender. Clientas, precios y catálogo se
+  tocan de vez en cuando.
 */
-const PRINCIPALES = ['/rv', '/rv/apartados', '/rv/clientes'];
+const PRINCIPALES = ['/rv', '/rv/apartados', '/rv/vender'];
 
 /**
  * El panel de un revendedor: /#/rv. Su administrativo.
@@ -101,6 +104,7 @@ export function PanelRevendedor() {
           <Routes>
             <Route index element={<InicioRv />} />
             <Route path="apartados" element={<ApartadosRv />} />
+            <Route path="vender" element={<VenderRv />} />
             <Route path="clientes" element={<ClientesRv />} />
             <Route path="precios" element={<PreciosRv />} />
             <Route path="catalogo" element={<MiCatalogoRv />} />

@@ -70,6 +70,8 @@ const env = leerEnv();
 const cliente = () => createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY);
 
 let fallos = 0;
+/** La fecha de hoy en Venezuela (UTC-4, sin horario de verano). */
+const hoyVe = () => new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10);
 const dice = (bien, etiqueta, detalle) => {
   if (!bien) fallos++;
   console.log('  ' + (bien ? '  ok  ' : ' MAL  ') + etiqueta.padEnd(44) + (detalle ?? ''));
@@ -383,6 +385,84 @@ async function main() {
     panel.error ? 'rechazada ' + panel.error.code : 'ABRIO UN PANEL');
 
   /*
+    LOS APARTADOS Y LOS ABONOS (esquema-abonos-y-apartados.sql y
+    esquema-revendedores-plazos.sql).
+
+    Un pedido guarda ahora su precio congelado: nadie con sesión puede
+    reescribir `reservas` ni `reserva_items` en crudo. Un abono se corrige
+    solo por sus funciones, que dejan escrito el cambio; sin sesión no se
+    toca ninguno. Y las funciones por dentro (la que registra la venta con
+    precios congelados, la que anota un abono, la que da el precio de cada
+    pieza con su costo) no responden a nadie. Todas las llamadas van con
+    datos que la función rechaza antes de escribir.
+  */
+  console.log('\nLOS APARTADOS Y LOS ABONOS');
+  for (const [tabla, cambio] of [['reservas', { cliente_nombre: 'x' }], ['reserva_items', { cantidad: 1 }]]) {
+    const { error } = await V.from(tabla).update(cambio).eq('id', -1);
+    dice(error?.code === '42501', `${tabla}: ella no la reescribe`, error ? 'rechazada ' + error.code : 'LA DEJO ESCRIBIR');
+  }
+  const detV = await V.from('v_abonos_detalle').select('id, falta_despues_bcv, verificado_en').limit(1);
+  dice(!detV.error, 'v_abonos_detalle, su trabajo', detV.error ? 'ERROR ' + detV.error.code : 'responde');
+  for (const vista of ['v_abonos_detalle', 'v_abono_cambios']) {
+    const { data, error } = await P.from(vista).select('id').limit(1);
+    dice(!!error || (data?.length ?? 0) === 0, `${vista} sin sesion`, error ? 'rechazada ' + error.code : (data?.length ?? 0) + ' filas');
+  }
+  const cambiosV = await V.from('abono_cambios').select('id').limit(1);
+  dice(!!cambiosV.error, 'abono_cambios en crudo: ella', cambiosV.error ? 'rechazada ' + cambiosV.error.code : 'RESPONDIO');
+  for (const [fn, args] of [
+    ['editar_abono', { p_abono_id: -1, p_metodo: 'pago_movil', p_monto: 1, p_referencia: null }],
+    ['anular_abono', { p_abono_id: -1 }],
+    ['verificar_abono', { p_abono_id: -1 }],
+    ['abonar_pedido', { p_reserva_id: -1, p_metodo: 'pago_movil', p_monto: 1 }],
+    ['entregar_pedido', { p_reserva_id: -1 }],
+    ['apartar_en_tienda', { p_items: [], p_pagos: [] }],
+    ['aprobar_apartado', { p_apartado_id: -1 }],
+    ['abonar_apartado', { p_apartado_id: -1, p_metodo: 'pago_movil', p_monto: 1 }],
+    ['admin_cerrar_pedido', { p_reserva_id: -1, p_devolver: false }],
+  ]) {
+    const { error } = await P.rpc(fn, args);
+    dice(error?.code === '42501', `${fn}() sin sesion, rechazada`,
+      error ? 'rechazada ' + (error.code ?? '') : 'LA DEJO PASAR');
+  }
+  // Ella sí corrige y aprueba: con un id que no existe, la base lo dice.
+  const corrigeV = await V.rpc('editar_abono', { p_abono_id: -1, p_metodo: 'pago_movil', p_monto: 1, p_referencia: null });
+  dice(!!corrigeV.error && /no existe/i.test(corrigeV.error.message), 'puede corregir abonos (editar_abono)',
+    corrigeV.error ? corrigeV.error.message : 'CORRIGIO UNO QUE NO EXISTE');
+  const apruebaV = await V.rpc('aprobar_apartado', { p_apartado_id: -1 });
+  dice(!!apruebaV.error && /no existe/i.test(apruebaV.error.message), 'puede aprobar pedidos de revendedor',
+    apruebaV.error ? apruebaV.error.message : 'APROBO UNO QUE NO EXISTE');
+  const cierraV = await V.rpc('admin_cerrar_pedido', { p_reserva_id: -1, p_devolver: false });
+  dice(!!cierraV.error && /administrador/i.test(cierraV.error.message), 'admin_cerrar_pedido(): ella no cierra con dinero',
+    cierraV.error ? cierraV.error.message : 'LO CERRO');
+  for (const [fn, args] of [
+    ['precio_de_linea', { p_modelo_id: 1, p_pedido: null, p_desc: 0, p_tasa_bcv: 1 }],
+    ['vender_congelado', { p_tipo: 'detal', p_metodo: 'punto', p_lineas: [], p_cliente_id: null, p_cliente_nombre: null, p_cliente_telefono: null, p_notas: null, p_usuario: null, p_revendedor_id: null, p_pago_referencia: null }],
+    ['cliente_de_revendedor', { p_apartado_id: -1 }],
+  ]) {
+    const { error } = await V.rpc(fn, args);
+    dice(error?.code === '42501', `${fn}(): cerrada para ella`, error ? 'rechazada ' + (error.code ?? '') : 'RESPONDIO');
+  }
+  // La clienta reporta su pago desde su enlace, sin sesion.
+  const repP = await P.rpc('reportar_abono', {
+    p_token: '00000000-0000-0000-0000-000000000000', p_metodo: 'pago_movil', p_monto: 1,
+    p_referencia: '1', p_fecha: hoyVe(), p_cedula: null, p_telefono: null,
+  });
+  dice(!!repP.error && /no existe/i.test(repP.error.message), 'reportar_abono() responde sin sesion',
+    repP.error ? repP.error.message : 'ACEPTO UN PEDIDO QUE NO EXISTE');
+  // Su panel nuevo tampoco abre sin un testigo de verdad.
+  for (const fn of ['rv_confirmar', 'rv_pagar_lux', 'rv_vender']) {
+    const args = fn === 'rv_confirmar' ? { p_apartado_id: -1 }
+      : fn === 'rv_pagar_lux' ? { p_apartado_id: -1, p_metodo: 'pago_movil', p_monto: 1, p_referencia: '1', p_fecha: hoyVe() }
+        : { p_items: [], p_cedula: '0' };
+    const { error } = await P.rpc(fn, { p_sesion: 'f'.repeat(64), ...args });
+    dice(!!error && error.code === '28000', `${fn}() con un testigo inventado`, error ? 'rechazada ' + error.code : 'LO DEJO PASAR');
+  }
+  // El mostrador lee el minimo y los dias del apartado.
+  const reglaV = await V.from('configuracion').select('clave, valor').in('clave', ['apartado_inicial_pct', 'apartado_dias']);
+  dice(!reglaV.error && (reglaV.data?.length ?? 0) === 2, 'ella lee las cifras del apartado',
+    reglaV.error ? 'ERROR ' + reglaV.error.code : (reglaV.data?.length ?? 0) + ' de 2');
+
+  /*
     LA CAJA (esquema-caja.sql). Enseña cuánto vende la tienda, en qué
     gasta y el sueldo de cada una: solo el dueño. Las llamadas que escriben
     se prueban con datos que la función rechaza antes de escribir (monto
@@ -454,6 +534,12 @@ async function main() {
         piezas.error ? 'ERROR ' + piezas.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : claves.length + ' columnas');
       const res = await R.rpc('rv_resumen', { p_sesion: s });
       dice(!res.error && res.data?.tope, 'rv_resumen(), su panel', res.error ? 'ERROR ' + res.error.code : 'responde');
+      // Sus pedidos traen lo que le paga a Lux (es suyo), pero nada de costo.
+      const ped = await R.rpc('rv_apartados', { p_sesion: s });
+      const clavesPed = (ped.data ?? []).flatMap((a) => Object.keys(a));
+      const deCostoPed = [...new Set(clavesPed.filter((c) => /costo|piso|margen|operativo/.test(c)))];
+      dice(!ped.error && deCostoPed.length === 0, 'rv_apartados() sin costo, piso ni margen',
+        ped.error ? 'ERROR ' + ped.error.code : deCostoPed.length ? 'TRAE ' + deCostoPed.join(', ') : 'limpio');
       const ajeno = await R.from('v_catalogo_venta').select('id').limit(1);
       dice(!!ajeno.error || (ajeno.data?.length ?? 0) === 0, 'el revendedor no lee el catalogo de venta',
         ajeno.error ? 'rechazada ' + ajeno.error.code : (ajeno.data?.length ?? 0) + ' filas');

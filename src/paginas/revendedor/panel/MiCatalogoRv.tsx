@@ -21,6 +21,12 @@ export function MiCatalogoRv() {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [paleta, setPaleta] = useState<PaletaRevendedor>('lux');
+  // Su pago móvil: a dónde le pagan sus clientas. Y cuántos días les da
+  // para pagarle un apartado; vacío, no da crédito y le pagan todo.
+  const [pmCedula, setPmCedula] = useState('');
+  const [pmTelefono, setPmTelefono] = useState('');
+  const [pmBanco, setPmBanco] = useState('');
+  const [dias, setDias] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -33,17 +39,28 @@ export function MiCatalogoRv() {
     setNombre(resumen.catalogo_propio ?? '');
     setTelefono(resumen.telefono ?? '');
     setPaleta(resumen.paleta);
+    setPmCedula(resumen.pago_movil_cedula ?? '');
+    setPmTelefono(resumen.pago_movil_telefono ?? '');
+    setPmBanco(resumen.pago_movil_banco ?? '');
+    setDias(resumen.dias_credito ? String(resumen.dias_credito) : '');
     setLleno(true);
   }, [resumen, lleno]);
 
   if (!resumen) return <Cargando texto="Abriendo tu catálogo" />;
 
+  const diasNumero = dias.trim() ? Number(dias) : null;
+  const diasMal = diasNumero !== null && (!Number.isInteger(diasNumero) || diasNumero <= 0);
+
   async function guardar() {
+    if (diasMal) return;
     setGuardando(true);
     setError(null);
     setAviso(null);
     try {
       await rpcRv('rv_ajustes', { p_catalogo_nombre: nombre, p_paleta: paleta, p_telefono: telefono });
+      await rpcRv('rv_datos_pago', {
+        p_cedula: pmCedula, p_telefono: pmTelefono, p_banco: pmBanco, p_dias_credito: diasNumero,
+      });
       await recargar();
       setAviso('Guardado. Así se ve tu catálogo desde ahora.');
     } catch (e) {
@@ -60,7 +77,7 @@ export function MiCatalogoRv() {
       <div className="encabezado-pagina">
         <div>
           <h1>Mi catálogo</h1>
-          <p>El nombre que ven tus clientas, a qué número te escriben y los colores.</p>
+          <p>El nombre que ven tus clientas, a qué número te escriben, los colores y cómo te pagan.</p>
         </div>
         <a className="boton boton--secundario" href={enlace} target="_blank" rel="noopener noreferrer">Ver mi catálogo</a>
       </div>
@@ -99,12 +116,38 @@ export function MiCatalogoRv() {
             {logo ? 'Para cambiarlo, mándale el nuevo a Lux por WhatsApp.' : 'Mándale tu logo a Lux por WhatsApp, cuadrado, y lo sube a tu catálogo.'}
           </p>
         </div>
+      </div>
 
-        <div className="acciones">
-          <button type="button" className="boton boton--confirmar" disabled={guardando} onClick={() => void guardar()}>
-            {guardando ? 'Guardando' : 'Guardar'}
-          </button>
+      <h2 className="seccion-titulo">Cómo te pagan</h2>
+      <div className="tarjeta">
+        <p className="prosa" style={{ marginTop: 0 }}>
+          Tus clientas ven estos datos en su pedido, con un botón para copiar cada uno, y ahí te avisan que ya pagaron.
+        </p>
+        <div className="fila">
+          <Campo etiqueta="Cédula del pago móvil" htmlFor="mc-pm-ced">
+            <input id="mc-pm-ced" inputMode="numeric" autoComplete="off" value={pmCedula} onChange={(e) => setPmCedula(e.target.value)} />
+          </Campo>
+          <Campo etiqueta="Teléfono del pago móvil" htmlFor="mc-pm-tel" pista="Con el código: 0412 1234567.">
+            <input id="mc-pm-tel" type="tel" autoComplete="off" value={pmTelefono} onChange={(e) => setPmTelefono(e.target.value)} />
+          </Campo>
         </div>
+        <Campo etiqueta="Banco" htmlFor="mc-pm-banco" pista="Con su código, como sale en la aplicación: 0102 Banco de Venezuela.">
+          <input id="mc-pm-banco" autoComplete="off" maxLength={60} value={pmBanco} onChange={(e) => setPmBanco(e.target.value)} />
+        </Campo>
+        <Campo
+          etiqueta="Días de crédito para tus clientas"
+          htmlFor="mc-dias"
+          error={diasMal ? 'Escribe un número entero de días, o déjalo vacío.' : null}
+          pista={`Con días, pueden apartar pagándote al menos el ${resumen.inicial_pct ?? ''} % y el resto en ese plazo. Vacío, te pagan todo. A Lux le pagas todo en el día igual.`}
+        >
+          <input id="mc-dias" inputMode="numeric" autoComplete="off" value={dias} onChange={(e) => setDias(e.target.value)} />
+        </Campo>
+      </div>
+
+      <div className="acciones">
+        <button type="button" className="boton boton--confirmar" disabled={guardando || diasMal} onClick={() => void guardar()}>
+          {guardando ? 'Guardando' : 'Guardar'}
+        </button>
       </div>
     </div>
   );

@@ -17,20 +17,26 @@ import type { MetodoPago } from '../lib/tipos';
  * abonos de su clienta: la misma deuda en dólares BCV, la misma tolerancia
  * y el mismo botón "Lo que falta". Quién guarda lo decide la pantalla.
  */
-export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', registrar, alGuardar }: {
+export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', preguntarSiLlego = false, registrar, alGuardar }: {
   /** Para que los campos de dos tarjetas no compartan id. */
   id: number;
   /** Lo que falta, en dólares BCV. */
   falta: number;
   tasa: Tasas;
   titulo?: string;
+  /**
+   * Preguntar si ya se vio en el banco (pago móvil, transferencia, Binance).
+   * Lo que se paga en persona queda verificado solo: el dinero está en la mano.
+   */
+  preguntarSiLlego?: boolean;
   /** Guarda en la base y devuelve lo que falta después, o lanza el error ya dicho. */
-  registrar: (metodo: MetodoPago, monto: number, referencia: string | null) => Promise<number>;
+  registrar: (metodo: MetodoPago, monto: number, referencia: string | null, verificado: boolean) => Promise<number>;
   alGuardar: (resta: number) => void;
 }) {
   const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
   const [monto, setMonto] = useState('');
   const [referencia, setReferencia] = useState('');
+  const [llego, setLlego] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,8 +59,12 @@ export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', reg
     setGuardando(true);
     setError(null);
     try {
-      const resta = await registrar(metodo, valor, PIDE_REFERENCIA.includes(metodo) ? referencia.trim() || null : null);
+      const aDistancia = PIDE_REFERENCIA.includes(metodo);
+      const resta = await registrar(metodo, valor, aDistancia ? referencia.trim() || null : null, !aDistancia || llego);
       setGuardando(false);
+      setMonto('');
+      setReferencia('');
+      setLlego(false);
       alGuardar(resta);
     } catch (e) {
       setGuardando(false);
@@ -102,6 +112,12 @@ export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', reg
             onChange={(e) => setReferencia(e.target.value)}
           />
         </div>
+      ) : null}
+      {preguntarSiLlego && PIDE_REFERENCIA.includes(metodo) ? (
+        <label className="casilla" htmlFor={`ab-llego-${id}`}>
+          <input id={`ab-llego-${id}`} type="checkbox" checked={llego} onChange={(e) => setLlego(e.target.checked)} />
+          <span>Ya lo vi en el banco</span>
+        </label>
       ) : null}
 
       <p className="campo__pista" id={`ab-pista-${id}`} aria-live="polite">

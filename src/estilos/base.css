@@ -2080,6 +2080,60 @@ table.tabla tfoot td {
 }
 .cargar-abono__todo { margin-top: var(--e-2); min-height: 44px; }
 
+/* --- Cada abono: si llegó, lo que quedaba y qué se puede hacer ---------
+   El estado va a la derecha del monto, en la etiqueta de siempre: se lee
+   de un vistazo cuáles faltan por comprobar. Lo que quedaba después de
+   cada uno, en la letra del texto y con la cifra en Fraunces. Un abono que
+   no llegó no se borra: se tacha en salvia de texto y se queda. */
+.abono__cabeza {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--e-3); flex-wrap: wrap;
+}
+.abono--anulado .abono__monto { text-decoration: line-through; color: var(--texto-secundario); }
+.abono__quedaba { margin-top: var(--e-1); font-size: var(--t-14); color: var(--texto); }
+.abono__quedaba strong { font-family: var(--fuente-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Tres botones pequeños que la vendedora toca con el pulgar: al menos
+   44 px de alto aunque el botón pequeño mida 36 en el escritorio. */
+.abono__acciones { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-top: var(--e-3); }
+.abono__acciones .boton { min-height: 44px; }
+.abono__historial { margin-top: var(--e-2); font-size: var(--t-14); color: var(--texto-secundario); }
+.abono__historial summary {
+  cursor: pointer; min-height: 44px; display: inline-flex; align-items: center;
+  color: var(--texto); text-decoration: underline; text-underline-offset: 3px;
+}
+.abono__historial ol { margin: var(--e-2) 0 0; padding-left: var(--e-5); display: grid; gap: var(--e-2); }
+.abono__historial-cuando { font-variant-numeric: tabular-nums; color: var(--texto); }
+
+/* Corregir un abono: el mismo formulario de cargar uno, dentro del
+   renglón, tras una línea. */
+.corregir-abono {
+  margin-top: var(--e-3); padding-top: var(--e-3);
+  border-top: 1px solid var(--linea-suave);
+}
+.corregir-abono .campo { margin-bottom: var(--e-3); }
+
+/* Una casilla que se toca con el pulgar: la caja y su texto, 44 px. */
+.casilla {
+  display: inline-flex; align-items: center; gap: var(--e-3);
+  min-height: 44px; margin-top: var(--e-2);
+  font-size: var(--t-16); color: var(--texto); cursor: pointer;
+}
+.casilla input { width: 22px; height: 22px; accent-color: var(--verde-profundo); flex: none; }
+
+/* Reportar un pago desde el enlace: las formas de pago arriba, y los
+   atajos "todo lo que falta" y "el mínimo" pegados al campo del monto. */
+.reportar-pago { margin-top: var(--e-4); }
+.reportar-pago__atajos { display: flex; flex-wrap: wrap; gap: var(--e-2); margin: calc(-1 * var(--e-2)) 0 var(--e-4); }
+.reportar-pago__atajos .boton { min-height: 44px; }
+
+/* Cerrar algo con dinero: a la derecha de las acciones cuando cabe, y
+   abierto ocupa su renglón entero, tras una línea. */
+.cerrar-con-dinero {
+  flex-basis: 100%;
+  margin-top: var(--e-3); padding-top: var(--e-4);
+  border-top: 1px solid var(--linea-suave);
+}
+
 /* --- Visor: pasar de pieza sin salir --------------------------------- */
 
 /* Siempre a la vista: el deslizar sin boton es un gesto que nadie

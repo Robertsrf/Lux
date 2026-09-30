@@ -33,6 +33,17 @@ import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbic
  * cobrar. Quien decide el precio es la base, con la misma cuenta, en el
  * mismo orden y con el mismo redondeo (`precioConTramo`, `bsDeBcv`).
  */
+/** Quien se lo lleva, como lo piden las funciones de la base. */
+function quienEs(cliente?: ClienteDeVenta | null) {
+  return {
+    p_cliente_nombre: cliente?.nombre ?? null,
+    p_cliente_telefono: cliente?.telefono ?? null,
+    p_cliente_id: cliente?.id ?? null,
+    p_cliente_cedula: cliente?.cedula ?? null,
+    p_cliente_apellido: cliente?.apellido ?? null,
+  };
+}
+
 export function useCarrito(tasa: Tasas | null) {
   const [lineas, setLineas] = useState<LineaCarrito[]>([]);
   const [tramos, setTramos] = useState<Tramo[]>([]);
@@ -182,59 +193,22 @@ export function useCarrito(tasa: Tasas | null) {
     tipo: TipoVenta = 'detal',
     cliente?: ClienteDeVenta | null,
     // Por verificar: la venta se registra (la pieza sale) y queda en
-    // Pedidos hasta que alguien compruebe el pago. Con `abono`, pago solo
-    // una parte: la venta queda por verificar diciendo cuanto falta, y el
-    // resto se carga en Pedidos con su referencia cuando lo pague.
-    pago?: { porVerificar?: boolean; referencia?: string | null; abono?: number | null },
+    // Pedidos hasta que alguien compruebe el pago.
+    pago?: { porVerificar?: boolean; referencia?: string | null },
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     setCobrando(true);
     setError(null);
 
-    const conTramo = descuentoPara(tramos, lineas.reduce((n, l) => n + l.cantidad, 0)) !== null;
-
-    const items = lineas.map((l) => ({
-      modelo_id: l.modelo_id,
-      ubicacion_id: l.ubicacion_id,
-      cantidad: l.cantidad,
-      // Solo se manda lo que ELLA negocio, y solo sin tramo. El descuento
-      // por cantidad no se manda: lo calcula la base con su escalera, que
-      // es la unica que manda. Mandarlo desde aqui seria dejar que el
-      // navegador decidiera el precio.
-      precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
-        ? l.precio_manual_usd
-        : null,
-    }));
-    const quien = {
-      p_cliente_nombre: cliente?.nombre ?? null,
-      p_cliente_telefono: cliente?.telefono ?? null,
-      p_cliente_id: cliente?.id ?? null,
-      p_cliente_cedula: cliente?.cedula ?? null,
-      p_cliente_apellido: cliente?.apellido ?? null,
-    };
-    const referencia = pago?.referencia?.trim() || null;
-
-    // Por partes es otra funcion, no un parametro mas de `registrar_venta`:
-    // registra la venta y su primer abono en la misma transaccion, y si el
-    // abono no vale, la venta no queda.
-    const { data, error: err } = pago?.abono
-      ? await supabase.rpc('cobrar_con_abono', {
-        p_tipo: tipo,
-        p_metodo: metodo,
-        p_items: items,
-        p_abono: pago.abono,
-        p_pago_referencia: referencia,
-        ...quien,
-      })
-      : await supabase.rpc('registrar_venta', {
-        p_tipo: tipo,
-        p_metodo: metodo,
-        p_items: items,
-        ...quien,
-        p_notas: null,
-        p_por_verificar: pago?.porVerificar ?? false,
-        p_pago_referencia: referencia,
-      });
+    const { data, error: err } = await supabase.rpc('registrar_venta', {
+      p_tipo: tipo,
+      p_metodo: metodo,
+      p_items: piezasParaLaBase(),
+      ...quienEs(cliente),
+      p_notas: null,
+      p_por_verificar: pago?.porVerificar ?? false,
+      p_pago_referencia: pago?.referencia?.trim() || null,
+    });
 
     setCobrando(false);
     if (err) {
@@ -246,5 +220,55 @@ export function useCarrito(tasa: Tasas | null) {
     return { ok: true as const, ventaId: data as number };
   }, [lineas, tramos]);
 
-  return { lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, cobrando, error };
+  /**
+   * Apartar: la clienta paga una parte (al menos el mínimo) y las piezas se
+   * quedan en la tienda hasta que termine de pagar. Reemplaza a "Pagó una
+   * parte". Todo en una llamada: el pedido, sus piezas con el precio
+   * congelado y el primer pago; si el pago no llega al mínimo, no queda nada.
+   */
+  const apartar = useCallback(async (
+    cliente: ClienteDeVenta,
+    pago: { metodo: MetodoPago; monto: number; referencia?: string | null; verificado: boolean },
+  ) => {
+    if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
+    setCobrando(true);
+    setError(null);
+
+    const { data, error: err } = await supabase.rpc('apartar_en_tienda', {
+      p_items: piezasParaLaBase(),
+      p_pagos: [{ metodo: pago.metodo, monto: pago.monto, referencia: pago.referencia?.trim() || null }],
+      ...quienEs(cliente),
+      p_verificado: pago.verificado,
+    });
+
+    setCobrando(false);
+    if (err) {
+      const texto = mensajeDeError(err);
+      setError(texto);
+      return { ok: false as const, error: texto };
+    }
+    setLineas([]);
+    const r = data as { id: number; token: string; falta_bcv: number; vence_apartado_en: string };
+    return { ok: true as const, ...r };
+  }, [lineas, tramos]);
+
+  /**
+   * Las piezas como las pide la base. Solo se manda lo que ELLA negoció, y
+   * solo sin tramo. El descuento por cantidad no se manda: lo calcula la
+   * base con su escalera, que es la única que manda. Mandarlo desde aquí
+   * sería dejar que el navegador decidiera el precio.
+   */
+  function piezasParaLaBase() {
+    const conTramo = descuentoPara(tramos, lineas.reduce((n, l) => n + l.cantidad, 0)) !== null;
+    return lineas.map((l) => ({
+      modelo_id: l.modelo_id,
+      ubicacion_id: l.ubicacion_id,
+      cantidad: l.cantidad,
+      precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
+        ? l.precio_manual_usd
+        : null,
+    }));
+  }
+
+  return { lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, cobrando, error };
 }

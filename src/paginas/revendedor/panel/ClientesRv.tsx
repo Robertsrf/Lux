@@ -146,7 +146,7 @@ export function ClientesRv() {
                 </span>
                 <span className="cliente-tarjeta__compras">
                   {c.compras === 0 ? 'Todavía no ha retirado nada' : `${c.compras} ${c.compras === 1 ? 'compra' : 'compras'} por ${formatearBcv(Number(c.comprado_usd))}`}
-                  {c.abiertos > 0 ? ` · ${c.abiertos} ${c.abiertos === 1 ? 'apartado abierto' : 'apartados abiertos'}` : ''}
+                  {c.abiertos > 0 ? ` · ${c.abiertos} ${c.abiertos === 1 ? 'pedido abierto' : 'pedidos abiertos'}` : ''}
                 </span>
                 {c.notas ? <span className="cliente-tarjeta__dato">{c.notas}</span> : null}
                 <div className="cliente-tarjeta__pie">

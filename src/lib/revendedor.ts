@@ -90,6 +90,8 @@ function base(): string {
 export const enlaceCatalogoRv = (usuario: string) => `${base()}#/r/${usuario}`;
 export const enlacePanelRv = () => `${base()}#/rv`;
 export const enlaceApartado = (token: string) => `${base()}#/apartado/${token}`;
+/** El enlace del pedido de la tienda: ahí la clienta ve lo que pagó y reporta lo que falta. */
+export const enlaceReserva = (token: string) => `${base()}#/reserva/${token}`;
 
 /**
  * Un enlace de WhatsApp. Con número, a esa persona; sin número, a elegir

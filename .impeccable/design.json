@@ -8,104 +8,287 @@
         "role": "primary",
         "displayName": "Verde profundo",
         "canonical": "oklch(34.9% 0.040 208)",
-        "tonalRamp": ["#000E12", "#04272C", "#1F4045", "#3A5C61", "#56787E", "#73969C", "#9BBFC5", "#D1F7FD"]
+        "tonalRamp": [
+          "#000E12",
+          "#04272C",
+          "#1F4045",
+          "#3A5C61",
+          "#56787E",
+          "#73969C",
+          "#9BBFC5",
+          "#D1F7FD"
+        ]
       },
       "oro-arena": {
         "role": "secondary",
         "displayName": "Oro arena",
         "canonical": "oklch(77.2% 0.063 68)",
-        "tonalRamp": ["#150700", "#331B00", "#503411", "#6C4F2D", "#8A6B49", "#A98866", "#D3B18C", "#FFEBD6"]
+        "tonalRamp": [
+          "#150700",
+          "#331B00",
+          "#503411",
+          "#6C4F2D",
+          "#8A6B49",
+          "#A98866",
+          "#D3B18C",
+          "#FFEBD6"
+        ]
       },
       "oro-texto": {
         "role": "secondary",
         "displayName": "Oro de texto",
         "canonical": "oklch(50.9% 0.075 66)",
-        "tonalRamp": ["#160700", "#331B00", "#543104", "#714C24", "#8F6941", "#AF865D", "#D9AE84", "#FEEBD8"]
+        "tonalRamp": [
+          "#160700",
+          "#331B00",
+          "#543104",
+          "#714C24",
+          "#8F6941",
+          "#AF865D",
+          "#D9AE84",
+          "#FEEBD8"
+        ]
       },
       "salvia": {
         "role": "tertiary",
         "displayName": "Salvia",
         "canonical": "oklch(64.9% 0.024 190)",
-        "tonalRamp": ["#010E0D", "#132524", "#2C3F3D", "#465A58", "#627674", "#7F9492", "#A7BDBB", "#DDF4F2"]
+        "tonalRamp": [
+          "#010E0D",
+          "#132524",
+          "#2C3F3D",
+          "#465A58",
+          "#627674",
+          "#7F9492",
+          "#A7BDBB",
+          "#DDF4F2"
+        ]
       },
       "salvia-texto": {
         "role": "tertiary",
         "displayName": "Salvia de texto",
         "canonical": "oklch(49.2% 0.027 189)",
-        "tonalRamp": ["#000F0D", "#112624", "#2A3F3D", "#455A58", "#607775", "#7D9592", "#A5BDBB", "#DBF5F2"]
+        "tonalRamp": [
+          "#000F0D",
+          "#112624",
+          "#2A3F3D",
+          "#455A58",
+          "#607775",
+          "#7D9592",
+          "#A5BDBB",
+          "#DBF5F2"
+        ]
       },
       "crema": {
         "role": "neutral",
         "displayName": "Crema",
         "canonical": "oklch(92.3% 0.025 87)",
-        "tonalRamp": ["#100A01", "#272113", "#403A2B", "#5B5545", "#787161", "#968E7E", "#BEB7A5", "#F6EEDC"]
+        "tonalRamp": [
+          "#100A01",
+          "#272113",
+          "#403A2B",
+          "#5B5545",
+          "#787161",
+          "#968E7E",
+          "#BEB7A5",
+          "#F6EEDC"
+        ]
       },
       "papel": {
         "role": "neutral",
         "displayName": "Papel",
         "canonical": "oklch(95.3% 0.016 86)",
-        "tonalRamp": ["#0E0B05", "#252119", "#3E3A31", "#59554C", "#757167", "#938F85", "#BCB7AC", "#F3EEE3"]
+        "tonalRamp": [
+          "#0E0B05",
+          "#252119",
+          "#3E3A31",
+          "#59554C",
+          "#757167",
+          "#938F85",
+          "#BCB7AC",
+          "#F3EEE3"
+        ]
       },
       "tinta": {
         "role": "neutral",
         "displayName": "Tinta",
         "canonical": "oklch(26.5% 0.027 207)",
-        "tonalRamp": ["#000E11", "#102528", "#293F42", "#445A5D", "#5F767A", "#7C9498", "#A4BDC0", "#DAF4F8"]
+        "tonalRamp": [
+          "#000E11",
+          "#102528",
+          "#293F42",
+          "#445A5D",
+          "#5F767A",
+          "#7C9498",
+          "#A4BDC0",
+          "#DAF4F8"
+        ]
       },
       "exito": {
         "role": "tertiary",
         "displayName": "Éxito",
         "canonical": "oklch(49.5% 0.055 152)",
-        "tonalRamp": ["#001003", "#082914", "#23432C", "#3E5E46", "#5A7B61", "#77997E", "#9EC2A6", "#D4FADC"]
+        "tonalRamp": [
+          "#001003",
+          "#082914",
+          "#23432C",
+          "#3E5E46",
+          "#5A7B61",
+          "#77997E",
+          "#9EC2A6",
+          "#D4FADC"
+        ]
       },
       "alerta": {
         "role": "tertiary",
         "displayName": "Alerta",
         "canonical": "oklch(60.5% 0.096 67)",
-        "tonalRamp": ["#160700", "#331B00", "#553100", "#784907", "#97662D", "#B6834C", "#E1AC73", "#FFEBD7"]
+        "tonalRamp": [
+          "#160700",
+          "#331B00",
+          "#553100",
+          "#784907",
+          "#97662D",
+          "#B6834C",
+          "#E1AC73",
+          "#FFEBD7"
+        ]
       },
       "alerta-texto": {
         "role": "tertiary",
         "displayName": "Alerta de texto",
         "canonical": "oklch(51.1% 0.084 66)",
-        "tonalRamp": ["#160700", "#331B00", "#553100", "#754B1A", "#936738", "#B28556", "#DDAD7D", "#FEEBD8"]
+        "tonalRamp": [
+          "#160700",
+          "#331B00",
+          "#553100",
+          "#754B1A",
+          "#936738",
+          "#B28556",
+          "#DDAD7D",
+          "#FEEBD8"
+        ]
       },
       "error": {
         "role": "tertiary",
         "displayName": "Error",
         "canonical": "oklch(45.8% 0.114 28)",
-        "tonalRamp": ["#210000", "#470001", "#691A15", "#893830", "#AA554B", "#CB7368", "#F89B8F", "#FEE9E6"]
+        "tonalRamp": [
+          "#210000",
+          "#470001",
+          "#691A15",
+          "#893830",
+          "#AA554B",
+          "#CB7368",
+          "#F89B8F",
+          "#FEE9E6"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Vitrina y portada del catálogo. Fraunces sustituye a Bagind, la fuente de marca." },
-      "headline": { "displayName": "Titular", "purpose": "El h1 de cada pantalla y el total del cobro." },
-      "title": { "displayName": "Título", "purpose": "h2 de tarjeta y h3 de sección." },
-      "price": { "displayName": "Precio", "purpose": "Toda cifra de dinero, siempre en serif de exhibición y tabular." },
-      "body": { "displayName": "Cuerpo", "purpose": "Jost, la fuente de trabajo de la interfaz de escritorio." },
-      "body-mostrador": { "displayName": "Cuerpo del mostrador", "purpose": "18 px: teléfono de gama baja bajo luz de tienda." },
-      "prose": { "displayName": "Prosa", "purpose": "EB Garamond. Nombre de la pieza, descripciones, estados vacíos, catálogo impreso." },
-      "label": { "displayName": "Etiqueta", "purpose": "Mayúsculas con tracking: etiquetas, cabeceras de tabla, botones, píldoras." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Vitrina y portada del catálogo. Fraunces sustituye a Bagind, la fuente de marca."
+      },
+      "headline": {
+        "displayName": "Titular",
+        "purpose": "El h1 de cada pantalla y el total del cobro."
+      },
+      "title": {
+        "displayName": "Título",
+        "purpose": "h2 de tarjeta y h3 de sección."
+      },
+      "price": {
+        "displayName": "Precio",
+        "purpose": "Toda cifra de dinero, siempre en serif de exhibición y tabular."
+      },
+      "body": {
+        "displayName": "Cuerpo",
+        "purpose": "Jost, la fuente de trabajo de la interfaz de escritorio."
+      },
+      "body-mostrador": {
+        "displayName": "Cuerpo del mostrador",
+        "purpose": "18 px: teléfono de gama baja bajo luz de tienda."
+      },
+      "prose": {
+        "displayName": "Prosa",
+        "purpose": "EB Garamond. Nombre de la pieza, descripciones, estados vacíos, catálogo impreso."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Mayúsculas con tracking: etiquetas, cabeceras de tabla, botones, píldoras."
+      }
     },
     "shadows": [
-      { "name": "sombra-1", "value": "0 1px 2px rgba(31,64,69,0.05), 0 2px 8px rgba(31,64,69,0.04)", "purpose": "Reposo: tarjetas, campos, botones." },
-      { "name": "sombra-2", "value": "0 2px 4px rgba(31,64,69,0.06), 0 8px 24px rgba(31,64,69,0.07)", "purpose": "Hover del botón." },
-      { "name": "sombra-3", "value": "0 4px 8px rgba(31,64,69,0.08), 0 16px 40px rgba(31,64,69,0.10)", "purpose": "Barra del carrito y tarjeta levantada." },
-      { "name": "anillo-foco", "value": "0 0 0 3px rgba(31,64,69,0.18)", "purpose": "Campo con foco." },
-      { "name": "anillo-oro", "value": "0 0 0 3px rgba(208,174,138,0.40)", "purpose": "Hover del botón de confirmación." }
+      {
+        "name": "sombra-1",
+        "value": "0 1px 2px rgba(31,64,69,0.05), 0 2px 8px rgba(31,64,69,0.04)",
+        "purpose": "Reposo: tarjetas, campos, botones."
+      },
+      {
+        "name": "sombra-2",
+        "value": "0 2px 4px rgba(31,64,69,0.06), 0 8px 24px rgba(31,64,69,0.07)",
+        "purpose": "Hover del botón."
+      },
+      {
+        "name": "sombra-3",
+        "value": "0 4px 8px rgba(31,64,69,0.08), 0 16px 40px rgba(31,64,69,0.10)",
+        "purpose": "Barra del carrito y tarjeta levantada."
+      },
+      {
+        "name": "anillo-foco",
+        "value": "0 0 0 3px rgba(31,64,69,0.18)",
+        "purpose": "Campo con foco."
+      },
+      {
+        "name": "anillo-oro",
+        "value": "0 0 0 3px rgba(208,174,138,0.40)",
+        "purpose": "Hover del botón de confirmación."
+      }
     ],
     "motion": [
-      { "name": "salida", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "La única curva del sistema: sale rápido, entra suave." },
-      { "name": "rapido", "value": "150ms", "purpose": "Color, borde y fondo." },
-      { "name": "medio", "value": "240ms", "purpose": "Sombra y desplazamiento de tarjeta." },
-      { "name": "reducido", "value": "120ms", "purpose": "Con prefers-reduced-motion se cae el transform y queda la respuesta de color." }
+      {
+        "name": "salida",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "La única curva del sistema: sale rápido, entra suave."
+      },
+      {
+        "name": "rapido",
+        "value": "150ms",
+        "purpose": "Color, borde y fondo."
+      },
+      {
+        "name": "medio",
+        "value": "240ms",
+        "purpose": "Sombra y desplazamiento de tarjeta."
+      },
+      {
+        "name": "reducido",
+        "value": "120ms",
+        "purpose": "Con prefers-reduced-motion se cae el transform y queda la respuesta de color."
+      }
     ],
     "breakpoints": [
-      { "name": "angosto", "value": "380px" },
-      { "name": "movil", "value": "560px" },
-      { "name": "tableta", "value": "720px" },
-      { "name": "escritorio", "value": "900px" },
-      { "name": "televisor", "value": "1600px" }
+      {
+        "name": "angosto",
+        "value": "380px"
+      },
+      {
+        "name": "movil",
+        "value": "560px"
+      },
+      {
+        "name": "tableta",
+        "value": "720px"
+      },
+      {
+        "name": "escritorio",
+        "value": "900px"
+      },
+      {
+        "name": "televisor",
+        "value": "1600px"
+      }
     ]
   },
   "components": [
@@ -213,12 +396,54 @@
       "html": "<div class=\"ds-mover\"><div class=\"ds-mover-titulo\">Mover de ubicación</div><p class=\"ds-mover-frase\">Está en <strong>Vitrina 1</strong>: 3 piezas.</p><button class=\"ds-mover-btn\">Mover</button></div>",
       "css": ".ds-mover { width: 360px; padding: 16px; background: #F4EFE4; border-radius: 22px; box-shadow: 0 4px 8px rgba(31,64,69,.08), 0 16px 40px rgba(31,64,69,.10); } .ds-mover-titulo { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; color: #14292C; margin-bottom: 12px; } .ds-mover-frase { font-family: 'Jost', system-ui, sans-serif; font-size: 16px; color: #1F4045; margin: 0 0 16px; } .ds-mover-btn { min-height: 42px; padding: 0 32px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #EDE5D3; background: #1F4045; border: 2px solid #D0AE8A; border-radius: 999px; cursor: pointer; }"
     },
-    {"name": "Pago móvil, para copiar", "kind": "custom", "refersTo": "panel", "description": "En la página del pedido, antes de \"Cómo pagaste\": cédula, teléfono y banco, cada uno con su botón de copiar de 56 px al alcance del pulgar. Al copiar, la palabra cambia a \"Copiado\" y el borde se vuelve verde de éxito. Se copian limpios: solo dígitos, y del banco solo el código.", "html": "<div class=\"ds-pago\"><div class=\"ds-pago-titulo\">Pago móvil Lux</div><div class=\"ds-pago-fila\"><div><div class=\"ds-pago-etq\">Cédula</div><div class=\"ds-pago-dato\">26482389</div></div><button class=\"ds-pago-btn\">Copiar</button></div><div class=\"ds-pago-fila\"><div><div class=\"ds-pago-etq\">Teléfono</div><div class=\"ds-pago-dato\">04147158596</div></div><button class=\"ds-pago-btn ds-pago-btn--listo\">Copiado</button></div></div>", "css": ".ds-pago { width: 360px; padding: 16px; background: #FAF6EE; border-radius: 14px; } .ds-pago-titulo { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; margin-bottom: 12px; } .ds-pago-fila { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #EDE7DA; } .ds-pago-fila:last-child { border-bottom: 0; } .ds-pago-etq { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-pago-dato { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-pago-btn { min-width: 112px; min-height: 56px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #1F4045; background: #FFFFFF; border: 1px solid #E0D8C7; border-radius: 999px; cursor: pointer; } .ds-pago-btn--listo { border-color: #4A6B52; color: #4A6B52; }"},
-    {"name": "Abonos de una venta por partes", "kind": "custom", "refersTo": "panel", "description": "En Pedidos y en la ficha de la clienta: cada abono en un renglón (monto en Fraunces, debajo fecha, forma de pago y referencia) y al final cuánto falta en $ BCV y en Bs de hoy. En Pedidos, al pie, el formulario para cargar el siguiente.", "html": "<div class=\"ds-abonos\"><div class=\"ds-abonos-titulo\">Abonos</div><div class=\"ds-abono\"><div class=\"ds-abono-monto\">Bs 400,00</div><div class=\"ds-abono-meta\">3 sep, 10:20 · Pago móvil · Ref. 0412</div></div><p class=\"ds-abonos-falta\">Faltan <strong>$6,00 BCV</strong>, hoy <strong>Bs 660,00</strong>.</p></div>", "css": ".ds-abonos { width: 360px; padding: 16px; background: #FAF6EE; border-radius: 14px; } .ds-abonos-titulo { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; margin-bottom: 12px; } .ds-abono { padding-bottom: 12px; border-bottom: 1px solid #EDE7DA; } .ds-abono-monto { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-abono-meta { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-abonos-falta { font-family: 'Jost', system-ui, sans-serif; font-size: 16px; color: #14292C; margin: 16px 0 0; } .ds-abonos-falta strong { font-family: 'Fraunces', Georgia, serif; font-weight: 600; }"},
-    {"name":"Cabecera del catálogo de un revendedor","kind":"custom","refersTo":"navigation","description":"La barra del catálogo /r/<usuario> y de su panel. Su logo en un círculo crema si Lux se lo subió, el nombre de su catálogo en Fraunces crema (20 px, 28 en escritorio) y debajo \"Joyas Lux by Emory\" en label del acento. A la derecha, \"Escribir a María\", el secundario sobre el ancla. Lleva los colores de SU paleta.","html":"<header class=\"ds-rv\"><div><div class=\"ds-rv-nombre\">Joyas de María</div><div class=\"ds-rv-de\">Joyas Lux by Emory</div></div><span class=\"ds-rv-boton\">Escribir a María</span></header>","css":".ds-rv { width: 360px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; background: #5B1F2E; } .ds-rv-nombre { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; color: #F4EAE3; } .ds-rv-de { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #E6BBA8; } .ds-rv-boton { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #F4EAE3; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(244,234,227,0.26); background: rgba(244,234,227,0.12); }"},
-    {"name":"Elegir paleta","kind":"custom","refersTo":"panel","description":"Seis radios vestidos, en rejilla de 132 px: una muestra redondeada con el ancla arriba y una raya del acento, el papel abajo, y el nombre en label. Cada muestra lleva la clase de SU paleta y dibuja con los tokens, así los colores no se repiten. La elegida, borde de 2 px en tinta y sombra de hover.","html":"<div class=\"ds-paletas\"><span class=\"ds-muestra\" style=\"--a:#1F4045;--p:#F4EFE4\"></span><span class=\"ds-muestra ds-muestra--si\" style=\"--a:#5B1F2E;--p:#F8F1EE\"></span><span class=\"ds-muestra\" style=\"--a:#1E2B45;--p:#F5F2EB\"></span></div>","css":".ds-paletas { display: flex; gap: 12px; } .ds-muestra { width: 96px; height: 62px; border-radius: 16px; border: 1px solid #E0D8C7; background: var(--a); border-bottom: 18px solid var(--p); } .ds-muestra--si { border: 2px solid #14292C; box-shadow: 0 2px 4px rgba(31,64,69,.06), 0 8px 24px rgba(31,64,69,.07); }"},
-    {"name":"Sus precios, pieza por pieza","kind":"custom","refersTo":"card","description":"En el panel del revendedor: una fila por pieza con la foto, el nombre en EB Garamond, \"Tienda $20,00 BCV\" y lo que queda; a la derecha \"Te sale\" en Fraunces; y su precio en un campo con \"Ganas $5,10 BCV (25 %)\" debajo, en verde de éxito. Bajo el mínimo, el error junto al campo. Lo cambiado queda en borrador con la barra flotante de guardar. En el teléfono el campo baja a su renglón.","html":"<div class=\"ds-rvp\"><div><div class=\"ds-rvp-nombre\">Anillo solitario</div><div class=\"ds-rvp-dato\">Tienda $20,00 BCV · quedan 6</div></div><div class=\"ds-rvp-sale\">$15,00 BCV</div></div>","css":".ds-rvp { width: 360px; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; } .ds-rvp-nombre { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; color: #14292C; } .ds-rvp-dato { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-rvp-sale { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; color: #14292C; }"},
-    {"name":"El libro de la caja","kind":"custom","refersTo":"table","description":"Tabla sin cabecera verde dentro de una tarjeta: cabecera en label secundario sobre una línea, un renglón por forma de pago con su nombre en Jost medium y notas de 12 px (en dólares Binance, cobros, lo que falta verificar en alerta de texto), y entró, salió y queda en Fraunces 16 px tabular, cada renglón en su moneda. El pie en fondo panel: En dólares BCV y En bolívares. En el teléfono se caen entró y salió y bajan a una línea bajo el nombre.","html":"<table class=\"ds-libro\"><thead><tr><th>Forma de pago</th><th>Entró</th><th>Salió</th><th>Queda</th></tr></thead><tbody><tr><td><b>Efectivo Bs</b><small>1 cobro</small></td><td>Bs 3.368,00</td><td>Bs 1.450,00</td><td>Bs 1.918,00</td></tr><tr><td><b>Efectivo $</b><small>En dólares Binance</small></td><td>$30,00</td><td>$10,00</td><td>$20,00</td></tr></tbody><tfoot><tr><td>En dólares BCV</td><td>$290,46</td><td>$21,08</td><td>$269,38</td></tr></tfoot></table>","css":".ds-libro { border-collapse: separate; border-spacing: 0; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; color: #1F4045; } .ds-libro th { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #506664; text-align: right; padding: 0 8px 8px; border-bottom: 1px solid #E0D8C7; } .ds-libro th:first-child, .ds-libro td:first-child { text-align: left; } .ds-libro td { padding: 12px 8px; border-bottom: 1px solid #EDE7DA; text-align: right; font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; vertical-align: top; } .ds-libro td:first-child b { display: block; font-family: 'Jost', system-ui, sans-serif; font-size: 15px; font-weight: 500; color: #14292C; } .ds-libro small { display: block; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 400; color: #506664; } .ds-libro tfoot td { background: #FAF6EE; border-bottom: 0; } .ds-libro tfoot td:first-child { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #506664; }"}
+    {
+      "name": "Pago móvil, para copiar",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "En la página del pedido, antes de \"Cómo pagaste\": cédula, teléfono y banco, cada uno con su botón de copiar de 56 px al alcance del pulgar. Al copiar, la palabra cambia a \"Copiado\" y el borde se vuelve verde de éxito. Se copian limpios: solo dígitos, y del banco solo el código.",
+      "html": "<div class=\"ds-pago\"><div class=\"ds-pago-titulo\">Pago móvil Lux</div><div class=\"ds-pago-fila\"><div><div class=\"ds-pago-etq\">Cédula</div><div class=\"ds-pago-dato\">26482389</div></div><button class=\"ds-pago-btn\">Copiar</button></div><div class=\"ds-pago-fila\"><div><div class=\"ds-pago-etq\">Teléfono</div><div class=\"ds-pago-dato\">04147158596</div></div><button class=\"ds-pago-btn ds-pago-btn--listo\">Copiado</button></div></div>",
+      "css": ".ds-pago { width: 360px; padding: 16px; background: #FAF6EE; border-radius: 14px; } .ds-pago-titulo { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; margin-bottom: 12px; } .ds-pago-fila { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #EDE7DA; } .ds-pago-fila:last-child { border-bottom: 0; } .ds-pago-etq { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; } .ds-pago-dato { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-pago-btn { min-width: 112px; min-height: 56px; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #1F4045; background: #FFFFFF; border: 1px solid #E0D8C7; border-radius: 999px; cursor: pointer; } .ds-pago-btn--listo { border-color: #4A6B52; color: #4A6B52; }"
+    },
+    {
+      "name": "Abonos de un pedido",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "En Pedidos, en el enlace de la clienta y en el panel del revendedor: cada pago en un renglón, con el monto en Fraunces 16 px y a la derecha su estado en una píldora (Por verificar en alerta, Llegó en éxito, No llegó en error; el que no llegó se tacha en salvia de texto y se queda). Debajo, fecha, forma de pago, referencia y quién lo cargó o lo reportó, y en su propia línea lo que faltaba después de él (\"Después de este, faltaban $6,00 BCV\", la cifra en Fraunces). En Pedidos, bajo cada uno que la tienda puede tocar, Llegó, Corregir y No llegó en botones pequeños de 44 px; corregir abre el formulario dentro del renglón, tras una línea, y \"Se corrigió una vez\" despliega lo que decía antes. Al final, cuánto falta en $ BCV y en Bs de hoy.",
+      "html": "<div class=\"ds-abonos\"><div class=\"ds-abonos-titulo\">Abonos</div><div class=\"ds-abono\"><div class=\"ds-abono-cabeza\"><span class=\"ds-abono-monto\">Bs 400,00</span><span class=\"ds-pildora ds-pildora--alerta\">Por verificar</span></div><div class=\"ds-abono-meta\">30/09/2026, 10:20 · Pago móvil · Ref. 0412 · lo reportó la clienta</div><div class=\"ds-abono-quedaba\">Después de este, faltaban <strong>$6,00 BCV</strong></div></div><p class=\"ds-abonos-falta\">Faltan <strong>$6,00 BCV</strong>, hoy <strong>Bs 660,00</strong>.</p></div>",
+      "css": ".ds-abonos { width: 360px; padding: 16px; background: #FAF6EE; border-radius: 14px; } .ds-abonos-titulo { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #506664; margin-bottom: 12px; } .ds-abono { padding-bottom: 12px; border-bottom: 1px solid #EDE7DA; } .ds-abono-monto { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: #14292C; } .ds-abono-meta { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-abonos-falta { font-family: 'Jost', system-ui, sans-serif; font-size: 16px; color: #14292C; margin: 16px 0 0; } .ds-abonos-falta strong { font-family: 'Fraunces', Georgia, serif; font-weight: 600; } .ds-abono-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; } .ds-pildora { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; padding: 2px 10px; border: 1px solid currentColor; border-radius: 999px; } .ds-pildora--alerta { color: #875C2D; background: rgba(168,118,62,.08); } .ds-abono-quedaba { font-family: 'Jost', system-ui, sans-serif; font-size: 14px; color: #1F4045; margin-top: 4px; } .ds-abono-quedaba strong { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Cabecera del catálogo de un revendedor",
+      "kind": "custom",
+      "refersTo": "navigation",
+      "description": "La barra del catálogo /r/<usuario> y de su panel. Su logo en un círculo crema si Lux se lo subió, el nombre de su catálogo en Fraunces crema (20 px, 28 en escritorio) y debajo \"Joyas Lux by Emory\" en label del acento. A la derecha, \"Escribir a María\", el secundario sobre el ancla. Lleva los colores de SU paleta.",
+      "html": "<header class=\"ds-rv\"><div><div class=\"ds-rv-nombre\">Joyas de María</div><div class=\"ds-rv-de\">Joyas Lux by Emory</div></div><span class=\"ds-rv-boton\">Escribir a María</span></header>",
+      "css": ".ds-rv { width: 360px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; background: #5B1F2E; } .ds-rv-nombre { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; color: #F4EAE3; } .ds-rv-de { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #E6BBA8; } .ds-rv-boton { font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #F4EAE3; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(244,234,227,0.26); background: rgba(244,234,227,0.12); }"
+    },
+    {
+      "name": "Elegir paleta",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Seis radios vestidos, en rejilla de 132 px: una muestra redondeada con el ancla arriba y una raya del acento, el papel abajo, y el nombre en label. Cada muestra lleva la clase de SU paleta y dibuja con los tokens, así los colores no se repiten. La elegida, borde de 2 px en tinta y sombra de hover.",
+      "html": "<div class=\"ds-paletas\"><span class=\"ds-muestra\" style=\"--a:#1F4045;--p:#F4EFE4\"></span><span class=\"ds-muestra ds-muestra--si\" style=\"--a:#5B1F2E;--p:#F8F1EE\"></span><span class=\"ds-muestra\" style=\"--a:#1E2B45;--p:#F5F2EB\"></span></div>",
+      "css": ".ds-paletas { display: flex; gap: 12px; } .ds-muestra { width: 96px; height: 62px; border-radius: 16px; border: 1px solid #E0D8C7; background: var(--a); border-bottom: 18px solid var(--p); } .ds-muestra--si { border: 2px solid #14292C; box-shadow: 0 2px 4px rgba(31,64,69,.06), 0 8px 24px rgba(31,64,69,.07); }"
+    },
+    {
+      "name": "Sus precios, pieza por pieza",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "En el panel del revendedor: una fila por pieza con la foto, el nombre en EB Garamond, \"Tienda $20,00 BCV\" y lo que queda; a la derecha \"Te sale\" en Fraunces; y su precio en un campo con \"Ganas $5,10 BCV (25 %)\" debajo, en verde de éxito. Bajo el mínimo, el error junto al campo. Lo cambiado queda en borrador con la barra flotante de guardar. En el teléfono el campo baja a su renglón.",
+      "html": "<div class=\"ds-rvp\"><div><div class=\"ds-rvp-nombre\">Anillo solitario</div><div class=\"ds-rvp-dato\">Tienda $20,00 BCV · quedan 6</div></div><div class=\"ds-rvp-sale\">$15,00 BCV</div></div>",
+      "css": ".ds-rvp { width: 360px; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; } .ds-rvp-nombre { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; color: #14292C; } .ds-rvp-dato { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-rvp-sale { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; color: #14292C; }"
+    },
+    {
+      "name": "El libro de la caja",
+      "kind": "custom",
+      "refersTo": "table",
+      "description": "Tabla sin cabecera verde dentro de una tarjeta: cabecera en label secundario sobre una línea, un renglón por forma de pago con su nombre en Jost medium y notas de 12 px (en dólares Binance, cobros, lo que falta verificar en alerta de texto), y entró, salió y queda en Fraunces 16 px tabular, cada renglón en su moneda. El pie en fondo panel: En dólares BCV y En bolívares. En el teléfono se caen entró y salió y bajan a una línea bajo el nombre.",
+      "html": "<table class=\"ds-libro\"><thead><tr><th>Forma de pago</th><th>Entró</th><th>Salió</th><th>Queda</th></tr></thead><tbody><tr><td><b>Efectivo Bs</b><small>1 cobro</small></td><td>Bs 3.368,00</td><td>Bs 1.450,00</td><td>Bs 1.918,00</td></tr><tr><td><b>Efectivo $</b><small>En dólares Binance</small></td><td>$30,00</td><td>$10,00</td><td>$20,00</td></tr></tbody><tfoot><tr><td>En dólares BCV</td><td>$290,46</td><td>$21,08</td><td>$269,38</td></tr></tfoot></table>",
+      "css": ".ds-libro { border-collapse: separate; border-spacing: 0; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; color: #1F4045; } .ds-libro th { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #506664; text-align: right; padding: 0 8px 8px; border-bottom: 1px solid #E0D8C7; } .ds-libro th:first-child, .ds-libro td:first-child { text-align: left; } .ds-libro td { padding: 12px 8px; border-bottom: 1px solid #EDE7DA; text-align: right; font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; vertical-align: top; } .ds-libro td:first-child b { display: block; font-family: 'Jost', system-ui, sans-serif; font-size: 15px; font-weight: 500; color: #14292C; } .ds-libro small { display: block; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 400; color: #506664; } .ds-libro tfoot td { background: #FAF6EE; border-bottom: 0; } .ds-libro tfoot td:first-child { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #506664; }"
+    }
   ],
   "narrative": {
     "northStar": "El estuche",
@@ -231,16 +456,56 @@
       "Contraste medido, no estimado: todo texto a 4,5:1 o más."
     ],
     "rules": [
-      { "name": "La regla del oro", "body": "El oro solo se lee sobre verde profundo. Sobre claro, oro-texto o nada. Si el oro ocupa más del 5 % de una pantalla, quítale oro a algo.", "section": "colors" },
-      { "name": "La regla del color medido", "body": "Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.", "section": "colors" },
-      { "name": "La regla de las dos monedas", "body": "En este negocio hay dos dólares y valen distinto. Todo \"$\" en pantalla dice cuál es: \"$20,00 BCV\" (el de la etiqueta) o \"$14,50 Binance\" (el que se compra afuera). En una tabla la moneda va en la cabecera y la celda lleva la cifra sola. Un \"$\" pelado es un defecto.", "section": "colors" },
-      { "name": "La regla del precio", "body": "Todo precio va en display serif. Sin excepción, ni en una celda de tabla.", "section": "typography" },
-      { "name": "La regla del tercer precio", "body": "El precio en $ Binance es lo que se cobra si pagan en dólares. Va solo en el mostrador y en la administración, un paso más chico que los dos de la etiqueta y siempre en serif. Nunca en lo que ve la clienta: catálogo público, PDF o vitrina.", "section": "typography" },
-      { "name": "La regla del gesto con botón", "body": "Todo gesto tiene un botón visible que hace lo mismo. Deslizar para pasar de pieza sin flechas a la vista es un camino que nadie encuentra.", "section": "components" },
-      { "name": "La regla de la sans", "body": "Jost es la fuente de trabajo de la interfaz. La serif de lectura nunca va en una etiqueta, un botón o un dato.", "section": "typography" },
-      { "name": "La regla de la sombra verde", "body": "Ninguna sombra gris. Toda elevación lleva el verde profundo en su rgba.", "section": "elevation" },
-      { "name": "La regla de la tarjeta única", "body": "Tarjeta dentro de tarjeta está prohibido. Dentro de una tarjeta, un panel de fondo; nunca otro borde.", "section": "elevation" },
-      { "name":"La regla de la paleta del revendedor","body":"La única excepción a \"ningún otro color\": el catálogo y el panel de un revendedor pueden llevar una de seis paletas (lux, noche, vino, grafito, ciruela, oliva), cada una con los mismos papeles que la de Lux y cada par de texto medido a 4,5:1. No hay selector de color libre, y debajo de su nombre siempre dice \"Joyas Lux by Emory\".","section":"colors" }
+      {
+        "name": "La regla del oro",
+        "body": "El oro solo se lee sobre verde profundo. Sobre claro, oro-texto o nada. Si el oro ocupa más del 5 % de una pantalla, quítale oro a algo.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del color medido",
+        "body": "Un color de marca no es automáticamente un color de texto. Antes de usarlo para leer se mide contra el fondo real; salvia, alerta y oro tienen su variante de texto por eso.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla de las dos monedas",
+        "body": "En este negocio hay dos dólares y valen distinto. Todo \"$\" en pantalla dice cuál es: \"$20,00 BCV\" (el de la etiqueta) o \"$14,50 Binance\" (el que se compra afuera). En una tabla la moneda va en la cabecera y la celda lleva la cifra sola. Un \"$\" pelado es un defecto.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del precio",
+        "body": "Todo precio va en display serif. Sin excepción, ni en una celda de tabla.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla del tercer precio",
+        "body": "El precio en $ Binance es lo que se cobra si pagan en dólares. Va solo en el mostrador y en la administración, un paso más chico que los dos de la etiqueta y siempre en serif. Nunca en lo que ve la clienta: catálogo público, PDF o vitrina.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla del gesto con botón",
+        "body": "Todo gesto tiene un botón visible que hace lo mismo. Deslizar para pasar de pieza sin flechas a la vista es un camino que nadie encuentra.",
+        "section": "components"
+      },
+      {
+        "name": "La regla de la sans",
+        "body": "Jost es la fuente de trabajo de la interfaz. La serif de lectura nunca va en una etiqueta, un botón o un dato.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla de la sombra verde",
+        "body": "Ninguna sombra gris. Toda elevación lleva el verde profundo en su rgba.",
+        "section": "elevation"
+      },
+      {
+        "name": "La regla de la tarjeta única",
+        "body": "Tarjeta dentro de tarjeta está prohibido. Dentro de una tarjeta, un panel de fondo; nunca otro borde.",
+        "section": "elevation"
+      },
+      {
+        "name": "La regla de la paleta del revendedor",
+        "body": "La única excepción a \"ningún otro color\": el catálogo y el panel de un revendedor pueden llevar una de seis paletas (lux, noche, vino, grafito, ciruela, oliva), cada una con los mismos papeles que la de Lux y cada par de texto medido a 4,5:1. No hay selector de color libre, y debajo de su nombre siempre dice \"Joyas Lux by Emory\".",
+        "section": "colors"
+      }
     ],
     "dos": [
       "Do poner todo precio en Fraunces 600 con tabular-nums.",

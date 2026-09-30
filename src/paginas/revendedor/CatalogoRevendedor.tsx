@@ -304,8 +304,12 @@ export function CatalogoRevendedor() {
           <div className="panel">
             <span className="panel__titulo">Cómo funciona</span>
             <p className="prosa">
-              {primerNombre} te guarda estas piezas {perfil.dias_apartado > 0 ? `${perfil.dias_apartado} días` : 'unos días'}.
-              Le pagas a {primerNombre}, todo junto o por partes, y cuando termines te entrega tus piezas.
+              Tus piezas quedan apartadas {perfil.horas_pago ? `${perfil.horas_pago} horas` : 'unas horas'} mientras
+              le pagas a {primerNombre}. En la pantalla siguiente están sus datos de pago móvil y ahí le avisas
+              que ya pagaste.
+              {perfil.dias_credito
+                ? ` Puedes pagar el total, o al menos el ${perfil.inicial_pct ?? ''} % y tienes ${perfil.dias_credito} días para pagarle lo demás.`
+                : ' Se paga el total.'}
             </p>
           </div>
 
@@ -339,7 +343,7 @@ export function CatalogoRevendedor() {
             <h1>Catálogo</h1>
             <p>
               Toca las piezas que te gusten y apártalas.
-              {perfil.dias_apartado > 0 ? ` Tienes ${perfil.dias_apartado} días para pagarlas.` : ''}
+              {perfil.dias_credito ? ` Puedes pagarlas por partes en ${perfil.dias_credito} días.` : ''}
             </p>
           </div>
         </div>

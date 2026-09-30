@@ -59,8 +59,8 @@ src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
                          panel, con su código. El panel viaja aparte.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             48 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    126 comprobaciones de seguridad (130 con LUX_REVENDEDOR).
+esquema*.sql             50 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    152 comprobaciones de seguridad (157 con LUX_REVENDEDOR).
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 
@@ -98,6 +98,10 @@ Pendiente, y le toca al dueño:
 3. Registrar una venta de prueba y anularla, para confirmar de primera mano que
    cerrar las funciones de costo no afectó el cobro. La evidencia indirecta dice
    que no, pero es indirecta.
+4. Retirar `cobrar_con_abono` (la venta a crédito de "Pagó una parte") con la
+   tienda cerrada, cuando ningún teléfono tenga el navegador de antes del
+   apartado (30/09/2026). Se quedó viva solo para ese navegador: la pantalla ya
+   no la ofrece, pero desde la consola todavía se podría vender a crédito.
 
 ## 6. Trampas que ya mordieron
 
@@ -142,7 +146,8 @@ npm run respaldo --fotos    # además las fotos, unos 2 minutos
 
 Escribe en `../Respaldos Lux/<fecha>/`, **fuera del repositorio**, porque el
 repositorio es público y el respaldo lleva cédulas y teléfonos de clientas
-—ahora también los del maestro `clientes`, no solo los de un pedido suelto—,
+—ahora también los del maestro `clientes`, no solo los de un pedido suelto, y
+desde el apartado los abonos, la caja y lo de los revendedores—,
 costos y márgenes. El `.gitignore` tiene esa carpeta como cinturón por si alguien
 cambia el destino.
 
