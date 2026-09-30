@@ -743,8 +743,12 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Una venta cobrada completa que en realidad se paga por partes: el
+  // formulario se abre con un botón, porque casi todas sí se pagaron enteras.
+  const [abonando, setAbonando] = useState(false);
   const piezas = items.reduce((n, i) => n + i.cantidad, 0);
   const falta = Number(cabecera.falta_bcv ?? 0);
+  const total = Number(cabecera.total_bcv ?? 0);
   const recibidoBs = abonos.filter((a) => !a.anulado_en).reduce((s, a) => s + Number(a.monto_bs), 0);
 
   async function verificar() {
@@ -854,11 +858,47 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
         />
       ) : null}
 
+      {/* Se cobró completa, pero pagó (o va pagando) por partes. El primer
+          abono la vuelve una venta por partes (`abonar_venta`): la caja
+          deja de contar el total y cuenta lo que de verdad llegó. */}
+      {!cabecera.pago_parcial && abonando && tasa ? (
+        <>
+          <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+            Carga lo que pagó de verdad. Desde el primer abono la venta queda por partes: dice cuánto falta y se
+            verifica cuando no falte nada.
+          </p>
+          <CargarAbono
+            id={-cabecera.venta_id}
+            falta={total}
+            tasa={tasa}
+            titulo="Cargar lo que pagó"
+            preguntarSiLlego
+            inicial={{ metodo: cabecera.metodo, referencia: cabecera.pago_referencia }}
+            registrar={async (metodo, monto, referencia, verificadoYa) => {
+              const { data, error: err } = await supabase.rpc('abonar_venta', {
+                p_venta_id: cabecera.venta_id, p_metodo: metodo, p_monto: monto,
+                p_referencia: referencia, p_verificado: verificadoYa,
+              });
+              if (err) throw new Error(mensajeDeError(err));
+              return Number(data ?? 0);
+            }}
+            alGuardar={(resta) => alTerminar(resta > 0
+              ? `Abono cargado: la venta ${cabecera.venta_id} queda por partes. Faltan ${formatearBcv(resta)}, hoy ${formatearBs(bsDeBcv(resta, tasa.tasa_bcv))}.`
+              : `Abono cargado: la venta ${cabecera.venta_id} quedó pagada completa. Falta verificarla.`)}
+          />
+        </>
+      ) : null}
+
       {error ? <p className="campo__error" role="alert">{error}</p> : null}
       <div className="acciones">
         <button type="button" className="boton boton--confirmar" disabled={trabajando || falta > 0} onClick={() => void verificar()}>
           {trabajando ? 'Guardando' : 'Pago verificado'}
         </button>
+        {!cabecera.pago_parcial && tasa ? (
+          <button type="button" className="boton boton--secundario" disabled={trabajando} onClick={() => setAbonando((a) => !a)}>
+            {abonando ? 'No cargar pago' : 'Cargar un pago'}
+          </button>
+        ) : null}
         <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
           No llegó el pago: anular
         </button>

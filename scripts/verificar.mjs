@@ -431,6 +431,14 @@ async function main() {
   const apruebaV = await V.rpc('aprobar_apartado', { p_apartado_id: -1 });
   dice(!!apruebaV.error && /no existe/i.test(apruebaV.error.message), 'puede aprobar pedidos de revendedor',
     apruebaV.error ? apruebaV.error.message : 'APROBO UNO QUE NO EXISTE');
+  // Un abono a una venta por verificar (esquema-abonos-ventas-por-verificar.sql):
+  // ella sí, sin sesión no.
+  const abVentaV = await V.rpc('abonar_venta', { p_venta_id: -1, p_metodo: 'pago_movil', p_monto: 1 });
+  dice(!!abVentaV.error && /ya no est/i.test(abVentaV.error.message), 'puede abonar a una venta por verificar',
+    abVentaV.error ? abVentaV.error.message : 'ABONO A UNA QUE NO EXISTE');
+  const abVentaP = await P.rpc('abonar_venta', { p_venta_id: -1, p_metodo: 'pago_movil', p_monto: 1 });
+  dice(abVentaP.error?.code === '42501', 'abonar_venta() sin sesion, rechazada',
+    abVentaP.error ? 'rechazada ' + (abVentaP.error.code ?? '') : 'LA DEJO PASAR');
   const cierraV = await V.rpc('admin_cerrar_pedido', { p_reserva_id: -1, p_devolver: false });
   dice(!!cierraV.error && /administrador/i.test(cierraV.error.message), 'admin_cerrar_pedido(): ella no cierra con dinero',
     cierraV.error ? cierraV.error.message : 'LO CERRO');

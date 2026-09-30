@@ -206,7 +206,8 @@ llamadas desde React: `registrar_venta`, `guardar_cliente`, `crear_reserva`,
 `reportar_pago`, `cerrar_dia`, `fijar_tasa`, `mover_existencia`,
 `verificar_venta`, `anular_venta_por_verificar`, `cobrar_pedido`,
 `cancelar_pedido`, `cobrar_con_abono` (ya no la llama la pantalla),
-`registrar_abono`, `admin_guardar_modelo`,
+`registrar_abono`, `abonar_venta` (un abono a una venta por verificar: el
+primero la vuelve por partes), `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`,
 `cobrar_apartado` (la del navegador viejo: pasa por la aprobación),
 `admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
@@ -406,8 +407,10 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   venta igual (la pieza sale del inventario; nadie más la vende) con
   `ventas.por_verificar`, y aparece en Pedidos con quién la vendió, cómo pagó y la
   referencia. La verifica cualquiera de las dos caras; si el pago no llega, se anula
-  y las piezas vuelven. Anular una venta ya verificada sigue siendo del
-  administrador. **El administrador también vende**: Mostrador y Pedidos están en
+  y las piezas vuelven. Si pagó solo una parte, "Cargar un pago" (`abonar_venta`,
+  de las dos caras): el primer abono la vuelve una venta por partes y la caja
+  cuenta lo que de verdad llegó, no el total que se anotó. Anular una venta ya
+  verificada sigue siendo del administrador. **El administrador también vende**: Mostrador y Pedidos están en
   su menú.
 - **Las ventas y los pedidos no se borran.** Se verifican, se anulan, se cancelan
   o vencen, y se quedan. Por verificar es también el crédito de la clienta: la
@@ -549,7 +552,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 152 comprobaciones con las dos sesiones (157 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 154 comprobaciones con las dos sesiones (159 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 

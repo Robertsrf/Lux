@@ -73,6 +73,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 49 | `esquema-abonos-y-apartados.sql` | El apartado: se paga al menos el 40 % y hay 15 días para terminar (en el catálogo y en el mostrador, donde reemplaza a "Pagó una parte"); todo pedido recibe abonos con su referencia, que se corrigen con historial; el precio de cada pieza se congela al apartar; la venta nace al entregar; cerrar con dinero es del administrador (devolución a la caja). Amplía el respaldo |
 | 50 | `esquema-revendedores-plazos.sql` | El pedido del revendedor en dos plazos: 2 horas para que su clienta le pague a él (a su pago móvil), 1 día desde que él confirma para pagarle a Lux, la tienda aprueba y ahí se registra la venta a nombre de su clienta, que entra al maestro. Vender desde su panel y sus días de crédito |
 | 51 | `esquema-abonos-pedidos-de-antes.sql` | Los pedidos que ya estaban abiertos antes del apartado también reciben abonos: les congela el precio a cada pieza repartiendo su total de siempre en proporción a la etiqueta |
+| 52 | `esquema-abonos-ventas-por-verificar.sql` | Las ventas que quedaron por verificar reciben abonos: el primero las vuelve por partes y la caja cuenta lo que de verdad llegó |
 
 ### Los que NO se corren
 
