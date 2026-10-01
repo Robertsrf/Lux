@@ -19,6 +19,8 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/vendedoras', texto: 'Vendedoras', icono: 'vendedoras' },
   { a: '/admin/revendedores', texto: 'Revendedores', icono: 'revendedores' },
+  // La guía pública que se manda a quien quiere ser revendedor.
+  { a: '/admin/capacitacion', texto: 'Capacitación revendedores', icono: 'capacitacion' },
   { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
   { a: '/admin/grupos',     texto: 'Grupos',     icono: 'grupos' },
   { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },

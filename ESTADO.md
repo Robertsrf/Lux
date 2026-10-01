@@ -59,8 +59,8 @@ src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
                          panel, con su código. El panel viaja aparte.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             53 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    159 comprobaciones de seguridad (164 con LUX_REVENDEDOR).
+esquema*.sql             54 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    161 comprobaciones de seguridad (166 con LUX_REVENDEDOR).
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 

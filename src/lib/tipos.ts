@@ -1357,3 +1357,22 @@ export interface VisitaDia {
   /** Pedidos que entraron por el catálogo ese día. */
   pedidos: number;
 }
+
+/**
+ * rv_programa(): las cifras del programa de revendedores, sin sesión, para
+ * la guía pública. Ninguna es de costo: son la oferta.
+ */
+export interface ProgramaRv {
+  descuento_pct: number | null;
+  sobre_etiqueta_usd: number | null;
+  /** Lo que tiene su clienta para pagarle a él. */
+  horas_pago: number | null;
+  /** Lo que tiene él para pagarle a Lux desde que confirma. */
+  horas_para_pagar: number | null;
+  /** Lo mínimo que su clienta paga para quedarse a crédito. */
+  inicial_pct: number | null;
+  vueltas_para_subir: number | null;
+  vencidos_para_bajar: number | null;
+  dias_ventana: number | null;
+  escalera: { nivel: number; tope_usd: number; desde_usd: number }[];
+}

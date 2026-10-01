@@ -495,6 +495,18 @@ async function main() {
     cuentaV.error ? 'ERROR ' + cuentaV.error.code : `${cuentaV.data?.length} dias · ${clavesVisita}`);
 
   /*
+    LA GUIA DE REVENDEDORES (esquema-guia-revendedores.sql). Publica: cualquiera
+    lee las cifras del programa. Solo las de la oferta; una clave de mas podria
+    ser un margen o un piso, que con el descuento despejan el costo.
+  */
+  console.log('\nLA GUIA DE REVENDEDORES');
+  const progP = await P.rpc('rv_programa');
+  dice(!progP.error && !!progP.data, 'rv_programa() abre sin sesion', progP.error ? 'ERROR ' + progP.error.code : 'responde');
+  const clavesProg = Object.keys(progP.data ?? {}).sort().join(',');
+  dice(clavesProg === 'descuento_pct,dias_ventana,escalera,horas_pago,horas_para_pagar,inicial_pct,sobre_etiqueta_usd,vencidos_para_bajar,vueltas_para_subir',
+    'rv_programa() da solo la oferta, ninguna cifra de costo', clavesProg || 'sin claves');
+
+  /*
     LA CAJA (esquema-caja.sql). Enseña cuánto vende la tienda, en qué
     gasta y el sueldo de cada una: solo el dueño. Las llamadas que escriben
     se prueban con datos que la función rechaza antes de escribir (monto

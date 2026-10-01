@@ -2118,7 +2118,12 @@ table.tabla tfoot td {
   min-height: 44px; margin-top: var(--e-2);
   font-size: var(--t-16); color: var(--texto); cursor: pointer;
 }
-.casilla input { width: 22px; height: 22px; accent-color: var(--verde-profundo); flex: none; }
+/* La regla general de `input` le quita la apariencia y le da alto de campo:
+   sin deshacerlo aquí, una casilla salía como una caja vacía de 56 px. */
+.casilla input {
+  width: 22px; height: 22px; min-height: 0; padding: 0;
+  appearance: auto; accent-color: var(--verde-profundo); flex: none;
+}
 
 /* Reportar un pago desde el enlace: las formas de pago arriba, y los
    atajos "todo lo que falta" y "el mínimo" pegados al campo del monto. */
@@ -2768,3 +2773,22 @@ table.tabla tfoot td {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
+
+/* --- Capacitación revendedores: de dónde saca la guía cada dato ------- */
+
+.capacitacion__datos { margin: 0 0 var(--e-3); display: grid; }
+.capacitacion__datos > div {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+  gap: var(--e-1) var(--e-4);
+  padding: var(--e-3) 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.capacitacion__datos > div:first-child { padding-top: 0; }
+.capacitacion__datos dt {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.capacitacion__datos dd { margin: 0; font-size: var(--t-16); color: var(--texto-fuerte); }
+.capacitacion__pasos { margin: 0; padding-left: var(--e-5); line-height: 1.55; color: var(--texto); }
+.capacitacion__pasos li + li { margin-top: var(--e-2); }

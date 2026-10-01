@@ -75,6 +75,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 51 | `esquema-abonos-pedidos-de-antes.sql` | Los pedidos que ya estaban abiertos antes del apartado también reciben abonos: les congela el precio a cada pieza repartiendo su total de siempre en proporción a la etiqueta |
 | 52 | `esquema-abonos-ventas-por-verificar.sql` | Las ventas que quedaron por verificar reciben abonos: el primero las vuelve por partes y la caja cuenta lo que de verdad llegó |
 | 53 | `esquema-visitas-catalogo.sql` | Cuánta gente abre el catálogo en línea: un teléfono por día, sin sesión y sin datos de nadie; lo ven la vendedora y el administrador en la pantalla Catálogo, con los pedidos que entraron por él |
+| 54 | `esquema-guia-revendedores.sql` | La guía pública para quien quiere ser revendedor: `rv_programa()` le da sin sesión las cifras del programa (ninguna de costo), y tres textos nuevos (WhatsApp, dirección y horario de la tienda) que se llenan en Textos |
 
 ### Los que NO se corren
 

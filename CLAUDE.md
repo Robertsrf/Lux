@@ -78,9 +78,14 @@ src/
   paginas/
     admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
-                Caja (lo que entra y lo que sale, día por día y mes por mes)
+                Caja (lo que entra y lo que sale, día por día y mes por mes),
+                CapacitacionRv ("Capacitación revendedores": el enlace de la guía
+                y de dónde saca cada dato)
     venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
-    publico/    Catalogo, Reserva          (sin sesión)
+    publico/    Catalogo, Reserva, GuiaRevendedor (/guia-revendedor, la guía
+                para quien quiere ser revendedor) con GuiaRevendedorPiezas
+                (calculadora, recorrido, manual, preguntas, solicitud)
+                                           (sin sesión)
     revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
                 (/apartado/:token)         (sin sesión, como el catálogo)
                 EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
@@ -90,7 +95,8 @@ src/
     Vitrina                                (sin sesión, como el catálogo)
     Clientes, Tasas, CatalogoPdf, Entrar, Verificacion   (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
-                revendedor.css (las seis paletas de su catálogo, medidas)
+                revendedor.css (las seis paletas de su catálogo, medidas),
+                guia-revendedor.css (la guía pública)
 supabase/functions/vendedoras   crea, pausa y cambia el PIN de las vendedoras
                 del local con la llave maestra, en el servidor de Supabase.
                 Se publica aparte (INSTALACION.md, 3.1); no va en el build.
@@ -267,7 +273,11 @@ Todas empiezan por `rv_de_sesion(p_sesion)`,
 que dice quién es o lanza el error `28000`. Las de su catálogo no llevan testigo:
 `rv_perfil_publico`, `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
 con las mismas claves que `buscar_cliente_publico`), `rv_apartar`,
-`rv_ver_apartado` y `rv_reportar_pago` (su clienta le avisa que pagó).
+`rv_ver_apartado` y `rv_reportar_pago` (su clienta le avisa que pagó). Y
+`rv_programa()`, la de la guía pública: las cifras del programa desde
+`configuracion` (descuento, mínimo sobre la etiqueta, plazos, el 40 %, la
+escalera del tope), ninguna de costo; `verificar` vigila que no suelte una
+clave más.
 
 Tres fórmulas, una vez cada una, revocadas a todos: `rv_precio_lux(modelo, %)` (la
 etiqueta menos su descuento, sin bajar de `piso_margen_de`, al centavo hacia
@@ -435,6 +445,21 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   `textos` (`pago_movil_cedula`, `pago_movil_telefono`, `pago_movil_banco`) y se
   cambian en Textos. La página del pedido los enseña con un botón de copiar cada
   uno; se copian limpios (solo dígitos, y del banco solo el código).
+- **La guía para revendedores** (pedida por el dueño el 30/09/2026). Una página
+  pública (`/#/guia-revendedor`) que el dueño manda desde "Capacitación
+  revendedores" a quien quiera serlo: qué es, qué hace y qué no el sistema, sus
+  enlaces, cuánto le sale cada pieza (con una calculadora), cómo se le paga a
+  Lux, el tope, el manual del panel paso a paso, un pedido de principio a fin,
+  las reglas, preguntas y palabras. **Ninguna cifra escrita a mano**: las del
+  programa salen de `rv_programa()` y las de la tienda de `textos`
+  (`whatsapp_tienda`, `direccion_tienda`, `horario_tienda`, que el dueño llena en
+  Textos; vacías, la guía no inventa: dice "la tienda" y que pregunten). El
+  único número de ejemplo ($20 de etiqueta) va dicho como ejemplo. Al final,
+  "Quiero ser revendedor" arma un mensaje de WhatsApp con los datos de
+  Revendedores (nombre, cédula, WhatsApp, ciudad, catálogo, usuario libre,
+  colores, logo): **no se guarda nada en la base**, así no hay una puerta sin
+  sesión que escriba datos personales. Si cambia el panel del revendedor, la
+  guía se cambia con él: dice los nombres de los botones tal como salen.
 - **El apartado** (decisión del dueño del 30/09/2026). Toda clienta puede
   apartar pagando al menos `apartado_inicial_pct` (40 %) de su pedido; tiene
   `apartado_dias` (15) para pagar lo demás, abono por abono con su referencia.
@@ -573,7 +598,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 159 comprobaciones con las dos sesiones (164 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 161 comprobaciones con las dos sesiones (166 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 

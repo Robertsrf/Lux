@@ -58,6 +58,8 @@ const Clientes = lazy(() => import('./paginas/Clientes').then((m) => ({ default:
 const Revendedores = lazy(() => import('./paginas/admin/Revendedores').then((m) => ({ default: m.Revendedores })));
 const Vendedoras = lazy(() => import('./paginas/admin/Vendedoras').then((m) => ({ default: m.Vendedoras })));
 const Caja = lazy(() => import('./paginas/admin/Caja').then((m) => ({ default: m.Caja })));
+const CapacitacionRv = lazy(() => import('./paginas/admin/CapacitacionRv').then((m) => ({ default: m.CapacitacionRv })));
+const GuiaRevendedor = lazy(() => import('./paginas/publico/GuiaRevendedor').then((m) => ({ default: m.GuiaRevendedor })));
 // El panel del revendedor va aparte: lo abre el, de vez en cuando, y no
 // tiene por que pesarle a la clienta que abre un catalogo.
 const EntrarRevendedor = lazy(() => import('./paginas/revendedor/EntrarRevendedor').then((m) => ({ default: m.EntrarRevendedor })));
@@ -91,6 +93,12 @@ export function App() {
               por RutaProtegida ni por la sesion de la tienda. */}
           <Route path="/r/:usuario" element={<CatalogoRevendedor />} />
           <Route path="/apartado/:token" element={<ApartadoPublico />} />
+          {/* La guia para quien quiere ser revendedor: publica, como el
+              catalogo. La manda el dueno desde "Capacitacion revendedores". */}
+          <Route
+            path="/guia-revendedor"
+            element={<Suspense fallback={<Cargando texto="Abriendo la guía" />}><GuiaRevendedor /></Suspense>}
+          />
           <Route
             path="/rv/entrar"
             element={<Suspense fallback={<Cargando texto="Abriendo" />}><EntrarRevendedor /></Suspense>}
@@ -157,6 +165,7 @@ export function App() {
             <Route path="/admin/revendedores" element={soloAdmin(<Revendedores />)} />
             <Route path="/admin/vendedoras" element={soloAdmin(<Vendedoras />)} />
             <Route path="/admin/caja" element={soloAdmin(<Caja />)} />
+            <Route path="/admin/capacitacion" element={soloAdmin(<CapacitacionRv />)} />
           </Route>
 
           <Route path="/" element={<Inicio />} />

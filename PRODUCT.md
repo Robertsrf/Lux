@@ -31,6 +31,10 @@ precios, nunca un costo, y entra con un código, no con una cuenta de la tienda.
 Su clienta le paga a él, a su pago móvil; él confirma y tiene un día para pagarle a
 Lux, la tienda lo aprueba y él retira. Su clienta entra al maestro de la tienda con
 esa venta. También vende desde su panel, y da a su clienta el crédito que él quiera.
+Antes de serlo, lee **la guía para revendedores**: un enlace público que el dueño
+manda a quien pregunta, escrito para alguien que no sabe nada del sistema (frases
+cortas, un ejemplo en cada cosa, los botones con su nombre de verdad), que termina
+en "Quiero ser revendedor": sus datos, por WhatsApp, al dueño.
 
 Y desde el 30/09/2026, **el apartado**: toda clienta puede apartar pagando una parte
 (el 40 %) y terminar de pagar en 15 días, abono por abono con su referencia; si no

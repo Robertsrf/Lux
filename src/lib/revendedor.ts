@@ -89,6 +89,8 @@ function base(): string {
 
 export const enlaceCatalogoRv = (usuario: string) => `${base()}#/r/${usuario}`;
 export const enlacePanelRv = () => `${base()}#/rv`;
+/** La guía pública: la que se manda a quien quiere ser revendedor. */
+export const enlaceGuiaRv = () => `${base()}#/guia-revendedor`;
 export const enlaceApartado = (token: string) => `${base()}#/apartado/${token}`;
 /** El enlace del pedido de la tienda: ahí la clienta ve lo que pagó y reporta lo que falta. */
 export const enlaceReserva = (token: string) => `${base()}#/reserva/${token}`;
@@ -126,6 +128,11 @@ export const PALETAS: { id: PaletaRevendedor; nombre: string }[] = [
 export function claseTema(paleta: string | null | undefined): string {
   const id = PALETAS.some((p) => p.id === paleta) ? paleta : 'lux';
   return `tema-rv tema-rv--${id}`;
+}
+
+/** El usuario que va en su enlace: la misma regla que el `check` de `revendedores.usuario`. */
+export function usuarioValido(usuario: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{2,29}$/.test(usuario);
 }
 
 /** Su usuario a partir de su nombre: "María González" -> "maria-gonzalez". */

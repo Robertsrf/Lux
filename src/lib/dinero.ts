@@ -206,6 +206,15 @@ export function precioSobreEtiqueta(etiquetaUsd: number, extraUsd: number, minim
   return propuesto < minimoUsd ? minimoUsd : propuesto;
 }
 
+/**
+ * Una etiqueta con el descuento del revendedor, al centavo hacia arriba: la
+ * cuenta de `rv_precio_lux`, sin su piso. Solo para el ejemplo de la guía
+ * pública; lo que de verdad le sale cada pieza lo ve él en su panel.
+ */
+export function etiquetaConDescuentoRv(etiquetaUsd: number, descuentoPct: number): number {
+  return centavoArriba(aplicarDescuento(etiquetaUsd, descuentoPct) ?? etiquetaUsd);
+}
+
 /** Lo que gana un revendedor por pieza: su precio menos lo que le paga a Lux. */
 export function gananciaPorPieza(precioUsd: number, precioLuxUsd: number): number {
   return deMonto(aMonto(precioUsd) - aMonto(precioLuxUsd));

@@ -16,6 +16,9 @@ const ETIQUETAS: Record<string, string> = {
   mensaje_whatsapp: 'Mensaje que acompana el enlace del catalogo',
   ciudad: 'Ciudad de la tienda (rellena las frases del banco)',
   estado: 'Estado (rellena las frases del banco; vacio las oculta)',
+  whatsapp_tienda: 'WhatsApp de la tienda, con el código: 0414 1234567 (ahí llegan las solicitudes de la guía de revendedores)',
+  direccion_tienda: 'Dirección de la tienda (la guía de revendedores la da para retirar las piezas)',
+  horario_tienda: 'Horario de la tienda (el mismo uso)',
 };
 
 /**

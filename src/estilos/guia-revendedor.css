@@ -1,0 +1,458 @@
+/* =====================================================================
+   La guía pública para revendedores (paginas/publico/GuiaRevendedor.tsx)
+
+   Se lee en el teléfono, desde un enlace de WhatsApp, por alguien que no
+   conoce el sistema. Por eso:
+   - la prosa va en EB Garamond de 20 px: a 16 esa letra se queda chica en
+     un teléfono de gama baja, y aquí se lee de corrido;
+   - las instrucciones van en Jost, la letra del panel: lo que dice la guía
+     se parece a lo que va a ver;
+   - el índice se pliega en el teléfono y se queda al lado en escritorio, y
+     abajo hay dos atajos al alcance del pulgar (Índice y Quiero ser
+     revendedor), como la barra de la tienda.
+   Solo tokens de tokens.css. El oro se usa en la portada, sobre verde.
+   ===================================================================== */
+
+.guia-rv { background: var(--papel); min-height: 100vh; }
+
+/* --- Portada ----------------------------------------------------------- */
+
+.guia-rv__portada {
+  background: var(--verde-profundo);
+  color: var(--texto-sobre-verde);
+  padding: var(--e-7) var(--e-4) var(--e-7);
+  border-top: 1px solid color-mix(in srgb, var(--crema) 14%, transparent);
+}
+.guia-rv__portada-interior { max-width: 1180px; margin: 0 auto; }
+.guia-rv__antetitulo {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+  margin-bottom: var(--e-3);
+}
+.guia-rv__portada h1 {
+  font-size: var(--t-28);
+  color: var(--crema);
+  max-width: 18ch;
+  text-wrap: balance;
+}
+.guia-rv__entrada {
+  font-family: var(--fuente-prosa); font-size: var(--t-20); line-height: 1.45;
+  color: color-mix(in srgb, var(--crema) 88%, transparent);
+  max-width: 56ch;
+  margin: var(--e-4) 0 var(--e-6);
+}
+.guia-rv__claves {
+  display: grid; grid-template-columns: 1fr; gap: var(--e-4);
+  margin: 0 0 var(--e-6);
+  padding-top: var(--e-5);
+  border-top: 1px solid color-mix(in srgb, var(--crema) 20%, transparent);
+}
+.guia-rv__claves dt {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+.guia-rv__claves dd {
+  margin: var(--e-1) 0 0;
+  font-family: var(--fuente-display); font-weight: 600; font-size: var(--t-28);
+  color: var(--crema); line-height: 1.15;
+}
+.guia-rv__claves p {
+  margin: var(--e-1) 0 0;
+  font-size: var(--t-14);
+  color: color-mix(in srgb, var(--crema) 82%, transparent);
+}
+.guia-rv__portada :focus-visible { outline-color: var(--oro-arena); }
+
+/* Sobre verde, el oro sí es relleno (como el botón de entrar). */
+.guia-rv__boton-oro { background: var(--oro-arena); border-color: var(--oro-arena); color: var(--tinta); }
+.guia-rv__boton-oro:hover:not(:disabled) { background: var(--crema); border-color: var(--crema); color: var(--tinta); }
+.guia-rv__boton-claro {
+  background: transparent; color: var(--crema);
+  border-color: color-mix(in srgb, var(--crema) 55%, transparent);
+  box-shadow: none;
+}
+.guia-rv__boton-claro:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--crema) 12%, transparent);
+  border-color: var(--crema); color: var(--crema);
+}
+
+/* --- Cuerpo: índice y contenido ------------------------------------------ */
+
+.guia-rv__cuerpo {
+  max-width: 1180px; margin: 0 auto;
+  padding: var(--e-5) var(--e-4) var(--e-8);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-5);
+}
+.guia-rv__contenido { min-width: 0; max-width: 760px; }
+
+.guia-rv__indice details {
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-1);
+}
+.guia-rv__indice summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-3);
+  min-height: var(--objetivo-tactil);
+  padding: 0 var(--e-5);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  cursor: pointer; list-style: none;
+}
+.guia-rv__indice summary::-webkit-details-marker { display: none; }
+.guia-rv__indice summary::after,
+.guia-rv__paso summary::after,
+.guia-rv__pregunta summary::after {
+  content: ''; flex: none;
+  width: 8px; height: 8px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--rapido);
+}
+.guia-rv__indice details[open] summary::after,
+.guia-rv__paso[open] summary::after,
+.guia-rv__pregunta[open] summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+
+.guia-rv__indice ol { list-style: none; margin: 0; padding: 0 var(--e-3) var(--e-4); }
+.guia-rv__indice ol > li + li { margin-top: var(--e-3); }
+.guia-rv__indice ul { list-style: none; margin: 0; padding: 0; }
+.guia-rv__indice-grupo {
+  display: block;
+  padding: 0 var(--e-3) var(--e-1);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-texto);
+}
+.guia-rv__indice-tema {
+  display: block; width: 100%;
+  min-height: 44px; padding: var(--e-2) var(--e-3);
+  text-align: left;
+  font-family: var(--fuente-ui); font-size: var(--t-16);
+  color: var(--texto);
+  background: none; border: 0; border-radius: var(--radio);
+  cursor: pointer;
+  transition: background var(--rapido);
+}
+.guia-rv__indice-tema:hover { background: var(--verde-suave); }
+.guia-rv__indice-tema.activo { background: var(--verde-suave); font-weight: 500; color: var(--texto-fuerte); }
+
+/* --- Secciones ----------------------------------------------------------- */
+
+.guia-rv__seccion {
+  scroll-margin-top: var(--e-4);
+  padding: var(--e-7) 0 0;
+  margin-top: var(--e-7);
+  border-top: 1px solid var(--linea-suave);
+}
+.guia-rv__contenido > .aviso + .guia-rv__seccion,
+.guia-rv__contenido > .guia-rv__seccion:first-child { margin-top: 0; padding-top: var(--e-4); border-top: 0; }
+.guia-rv__seccion h2 { font-size: var(--t-28); margin-bottom: var(--e-5); color: var(--texto-fuerte); }
+.guia-rv__seccion h2:focus { outline: none; }
+.guia-rv__seccion h3 { font-size: var(--t-20); color: var(--texto-fuerte); margin-bottom: var(--e-3); }
+.guia-rv__grupo {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-texto);
+  margin-bottom: var(--e-2);
+}
+.guia-rv .prosa { font-size: var(--t-20); line-height: 1.5; max-width: 62ch; color: var(--texto); }
+.guia-rv .prosa strong { color: var(--texto-fuerte); }
+.guia-rv .prosa + .prosa { margin-top: var(--e-4); }
+
+/* Instrucciones: numeradas, en la letra del panel. */
+.guia-rv__acciones {
+  margin: 0; padding-left: var(--e-5);
+  font-size: var(--t-16); line-height: 1.55; color: var(--texto);
+}
+.guia-rv__acciones li + li { margin-top: var(--e-3); }
+.guia-rv__acciones li::marker { font-weight: 500; color: var(--texto-secundario); }
+.guia-rv__acciones strong { color: var(--texto-fuerte); font-weight: 500; }
+.guia-rv__acciones .etiqueta { vertical-align: 1px; margin-left: var(--e-1); }
+.guia-rv__nota {
+  margin: var(--e-4) 0 0;
+  padding: var(--e-4);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+  font-size: var(--t-16); line-height: 1.5; color: var(--texto);
+  max-width: 62ch;
+}
+.guia-rv__salto {
+  display: inline; min-height: 0; padding: 0;
+  font: inherit; color: var(--texto-fuerte);
+  background: none; border: 0;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.guia-rv__url {
+  display: inline-block;
+  margin: 0; padding: 2px var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-14);
+  color: var(--texto-fuerte);
+  background: var(--panel-hondo);
+  border-radius: var(--radio-xs);
+  word-break: break-all;
+}
+
+/* Cómo funciona: cuatro pasos. */
+.guia-rv__cuatro {
+  list-style: none; margin: 0 0 var(--e-5); padding: 0;
+  display: grid; grid-template-columns: 1fr; gap: var(--e-3);
+}
+.guia-rv__cuatro li {
+  display: grid; grid-template-columns: auto 1fr; column-gap: var(--e-4); align-items: start;
+  padding: var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+}
+.guia-rv__cuatro strong { grid-column: 2; font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte); }
+.guia-rv__cuatro p { grid-column: 2; margin: var(--e-1) 0 0; font-size: var(--t-16); line-height: 1.5; color: var(--texto); }
+.guia-rv__cuatro-num,
+.guia-rv__paso-num,
+.guia-rv__fase-num {
+  display: inline-grid; place-items: center; flex: none;
+  border-radius: 50%;
+  background: var(--verde-profundo); color: var(--crema);
+  font-family: var(--fuente-display); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.guia-rv__cuatro-num { grid-row: span 2; width: 36px; height: 36px; font-size: var(--t-16); }
+
+/* Lo que hace y lo que no. */
+.guia-rv__dos { display: grid; grid-template-columns: 1fr; gap: var(--e-3); }
+.guia-rv__dos .panel { margin-top: 0; }
+.guia-rv__lista { list-style: none; margin: 0; padding: 0; font-size: var(--t-16); line-height: 1.5; color: var(--texto); }
+.guia-rv__lista li { position: relative; padding-left: var(--e-5); }
+.guia-rv__lista li + li { margin-top: var(--e-2); }
+.guia-rv__lista li::before {
+  content: ''; position: absolute; left: 2px; top: 0.6em;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--salvia);
+}
+.guia-rv__lista--si li::before { background: var(--exito); }
+.guia-rv__lista--no li::before { background: none; border: 1.5px solid var(--salvia-texto); width: 8px; height: 8px; box-sizing: border-box; }
+
+/* Enlaces, palabras y "y si": listas de definición. */
+.guia-rv__enlaces, .guia-rv__palabras, .guia-rv__si { margin: 0; display: grid; gap: 0; }
+.guia-rv__enlaces > div, .guia-rv__palabras > div, .guia-rv__si > div {
+  padding: var(--e-4) 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.guia-rv__enlaces > div:first-child, .guia-rv__palabras > div:first-child, .guia-rv__si > div:first-child { padding-top: 0; }
+.guia-rv__enlaces dt, .guia-rv__palabras dt, .guia-rv__si dt {
+  font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte);
+  margin-bottom: var(--e-1);
+}
+.guia-rv__enlaces dd { margin: 0 0 var(--e-2); }
+.guia-rv__enlaces p { margin: 0; font-size: var(--t-14); color: var(--texto-secundario); }
+.guia-rv__palabras dd, .guia-rv__si dd { margin: 0; font-size: var(--t-16); line-height: 1.5; color: var(--texto); }
+
+/* --- Calculadora -------------------------------------------------------- */
+
+.guia-rv__calculadora {
+  padding: var(--e-5) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-1);
+}
+.guia-rv__campos { display: grid; grid-template-columns: 1fr; gap: 0 var(--hueco-campos); }
+.guia-rv__cuenta { margin: var(--e-2) 0 var(--e-4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-3); }
+.guia-rv__cuenta > div { padding: var(--e-4); background: var(--panel); border-radius: var(--radio-md); }
+.guia-rv__cuenta dt {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.guia-rv__cuenta dd {
+  margin: var(--e-1) 0;
+  font-family: var(--fuente-display); font-weight: 600; font-size: var(--t-20);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fuerte);
+}
+.guia-rv__cuenta p { margin: 0; font-size: var(--t-14); line-height: 1.4; color: var(--texto-secundario); }
+.guia-rv__cuenta-total { background: var(--verde-suave) !important; }
+.guia-rv__cuenta-total dd { color: var(--texto); }
+
+/* --- Niveles ------------------------------------------------------------ */
+
+.guia-rv__niveles { display: grid; gap: var(--e-2); margin: var(--e-4) 0 var(--e-5); }
+.guia-rv__nivel {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: var(--e-4); row-gap: var(--e-1);
+  padding: var(--e-4);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+}
+.guia-rv__nivel-num {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.guia-rv__nivel-tope {
+  font-family: var(--fuente-display); font-weight: 600; font-size: var(--t-20);
+  font-variant-numeric: tabular-nums; color: var(--texto-fuerte);
+}
+.guia-rv__nivel-desde { grid-column: 1 / -1; font-size: var(--t-14); color: var(--texto); }
+
+/* --- Manual ------------------------------------------------------------- */
+
+.guia-rv__avance { margin-bottom: var(--e-5); }
+.guia-rv__pasos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.guia-rv__paso {
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-1);
+}
+.guia-rv__paso summary {
+  display: flex; align-items: center; gap: var(--e-4);
+  min-height: 64px; padding: var(--e-3) var(--e-4);
+  cursor: pointer; list-style: none;
+  color: var(--texto);
+}
+.guia-rv__paso summary::-webkit-details-marker { display: none; }
+.guia-rv__paso summary:hover { background: color-mix(in srgb, var(--verde-suave) 60%, transparent); border-radius: var(--radio-lg); }
+.guia-rv__paso-num { width: 36px; height: 36px; font-size: var(--t-16); }
+.guia-rv__paso--listo .guia-rv__paso-num { background: var(--exito); }
+.guia-rv__paso-titulo { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.guia-rv__paso-titulo > span:first-child { font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte); }
+.guia-rv__paso-donde {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.guia-rv__paso-cuerpo { padding: var(--e-2) var(--e-4) var(--e-5); }
+.guia-rv__entendido { margin-top: var(--e-4); font-weight: 500; }
+
+/* --- Recorrido de un pedido --------------------------------------------- */
+
+.guia-rv__fases { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.guia-rv__fase {
+  display: inline-flex; align-items: center; gap: var(--e-2);
+  min-height: 44px; padding: 0 var(--e-4) 0 var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 500;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  cursor: pointer;
+  transition: background var(--rapido), border-color var(--rapido), color var(--rapido);
+}
+.guia-rv__fase:hover { background: var(--verde-suave); border-color: var(--salvia); }
+.guia-rv__fase-num { width: 28px; height: 28px; font-size: var(--t-14); background: var(--panel-hondo); color: var(--texto); }
+.guia-rv__fase--hecha .guia-rv__fase-num { background: var(--exito); color: var(--crema); }
+.guia-rv__fase--actual { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+.guia-rv__fase--actual:hover { background: var(--tinta); border-color: var(--tinta); }
+.guia-rv__fase--actual .guia-rv__fase-num { background: var(--oro-arena); color: var(--tinta); }
+.guia-rv__fase-detalle { margin-top: var(--e-4); padding: var(--e-5) var(--e-4); }
+.guia-rv__fase-paso {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  margin-bottom: var(--e-2);
+}
+.guia-rv__fase-detalle h3 { font-size: var(--t-20); margin-bottom: var(--e-3); }
+.guia-rv__en-panel { margin: var(--e-4) 0 var(--e-2); font-size: var(--t-14); color: var(--texto); }
+.guia-rv__en-panel .etiqueta { margin-left: var(--e-1); }
+.guia-rv__plazo { font-size: var(--t-14); font-weight: 500; color: var(--texto-fuerte); margin-bottom: var(--e-4); }
+.guia-rv__fase-detalle .grupo-botones { margin-top: var(--e-4); }
+
+/* --- Reglas y preguntas ------------------------------------------------- */
+
+.guia-rv__reglas { display: grid; grid-template-columns: 1fr; gap: var(--e-5); }
+
+.guia-rv__preguntas { margin-top: var(--e-2); border-top: 1px solid var(--linea-suave); }
+.guia-rv__pregunta { border-bottom: 1px solid var(--linea-suave); }
+.guia-rv__pregunta summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-4);
+  min-height: var(--objetivo-tactil); padding: var(--e-3) 0;
+  font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte);
+  cursor: pointer; list-style: none;
+}
+.guia-rv__pregunta summary::-webkit-details-marker { display: none; }
+.guia-rv__pregunta .prosa { margin: 0 0 var(--e-4); }
+
+/* --- Solicitud ---------------------------------------------------------- */
+
+.guia-rv__solicitud {
+  padding: var(--e-5) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-1);
+}
+.guia-rv__solicitud .fila + .fila { margin-top: var(--hueco-campos); }
+.guia-rv__solicitud .fila { margin-bottom: var(--hueco-campos); }
+.guia-rv__paletas { margin: var(--e-2) 0 var(--e-5); }
+.guia-rv__logo { border: 0; margin: 0 0 var(--e-5); padding: 0; display: grid; }
+.guia-rv__logo legend, .guia-rv__paletas legend {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto);
+  margin-bottom: var(--e-2);
+}
+.guia-rv__solicitud textarea { width: 100%; }
+.guia-rv__acepto { align-items: flex-start; margin-top: var(--e-2); line-height: 1.45; }
+.guia-rv__acepto input { margin-top: 2px; }
+.guia-rv__acepto--error input { outline: 2px solid var(--error); outline-offset: 2px; }
+.guia-rv__enviar { margin-top: var(--e-5); }
+.guia-rv__despues ol { margin: 0; padding-left: var(--e-5); font-size: var(--t-16); line-height: 1.55; color: var(--texto); }
+.guia-rv__despues li + li { margin-top: var(--e-2); }
+
+/* --- Pie ----------------------------------------------------------------- */
+
+.guia-rv__pie { margin-top: var(--e-8); text-align: center; }
+.guia-rv__regla { display: flex; align-items: center; gap: var(--e-4); margin-bottom: var(--e-4); }
+.guia-rv__regla span:not(.monograma) { flex: 1; height: 1px; background: var(--linea); }
+.guia-rv__pie p {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+  margin: 0 0 var(--e-2);
+}
+
+/* --- Los atajos de abajo, en el teléfono ------------------------------------ */
+
+.guia-rv__abajo {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-barra);
+  display: flex; gap: var(--e-2);
+  padding: var(--e-3) var(--e-4) calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--papel);
+  border-top: 1px solid var(--linea-suave);
+  box-shadow: var(--sombra-3);
+}
+.guia-rv__abajo .boton { flex: 1 1 0; padding: 0 var(--e-3); }
+
+/* --- Más ancho ------------------------------------------------------------- */
+
+@media (min-width: 640px) {
+  .guia-rv__claves { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guia-rv__cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guia-rv__campos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guia-rv__nivel { grid-template-columns: 96px 140px 1fr; }
+  .guia-rv__nivel-desde { grid-column: auto; }
+  .guia-rv__cuenta-total dd { font-size: var(--t-28); }
+}
+
+@media (min-width: 768px) {
+  .guia-rv__portada { padding: var(--e-8) var(--e-6); }
+  .guia-rv__portada h1 { font-size: var(--t-40); }
+  .guia-rv__dos, .guia-rv__reglas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guia-rv__palabras { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--e-6); }
+  .guia-rv__palabras > div:nth-child(2) { padding-top: 0; }
+  .guia-rv__calculadora, .guia-rv__solicitud { padding: var(--e-6); }
+  .guia-rv__cuerpo { padding: var(--e-6) var(--e-6) var(--e-8); }
+}
+
+@media (min-width: 1024px) {
+  .guia-rv.mostrador { padding-bottom: 0; }
+  .guia-rv__abajo { display: none; }
+  .guia-rv__cuerpo { grid-template-columns: 272px minmax(0, 1fr); gap: var(--e-7); }
+  .guia-rv__indice {
+    position: sticky; top: var(--e-5); align-self: start;
+    max-height: calc(100vh - 2 * var(--e-5)); overflow: auto;
+  }
+}
