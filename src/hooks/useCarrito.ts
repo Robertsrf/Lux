@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import {
   aCuatroDecimales, aMonto, bcvDesdeBs, binanceDesdeBs, bsDeBcv, deMonto,
-  descuentoPara, porCantidad, precioConTramo, sumar,
+  descuentoPara, leerBs, porCantidad, precioConTramo, sumar,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
@@ -44,11 +44,21 @@ function quienEs(cliente?: ClienteDeVenta | null) {
   };
 }
 
+/** Sin nada fuera del catalogo. */
+const SIN_EXTRA = { texto: '', nota: '' };
+
 export function useCarrito(tasa: Tasas | null) {
   const [lineas, setLineas] = useState<LineaCarrito[]>([]);
   const [tramos, setTramos] = useState<Tramo[]>([]);
   const [cobrando, setCobrando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+    Lo que se suma fuera del catalogo: el dije que se le pone a una cadena.
+    Se guarda tal como ella lo escribe, en bolivares, que es como lo dice y
+    como lo congela la venta. No es una pieza: no cuenta para el tramo, no
+    lleva descuento y no descuenta existencia.
+  */
+  const [extra, setExtra] = useState(SIN_EXTRA);
 
   useEffect(() => {
     void (async () => {
@@ -130,7 +140,12 @@ export function useCarrito(tasa: Tasas | null) {
     }));
   }, [tasa?.tasa_bcv]);
 
-  const vaciar = useCallback(() => { setLineas([]); setError(null); }, []);
+  const vaciar = useCallback(() => { setLineas([]); setExtra(SIN_EXTRA); setError(null); }, []);
+
+  const cambiarExtra = useCallback((cambio: Partial<typeof SIN_EXTRA>) => {
+    setExtra((prev) => ({ ...prev, ...cambio }));
+  }, []);
+  const quitarExtra = useCallback(() => setExtra(SIN_EXTRA), []);
 
   const totales = useMemo(() => {
     const piezas = lineas.reduce((n, l) => n + l.cantidad, 0);
@@ -157,9 +172,15 @@ export function useCarrito(tasa: Tasas | null) {
       return { ...l, precio_final_usd: usd, precio_final_bs: bs, motivo };
     });
 
-    const bs = deMonto(sumar(calculadas.map((l) => porCantidad(aMonto(l.precio_final_bs), l.cantidad))));
+    const piezasBs = deMonto(sumar(calculadas.map((l) => porCantidad(aMonto(l.precio_final_bs), l.cantidad))));
     const lista = deMonto(sumar(lineas.map((l) => porCantidad(aMonto(l.precio_lista_bs), l.cantidad))));
     const regateadas = calculadas.filter((l) => l.motivo === 'regateo');
+
+    // Lo de fuera del catalogo va encima de las piezas, tal cual: la base
+    // hace la misma suma (`total_bs` = piezas + extra).
+    const extraEscrito = extra.texto.trim() !== '';
+    const extraBs = extraEscrito ? leerBs(extra.texto) : null;
+    const bs = deMonto(sumar([aMonto(piezasBs), aMonto(extraBs ?? 0)]));
 
     const activos = tramos.filter((t) => t.activo).sort((a, b) => a.min_piezas - b.min_piezas);
     const siguiente = activos.find((t) => t.min_piezas > piezas) ?? null;
@@ -171,8 +192,18 @@ export function useCarrito(tasa: Tasas | null) {
       totalBcv: bcvDesdeBs(bs, tasaBcv),
       /** En dolares Binance: lo que cobra si le pagan en dolares o por Binance. */
       totalBinance: binanceDesdeBs(bs, tasa?.tasa_venta ?? null),
+      /** Solo las piezas del catalogo, en dolares BCV: lo que se puede apartar. */
+      piezasBcv: bcvDesdeBs(piezasBs, tasaBcv),
+      /** Lo de fuera del catalogo, en bolivares. Cero si no hay. */
+      extraBs: extraBs ?? 0,
+      /** Lo mismo en dolares BCV, a la tasa de hoy. */
+      extraBcv: bcvDesdeBs(extraBs ?? 0, tasaBcv),
+      /** Escribio algo que no es una cifra: no se cobra hasta que lo arregle. */
+      extraIlegible: extraEscrito && extraBs === null,
+      /** Hay monto pero no dice que es: la base no lo acepta sin eso. */
+      extraSinNota: extraBs !== null && extra.nota.trim() === '',
       descuento,
-      ahorroBs: lista - bs,
+      ahorroBs: lista - piezasBs,
       /** Lo que ella rebajo a mano, en bolivares. Cero con tramo. */
       regateoBs: deMonto(sumar(regateadas.map((l) => porCantidad(aMonto(l.precio_lista_bs - l.precio_final_bs), l.cantidad)))),
       /** Desde cuantas piezas empieza el primer tramo: ahi el regateo deja de contar. */
@@ -180,7 +211,7 @@ export function useCarrito(tasa: Tasas | null) {
       siguiente: siguiente ? { faltan: siguiente.min_piezas - piezas, pct: siguiente.descuento_pct } : null,
       lineas: calculadas,
     };
-  }, [lineas, tramos, tasa?.tasa_bcv, tasa?.tasa_venta]);
+  }, [lineas, tramos, extra, tasa?.tasa_bcv, tasa?.tasa_venta]);
 
   /**
    * Una sola llamada: venta, lineas, descuento de existencia y la ficha de
@@ -197,6 +228,13 @@ export function useCarrito(tasa: Tasas | null) {
     pago?: { porVerificar?: boolean; referencia?: string | null },
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
+    if (totales.extraIlegible || totales.extraSinNota) {
+      const texto = totales.extraIlegible
+        ? 'Lo que sumas fuera del catálogo no es una cifra: escribe solo el número, por ejemplo 150 o 150,50.'
+        : 'Falta decir qué es lo que sumas fuera del catálogo.';
+      setError(texto);
+      return { ok: false as const, error: texto };
+    }
     setCobrando(true);
     setError(null);
 
@@ -208,6 +246,10 @@ export function useCarrito(tasa: Tasas | null) {
       p_notas: null,
       p_por_verificar: pago?.porVerificar ?? false,
       p_pago_referencia: pago?.referencia?.trim() || null,
+      // Solo si hay algo fuera del catalogo. Sin esto, una venta normal
+      // tambien encaja en la base de antes de esquema-fuera-de-catalogo.sql:
+      // si la pagina se publica antes que el SQL, se sigue cobrando.
+      ...(totales.extraBs > 0 ? { p_extra_bs: totales.extraBs, p_extra_nota: extra.nota.trim() } : {}),
     });
 
     setCobrando(false);
@@ -217,8 +259,9 @@ export function useCarrito(tasa: Tasas | null) {
       return { ok: false as const, error: texto };
     }
     setLineas([]);
+    setExtra(SIN_EXTRA);
     return { ok: true as const, ventaId: data as number };
-  }, [lineas, tramos]);
+  }, [lineas, tramos, totales, extra.nota]);
 
   /**
    * Apartar: la clienta paga una parte (al menos el mínimo) y las piezas se
@@ -231,6 +274,12 @@ export function useCarrito(tasa: Tasas | null) {
     pago: { metodo: MetodoPago; monto: number; referencia?: string | null; verificado: boolean },
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
+    // El apartado congela el precio pieza por pieza, y esto no es una pieza.
+    if (totales.extraBs > 0 || totales.extraIlegible) {
+      const texto = 'Lo de fuera del catálogo no se aparta. Quítalo para apartar las piezas.';
+      setError(texto);
+      return { ok: false as const, error: texto };
+    }
     setCobrando(true);
     setError(null);
 
@@ -250,7 +299,7 @@ export function useCarrito(tasa: Tasas | null) {
     setLineas([]);
     const r = data as { id: number; token: string; falta_bcv: number; vence_apartado_en: string };
     return { ok: true as const, ...r };
-  }, [lineas, tramos]);
+  }, [lineas, tramos, totales]);
 
   /**
    * Las piezas como las pide la base. Solo se manda lo que ELLA negoció, y
@@ -270,5 +319,8 @@ export function useCarrito(tasa: Tasas | null) {
     }));
   }
 
-  return { lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, cobrando, error };
+  return {
+    lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, cobrando, error,
+    extra, cambiarExtra, quitarExtra,
+  };
 }

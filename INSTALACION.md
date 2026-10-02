@@ -76,6 +76,7 @@ En **SQL Editor**, uno por uno. Cada archivo dice en su cabecera de qué depende
 | 52 | `esquema-abonos-ventas-por-verificar.sql` | Las ventas que quedaron por verificar reciben abonos: el primero las vuelve por partes y la caja cuenta lo que de verdad llegó |
 | 53 | `esquema-visitas-catalogo.sql` | Cuánta gente abre el catálogo en línea: un teléfono por día, sin sesión y sin datos de nadie; lo ven la vendedora y el administrador en la pantalla Catálogo, con los pedidos que entraron por él |
 | 54 | `esquema-guia-revendedores.sql` | La guía pública para quien quiere ser revendedor: `rv_programa()` le da sin sesión las cifras del programa (ninguna de costo), y tres textos nuevos (WhatsApp, dirección y horario de la tienda) que se llenan en Textos |
+| 55 | `esquema-fuera-de-catalogo.sql` | Al cobrar se puede sumar algo que no está en el catálogo (el dije de una cadena): los bolívares y qué es quedan en la venta y van en su total; no es pieza (ni existencia, ni tramo, ni meta) y no cuenta en lo que dejó la venta, porque no se sabe lo que costó |
 
 ### Los que NO se corren
 
@@ -191,7 +192,7 @@ con `.github/workflows/desplegar.yml`.
 
 ## Comprobar que quedó bien
 
-Abre **Verificación**, que es de administrador. Son treinta y tres pruebas en vivo con
+Abre **Verificación**, que es de administrador. Son treinta y cuatro pruebas en vivo con
 la sesión que tengas abierta: tablas revocadas, vistas de costo, la nómina
 rechazada para todos, el maestro de clientas sin costo congelado y que
 `registrar_venta` siga siendo una sola, también para un navegador que aún no se

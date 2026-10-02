@@ -2044,6 +2044,17 @@ table.tabla tfoot td {
    justo debajo, porque es la misma pregunta seguida. */
 .cobro-parte { margin-top: var(--e-3); }
 
+/* Lo de fuera del catalogo (el dije de una cadena): entre las piezas y el
+   total, porque suma a la cuenta. Cerrado es un boton a todo el ancho que
+   puede bajar de linea (a 320 px no cabe en una); abierto, un panel con
+   sus dos campos y lo que son en dolares BCV. */
+.cobro-extra__abrir {
+  width: 100%; margin-bottom: var(--e-5);
+  white-space: normal; text-align: center;
+}
+.cobro-extra { margin: 0 0 var(--e-5); }
+.cobro-extra__quitar { margin-top: var(--e-4); }
+
 /* --- Abonos: una venta cobrada por partes ----------------------------
    Cada abono en un renglon: el monto en la cifra de siempre y debajo
    cuando, como y la referencia. Lo que falta cierra la lista, en la letra

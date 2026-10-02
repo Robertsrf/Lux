@@ -317,6 +317,19 @@ export function Verificacion() {
       bien: valido(nueva.error),
     });
 
+    // Lo de fuera del catalogo (esquema-fuera-de-catalogo.sql): el dije que
+    // se suma a una cadena. Si la firma no esta publicada, cobrar con algo
+    // fuera del catalogo falla con la clienta delante.
+    const extra = await supabase.rpc('registrar_venta', { ...vacio, p_extra_bs: 1, p_extra_nota: 'verificar' });
+    resultados.push({
+      nombre: 'Cobrar con algo fuera del catálogo',
+      esperado: 'La firma con el monto adicional esta publicada',
+      obtenido: valido(extra.error)
+        ? 'Encaja y valida (no escribio nada)'
+        : extra.error ? `Fallo: ${extra.error.message}` : 'Respondio sin validar el carrito vacio',
+      bien: valido(extra.error),
+    });
+
     // Una sola cifra de gastos en todo el sistema. Antes Costos y Reportes
     // enseñaban dos distintas: Reportes metia el empaque como gasto del mes.
     // Si alguna vista vuelve a copiar la formula por su cuenta, esto lo ve.

@@ -229,6 +229,22 @@ async function main() {
   dice(!vv.error, 'v_ventas_por_verificar, sus pendientes', vv.error ? 'ERROR ' + vv.error.code : 'responde');
   const vvCosto = await V.from('v_ventas_por_verificar').select('costo_puesto_usd_snap').limit(1);
   dice(!!vvCosto.error, 'ninguna columna de costo en por verificar', vvCosto.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  /*
+    Cobrar con algo fuera del catalogo (esquema-fuera-de-catalogo.sql). Con
+    el carrito vacio la funcion dice "no tiene piezas" sin escribir nada: si
+    lo dice, encajo. La primera la llama como un navegador sin actualizar,
+    sin los dos parametros nuevos: si quedaron dos registrar_venta, PostgREST
+    no sabe cual elegir y ese telefono no podria cobrar.
+  */
+  const cobroVacio = { p_tipo: 'detal', p_metodo: 'efectivo_bs', p_items: [] };
+  const rvViejo = await V.rpc('registrar_venta', { ...cobroVacio, p_por_verificar: false, p_pago_referencia: null });
+  dice(!!rvViejo.error && /no tiene piezas/.test(rvViejo.error.message), 'cobra desde un navegador sin actualizar',
+    rvViejo.error ? rvViejo.error.message : 'COBRO UN CARRITO VACIO');
+  const rvExtra = await V.rpc('registrar_venta', { ...cobroVacio, p_extra_bs: 1, p_extra_nota: 'verificar' });
+  dice(!!rvExtra.error && /no tiene piezas/.test(rvExtra.error.message), 'cobra con algo fuera del catalogo',
+    rvExtra.error ? rvExtra.error.message : 'COBRO UN CARRITO VACIO');
+  const vvExtra = await V.from('v_ventas_por_verificar').select('extra_bs, extra_nota').limit(1);
+  dice(!vvExtra.error, 'por verificar dice lo de fuera del catalogo', vvExtra.error ? 'ERROR ' + vvExtra.error.code : 'responde');
   // Su mostrador ve lo libre y lo apartado: sin esas columnas venderia
   // piezas apartadas por pedidos del catalogo.
   const libre = await V.from('v_venta_ubicacion').select('cantidad, existencia, apartadas').limit(1);

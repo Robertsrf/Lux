@@ -291,8 +291,13 @@ export interface VentaPorDia {
   ganancia_usd: number;
   /** Lo que costo la mercancia vendida, llevada a BCV con la brecha de ese dia. */
   mercancia_usd: number;
-  /** Lo que dejaron las ventas despues de pagar la mercancia y el empaque. */
+  /**
+   * Lo que dejaron las ventas despues de pagar la mercancia y el empaque.
+   * Sin lo de fuera del catalogo: no se sabe lo que costo.
+   */
   contribucion_usd: number;
+  /** Cuanto de lo vendido fue fuera del catalogo, en dolares BCV. */
+  extra_bcv?: number;
 }
 
 export interface MezclaGrupo {
@@ -788,6 +793,10 @@ export interface CompraCliente {
   falta_bcv: number;
   /** La compro por medio de este revendedor. */
   revendedor?: string | null;
+  /** Bolivares sumados fuera del catalogo (un dije). Ya van en `total_bs`. */
+  extra_bs?: number;
+  /** Que fue lo de fuera del catalogo. */
+  extra_nota?: string | null;
 }
 
 /**
@@ -821,6 +830,10 @@ export interface LineaPorVerificar {
   pago_parcial: boolean;
   /** Lo que falta en dolares BCV (`falta_bcv_de`). Cero si ya esta pagada. */
   falta_bcv: number;
+  /** Bolivares sumados fuera del catalogo (un dije). Ya van en `total_bs`. */
+  extra_bs?: number;
+  /** Que fue lo de fuera del catalogo. */
+  extra_nota?: string | null;
 }
 
 /**

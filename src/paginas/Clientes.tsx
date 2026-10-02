@@ -350,6 +350,20 @@ function Ficha({ id }: { id: number | null }) {
                     </li>
                   );
                 })}
+                {/* Lo que se sumo fuera del catalogo (un dije): va en el
+                    total de arriba, y aqui para que las piezas cuadren. */}
+                {Number(cabecera.extra_bs ?? 0) > 0 ? (
+                  <li className="compra__pieza">
+                    <span className="miniatura" />
+                    <div>
+                      <div className="celda-nombre">{cabecera.extra_nota || 'Sin decir qué'}</div>
+                      <div className="celda-nota">Fuera del catálogo</div>
+                    </div>
+                    <div className="num">
+                      <div className="precio">{formatearBs(Number(cabecera.extra_bs))}</div>
+                    </div>
+                  </li>
+                ) : null}
               </ul>
             </div>
           ))}

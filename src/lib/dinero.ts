@@ -387,6 +387,35 @@ export function bcvDesdeBs(bs: number | null | undefined, tasaBcv: number | null
   return bs / tasaBcv;
 }
 
+/**
+ * Los bolívares que escribe una persona, a céntimos y redondeados como los
+ * guarda la base: `round(x, 2)`. Null si no es una cifra o no es positiva.
+ *
+ * Como se escriben en Venezuela: la coma es decimal ("150,50") y el punto
+ * es de miles cuando le siguen tres cifras ("1.500", "1.500.000",
+ * "1.500,50"). Nadie escribe bolívares con tres decimales, y leer "2.000"
+ * como dos bolívares cobraría un dije de dos mil por casi nada. Un punto
+ * con una o dos cifras detrás ("150.5") sigue siendo decimal, que es como
+ * lo da el teclado de algunos teléfonos.
+ *
+ * La pantalla enseña lo que entendió, formateado, para que nadie cobre una
+ * cifra que no quiso escribir sin verla.
+ */
+export function leerBs(texto: string): number | null {
+  let t = texto.trim().replace(/\s/g, '');
+  if (t.includes(',')) {
+    // "1,500.50" es la costumbre de otro país: mejor no adivinar.
+    if (t.lastIndexOf('.') > t.indexOf(',')) return null;
+    t = t.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(t)) {
+    t = t.replace(/\./g, '');
+  }
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(t)) return null;
+  // aMonto deja cuatro decimales; de ahi a centimos, la mitad hacia arriba.
+  const centimos = (aMonto(t) + 50n) / 100n;
+  return centimos > 0n ? Number(centimos) / 100 : null;
+}
+
 export function formatearBs(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
   // El signo va delante de la moneda, como en los dolares: "−Bs 120,00".

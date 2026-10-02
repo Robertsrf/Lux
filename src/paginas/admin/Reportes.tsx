@@ -28,7 +28,7 @@ const DORMIDOS = [30, 60, 90];
 const DIA_MS = 86_400_000;
 const hace = (dias: number) => new Date(Date.now() - dias * DIA_MS).toISOString().slice(0, 10);
 
-interface Totales { ventas: number; piezas: number; bs: number; bcv: number; mercancia: number; deja: number }
+interface Totales { ventas: number; piezas: number; bs: number; bcv: number; mercancia: number; deja: number; extra: number }
 
 function totalizar(filas: VentaPorDia[]): Totales {
   const s = (f: (v: VentaPorDia) => number) => deMonto(sumar(filas.map((v) => aMonto(f(v)))));
@@ -39,6 +39,7 @@ function totalizar(filas: VentaPorDia[]): Totales {
     bcv: s((v) => v.total_usd),
     mercancia: s((v) => v.mercancia_usd),
     deja: s((v) => v.contribucion_usd),
+    extra: s((v) => v.extra_bcv ?? 0),
   };
 }
 
@@ -212,6 +213,13 @@ export function Reportes() {
           <span className="dato__etiqueta">Vendiste</span>
           <div className="tablero__cifra tablero__cifra--dinero">{formatearBcv(actual.bcv, 0)}</div>
           <div className="tablero__meta">{formatearBs(actual.bs)} cobrados</div>
+          {/* Lo sumado al cobro sin estar en el catalogo (un dije). Entra en
+              lo vendido, no en lo que dejo: no se sabe lo que costo. */}
+          {actual.extra > 0 ? (
+            <div className="tablero__meta">
+              {formatearBcv(actual.extra)} fuera del catálogo, que no cuenta en lo que te dejaron
+            </div>
+          ) : null}
           <div className="tablero__meta"><Comparacion ahora={actual.bcv} antes={anterior.bcv} dias={dias} /></div>
         </div>
         <div className="tablero__celda">

@@ -180,6 +180,8 @@ le paga a ÉL; lo que ella reporta es un aviso hasta que él lo confirma).
 se escriben con ninguna sesión: solo por sus funciones.
 `apartados`, sus líneas y sus abonos no se borran, como las ventas.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
+`ventas.extra_bs` y `ventas.extra_nota` son lo que se sumó al cobro fuera del
+catálogo (un dije) y qué era; ya va dentro de `total_bs`.
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -194,7 +196,7 @@ se escriben con ninguna sesión: solo por sus funciones.
 | `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
 | `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
 | `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
-| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia y, si es por partes, cuánto falta | vendedora y admin |
+| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia, lo sumado fuera del catálogo y, si es por partes, cuánto falta | vendedora y admin |
 | `v_abonos` | Cada abono de una venta por partes: cuándo, cómo, cuánto, la referencia y quién lo cargó | vendedora y admin |
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
@@ -433,6 +435,19 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cuenta lo que de verdad llegó, no el total que se anotó. Anular una venta ya
   verificada sigue siendo del administrador. **El administrador también vende**: Mostrador y Pedidos están en
   su menú.
+- **Lo de fuera del catálogo** (pedido del dueño del 02/10/2026). Al cobrar, las
+  dos caras pueden sumar algo que no está cargado (el dije de una cadena):
+  "Sumar algo fuera del catálogo", cuántos bolívares y qué es, y la pantalla dice
+  cuánto es en $ BCV. Entra a la venta (`ventas.extra_bs`, `extra_nota`, dentro de
+  `total_bs`), así lo cuentan solos la caja, "Mi día", lo que falta de una venta
+  por verificar y lo vendido en Reportes. **No es una pieza**: no descuenta
+  existencia, no cuenta para el tramo ni para la meta, no lleva descuento, no se
+  aparta y no va solo (la venta sigue necesitando una pieza del catálogo). **No
+  cuenta en lo que dejó la venta** (`v_ventas_por_dia`, `v_margen_ventas`): no se
+  sabe lo que costó, y contarlo entero sería inventar un costo de cero; así "Te
+  dejaron" y "El mes" dicen lo mismo. `registrar_venta` no acepta un extra
+  negativo (sería una rebaja que se salta el mínimo) ni uno sin decir qué es. Si
+  algo se vende a menudo así, lo que toca es cargarlo al catálogo.
 - **Las ventas y los pedidos no se borran.** Se verifican, se anulan, se cancelan
   o vencen, y se quedan. Por verificar es también el crédito de la clienta: la
   ficha dice qué debe, cuándo se comprobó cada pago y cuánto tardó, y lo que se
@@ -598,12 +613,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 161 comprobaciones con las dos sesiones (166 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 164 comprobaciones con las dos sesiones (169 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y tres
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y cuatro
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

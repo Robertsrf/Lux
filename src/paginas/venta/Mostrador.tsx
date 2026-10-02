@@ -102,6 +102,9 @@ export function Mostrador() {
   // Las dos cifras del apartado, de la configuracion (las ve la vendedora).
   // Sin ellas no se ofrece apartar: no se inventa un minimo.
   const [reglaApartado, setReglaApartado] = useState<{ pct: number; dias: number } | null>(null);
+  // Si se abrio "Sumar algo fuera del catalogo". Lo que se escribe vive en
+  // el carrito, que es el que lo suma y lo manda.
+  const [extraAbierto, setExtraAbierto] = useState(false);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
   const edicionCancelada = useRef(false);
 
@@ -272,15 +275,18 @@ export function Mostrador() {
    */
   async function confirmar(porVerificar: boolean) {
     if (!metodo) return;
+    // Se lee antes de cobrar: al registrarse, el carrito se vacia.
+    const extraBs = carrito.totales.extraBs;
     const r = await carrito.cobrar(metodo, 'detal', cliente, {
       porVerificar,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
     });
     if (r.ok) {
       const quien = cliente && nombreCliente ? ` a nombre de ${nombreCliente}` : '';
-      setExito(porVerificar
+      const fuera = extraBs > 0 ? ` Lleva ${formatearBs(extraBs)} fuera del catálogo.` : '';
+      setExito((porVerificar
         ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
-        : `Venta registrada${quien}. Numero ${r.ventaId}.`);
+        : `Venta registrada${quien}. Numero ${r.ventaId}.`) + fuera);
       await despuesDeCobrar();
     }
   }
@@ -312,6 +318,7 @@ export function Mostrador() {
     setReferencia('');
     setAparta(false);
     setAbono('');
+    setExtraAbierto(false);
     setMetodo(null);
     setCliente(null);
     setNombreCliente(null);
@@ -328,7 +335,8 @@ export function Mostrador() {
    * haya con qué calcularlo.
    */
   function cuentaDelApartado() {
-    const totalBcv = carrito.totales.totalBcv;
+    // Solo las piezas: lo de fuera del catalogo no se aparta.
+    const totalBcv = carrito.totales.piezasBcv;
     if (!tasa || !metodo || totalBcv === null || !reglaApartado) return null;
     const minimo = minimoParaApartar(totalBcv, reglaApartado.pct);
     const monto = Number(abono.replace(',', '.'));
@@ -364,12 +372,18 @@ export function Mostrador() {
     // Precios que ella escribio y que el tramo deja sin efecto. Se dice, no
     // se calla: si no, la clienta oye un precio y paga otro.
     const rebajasIgnoradas = conTramo && carrito.lineas.some((l) => l.precio_manual_usd !== null);
+    // Lo de fuera del catalogo, si se escribio, tiene que ser una cifra y
+    // decir que es: si no, no se cobra todavia.
+    const extraEnOrden = !t.extraIlegible && !t.extraSinNota;
+    const conExtra = t.extraBs > 0 || t.extraIlegible;
     const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente)
-      && !carrito.cobrando && carrito.lineas.length > 0;
+      && !carrito.cobrando && carrito.lineas.length > 0 && extraEnOrden;
     const previa = aparta ? cuentaDelApartado() : null;
     // Un apartado de verdad: con la clienta, al menos el minimo, y menos
-    // que el total (pagado entero es una venta, no un apartado).
-    const apartadoValido = previa !== null && previa.llega && !previa.pasa && previa.falta > 0 && Boolean(cliente);
+    // que el total (pagado entero es una venta, no un apartado). Y sin nada
+    // fuera del catalogo: el apartado congela el precio pieza por pieza.
+    const apartadoValido = previa !== null && previa.llega && !previa.pasa && previa.falta > 0
+      && Boolean(cliente) && !conExtra;
     const enPersona = metodo !== null && METODOS_EN_PERSONA.includes(metodo);
 
     return (
@@ -379,6 +393,7 @@ export function Mostrador() {
             <h1 tabIndex={-1} ref={tituloCobro}>Cobrar</h1>
             <p>
               {t.piezas} pieza{t.piezas === 1 ? '' : 's'}
+              {t.extraBs > 0 ? ' y algo fuera del catálogo' : ''}
               {/* Dicho aqui para que ella pueda decirselo a la clienta con
                   la cifra delante, no de memoria. */}
               {conTramo
@@ -503,6 +518,69 @@ export function Mostrador() {
           })}
         </div>
 
+        {/* Lo que no esta en el catalogo: el dije que se le pone a una
+            cadena. Suma a la cuenta y entra a la venta, en bolivares, que
+            es como ella lo dice, y debajo cuanto es en dolares BCV. Va entre
+            las piezas y el total porque es eso: algo mas en la cuenta. No es
+            una pieza: no cuenta para el descuento por cantidad. */}
+        {extraAbierto ? (
+          <div className="panel cobro-extra">
+            <span className="panel__titulo">Fuera del catálogo</span>
+            <div className="fila">
+              <Campo
+                etiqueta="Cuánto suma · Bs"
+                htmlFor="extra-bs"
+                error={t.extraIlegible ? 'Escribe solo la cifra, por ejemplo 150 o 150,50.' : null}
+              >
+                <input
+                  id="extra-bs"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  autoFocus
+                  value={carrito.extra.texto}
+                  onChange={(e) => carrito.cambiarExtra({ texto: e.target.value })}
+                />
+              </Campo>
+              <Campo
+                etiqueta="Qué es"
+                htmlFor="extra-nota"
+                pista="Por ejemplo: dije para la cadena. Queda escrito en la venta."
+              >
+                <input
+                  id="extra-nota"
+                  autoComplete="off"
+                  maxLength={120}
+                  value={carrito.extra.nota}
+                  onChange={(e) => carrito.cambiarExtra({ nota: e.target.value })}
+                />
+              </Campo>
+            </div>
+            {t.extraBs > 0 && tasa ? (
+              <p className="cobro-dolares" aria-live="polite">
+                Suma <strong>{formatearBs(t.extraBs)}</strong>, que son <strong>{formatearBcv(t.extraBcv)}</strong>
+                {enDolares ? <> ({formatearBinance(binanceDesdeBs(t.extraBs, tasa.tasa_venta))})</> : null}
+                {' '}a la tasa de hoy. Ya está en el total.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="boton boton--secundario cobro-extra__quitar"
+              onClick={() => { carrito.quitarExtra(); setExtraAbierto(false); }}
+            >
+              Quitar
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="boton boton--secundario cobro-extra__abrir"
+            onClick={() => setExtraAbierto(true)}
+          >
+            <Icono nombre="agregar" />
+            Sumar algo fuera del catálogo
+          </button>
+        )}
+
         <div className="total-cobro">
           <span className="util secundario">Total a cobrar</span>
           <div>
@@ -619,7 +697,7 @@ export function Mostrador() {
 
         {/* Lo que falta, dicho antes de cobrar: es lo que ella le dice a
             la clienta. En dolares BCV y en bolivares de hoy. */}
-        {previa && previa.hay && aparta ? (
+        {previa && previa.hay && aparta && !conExtra ? (
           previa.pasa || previa.falta === 0 ? (
             <p className="campo__error" role="alert">
               {previa.pasa
@@ -714,6 +792,15 @@ export function Mostrador() {
               ? 'Falta decir quién se lo lleva. Si no quiere dar sus datos, toca "Cobrar sin registrarla".'
               : 'Falta elegir cómo paga.'}
           </p>
+        ) : aparta && conExtra ? (
+          <p className="campo__error" role="alert">
+            Lo de fuera del catálogo no se aparta. Quítalo para apartar las piezas, o cobra todo
+            junto con "Pagó todo".
+          </p>
+        ) : t.extraSinNota ? (
+          <p className="campo__pista">Falta decir qué es lo que sumas fuera del catálogo.</p>
+        ) : t.extraIlegible ? (
+          <p className="campo__pista">Lo que sumas fuera del catálogo no es una cifra: arréglalo arriba.</p>
         ) : aparta && sinCliente ? (
           <p className="campo__pista">
             Un apartado va a nombre de alguien: búscala arriba o regístrala con su cédula.
@@ -994,7 +1081,7 @@ export function Mostrador() {
               ) : null}
             </div>
           </div>
-          <button type="button" className="boton boton--secundario" onClick={carrito.vaciar}>
+          <button type="button" className="boton boton--secundario" onClick={() => { carrito.vaciar(); setExtraAbierto(false); }}>
             Vaciar
           </button>
           <button type="button" className="boton" onClick={() => { setExito(null); setPaso('cobro'); }}>

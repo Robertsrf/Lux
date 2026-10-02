@@ -747,6 +747,9 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
   // formulario se abre con un botón, porque casi todas sí se pagaron enteras.
   const [abonando, setAbonando] = useState(false);
   const piezas = items.reduce((n, i) => n + i.cantidad, 0);
+  // Lo sumado fuera del catalogo: va en el total, y se ensena como un
+  // renglon mas para que las piezas cuadren con el.
+  const extraBs = Number(cabecera.extra_bs ?? 0);
   const falta = Number(cabecera.falta_bcv ?? 0);
   const total = Number(cabecera.total_bcv ?? 0);
   const recibidoBs = abonos.filter((a) => !a.anulado_en).reduce((s, a) => s + Number(a.monto_bs), 0);
@@ -786,6 +789,7 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
           <p>
             Vendió <strong>{cabecera.vendedora ?? 'alguien sin perfil'}</strong> · {formatearFechaHora(cabecera.fecha)} ·
             {' '}{piezas} {piezas === 1 ? 'pieza' : 'piezas'}
+            {extraBs > 0 ? ' y algo fuera del catálogo' : ''}
           </p>
           <p className="pedido__total">
             {formatearBs(cabecera.total_bs)} · {formatearBcv(cabecera.total_bcv)} · {formatearBinance(cabecera.total_binance)}
@@ -836,6 +840,18 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
                 </tr>
               );
             })}
+            {extraBs > 0 ? (
+              <tr>
+                <td><span className="miniatura" /></td>
+                <td>
+                  <div className="celda-nombre">{cabecera.extra_nota || 'Sin decir qué'}</div>
+                  <div className="celda-nota">Fuera del catálogo</div>
+                </td>
+                <td className="util">—</td>
+                <td className="num">—</td>
+                <td className="num">{formatearBs(extraBs)}</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
