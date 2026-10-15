@@ -3,7 +3,7 @@ import { Campo } from './Piezas';
 import { FilaPago, montoDePago, textoMetodo } from './ListaAbonos';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, faltaTrasAbono, formatearBcv, formatearBs,
-  formatearFecha, margenDeAbono,
+  formatearFecha, leerCifra, margenDeAbono,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import { METODOS_EN_DOLARES, PIDE_REFERENCIA } from '../lib/tipos';
@@ -57,7 +57,7 @@ export function ReportarPago({ id, falta, minimo = null, tasa, pideTitular = tru
 
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const conTitular = pideTitular && (metodo === 'pago_movil' || metodo === 'transferencia');
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
   const hayMonto = Number.isFinite(valor) && valor > 0;
   const pagado = hayMonto ? abonoEnBcv(valor, enDolares, tasa) : null;
   const despues = pagado ? faltaTrasAbono(falta, pagado.bcv, margenDeAbono(enDolares, tasa)) : null;

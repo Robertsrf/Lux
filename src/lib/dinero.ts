@@ -122,7 +122,18 @@ export function precioConTramo(listaUsd: number, descuentoPct: number | null, pi
  */
 export function binanceDesdeBs(bs: number | null | undefined, tasaVenta: number | null | undefined): number | null {
   if (bs === null || bs === undefined || !tasaVenta) return null;
-  return bs / tasaVenta;
+  // Redondeado a cuatro decimales como `round(total_bs / tasa_venta, 4)`,
+  // con enteros. Antes se dividia en coma flotante y sin redondear: justo
+  // en el medio centavo (87,155) la pantalla decia $87,15 y la venta
+  // guardaba 87,155, que en Reportes es $87,16. Visto en la auditoria del
+  // 14/10/2026 comparando contra la base 2.000 cuentas al azar.
+  const num = aMonto(bs) * FACTOR;      // bs a escala 8
+  const den = aMonto(tasaVenta);        // tasa a escala 4
+  if (den <= 0n) return null;
+  const signo = num < 0n ? -1n : 1n;
+  const abs = num < 0n ? -num : num;
+  const q = (abs * 2n + den) / (2n * den); // la mitad hacia afuera, a escala 4
+  return deMonto(signo * q);
 }
 
 /**
@@ -310,6 +321,13 @@ export function previsualizarProrrateo(datos: DatosLote): Prorrateo {
 
 /* ------------------------------------------------------------------ formato */
 
+/**
+ * El espacio entre una cifra y su unidad no se parte: "Bs 12.290,60" y
+ * "5 %" van siempre en el mismo renglón. Con un espacio normal la barra
+ * del carrito dejaba "Bs" arriba y la cifra abajo, o el "%" solo.
+ */
+const UNIDO = '\u00a0';
+
 const NUM = (min: number, max: number) =>
   new Intl.NumberFormat('es-VE', { minimumFractionDigits: min, maximumFractionDigits: max });
 
@@ -343,13 +361,13 @@ function cifra(valor: number | Monto | null | undefined, decimales: number): str
 /** Dólares BCV, los de la etiqueta: "$20,00 BCV". */
 export function formatearBcv(valor: number | Monto | null | undefined, decimales = 2): string {
   const c = cifra(valor, decimales);
-  return c === null ? '—' : `${c} BCV`;
+  return c === null ? '—' : `${c}${UNIDO}BCV`;
 }
 
 /** Dólares Binance, los que se compran afuera: "$14,50 Binance". */
 export function formatearBinance(valor: number | Monto | null | undefined, decimales = 2): string {
   const c = cifra(valor, decimales);
-  return c === null ? '—' : `${c} Binance`;
+  return c === null ? '—' : `${c}${UNIDO}Binance`;
 }
 
 /**
@@ -402,10 +420,28 @@ export function bcvDesdeBs(bs: number | null | undefined, tasaBcv: number | null
  * cifra que no quiso escribir sin verla.
  */
 export function leerBs(texto: string): number | null {
-  let t = texto.trim().replace(/\s/g, '');
+  return leerCifra(texto);
+}
+
+/**
+ * Una cifra de dinero escrita por una persona, en bolívares o en dólares,
+ * con las reglas de `leerBs`: coma decimal, punto de miles cuando le siguen
+ * tres cifras ("1.500" son mil quinientos), y al céntimo. Null si no es una
+ * cifra, o si no es positiva (con `cero`, el cero vale).
+ *
+ * ANTES cada pantalla leía con `Number(texto.replace(',', '.'))`, en nueve
+ * sitios: los abonos, el pago que reporta la clienta sin sesión, la caja y
+ * el panel del revendedor. Con esa cuenta "1.500" eran 1,5 bolívares y
+ * "1.500,50" no se podía leer, justo como se escribe un monto en
+ * Venezuela. La clienta que reportaba "Bs 1.500,00" veía el botón apagado
+ * con "Falta cuánto pagaste". Una regla, un sitio.
+ */
+export function leerCifra(texto: string, { cero = false }: { cero?: boolean } = {}): number | null {
+  let t = texto.trim().replace(/\s/g, '').replace(/^(bs\.?|\$)/i, '');
   if (t.includes(',')) {
     // "1,500.50" es la costumbre de otro país: mejor no adivinar.
     if (t.lastIndexOf('.') > t.indexOf(',')) return null;
+    if (t.indexOf(',') !== t.lastIndexOf(',')) return null;
     t = t.replace(/\./g, '').replace(',', '.');
   } else if (/^\d{1,3}(\.\d{3})+$/.test(t)) {
     t = t.replace(/\./g, '');
@@ -413,19 +449,30 @@ export function leerBs(texto: string): number | null {
   if (!/^(\d+(\.\d*)?|\.\d+)$/.test(t)) return null;
   // aMonto deja cuatro decimales; de ahi a centimos, la mitad hacia arriba.
   const centimos = (aMonto(t) + 50n) / 100n;
-  return centimos > 0n ? Number(centimos) / 100 : null;
+  if (centimos > 0n) return Number(centimos) / 100;
+  return cero && centimos === 0n ? 0 : null;
 }
 
 export function formatearBs(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
   // El signo va delante de la moneda, como en los dolares: "−Bs 120,00".
-  return (valor < 0 ? '−Bs ' : 'Bs ') + NUM(2, 2).format(Math.abs(valor));
+  return (valor < 0 ? '−Bs' : 'Bs') + UNIDO + NUM(2, 2).format(Math.abs(valor));
 }
 
 /** Recibe el porcentaje ya en unidades de porcentaje (12.5 -> "12,5 %"). */
 export function formatearPorcentaje(valor: number | null | undefined, decimales = 1): string {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
-  return NUM(decimales, decimales).format(valor) + ' %';
+  return NUM(decimales, decimales).format(valor) + UNIDO + '%';
+}
+
+/**
+ * Un descuento de tramo, como lo dice la gente: "5 %", no "5,0 %". Con
+ * decimales solo si los tiene ("7,5 %"). Los márgenes siguen con
+ * `formatearPorcentaje`, que sí necesitan el decimal.
+ */
+export function formatearDescuento(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '—';
+  return NUM(0, 2).format(valor) + UNIDO + '%';
 }
 
 export function formatearTasa(valor: number | null | undefined): string {

@@ -36,7 +36,7 @@ export function Guia() {
   const [momento, setMomento] = useState('recibir');
   const { porCategoria, categorias } = useFrases('VEND');
 
-  if (cargando) return <Cargando texto="Abriendo la guia" />;
+  if (cargando) return <Cargando texto="Abriendo la guía" />;
 
   const frases = por(momento);
   const esObjecion = momento === 'objecion';
@@ -45,12 +45,12 @@ export function Guia() {
     <div className="pagina pagina--angosta mostrador">
       <div className="encabezado-pagina">
         <div>
-          <h1>Como vender Lux</h1>
-          <p>Frases listas para usar. Adaptalas a tu forma de hablar: son guia, no libreto.</p>
+          <h1>Cómo vender Lux</h1>
+          <p>Frases listas para usar. Adáptalas a tu forma de hablar: son guía, no libreto.</p>
         </div>
       </div>
 
-      <div className="selector-ubicacion" role="group" aria-label="Momento de la atencion">
+      <div className="selector-ubicacion selector-ubicacion--fija" role="group" aria-label="Momento de la atención">
         {MOMENTOS.map((m) => (
           <button key={m.clave} type="button" aria-pressed={momento === m.clave} onClick={() => setMomento(m.clave)}>
             {m.texto}
@@ -61,12 +61,12 @@ export function Guia() {
       {esObjecion ? (
         <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
           Nunca discutas ni presiones. Valida lo que siente, educa y —si puedes— demuestra.
-          Una objecion es una pregunta disfrazada.
+          Una objeción es una pregunta disfrazada.
         </p>
       ) : null}
 
       {frases.length === 0 ? (
-        <Vacio titulo="Todavia no hay frases para este momento" />
+        <Vacio titulo="Todavía no hay frases para este momento" />
       ) : (
         <div className="pila">
           {frases.map((c) => (
@@ -109,7 +109,7 @@ export function Guia() {
 
       <h2 className="seccion-titulo">El banco de la casa</h2>
       <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
-        Frases listas para usar, por tema. No hay que aprenderselas: se abren
+        Frases listas para usar, por tema. No hay que aprendérselas: se abren
         cuando hacen falta.
       </p>
       <div className="pila">

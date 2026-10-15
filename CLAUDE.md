@@ -59,12 +59,17 @@ src/
                 vendedoras.ts (llama a la función de servidor de las cuentas),
                 visitas.ts (el catálogo público cuenta su visita)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
-                useInventario, useTextos, useFrases, useConsejos,
-                useTemaRv (viste la página con la paleta de un revendedor)
+                useInventario (pagina por PRODUCTO: una familia nunca queda
+                partida entre dos páginas), useTextos, useFrases, useConsejos,
+                useTemaRv (viste la página con la paleta de un revendedor),
+                useFotosGrandes (la foto grande de piezas que solo traen su
+                miniatura: pedidos, compras de una clienta)
   componentes/  Disposicion (las secciones de la tienda), Armazon (la barra
                 lateral y la de abajo, de la tienda y del revendedor), Piezas
                 (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
-                Marca, VisorFoto (detalle que pasa de pieza), ElegirVariante
+                Marca, VisorFoto (detalle que pasa de pieza; abre en la
+                medida que se tocó), MiniaturaTocable (la foto pequeña que
+                se toca para verla en grande), ElegirVariante
                 (la hoja de medidas), VisitasCatalogo (cuánta gente abre el
                 catálogo, en la pantalla Catálogo), TusDatos (el pedido público empieza por
                 la cédula), MoverUbicacion (pasar piezas de una ubicación a
@@ -74,14 +79,21 @@ src/
                 ReportarPago (un pago a distancia con su referencia, sin
                 sesión o del revendedor), PagoMovil (datos para copiar, de
                 Lux o del revendedor), Graficos, Progreso, Recordatorio,
-                CompartirCatalogo, BuscadorCliente, RutaProtegida
+                CompartirCatalogo (y `enlacePublico`, el enlace del
+                catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
+                BuscadorCliente, RutaProtegida
   paginas/
-    admin/      Inventario, FormularioModelo, Lotes, Grupos, Tramos,
+    admin/      Inventario (un producto por fila; sus medidas se abren
+                debajo), FormularioModelo, Lotes, Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
                 Caja (lo que entra y lo que sale, día por día y mes por mes),
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
                 y de dónde saca cada dato)
-    venta/      Mostrador, Pedidos, Tablero, Cierre, ConteoSemanal, Guia
+    venta/      Mostrador, Pedidos ("Quitar" una pieza de un pedido sin
+                entregar, con su historia), Tablero, Cierre, Guia,
+                ConteoSemanal (el conteo de inventario: a ciegas, contra la
+                foto de lo FÍSICO, con borrador en el teléfono, cada producto
+                con sus medidas dentro y los conteos anteriores)
     publico/    Catalogo, Reserva, GuiaRevendedor (/guia-revendedor, la guía
                 para quien quiere ser revendedor) con GuiaRevendedorPiezas
                 (calculadora, recorrido, manual, preguntas, solicitud)
@@ -93,7 +105,9 @@ src/
                 ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
                                            (con SU código, no con Supabase)
     Vitrina                                (sin sesión, como el catálogo)
-    Clientes, Tasas, CatalogoPdf, Entrar, Verificacion   (las de las dos caras)
+    Clientes (la ficha: cada compra con su foto y, para el
+    administrador, "Devolver"), Tasas, CatalogoPdf, Entrar,
+    Verificacion                           (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
                 revendedor.css (las seis paletas de su catálogo, medidas),
                 guia-revendedor.css (la guía pública)
@@ -167,6 +181,11 @@ Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
 `perfiles.numero_vendedora` es el número de cada vendedora del local (los dos
 primeros dígitos de su código); null en los administradores y en la cuenta de
 antes.
+`existencias`, `conteos` y `conteo_detalle` no se escriben en crudo con
+ninguna sesión, tampoco la del administrador (desde
+`esquema-conteo-y-cotizar.sql`): solo por sus funciones de definidor, que
+dejan rastro. Leer sí. Una función nueva que escriba existencias tiene que
+ser de definidor.
 
 De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
 funciones): `revendedores` (con la huella de su código, nunca el código) ·
@@ -182,6 +201,13 @@ se escriben con ninguna sesión: solo por sus funciones.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
 `ventas.extra_bs` y `ventas.extra_nota` son lo que se sumó al cobro fuera del
 catálogo (un dije) y qué era; ya va dentro de `total_bs`.
+`ventas.devolucion_de` dice que esa "venta" es una NOTA DE CRÉDITO de otra:
+sus líneas van en negativo (`venta_items.devuelve_item_id`, la línea que
+devuelven), con las tasas de la venta original. Un disparador
+(`venta_items_signo`) solo deja cantidades negativas ahí.
+`pedido_cambios` (revocada, se lee por `v_pedido_cambios`) es la historia
+de lo que se quitó de un pedido: antes, después, total, el dinero, quién y
+por qué. Una línea quitada de `reserva_items` queda en cero, no se borra.
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -192,7 +218,8 @@ catálogo (un dije) y qué era; ya va dentro de `total_bs`.
 | `v_disponible_publico` | El catálogo público, menos lo reservado. La ubicación va **en clave** (`V1 · BG`), nunca con el nombre | cualquiera, sin sesión |
 | `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()` | solo admin |
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
-| `v_cliente_compras` | Qué se llevó cada clienta y cuándo | vendedora y admin |
+| `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
+| `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
 | `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
 | `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
@@ -206,6 +233,8 @@ catálogo (un dije) y qué era; ya va dentro de `total_bs`.
 | `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
 | `v_caja` | Cada movimiento anotado en la caja, con quién lo anotó y, si se anuló, quién y por qué | solo admin |
+| `v_conteos` | Cada conteo de inventario: cuándo, qué ubicación, quién, cuántas piezas y cuántas faltaron o sobraron | vendedora y admin |
+| `v_conteo_detalle` | Las líneas de un conteo: lo que esperaba el sistema y lo que se contó. Sin costo | vendedora y admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
@@ -224,7 +253,31 @@ primero la vuelve por partes), `admin_guardar_modelo`,
 `admin_separar_variante`, `admin_reasignar_grupos`, `admin_fusionar_clientes`,
 `cobrar_apartado` (la del navegador viejo: pasa por la aprobación),
 `admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
-`admin_anotar_caja`, `admin_anular_caja`.
+`admin_anotar_caja`, `admin_anular_caja`, `registrar_conteo` (el conteo de
+inventario, de las dos caras), `quitar_de_pedido` (una pieza fuera de un
+pedido sin entregar, de las dos caras) y `admin_devolver_pieza` (la nota de
+crédito de una pieza ya entregada).
+
+`registrar_conteo(ubicación, detalle, notas)` recibe solo lo contado, cada
+línea con `contada` y `vista` (la existencia FÍSICA que la pantalla vio al
+empezar). Si al guardar ya no es esa (se vendió o se movió mientras se
+contaba), esa línea no se toca y vuelve en `cambiaron` para contarla otra
+vez; las demás se guardan. Toma el mismo candado por pieza que la venta.
+`registrar_conteo_semanal`, la de antes, ya no escribe: rechaza con un aviso
+de recargar (borraba lo apartado; ver Trampas).
+
+`cotizar_pedido(items)` es el total del carrito del catálogo público, sin
+sesión: llama a `precio_de_linea` con el tramo, igual que `crear_reserva`,
+así la barra dice lo que el pedido congela. Devuelve el total y cada línea a
+su precio, ninguna clave de costo (`verificar` lo vigila). Una pieza retirada
+o sin precio sale en `sin_precio` y no tumba la cuenta. **No cotiza más piezas
+de las que hay libres** (sumadas por pieza), igual que `crear_reserva`: cuando
+el piso de margen manda, el precio de la línea es el piso, y sin ese tope
+cualquiera sin sesión sacaba el piso de todo el catálogo pidiendo "20 de una
+pieza que tiene 1" (revisión de seguridad del 14/10/2026). Con el tope no
+enseña nada que no enseñe un pedido que se podría apartar.
+
+`admin_desactivar_modelo` no retira una pieza que un pedido tiene apartada.
 
 `registrar_visita(visitante)` la llama el catálogo público al abrirse, sin
 sesión; con sesión no cuenta (es alguien de la tienda). `visitas_catalogo(días)`
@@ -416,6 +469,13 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cuenta de siempre, y "Sale en" lo enseña antes de guardar. Si su costo no cambió,
   su precio se respeta. Nombre, categoría, nota, lote y foto son del producto y se
   copian solos a todas.
+  **Y se ven como un producto también donde se administran** (pedido del dueño
+  del 14/10/2026: "es ilógico que me aparezcan como si fuesen otros
+  productos"). El Inventario enseña una fila por producto, con cada cifra de
+  la medida más baja a la más alta y la existencia sumada, y sus medidas se
+  abren debajo; pagina por producto, así una familia nunca se parte entre dos
+  páginas. El conteo semanal cuenta cada producto con sus medidas dentro. Al
+  tocar la foto de una medida, el visor abre en esa medida.
 - **El tercer precio, en $ Binance.** Lo que se cobra si pagan en dólares, en
   efectivo o por Binance: bolívares entre la tasa Binance (`binanceDesdeBs`), la
   misma cuenta con la que la base guarda `ventas.total_usd`. Solo en el mostrador y
@@ -423,6 +483,17 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   "Binance" es también forma de pago.
 - **El catálogo acepta pedidos desde una pieza.** El mínimo de mayoreo (6 piezas o
   $30) se quitó en septiembre de 2026; el mayoreo es solo el descuento por cantidad.
+  Desde el 14/10/2026, tocar una pieza abre su detalle y cada tarjeta lleva
+  "Agregar" (un contador cuando ya va en el pedido); antes un toque la metía al
+  pedido y dos abrían el detalle. Trae las piezas de a 120 con "Ver más" y dice
+  cuántas faltan (antes cortaba en 400 sin aviso), se ordena por tipo o por
+  precio, y el total de la barra es el de `cotizar_pedido`. En el mostrador, un
+  toque sigue agregando: ahí manda la velocidad. En las dos, la tarjeta es un
+  `<article>` con botones hermanos, nunca un botón dentro de otro. El
+  catálogo de cada revendedor hace lo mismo desde el 15/10/2026 (se había
+  quedado con el doble toque y la lupa dentro del botón), trae hasta 400 y
+  lo dice si llega al tope, y recuerda las piezas elegidas aunque la
+  clienta busque otra cosa, como el de la tienda.
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -530,6 +601,31 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   que no se pudo repartir (una pieza sin precio) se sigue cobrando completo con
   `cobrar_pedido`; esa misma función, con un pedido congelado, pasa por
   `entregar_pedido`: hay un solo camino de pedido a venta.
+- **Las devoluciones** (pedidas por el dueño el 14/10/2026, por un cliente
+  que devolvió un anillo). Son dos casos y no se parecen:
+  - **El pedido no se ha entregado:** la pieza nunca salió de la tienda.
+    "Quitar" en Pedidos (`quitar_de_pedido`) baja esa línea a cero, la pieza
+    queda libre en el acto (mostrador y catálogo) y el total baja con su
+    precio congelado. Las demás piezas conservan el suyo aunque el pedido
+    baje de un tramo: se congeló al apartar, y la pantalla lo avisa. Lo hacen
+    las dos caras; si lo pagado y comprobado pasa del total nuevo, solo el
+    administrador, que dice si se devuelve (sale de la caja como
+    "Devolución") o se queda a favor. Con pagos sin revisar que sobrarían, se
+    revisan primero. La última pieza no se quita: eso es cancelar el pedido.
+    Cada cambio queda en `pedido_cambios`, y Pedidos lo enseña.
+  - **La pieza ya se entregó:** solo el administrador, desde la ficha de la
+    clienta ("Devolver"). `admin_devolver_pieza` registra una NOTA DE
+    CRÉDITO: una venta que dice de cuál es (`devolucion_de`), con las MISMAS
+    tasas de la original y la pieza en negativo. Así cada suma (reportes,
+    meta, ganancia del mes, la ficha) se compensa sola el día de la
+    devolución por la cifra exacta que la pieza sumó, sin reescribir el día
+    en que se vendió. La pieza vuelve a la ubicación que él elija. El dinero
+    va aparte, por la caja, nunca más de lo que valía; la nota de crédito no
+    cuenta en `caja_flujo`, para no restarlo dos veces. No se devuelve de una
+    venta por verificar (primero se verifica o se anula), una venta con
+    devoluciones no se anula entera y una nota de crédito no se anula.
+  - Las devoluciones de los pedidos de revendedores no están: lo suyo se
+    sigue cerrando con `admin_cerrar_apartado`.
 - **Lo apartado no se vende en el mostrador.** Un pedido dice "2 de esta cadena",
   no de dónde; lo apartado se asigna a las ubicaciones empezando por donde hay más
   (normalmente la bodega), que es el mismo orden en que la entrega las toma.
@@ -538,7 +634,38 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   apartado. Mover una pieza apartada sí se puede: sigue siendo del pedido.
 - **La vitrina se abre sin sesión**, como el catálogo: lee `v_disponible_publico`
   y sus frases de marca ('TV') son públicas. No enseña nada que no esté ya en el
-  enlace de WhatsApp.
+  enlace de WhatsApp. **Se refresca sola cada 5 minutos** (y al volver a la
+  pestaña) sin perder la pieza en que va: el televisor pasa la tarde encendido y
+  antes enseñaba lo vendido y los bolívares de la tasa de la mañana. Si la red
+  falla, sigue con lo último que llegó; si falla la primera carga, reintenta
+  sola. Intercala las categorías, salta las piezas sin foto (si hay alguna con
+  foto), dice "Última pieza" y lleva el QR del catálogo en línea (se quita desde
+  los controles; `CodigoQr`, con `uqr` fijado en 0.1.2, ver ESTADO.md).
+- **El conteo de inventario** (rehecho en la auditoría del 14/10/2026). Se
+  cuenta lo FÍSICO, las piezas apartadas también, a ciegas (la pantalla no dice
+  cuánto espera el sistema mientras se cuenta), y solo se guarda lo que se
+  contó: una fila vacía no se toca. Antes de guardar, una revisión enseña lo
+  que no cuadra, cuántas faltan o sobran y si una pieza de un pedido no
+  aparece. Lo contado vive en el teléfono (`lux-conteo-v2-<ubicación>`) hasta
+  guardarlo. Los conteos anteriores salen en la misma pantalla.
+  **El cierre del día también es a ciegas** (desde el 15/10/2026): antes decía
+  "Espera 38" junto al campo. La cifra del sistema sale al guardar, y es la
+  que esperaba AL CONTAR (`contada − diferencia`), no la existencia de ahora.
+- **Las cifras que escribe una persona se leen con `leerCifra`** (`lib/dinero.ts`):
+  coma decimal y punto de miles cuando le siguen tres cifras, como se escribe
+  aquí ("1.500,50"). Nunca `Number(texto.replace(',', '.'))`: leía "1.500"
+  como 1,5 y no podía leer "1.500,50". Y el campo es `type="text"` con
+  `inputMode="decimal"`, no `type="number"` (ver Trampas). Lo que no se
+  entiende no se guarda, y se dice; nunca cuenta como cero. Las dos
+  excepciones llevan 4 decimales y su propia red: las tasas (confirmación
+  "antes → después" y aviso de salto) y el costo de una pieza en el
+  formulario (con punto decimal, y vacío no se guarda).
+- **Cada pantalla dice la misma existencia.** Lo que se puede vender es lo
+  LIBRE (`v_venta_ubicacion.cantidad`, `v_disponible_publico.disponible`): el
+  mostrador, el catálogo, el del revendedor, la vitrina y el catálogo PDF, que
+  va a las clientas. Lo que hay es lo FÍSICO (`existencia`, `existencia_total`):
+  el conteo, el cierre del día y mover de ubicación. El Inventario del
+  administrador enseña lo físico y, al lado, cuántas están apartadas.
 - **Las visitas al catálogo** (pedido del dueño del 30/09/2026). La pantalla
   Catálogo, de las dos caras, dice cuántas personas abrieron el catálogo en
   línea hoy, en 7 y en 30 días, y cuántos pedidos entraron por él. Una visita es
@@ -613,12 +740,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 164 comprobaciones con las dos sesiones (169 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 189 comprobaciones con las dos sesiones (194 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace treinta y cuatro
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -687,6 +814,41 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   septiembre de 2026). Salieron al montar la instalación entera en una base
   Postgres en memoria (PGlite) para probar `esquema-revendedores.sql`: es la
   forma de probar un `.sql` grande sin tocar la base de producción.
+- **El conteo semanal borraba lo apartado** durante semanas, sin un error.
+  Cuando `v_venta_ubicacion.cantidad` pasó a ser lo libre, el mostrador se
+  actualizó y el conteo no: decía "el sistema espera 3" donde había 5 (2 de un
+  pedido), y guardar sin tocar la fila dejaba 3. Cada semana otra vez.
+  Encontrado en la auditoría del 14/10/2026 y reproducido en PGlite (7 piezas
+  antes, 5 después). Cuando una columna cambia de significado, se buscan TODAS
+  las pantallas que la leen, no solo la que motivó el cambio.
+- **`manualChunks` con un paquete arrastra sus dependencias.** Al nombrar
+  `recharts`, React entró en ese trozo; la entrada necesitaba React y precargaba
+  los 392 KB de gráficos en todas las pantallas, el catálogo público incluido.
+  Se ve en los `<link rel="modulepreload">` de `dist/index.html`, no en el
+  código. Las pantallas perezosas ya se parten solas: no hace falta nombrarlas.
+- **Una librería puede cargar código de otro sitio en caliente.** La
+  compresión de fotos, con `useWebWorker`, bajaba su trabajador de
+  cdn.jsdelivr.net en cada subida. Ahora se le da la copia del propio sitio
+  (`libURL`, en `lib/fotos.ts`), y la política de seguridad de contenido
+  (`vite.config.ts`) bloquea cualquier otro origen que no sea Supabase.
+- **Un campo `type="number"` lee "1.500" como 1,5.** El navegador toma el
+  punto como decimal, y "12,5" con coma lo deja VACÍO. En el regateo del
+  mostrador, "1.500" bolívares bajaba la pieza a su mínimo; en Lotes, un
+  flete de "1.200" eran $1,20 repartidos entre todas las piezas; en
+  Inversiones, una vitrina de $1.500 se guardaba en $1,50; en Costos, lo
+  ilegible contaba como cero y se guardaba un alquiler de cero. Todo en
+  silencio. Corregido en la revisión del 15/10/2026: texto + `leerCifra`.
+- **Una nota de crédito es una fila de `ventas`.** Lo que SUMA dinero se
+  compensa solo (sus líneas van en negativo), pero lo que CUENTA ventas no:
+  una devolución sumaría una venta más en "ventas de hoy", le renovaría el
+  lavado a la clienta y saldría como su última compra. Toda vista o pantalla
+  nueva que cuente ventas, o busque la última, filtra
+  `devolucion_de is null`; la caja ya la deja fuera en `caja_flujo`.
+- **Lo que mide el total tiene que ser lo que cobra la base.** El carrito
+  público multiplicaba el subtotal por el tramo, sin el piso de cada pieza:
+  $88,35 en la barra y $91,35 en el pedido (probado en PGlite). Si una regla
+  no se puede enseñar sin abrir un dato, se le pregunta a la base
+  (`cotizar_pedido`), no se aproxima en el navegador.
 
 ---
 

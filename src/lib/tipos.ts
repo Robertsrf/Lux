@@ -136,6 +136,79 @@ export interface Existencia {
   cantidad: number;
 }
 
+/* ------------------------------------------------------------ Conteo */
+
+/**
+ * Una pieza en la lista del conteo. `vista` es la existencia FÍSICA de esa
+ * pieza en esa ubicación cuando empezó el conteo: la foto contra la que se
+ * cuenta. Nunca lo libre: contar lo libre borraba lo apartado.
+ */
+export interface PiezaConteo {
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  categoria: string | null;
+  foto_thumb_path: string | null;
+  vista: number;
+  /** Lo apartado por pedidos que sale de esta ubicación. */
+  apartadas: number;
+  /** El producto: las variantes de una cadena se cuentan juntas, debajo de su nombre. */
+  familia: number;
+  /** La foto grande, para asegurarse de qué pieza es. */
+  foto_path?: string | null;
+}
+
+/** Lo que devuelve `registrar_conteo`. */
+export interface ResultadoConteo {
+  conteo_id: number | null;
+  aplicadas: number;
+  con_diferencia: number;
+  esperadas: number;
+  contadas: number;
+  /** Las que se vendieron o se movieron mientras se contaba: van de nuevo. */
+  cambiaron: { modelo_id: number; nombre: string; vista: number; ahora: number; contada: number }[];
+}
+
+/**
+ * Lo que devuelve `cotizar_pedido`: el pedido del catálogo con la misma
+ * regla que `crear_reserva` (el tramo, y cada pieza nunca bajo su piso).
+ */
+export interface Cotizacion {
+  piezas: number;
+  descuento_pct: number;
+  subtotal_usd: number;
+  total_usd: number;
+  lineas: { modelo_id: number; cantidad: number; precio_usd: number; precio_lista_usd: number; motivo: string | null }[];
+  /** Piezas que ya no se pueden cotizar (retiradas o sin precio): no suman. */
+  sin_precio: number[];
+}
+
+/** Un conteo anterior, de `v_conteos`. */
+export interface ConteoAnterior {
+  id: number;
+  creado_en: string;
+  ubicacion: string | null;
+  quien: string | null;
+  lineas: number;
+  lineas_distintas: number;
+  piezas_faltaron: number;
+  piezas_sobraron: number;
+  notas: string | null;
+}
+
+/** Una línea de un conteo anterior, de `v_conteo_detalle`. */
+export interface LineaConteo {
+  conteo_id: number;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  cantidad_esperada: number;
+  cantidad_contada: number;
+  diferencia: number;
+}
+
 /* ------------------------------------------------------------ Fase 2 */
 
 export type TipoVenta = 'detal' | 'mayor';
@@ -797,6 +870,35 @@ export interface CompraCliente {
   extra_bs?: number;
   /** Que fue lo de fuera del catalogo. */
   extra_nota?: string | null;
+  /* Desde esquema-devoluciones.sql. */
+  /** Cuantas de esta linea volvieron a la tienda (nota de credito). */
+  devueltas?: number;
+  /** De donde salio: a donde vuelve, si se devuelve y no se dice otra. */
+  ubicacion_id?: number;
+  /** Lo que se cobro por cada una, en dolares BCV: el tope de lo que se le devuelve. */
+  precio_unitario_usd?: number;
+  /** La foto grande, para verla y asegurarse de lo que se llevo. */
+  foto_path?: string | null;
+}
+
+/** Lo que se le quito a un pedido (`v_pedido_cambios`). */
+export interface PedidoCambio {
+  id: number;
+  reserva_id: number;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  antes: number;
+  despues: number;
+  total_antes: number;
+  total_despues: number;
+  dinero: 'devuelto' | 'a_favor' | null;
+  devuelto_bs: number | null;
+  devuelto_metodo: MetodoPago | null;
+  motivo: string | null;
+  quien: string | null;
+  cambiado_en: string;
 }
 
 /**

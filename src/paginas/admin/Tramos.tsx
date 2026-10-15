@@ -29,7 +29,10 @@ export function Tramos() {
       supabase.from('tramos_mayoreo').select('id, min_piezas, descuento_pct, activo').order('min_piezas'),
       supabase.from('v_catalogo_admin').select('nombre, precio_usd_real, costo_puesto_usd').limit(2000),
     ]);
-    if (t.error) setError(mensajeDeError(t.error));
+    // Dos consultas, dos errores mirados: sin las piezas, la columna del
+    // peor margen salía vacía sin decir por qué.
+    const fallo = t.error ?? c.error;
+    setError(fallo ? mensajeDeError(fallo) : null);
     setTramos((t.data as Tramo[] | null) ?? []);
     setPiezas(((c.data as { nombre: string; precio_usd_real: number | null; costo_puesto_usd: number }[] | null) ?? [])
       .filter((p) => p.precio_usd_real !== null)
@@ -99,9 +102,16 @@ export function Tramos() {
           deja perdiendo.
         </p>
         <p>
-          <strong>Sin tramos activos el armador se apaga</strong> y nadie puede
-          pedir al mayor. Es la red de seguridad: mejor no vender que vender a
-          un precio que no existe.
+          <strong>Ninguna pieza baja de su piso.</strong> Con el tramo, cada
+          pieza se cobra con el descuento pero nunca por debajo de lo que
+          todavía deja el margen mínimo que fijaste en Costos: en las de margen
+          fino, el descuento se queda más corto. Lo hacen igual el mostrador,
+          el catálogo y la base.
+        </p>
+        <p>
+          <strong>Sin tramos activos no hay descuento por cantidad:</strong> se
+          cobra la etiqueta, en el mostrador y en el catálogo. Se sigue pudiendo
+          pedir desde una pieza.
         </p>
       </Ayuda>
 
@@ -109,9 +119,9 @@ export function Tramos() {
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
 
       {tramos.filter((t) => t.activo).length === 0 ? (
-        <Aviso tono="alerta" titulo="El armador está apagado">
-          Sin ningun tramo activo, quien arme un pedido en el catálogo publico paga
-          el precio de detal completo. Carga al menos uno.
+        <Aviso tono="alerta" titulo="No hay descuento por cantidad">
+          Sin ningún tramo activo, quien se lleve muchas piezas paga la etiqueta
+          completa, en el mostrador y en el catálogo. Carga al menos uno.
         </Aviso>
       ) : null}
 

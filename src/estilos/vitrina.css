@@ -356,6 +356,68 @@
      medidas ya no cabian en un telefono. */
   .vitrina__variantes li { gap: 3vw; }
   .vitrina__controles { justify-content: center; }
+  /* En un telefono el QR no sirve: ya se esta en un telefono. */
+  .vitrina__qr { display: none; }
+  .vitrina.vitrina--con-qr .vitrina__ficha { padding-bottom: 0; }
+}
+
+/* --- El QR del catalogo en linea -------------------------------------- */
+/* Abajo a la derecha, dentro del margen de seguridad. La ficha le reserva
+   su sitio (padding abajo), asi que el ajuste de letra de Vitrina.tsx lo
+   cuenta y el precio nunca queda debajo del codigo. Modulos verde profundo
+   sobre crema: un lector de QR necesita oscuro sobre claro. */
+
+.vitrina { --v-qr: clamp(96px, 18vh, 240px); }
+.vitrina__qr {
+  position: absolute; z-index: 2;
+  right: var(--v-seguro-x); bottom: var(--v-seguro-y);
+  display: grid; justify-items: center; gap: 1vh;
+  width: var(--v-qr);
+}
+.vitrina__qr-codigo {
+  display: block; width: 100%; height: auto; aspect-ratio: 1;
+  padding: 0.6vh;
+  color: var(--verde-profundo);
+  background: var(--crema);
+  border-radius: var(--radio-md);
+}
+.vitrina__qr-texto {
+  margin: 0;
+  font-family: var(--fuente-ui);
+  font-size: clamp(11px, 1.6vh, 20px);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  text-align: center; line-height: 1.3;
+  color: color-mix(in srgb, var(--crema) 82%, transparent);
+}
+/* Con una clase y no con :has(): el navegador de un televisor viejo no lo
+   conoce, y sin la reserva el codigo tapaba el final de la ficha. */
+.vitrina--con-qr .vitrina__ficha { padding-bottom: calc(var(--v-qr) + 5vh); }
+
+/* "Ultima pieza": oro sobre el verde, 5,38:1 medido. */
+.vitrina__ultima {
+  margin: calc(var(--v-aire) * 0.6 * var(--escala)) 0 0;
+  font-family: var(--fuente-ui);
+  font-size: calc(var(--v-categoria) * 1.2 * var(--escala));
+  font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+
+/* Sin conexion la primera vez: en verde y sin botones, que es lo que se ve
+   desde la tienda mientras se reintenta sola. */
+.vitrina--espera { display: grid; place-items: center; }
+.vitrina__espera {
+  display: grid; justify-items: center; gap: var(--e-4);
+  padding: var(--e-6); text-align: center;
+}
+.vitrina__espera p {
+  margin: 0;
+  font-family: var(--fuente-prosa); font-size: clamp(18px, 3vh, 32px);
+  color: var(--crema);
+}
+.vitrina__espera .vitrina__espera-detalle {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  color: color-mix(in srgb, var(--crema) 66%, transparent);
 }
 
 /* Quien pidio menos movimiento no recibe ni la entrada ni la barra. */

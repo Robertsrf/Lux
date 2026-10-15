@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { Progreso } from '../../componentes/Progreso';
-import { formatearBcv, formatearBinance, formatearDecimal, formatearFecha } from '../../lib/dinero';
+import { formatearBcv, formatearBinance, formatearDecimal, formatearFecha, leerCifra } from '../../lib/dinero';
 import type { Inversion, Recuperacion } from '../../lib/tipos';
 
 const CATEGORIAS = ['mobiliario', 'exhibidor', 'equipo', 'local', 'otro'];
@@ -62,10 +62,15 @@ export function Inversiones() {
   async function agregar(ev: React.FormEvent) {
     ev.preventDefault();
     setError(null);
+    // Como se escribe aquí: "1.500" son mil quinientos. El campo era
+    // numérico y el navegador leía 1,5: una vitrina de $1.500 se guardaba
+    // en $1,50 y la barra de lo invertido mentía.
+    const cifra = leerCifra(monto);
+    if (cifra === null) { setError('Escribe cuánto costó, solo el número: por ejemplo 1.500 o 250,50.'); return; }
     const { error: err } = await supabase.from('inversiones').insert({
       nombre: nombre.trim(),
       categoria,
-      monto_usd: Number(monto),
+      monto_usd: cifra,
       moneda,
       amortizar_meses: amortiza ? Number(meses) : null,
     });
@@ -205,7 +210,7 @@ export function Inversiones() {
             </select>
           </Campo>
           <Campo etiqueta={moneda === 'real' ? 'Cuánto costó · $ Binance' : 'Cuánto costó · $ BCV'} htmlFor="i-monto">
-            <input id="i-monto" type="number" min="0.01" step="0.01" inputMode="decimal" required value={monto} onChange={(e) => setMonto(e.target.value)} />
+            <input id="i-monto" type="text" inputMode="decimal" autoComplete="off" required value={monto} onChange={(e) => setMonto(e.target.value)} />
           </Campo>
         </div>
 

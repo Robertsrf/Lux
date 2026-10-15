@@ -4,7 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { PagoMovil } from '../../componentes/PagoMovil';
 import { PagosHechos, ReportarPago } from '../../componentes/ReportarPago';
-import { bsDeBcv, formatearBcv, formatearBs, formatearFechaHora, precioEnBs, tiempoRestante } from '../../lib/dinero';
+import { bsDeBcv, formatearBcv, formatearBs, formatearFechaHora, precioEnBs, restarCifras, tiempoRestante } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
 import { enlaceApartado, enlaceWhatsApp } from '../../lib/revendedor';
@@ -66,7 +66,7 @@ export function ApartadoPublico() {
   const logo = urlPublicaFoto(apartado.logo_path);
   const falta = Number(apartado.falta_usd);
   const total = Number(apartado.total_usd);
-  const pagado = Math.max(total - falta, 0);
+  const pagado = Math.max(restarCifras(total, falta), 0);
   const minimo = apartado.minimo_usd !== null && apartado.minimo_usd !== undefined ? Number(apartado.minimo_usd) : null;
   const fase = apartado.fase ?? (apartado.estado === 'abierto' ? 'esperando_pago' : null);
   const quien = apartado.revendedor;
@@ -74,7 +74,7 @@ export function ApartadoPublico() {
   // Recibe pagos mientras está vigente, y después de vendido si le dio crédito.
   const recibePagos = falta > 0 && fase !== null && !['vencido', 'cancelado'].includes(fase);
   const daCredito = Boolean(apartado.dias_credito);
-  const faltaMinimo = !apartado.confirmado_en && minimo !== null ? Math.max(0, minimo - pagado) : null;
+  const faltaMinimo = !apartado.confirmado_en && minimo !== null ? Math.max(0, restarCifras(minimo, pagado)) : null;
   const mensaje = `Hola ${quien}, es sobre mi pedido: ${enlaceApartado(token ?? '')}`;
   const mensajePago = `Hola ${quien}, ya te pagué mi pedido. Lo reporté aquí: ${enlaceApartado(token ?? '')}`;
 

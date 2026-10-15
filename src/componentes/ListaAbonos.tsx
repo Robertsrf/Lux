@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import {
   abonoEnBcv, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
-  formatearFechaHora, margenDeAbono, restarCifras, sumarCifras,
+  formatearFechaHora, leerCifra, margenDeAbono, restarCifras, sumarCifras,
 } from '../lib/dinero';
 import { METODOS_EN_DOLARES, METODOS_EN_PERSONA, METODOS_PAGO, PIDE_REFERENCIA } from '../lib/tipos';
 import type { AbonoCambio, AbonoDetalle, EstadoPago, MetodoPago } from '../lib/tipos';
@@ -205,7 +205,7 @@ function CorregirAbono({ abono: a, abonos, esAdmin, guardando, alGuardar, alCanc
 
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const tasas = { tasa_venta: Number(a.tasa_venta), tasa_bcv: Number(a.tasa_bcv) };
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
   const hayMonto = Number.isFinite(valor) && valor > 0;
   // Lo que puede valer este abono: el total menos los demas que cuentan.
   const otros = sumarCifras(abonos.filter((x) => x.id !== a.id && !x.anulado_en).map((x) => Number(x.monto_bcv)));

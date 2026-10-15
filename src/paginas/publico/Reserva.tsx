@@ -99,10 +99,12 @@ export function Reserva() {
             <EstadoDelPedido reserva={reserva} restante={restante} falta={falta} tasa={tasa} />
 
             <div className="lineas-cobro">
-              {reserva.items.map((i) => {
+              {/* Una pieza que la tienda quitó del pedido queda en cero: no se
+                  enseña (esquema-devoluciones.sql). */}
+              {reserva.items.filter((i) => i.cantidad > 0).map((i, n) => {
                 const foto = urlPublicaFoto(i.foto_thumb_path);
                 return (
-                  <div className="linea-cobro" key={i.modelo_id}>
+                  <div className="linea-cobro" key={`${n}-${i.modelo_id}`}>
                     {foto ? <img className="linea-cobro__foto" src={foto} alt="" /> : <span className="linea-cobro__foto" />}
                     <div>
                       <div className="linea-cobro__nombre">{nombreConVariante(i.nombre, i.variante)}</div>

@@ -172,6 +172,65 @@ export function Verificacion() {
       bien: !!mv.error && /otra ubicaci/i.test(mv.error.message),
     });
 
+    // El inventario no se escribe en crudo con ninguna sesion, tampoco la
+    // del administrador: solo por sus funciones, que dejan rastro
+    // (esquema-conteo-y-cotizar.sql). Con id -1 no toca nada si se abriera.
+    const crudo = await supabase.from('existencias').update({ cantidad: 0 }).eq('id', -1);
+    resultados.push({
+      nombre: 'Inventario en crudo (existencias)',
+      esperado: 'Rechazado: se cambia solo vendiendo, moviendo, contando o desde el producto',
+      obtenido: crudo.error ? `Rechazado (${crudo.error.code ?? 'sin código'})` : 'LO DEJÓ ESCRIBIR',
+      bien: crudo.error?.code === '42501',
+    });
+
+    // El conteo nuevo: con una ubicacion que no existe dice que no, sin
+    // tocar nada. Ese "no" prueba que se puede usar.
+    const conteo = await supabase.rpc('registrar_conteo', { p_ubicacion_id: -1, p_detalle: [], p_notas: null });
+    resultados.push({
+      nombre: 'Contar inventario (registrar_conteo)',
+      esperado: 'Se puede ejecutar: con una ubicación que no existe responde que no existe',
+      obtenido: conteo.error ? conteo.error.message : 'RESPONDIÓ SIN UBICACIÓN',
+      bien: !!conteo.error && /ubicaci/i.test(conteo.error.message),
+    });
+
+    // El total del catalogo publico lo da la base, con la regla del pedido,
+    // y sin una clave de costo en cada linea.
+    const cot = await supabase.rpc('cotizar_pedido', { p_items: [] });
+    const clavesCot = Object.keys((cot.data as Record<string, unknown> | null) ?? {}).sort().join(',');
+    resultados.push({
+      nombre: 'Total del catálogo (cotizar_pedido)',
+      esperado: 'Responde con el total y sus líneas, nada más',
+      obtenido: cot.error ? `Fallo: ${cot.error.message}` : clavesCot,
+      bien: !cot.error && clavesCot === 'descuento_pct,lineas,piezas,sin_precio,subtotal_usd,total_usd',
+    });
+
+    // Las devoluciones (esquema-devoluciones.sql). La historia de un pedido
+    // se lee por su vista, nunca en crudo; quitar una pieza es de las dos
+    // caras; devolver una ya entregada, solo del dueno. Con id -1 no toca nada.
+    const histCrudo = await supabase.from('pedido_cambios').select('id').limit(1);
+    resultados.push({
+      nombre: 'Historia de pedidos en crudo (pedido_cambios)',
+      esperado: 'Rechazado: se lee por v_pedido_cambios',
+      obtenido: histCrudo.error ? `Rechazado (${histCrudo.error.code ?? 'sin código'})` : 'LA DEJÓ LEER',
+      bien: histCrudo.error?.code === '42501',
+    });
+    const quita = await supabase.rpc('quitar_de_pedido', { p_reserva_id: -1, p_modelo_id: -1, p_cantidad: 1, p_motivo: 'verificar' });
+    resultados.push({
+      nombre: 'Quitar una pieza de un pedido (quitar_de_pedido)',
+      esperado: 'Se puede ejecutar: con un pedido que no existe responde que no existe',
+      obtenido: quita.error ? quita.error.message : 'RESPONDIÓ SIN PEDIDO',
+      bien: !!quita.error && /no existe/i.test(quita.error.message),
+    });
+    const devuelve = await supabase.rpc('admin_devolver_pieza', {
+      p_venta_id: -1, p_modelo_id: -1, p_cantidad: 1, p_ubicacion_id: null, p_devolver: false, p_motivo: 'verificar',
+    });
+    resultados.push({
+      nombre: 'Devolver una pieza entregada (admin_devolver_pieza)',
+      esperado: esAdmin ? 'Se puede ejecutar: con una venta que no existe responde que no existe' : 'Rechazada: es del administrador',
+      obtenido: devuelve.error ? devuelve.error.message : 'RESPONDIÓ',
+      bien: !!devuelve.error && (esAdmin ? /no existe/i : /administrador/i).test(devuelve.error.message),
+    });
+
     // Las ventas por verificar: responden, y sin una columna de costo.
     const vv = await supabase.from('v_ventas_por_verificar').select('costo_puesto_usd_snap').limit(1);
     resultados.push({

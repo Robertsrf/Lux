@@ -30,6 +30,8 @@ export interface FotoAmpliada {
   /** De que esta hecha. Es cuando mas importa: se esta mirando de cerca. */
   materiales?: string | null;
   variantes: VarianteVisor[];
+  /** La variante que se ve al abrir (su id). Sin ella, la primera. */
+  inicial?: number;
 }
 
 interface AccionVisor {
@@ -199,7 +201,7 @@ function Contenido({
   posicion: { n: number; total: number } | null;
   accion?: AccionVisor;
 }) {
-  const [elegida, setElegida] = useState(0);
+  const [elegida, setElegida] = useState(() => Math.max(0, foto.variantes.findIndex((x) => x.id === foto.inicial)));
   const v = foto.variantes[elegida] ?? foto.variantes[0];
   const url = v ? urlPublicaFoto(v.path ?? v.thumbPath ?? null) : null;
   const varias = foto.variantes.length > 1;

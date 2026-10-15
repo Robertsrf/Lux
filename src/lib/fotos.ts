@@ -1,4 +1,6 @@
-import imageCompression from 'browser-image-compression';
+// La misma libreria, como archivo del propio sitio: la compresion la carga
+// dentro de un trabajador aparte (ver TRABAJADOR, abajo).
+import libCompresion from 'browser-image-compression/dist/browser-image-compression.js?url';
 import { supabase } from './supabase';
 
 /**
@@ -10,6 +12,25 @@ import { supabase } from './supabase';
  */
 
 const BUCKET = 'fotos';
+
+/*
+  TRABAJADOR
+
+  Con `useWebWorker`, la compresion corre aparte y la pantalla no se
+  congela. Pero por defecto ese trabajador DESCARGA la libreria de
+  cdn.jsdelivr.net en cada subida: codigo de un tercero, cargado en caliente
+  en el navegador del administrador, y bloqueado por la politica de
+  seguridad del sitio (vite.config.ts). Se le da la copia que sirve el
+  propio sitio, con la misma version que el resto del paquete.
+*/
+const TRABAJADOR = { useWebWorker: true, libURL: new URL(libCompresion, window.location.href).href } as const;
+
+/**
+ * La libreria de compresion, solo cuando se sube una foto. Este archivo lo
+ * usan todas las pantallas para pintar fotos (`urlPublicaFoto`), y antes la
+ * clienta que abria el catalogo se bajaba la compresion entera sin usarla.
+ */
+const compresor = () => import('browser-image-compression').then((m) => m.default);
 
 /*
  * Los tamanos de antes -1200 px con tope de 200 KB, thumb de 300 px- se
@@ -49,8 +70,9 @@ export async function procesarFoto(archivo: File): Promise<FotoProcesada> {
     throw new Error('Ese archivo no es una imagen. Sube una foto en JPG, PNG o WebP.');
   }
 
-  const comunes = { fileType: 'image/webp', initialQuality: 0.8, useWebWorker: true } as const;
+  const comunes = { fileType: 'image/webp', initialQuality: 0.8, ...TRABAJADOR } as const;
 
+  const imageCompression = await compresor();
   const grande = await imageCompression(archivo, {
     ...comunes,
     maxWidthOrHeight: 1800,
@@ -111,8 +133,9 @@ export async function subirLogoRevendedor(usuario: string, archivo: File): Promi
   if (!archivo.type.startsWith('image/')) {
     throw new Error('Ese archivo no es una imagen. Sube el logo en JPG, PNG o WebP.');
   }
+  const imageCompression = await compresor();
   const logo = await imageCompression(archivo, {
-    fileType: 'image/webp', initialQuality: 0.85, useWebWorker: true,
+    fileType: 'image/webp', initialQuality: 0.85, ...TRABAJADOR,
     maxWidthOrHeight: 400, maxSizeMB: 0.06,
   });
   const ruta = `revendedores/${usuario.replace(/[^a-z0-9-]/g, '_')}/${Date.now()}.webp`;

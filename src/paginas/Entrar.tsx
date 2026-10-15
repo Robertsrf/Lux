@@ -32,7 +32,7 @@ export function Entrar() {
     if (err) {
       setError(
         err.message.toLowerCase().includes('invalid')
-          ? 'Ese codigo no es de nadie. Revisalo e intenta otra vez.'
+          ? 'Ese código no es de nadie. Revísalo e intenta otra vez.'
           : err.message,
       );
       setCodigo('');
@@ -99,7 +99,7 @@ export function Entrar() {
                 onClick={() => tecla(t)}
                 disabled={entrando}
                 className={t === 'borrar' || t === 'entrar' ? 'tecla-util' : undefined}
-                aria-label={t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : `Digito ${t}`}
+                aria-label={t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : `Dígito ${t}`}
               >
                 {t === 'borrar' ? 'Borrar' : t === 'entrar' ? 'Entrar' : t}
               </button>

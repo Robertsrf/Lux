@@ -72,6 +72,23 @@ export function Tasas() {
   const validas = nuevaBcv > 0 && nuevaVenta > 0;
   const igual = tasa !== null && nuevaBcv === tasa.tasa_bcv && nuevaVenta === tasa.tasa_venta;
 
+  /*
+    LO QUE SE VE ANTES DE QUE CUESTE.
+
+    Las dos casillas se parecen y una al lado de la otra se cambian sin
+    querer. Con la Binance por debajo de la BCV la brecha sale negativa: la
+    mercancía se abarata en las cuentas y a quien paga en dólares se le
+    cobra de más. No se bloquea (la base acepta cualquier par positivo: no
+    hay una regla de negocio que inventar aquí), pero se dice.
+
+    Y un cero de más o de menos: una tasa que se duplica o cae a la mitad
+    de un toque es casi siempre un error de dedo, no el mercado.
+  */
+  const alReves = validas && nuevaVenta < nuevaBcv;
+  const salto = (antes: number, despues: number) => despues / antes >= 2 || despues / antes <= 0.5;
+  const saltoBcv = validas && tasa !== null && salto(tasa.tasa_bcv, nuevaBcv);
+  const saltoVenta = validas && tasa !== null && salto(tasa.tasa_venta, nuevaVenta);
+
   function pedirConfirmacion(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -208,6 +225,17 @@ export function Tasas() {
                   </dd>
                 </div>
               </dl>
+              {alReves ? (
+                <p className="campo__error" role="alert">
+                  La Binance quedó por debajo de la BCV. Casi siempre es al revés: ¿cambiaste las casillas de sitio?
+                </p>
+              ) : null}
+              {saltoBcv || saltoVenta ? (
+                <p className="campo__error" role="alert">
+                  {saltoBcv && saltoVenta ? 'Las dos tasas cambian' : saltoBcv ? 'La BCV cambia' : 'La Binance cambia'} a más
+                  del doble o a menos de la mitad de la vigente. Revisa que no sobre ni falte un cero.
+                </p>
+              ) : null}
               <div className="acciones">
                 <button type="button" className="boton boton--confirmar" disabled={guardando} onClick={() => void fijar()}>
                   {guardando ? 'Fijando' : 'Sí, fijarla'}

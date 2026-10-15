@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
 import { Progreso } from '../../componentes/Progreso';
-import { formatearBcv, formatearBinance, formatearBs, formatearEntero, formatearPorcentaje, formatearTasa, precioEnBs } from '../../lib/dinero';
+import { formatearBcv, formatearBinance, formatearBs, formatearEntero, formatearPorcentaje, formatearTasa, leerCifra, precioEnBs } from '../../lib/dinero';
 import { useTasa } from '../../hooks/useTasa';
 import type { Diagnostico, PlanVentas } from '../../lib/tipos';
 
@@ -79,6 +79,11 @@ const ESTIMADO: Dato[] = [
 
 const TODOS = [...GASTOS, ...TIENDA, META, ...VENDEDORA, MARGEN, MARGEN_GRUPO, ...AJUSTES, ...ESTIMADO];
 
+/** Una cifra guardada, como se escribe aquí: coma decimal ("12,5"). */
+function aCampo(n: number): string {
+  return String(n).replace('.', ',');
+}
+
 /**
  * Costos: cuántas piezas hay que vender, y de dónde sale ese número.
  *
@@ -122,7 +127,7 @@ export function Costos() {
     const mapa: Record<string, number> = {};
     for (const f of (cfg.data as { clave: string; valor: number }[] | null) ?? []) mapa[f.clave] = Number(f.valor);
     setGuardado(mapa);
-    setValores(Object.fromEntries(TODOS.map((c) => [c.clave, String(mapa[c.clave] ?? 0)])));
+    setValores(Object.fromEntries(TODOS.map((c) => [c.clave, aCampo(mapa[c.clave] ?? 0)])));
     setPlan((p.data as PlanVentas | null) ?? null);
     setDx((d.data as Diagnostico | null) ?? null);
     setCargando(false);
@@ -130,16 +135,27 @@ export function Costos() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  const num = useCallback((c: string) => Number(valores[c] ?? 0) || 0, [valores]);
+  /*
+    Las cifras se leen con `leerCifra`, la regla de todo el sistema: "12,5"
+    y "1.500" como se escriben aquí. Antes era `Number(texto) || 0`: lo que
+    no se entendía contaba como CERO, y Guardar escribía un alquiler de cero
+    sin decir nada. Ahora una cifra ilegible es NaN y no se guarda.
+  */
+  const num = useCallback((c: string) => leerCifra(valores[c] ?? '', { cero: true }) ?? NaN, [valores]);
+  const ilegibles = useMemo(() => TODOS.filter((c) => !Number.isFinite(num(c.clave))), [num]);
   const cambiado = useMemo(
     () => TODOS.some((c) => num(c.clave) !== (guardado[c.clave] ?? 0)),
     [num, guardado],
   );
 
   async function guardar() {
+    setExito(null);
+    if (ilegibles.length > 0) {
+      setError(`No guardé nada: revisa ${ilegibles.map((c) => c.etiqueta).join(', ')}. Escribe solo el número, por ejemplo 150 o 12,5.`);
+      return;
+    }
     setGuardando(true);
     setError(null);
-    setExito(null);
     for (const c of TODOS) {
       if (num(c.clave) === (guardado[c.clave] ?? 0)) continue;
       const { error: err } = await supabase.from('configuracion').update({ valor: num(c.clave) }).eq('clave', c.clave);
@@ -153,9 +169,12 @@ export function Costos() {
   if (cargando) return <Cargando texto="Haciendo la cuenta" />;
 
   const campo = (c: Dato) => (
-    <Campo key={c.clave} etiqueta={c.etiqueta} htmlFor={c.clave} pista={c.pista}>
+    <Campo
+      key={c.clave} etiqueta={c.etiqueta} htmlFor={c.clave} pista={c.pista}
+      error={Number.isFinite(num(c.clave)) ? null : 'Escribe solo el número, por ejemplo 150 o 12,5.'}
+    >
       <input
-        id={c.clave} type="number" min="0" step={c.paso} inputMode="decimal"
+        id={c.clave} type="text" inputMode={c.paso === '1' ? 'numeric' : 'decimal'} autoComplete="off"
         value={valores[c.clave] ?? ''}
         onChange={(e) => setValores((v) => ({ ...v, [c.clave]: e.target.value }))}
       />
@@ -411,7 +430,7 @@ export function Costos() {
                 <button
                   type="button"
                   className="boton boton--secundario"
-                  onClick={() => setValores((v) => ({ ...v, margen_objetivo_pct: String(sugerido) }))}
+                  onClick={() => setValores((v) => ({ ...v, margen_objetivo_pct: aCampo(Math.round(sugerido * 100) / 100) }))}
                 >
                   Usar {formatearPorcentaje(sugerido)}
                 </button>

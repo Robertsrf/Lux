@@ -5,17 +5,17 @@ import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 interface Texto { clave: string; valor: string; descripcion: string | null }
 
 const ETIQUETAS: Record<string, string> = {
-  materiales_largo: 'De que estan hechas las piezas',
-  materiales_corto: 'Version corta, para cada ficha',
-  catalogo_intro: 'Sobre Lux, en la portada del catalogo',
-  catalogo_pie: 'Pie de pagina del catalogo',
+  materiales_largo: 'De qué están hechas las piezas',
+  materiales_corto: 'Versión corta, para cada ficha',
+  catalogo_intro: 'Sobre Lux, en la portada del catálogo',
+  catalogo_pie: 'Pie de página del catálogo',
   pago_movil_cedula: 'Pago móvil: cédula del titular',
   pago_movil_telefono: 'Pago móvil: teléfono',
   pago_movil_banco: 'Pago móvil: banco (código y nombre, como 0134 Banesco)',
   datos_pago: 'Otros datos de pago, debajo del pago móvil (una cuenta para transferir, una nota)',
-  mensaje_whatsapp: 'Mensaje que acompana el enlace del catalogo',
+  mensaje_whatsapp: 'Mensaje que acompaña el enlace del catálogo',
   ciudad: 'Ciudad de la tienda (rellena las frases del banco)',
-  estado: 'Estado (rellena las frases del banco; vacio las oculta)',
+  estado: 'Estado (rellena las frases del banco; vacío las oculta)',
   whatsapp_tienda: 'WhatsApp de la tienda, con el código: 0414 1234567 (ahí llegan las solicitudes de la guía de revendedores)',
   direccion_tienda: 'Dirección de la tienda (la guía de revendedores la da para retirar las piezas)',
   horario_tienda: 'Horario de la tienda (el mismo uso)',
@@ -43,7 +43,12 @@ export function Textos() {
       .select('clave, valor, descripcion')
       .order('clave');
     if (err) setError(mensajeDeError(err));
-    const filas = (data as Texto[] | null) ?? [];
+    // En el orden de ETIQUETAS, que los junta por tema (el catálogo, el pago
+    // móvil, la tienda), y no por la clave interna: en orden alfabético el
+    // banco quedaba lejos de la cédula y el WhatsApp de la dirección.
+    const orden = Object.keys(ETIQUETAS);
+    const lugar = (clave: string) => (orden.includes(clave) ? orden.indexOf(clave) : orden.length);
+    const filas = ((data as Texto[] | null) ?? []).sort((a, b) => lugar(a.clave) - lugar(b.clave) || a.clave.localeCompare(b.clave));
     setTextos(filas);
     setBorrador(Object.fromEntries(filas.map((t) => [t.clave, t.valor])));
     setCargando(false);
@@ -60,7 +65,7 @@ export function Textos() {
       .update({ valor: borrador[clave] ?? '', actualizado_en: new Date().toISOString() })
       .eq('clave', clave);
     if (err) setError(mensajeDeError(err));
-    else { setExito('Texto guardado. Ya se ve en el catalogo.'); await cargar(); }
+    else { setExito('Texto guardado. Ya se ve en el catálogo.'); await cargar(); }
     setGuardando(null);
   }
 

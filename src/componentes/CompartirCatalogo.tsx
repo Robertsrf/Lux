@@ -18,7 +18,8 @@ const MENSAJE_POR_DEFECTO =
   'Hola, te comparto el catalogo de Lux by Emory. Puedes ver las piezas '
   + 'disponibles y apartar las que te gusten desde ahi:';
 
-function enlacePublico(): string {
+/** También lo usa el QR de la vitrina: un enlace, un sitio. */
+export function enlacePublico(): string {
   const { origin, pathname } = window.location;
   // En GitHub Pages la ruta puede terminar en index.html: se recorta para
   // no dejar un enlace feo con el archivo a la vista.

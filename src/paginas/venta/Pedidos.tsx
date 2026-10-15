@@ -1,22 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
 import { CompartirCatalogo } from '../../componentes/CompartirCatalogo';
 import { CargarAbono } from '../../componentes/CargarAbono';
 import { ListaAbonos, textoMetodo } from '../../componentes/ListaAbonos';
+import { MiniaturaTocable } from '../../componentes/MiniaturaTocable';
+import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
+import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import {
-  binanceDesdeBs, bsDeBcv, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs,
-  formatearFecha, formatearFechaHora, formatearMonto, precioEnBs, tiempoRestante,
+  abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs,
+  formatearFecha, formatearFechaHora, formatearMonto, leerCifra, precioEnBs, restarCifras, tiempoRestante, totalDeLineas,
 } from '../../lib/dinero';
 import type { Tasas } from '../../lib/dinero';
-import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
 import { enlaceReserva, enlaceWhatsApp } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
 import { useSesion } from '../../hooks/useSesion';
+import { useFotosGrandes } from '../../hooks/useFotosGrandes';
 import { METODOS_EN_DOLARES, METODOS_PAGO } from '../../lib/tipos';
-import type { AbonoDetalle, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago } from '../../lib/tipos';
+import type { AbonoDetalle, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago, PedidoCambio } from '../../lib/tipos';
+
+/** Lo que el visor necesita de una pieza de cualquier lista de esta pantalla. */
+interface PiezaFoto {
+  modelo_id: number;
+  nombre: string;
+  variante: string | null;
+  sku: string;
+  foto_thumb_path: string | null;
+}
+
+/** Ver en grande la pieza `i` de una lista, pasando a las demás sin cerrar. */
+type VerFotos = (piezas: PiezaFoto[], i: number) => void;
 
 const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
 
@@ -48,6 +64,7 @@ export function Pedidos() {
   const [porVerificar, setPorVerificar] = useState<LineaPorVerificar[]>([]);
   const [abonos, setAbonos] = useState<AbonoDetalle[]>([]);
   const [apartados, setApartados] = useState<ApartadoEnTienda[]>([]);
+  const [cambios, setCambios] = useState<PedidoCambio[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -72,9 +89,14 @@ export function Pedidos() {
       deRv.length ? `apartado_id.in.(${deRv.join(',')})` : null,
       conAbonos.length ? `venta_id.in.(${conAbonos.join(',')})` : null,
     ].filter(Boolean).join(',');
-    const deAbonos = filtro
-      ? await supabase.from('v_abonos_detalle').select('*').or(filtro).order('fecha').order('id')
-      : null;
+    const [deAbonos, deCambios] = await Promise.all([
+      filtro ? supabase.from('v_abonos_detalle').select('*').or(filtro).order('fecha').order('id') : null,
+      // Lo que se le quitó a cada pedido. Sin la vista (la base de antes de
+      // esquema-devoluciones.sql) no hay historia que contar: no es un error.
+      reservas.length
+        ? supabase.from('v_pedido_cambios').select('*').in('reserva_id', reservas).order('cambiado_en')
+        : null,
+    ]);
 
     // Cuatro consultas, cuatro errores mirados.
     const fallo = pedidos.error ?? ventas.error ?? deRevendedores.error ?? deAbonos?.error ?? null;
@@ -83,6 +105,7 @@ export function Pedidos() {
     setPorVerificar(filasVentas);
     setApartados(filasRv);
     setAbonos((deAbonos?.data as unknown as AbonoDetalle[] | null) ?? []);
+    setCambios(deCambios?.error ? [] : ((deCambios?.data as PedidoCambio[] | null) ?? []));
     setCargando(false);
   }, []);
 
@@ -118,6 +141,28 @@ export function Pedidos() {
     () => abonos.filter((a) => !a.verificado_en && !a.anulado_en && a.venta_id === null).length,
     [abonos],
   );
+
+  // Ver en grande lo que se apartó o se vendió: la foto grande de cada
+  // pieza en pantalla, pedida de una vez. Antes del primer return (React 310).
+  const visor = useVisorFoto();
+  const ids = useMemo(() => [
+    ...lineas.map((l) => l.modelo_id),
+    ...porVerificar.map((l) => l.modelo_id),
+    ...apartados.flatMap((a) => a.items.map((i) => i.modelo_id)),
+  ], [lineas, porVerificar, apartados]);
+  const fotos = useFotosGrandes(ids);
+  const verFotos = useCallback<VerFotos>((piezas, i) => {
+    const fichas: FotoAmpliada[] = piezas.map((p, j) => ({
+      clave: `${j}-${p.modelo_id}`,
+      nombre: p.nombre,
+      variantes: [{
+        id: p.modelo_id, etiqueta: p.variante, sku: p.sku,
+        path: fotos.get(p.modelo_id) ?? null, thumbPath: p.foto_thumb_path,
+      }],
+    }));
+    const elegida = fichas[i];
+    if (elegida) visor.abrir(elegida, fichas);
+  }, [fotos, visor.abrir]);
 
   function alTerminar(mensaje: string) {
     setAviso(mensaje);
@@ -168,10 +213,12 @@ export function Pedidos() {
                 cabecera={cabecera}
                 items={items}
                 abonos={abonos.filter((a) => a.reserva_id === cabecera.reserva_id)}
+                cambios={cambios.filter((x) => x.reserva_id === cabecera.reserva_id)}
                 tasa={tasa}
                 esAdmin={esAdmin}
                 ahora={ahora}
                 alTerminar={alTerminar}
+                verFotos={verFotos}
               />
             ))}
           </div>
@@ -193,6 +240,7 @@ export function Pedidos() {
                 tasa={tasa}
                 esAdmin={esAdmin}
                 alTerminar={alTerminar}
+                verFotos={verFotos}
               />
             ))}
           </div>
@@ -214,6 +262,7 @@ export function Pedidos() {
                 esAdmin={esAdmin}
                 ahora={ahora}
                 alTerminar={alTerminar}
+                verFotos={verFotos}
               />
             ))}
           </div>
@@ -232,6 +281,8 @@ export function Pedidos() {
           <CompartirCatalogo />
         </div>
       </details>
+
+      <VisorFoto {...visor.props} />
     </div>
   );
 }
@@ -287,7 +338,7 @@ function CerrarConDinero({ rpc, argumentoId, id, pagadoBcv, tasa, alTerminar, te
   const [error, setError] = useState<string | null>(null);
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const pagadoBs = tasa ? bsDeBcv(pagadoBcv, tasa.tasa_bcv) : null;
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
 
   if (!abierto) {
     return (
@@ -356,9 +407,22 @@ function CerrarConDinero({ rpc, argumentoId, id, pagadoBcv, tasa, alTerminar, te
   );
 }
 
-function TablaPiezas({ items, conPrecio }: {
-  items: { modelo_id: number; foto_thumb_path: string | null; nombre: string; variante: string | null; sku: string; donde: string | null; cantidad: number; precio?: number | null }[];
+interface FilaPieza extends PiezaFoto {
+  donde: string | null;
+  cantidad: number;
+  precio?: number | null;
+}
+
+/**
+ * Las piezas de un pedido. La miniatura se toca para verla en grande (y pasar
+ * a las demás del pedido): es como se asegura una de qué anillo es. `accion`
+ * pone un botón al final de cada fila (Quitar, en un pedido abierto).
+ */
+function TablaPiezas({ items, conPrecio, verFotos, accion }: {
+  items: FilaPieza[];
   conPrecio: boolean;
+  verFotos: VerFotos;
+  accion?: (item: FilaPieza) => ReactNode;
 }) {
   return (
     <div className="tabla-envoltura">
@@ -367,26 +431,199 @@ function TablaPiezas({ items, conPrecio }: {
           <tr>
             <th></th><th>Pieza</th><th>Dónde está</th><th className="num">Cantidad</th>
             {conPrecio ? <th className="num">C/u · $ BCV</th> : null}
+            {accion ? <th><span className="visualmente-oculto">Acciones</span></th> : null}
           </tr>
         </thead>
         <tbody>
-          {items.map((i) => {
-            const foto = urlPublicaFoto(i.foto_thumb_path);
-            return (
-              <tr key={i.modelo_id}>
-                <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
-                <td>
-                  <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
-                  <div className="celda-nota">{i.sku}</div>
-                </td>
-                <td className="util">{i.donde ?? '—'}</td>
-                <td className="num">{i.cantidad}</td>
-                {conPrecio ? <td className="num precio">{i.precio !== null && i.precio !== undefined ? formatearMonto(Number(i.precio)) : '—'}</td> : null}
-              </tr>
-            );
-          })}
+          {items.map((i, n) => (
+            // Por posición: la misma pieza puede venir dos veces en un pedido.
+            <tr key={`${n}-${i.modelo_id}`}>
+              <td>
+                <MiniaturaTocable thumb={i.foto_thumb_path} nombre={nombreConVariante(i.nombre, i.variante)} alVer={() => verFotos(items, n)} />
+              </td>
+              <td>
+                <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
+                <div className="celda-nota">{i.sku}</div>
+              </td>
+              <td className="util">{i.donde ?? '—'}</td>
+              <td className="num">{i.cantidad}</td>
+              {conPrecio ? <td className="num precio">{i.precio !== null && i.precio !== undefined ? formatearMonto(Number(i.precio)) : '—'}</td> : null}
+              {accion ? <td>{accion(i)}</td> : null}
+            </tr>
+          ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Quitar una pieza de un pedido que no se ha entregado (`quitar_de_pedido`).
+ *
+ * La pieza nunca salió de la tienda: queda libre en el acto. El pedido baja
+ * con su precio congelado; las demás conservan el suyo. Si lo pagado pasa
+ * del total nuevo, el administrador decide: se le devuelve (sale de la caja
+ * como "Devolución", hoy) o queda a su favor en el pedido. Sin dinero de
+ * por medio, lo hacen las dos caras.
+ */
+function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alTerminar }: {
+  pedido: LineaPedido;
+  item: FilaPieza;
+  /** Cuántas de esta pieza lleva el pedido, sumando sus líneas. */
+  tieneEnPedido: number;
+  tasa: Tasas | null;
+  esAdmin: boolean;
+  alCerrar: () => void;
+  alTerminar: (mensaje: string) => void;
+}) {
+  const [cantidad, setCantidad] = useState(1);
+  const [motivo, setMotivo] = useState('');
+  const [devolver, setDevolver] = useState<boolean | null>(null);
+  const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
+  const [monto, setMonto] = useState('');
+  const [trabajando, setTrabajando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const nombre = nombreConVariante(item.nombre, item.variante);
+  const total = Number(pedido.total_usd ?? 0);
+  const precio = Number(item.precio ?? 0);
+  const totalNuevo = Math.max(0, restarCifras(total, totalDeLineas([{ precio, cantidad }])));
+  const verificado = Number(pedido.verificado_bcv ?? 0);
+  // Lo que sobraría de lo pagado y comprobado: la misma cuenta de la base.
+  const sobra = restarCifras(verificado, totalNuevo);
+  const haySobra = sobra > 0.005;
+  const enDolares = METODOS_EN_DOLARES.includes(metodo);
+  const valor = leerCifra(monto) ?? NaN;
+  const devuelve = tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
+  // Lo que sobra, escrito en la moneda de la forma de pago: un toque lo pone.
+  const sobraEnSuMoneda = tasa
+    ? (enDolares ? centavoArriba(binanceDesdeBs(bsDeBcv(sobra, tasa.tasa_bcv), tasa.tasa_venta) ?? 0) : bsDeBcv(sobra, tasa.tasa_bcv))
+    : null;
+  const quitaTodas = Number(pedido.piezas_total ?? 0) - cantidad <= 0;
+  const listo = motivo.trim() !== '' && !quitaTodas
+    && (!haySobra || (esAdmin && devolver !== null && (!devolver || (valor > 0 && devuelve !== null && devuelve.bcv <= sobra + 0.01))));
+
+  async function quitar() {
+    setTrabajando(true);
+    setError(null);
+    const { error: err } = await supabase.rpc('quitar_de_pedido', {
+      p_reserva_id: pedido.reserva_id,
+      p_modelo_id: item.modelo_id,
+      p_cantidad: cantidad,
+      p_motivo: motivo.trim(),
+      p_devolver: haySobra ? devolver : null,
+      p_metodo: haySobra && devolver ? metodo : null,
+      p_monto: haySobra && devolver ? valor : null,
+    });
+    setTrabajando(false);
+    if (err) { setError(mensajeDeError(err)); return; }
+    alTerminar(`${cantidad === 1 ? 'Quitada' : `Quitadas ${cantidad}`} del pedido: ${nombre}. Ya está libre para la venta.`
+      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba queda a su favor en el pedido.') : ''));
+  }
+
+  return (
+    <div className="panel quitar-pieza">
+      <span className="panel__titulo">Quitar del pedido: {nombre}</span>
+      <div className="fila">
+        {tieneEnPedido > 1 ? (
+          <div className="campo">
+            <label htmlFor={`qp-cant-${pedido.reserva_id}`}>Cuántas</label>
+            <select id={`qp-cant-${pedido.reserva_id}`} value={cantidad} onChange={(e) => setCantidad(Number(e.target.value))}>
+              {Array.from({ length: tieneEnPedido }, (_, k) => k + 1).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </div>
+        ) : null}
+        <div className="campo">
+          <label htmlFor={`qp-motivo-${pedido.reserva_id}`}>Por qué</label>
+          <input
+            id={`qp-motivo-${pedido.reserva_id}`} autoComplete="off" value={motivo} maxLength={200}
+            placeholder="La devolvió, cambió de idea…" onChange={(e) => setMotivo(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <p className="campo__pista">
+        El pedido queda en <strong>{formatearBcv(totalNuevo)}</strong>
+        {tasa ? <>, hoy {formatearBs(bsDeBcv(totalNuevo, tasa.tasa_bcv))}</> : null}.
+        {Number(pedido.descuento_pct ?? 0) > 0
+          ? ' Las demás piezas conservan el precio con que se apartaron, aunque el pedido quede con menos piezas.'
+          : ''}
+      </p>
+      {quitaTodas ? (
+        <p className="campo__error" role="alert">Es la última pieza del pedido: para quitarlas todas, cancela el pedido.</p>
+      ) : null}
+
+      {haySobra ? (
+        esAdmin ? (
+          <>
+            <span className="panel__titulo">Sobran {formatearBcv(sobra)} de lo que pagó</span>
+            <div className="metodos-pago" role="group" aria-label="Qué pasa con lo que sobra" style={{ marginTop: 'var(--e-3)' }}>
+              <button type="button" aria-pressed={devolver === true} onClick={() => setDevolver(true)}>Se le devuelve</button>
+              <button type="button" aria-pressed={devolver === false} onClick={() => setDevolver(false)}>Queda a su favor</button>
+            </div>
+            {devolver ? (
+              <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
+                <div className="campo">
+                  <label htmlFor={`qp-metodo-${pedido.reserva_id}`}>Cómo se le devuelve</label>
+                  <select id={`qp-metodo-${pedido.reserva_id}`} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
+                    {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+                  </select>
+                </div>
+                <div className="campo">
+                  <label htmlFor={`qp-monto-${pedido.reserva_id}`}>{enDolares ? 'Cuánto · $' : 'Cuánto · Bs'}</label>
+                  <input id={`qp-monto-${pedido.reserva_id}`} inputMode="decimal" autoComplete="off" value={monto} onChange={(e) => setMonto(e.target.value)} />
+                  {sobraEnSuMoneda !== null ? (
+                    <button type="button" className="boton boton--secundario boton--pequeno cargar-abono__todo" onClick={() => setMonto(sobraEnSuMoneda.toFixed(2))}>
+                      Todo lo que sobra
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {devolver && devuelve && devuelve.bcv > sobra + 0.01 ? (
+              <p className="campo__error" role="alert">Es más de lo que sobra.</p>
+            ) : null}
+          </>
+        ) : (
+          <p className="campo__pista">
+            Con esa pieza fuera, lo pagado pasa del total en {formatearBcv(sobra)}. Lo hace el administrador,
+            que decide si se le devuelve.
+          </p>
+        )
+      ) : null}
+
+      {error ? <p className="campo__error" role="alert">{error}</p> : null}
+      <div className="acciones">
+        <button type="button" className="boton boton--peligro" disabled={trabajando || !listo} onClick={() => void quitar()}>
+          {trabajando ? 'Guardando' : 'Quitar del pedido'}
+        </button>
+        <button type="button" className="boton boton--secundario" disabled={trabajando} onClick={alCerrar}>
+          No quitar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Lo que se le ha quitado a un pedido: qué, quién, cuándo, por qué y qué pasó con el dinero. */
+function CambiosDelPedido({ cambios }: { cambios: PedidoCambio[] }) {
+  if (cambios.length === 0) return null;
+  return (
+    <div className="panel" style={{ marginTop: 'var(--e-4)' }}>
+      <span className="panel__titulo">Cambios del pedido</span>
+      <ul className="cambios-pedido">
+        {cambios.map((x) => (
+          <li key={x.id}>
+            Se {x.antes - x.despues === 1 ? 'quitó' : `quitaron ${x.antes - x.despues}`} {nombreConVariante(x.nombre, x.variante)}
+            {' '}· {formatearBcv(Number(x.total_antes))} → {formatearBcv(Number(x.total_despues))}
+            {x.dinero === 'devuelto' ? ` · se le devolvieron ${formatearBs(Number(x.devuelto_bs))}` : ''}
+            {x.dinero === 'a_favor' ? ' · lo que sobraba quedó a su favor' : ''}
+            <span className="campo__pista">
+              {formatearFechaHora(x.cambiado_en)} · {x.quien ?? '—'}{x.motivo ? ` · "${x.motivo}"` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -400,17 +637,21 @@ function TablaPiezas({ items, conPrecio }: {
  * se cobran completos al entregar. Los demás se pagan por abonos, cada uno
  * con su referencia; se entregan cuando todo el dinero está verificado.
  */
-function PedidoDeTienda({ cabecera: c, items, abonos, tasa, esAdmin, ahora, alTerminar }: {
+function PedidoDeTienda({ cabecera: c, items, abonos, cambios, tasa, esAdmin, ahora, alTerminar, verFotos }: {
   cabecera: LineaPedido;
   items: LineaPedido[];
   abonos: AbonoDetalle[];
+  cambios: PedidoCambio[];
   tasa: Tasas | null;
   esAdmin: boolean;
   ahora: number;
   alTerminar: (mensaje: string) => void;
+  verFotos: VerFotos;
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // La pieza que se está quitando del pedido, si hay una.
+  const [quitando, setQuitando] = useState<FilaPieza | null>(null);
   const nombre = [c.cliente_nombre, c.cliente_apellido].filter(Boolean).join(' ') || 'Sin nombre';
   const total = Number(c.total_usd ?? 0);
   const falta = Number(c.falta_bcv ?? 0);
@@ -564,12 +805,41 @@ function PedidoDeTienda({ cabecera: c, items, abonos, tasa, esAdmin, ahora, alTe
 
       <TablaPiezas
         conPrecio={c.con_precio}
+        verFotos={verFotos}
         items={items.map((i) => ({
           modelo_id: i.modelo_id, foto_thumb_path: i.foto_thumb_path, nombre: i.nombre, variante: i.variante,
           sku: i.sku + (i.variantes_nota ? ` · ${i.variantes_nota}` : ''), donde: i.ubicacion, cantidad: i.cantidad,
           precio: i.precio_linea_usd,
         }))}
+        // Quitar una pieza: solo de un pedido abierto con precio por pieza, y
+        // si el pedido tiene más de una (la última se cancela).
+        accion={c.con_precio && abierto && Number(c.piezas_total ?? 0) > 1 ? (fila) => (
+          <button
+            type="button"
+            className="boton boton--secundario boton--pequeno"
+            disabled={trabajando}
+            onClick={() => setQuitando(fila)}
+            aria-label={`Quitar del pedido ${nombreConVariante(fila.nombre, fila.variante)}`}
+          >
+            Quitar
+          </button>
+        ) : undefined}
       />
+
+      {quitando ? (
+        <QuitarPieza
+          key={quitando.modelo_id}
+          pedido={c}
+          item={quitando}
+          tieneEnPedido={items.filter((i) => i.modelo_id === quitando.modelo_id).reduce((n, i) => n + i.cantidad, 0)}
+          tasa={tasa}
+          esAdmin={esAdmin}
+          alCerrar={() => setQuitando(null)}
+          alTerminar={(m) => { setQuitando(null); alTerminar(m); }}
+        />
+      ) : null}
+
+      <CambiosDelPedido cambios={cambios} />
 
       {c.con_precio && abonos.length > 0 ? (
         <div className="panel" style={{ marginTop: 'var(--e-4)' }}>
@@ -733,13 +1003,14 @@ function CerrarPedidoDeAntes({ cabecera, alTerminar }: {
  * Las que se cobraron por partes antes del apartado llevan sus abonos, y
  * siguen recibiendo los que falten. Mientras falte algo no se verifica.
  */
-function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar }: {
+function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar, verFotos }: {
   cabecera: LineaPorVerificar;
   items: LineaPorVerificar[];
   abonos: AbonoDetalle[];
   tasa: Tasas | null;
   esAdmin: boolean;
   alTerminar: (mensaje: string) => void;
+  verFotos: VerFotos;
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -825,11 +1096,12 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
             <tr><th></th><th>Pieza</th><th>Salió de</th><th className="num">Cantidad</th><th className="num">C/u · Bs</th></tr>
           </thead>
           <tbody>
-            {items.map((i) => {
-              const foto = urlPublicaFoto(i.foto_thumb_path);
+            {items.map((i, n) => {
               return (
-                <tr key={`${i.modelo_id}-${i.ubicacion ?? ''}`}>
-                  <td>{foto ? <img className="miniatura" src={foto} alt="" loading="lazy" /> : <span className="miniatura" />}</td>
+                <tr key={`${n}-${i.modelo_id}-${i.ubicacion ?? ''}`}>
+                  <td>
+                    <MiniaturaTocable thumb={i.foto_thumb_path} nombre={nombreConVariante(i.nombre, i.variante)} alVer={() => verFotos(items, n)} />
+                  </td>
                   <td>
                     <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                     <div className="celda-nota">{i.sku}</div>
@@ -937,13 +1209,14 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar 
  *
  * Lo que su clienta le paga a él no aparece aquí: son dos deudas separadas.
  */
-function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTerminar }: {
+function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTerminar, verFotos }: {
   apartado: ApartadoEnTienda;
   abonos: AbonoDetalle[];
   tasa: Tasas | null;
   esAdmin: boolean;
   ahora: number;
   alTerminar: (mensaje: string) => void;
+  verFotos: VerFotos;
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1025,6 +1298,7 @@ function PedidoDeRevendedor({ apartado: a, abonos, tasa, esAdmin, ahora, alTermi
 
       <TablaPiezas
         conPrecio
+        verFotos={verFotos}
         items={a.items.map((i) => ({
           modelo_id: i.modelo_id, foto_thumb_path: i.foto_thumb_path, nombre: i.nombre, variante: i.variante,
           sku: i.sku, donde: a.fase === 'vendido' ? 'Guardada para él' : i.donde, cantidad: i.cantidad, precio: i.precio_usd,

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aviso, Campo, Cargando, Filtros, Vacio } from '../../../componentes/Piezas';
-import { formatearBcv, formatearEntero, gananciaPct, gananciaPorPieza, precioSobreEtiqueta } from '../../../lib/dinero';
+import { formatearBcv, formatearEntero, gananciaPct, gananciaPorPieza, leerCifra, precioSobreEtiqueta } from '../../../lib/dinero';
 import { urlPublicaFoto } from '../../../lib/fotos';
 import { nombreConVariante } from '../../../lib/familias';
 import { rpcRv } from '../../../lib/revendedor';
 import type { PiezaRevendedor } from '../../../lib/tipos';
 import { textoDeError, usePanelRv } from '../contexto';
 
-const aNumero = (texto: string) => Number(texto.replace(',', '.'));
+// Con las reglas de siempre: "12,50" y "1.200" se leen como se escriben aqui.
+const aNumero = (texto: string) => leerCifra(texto, { cero: true }) ?? NaN;
 const sinAcentos = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /**

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
+import { sumarCifras } from '../lib/dinero';
 import type { Abono, ClienteResumen, CompraCliente } from '../lib/tipos';
 
 const COLUMNAS =
@@ -7,7 +8,9 @@ const COLUMNAS =
   + ' compras, piezas, total_usd, primera_compra, ultima_compra, servicio_hasta, servicio_vigente, total_bcv';
 
 /** Lo que PostgREST interpreta dentro de un `or()`: fuera antes de preguntar. */
-const limpiar = (s: string) => s.trim().replace(/[%,()]/g, ' ');
+// Las comillas, la barra y los dos puntos también: rompían el `or()` y
+// la búsqueda respondía con un error 400.
+const limpiar = (s: string) => s.trim().replace(/[%,()"\\:]/g, ' ');
 const soloDigitos = (s: string) => s.replace(/[^0-9]/g, '');
 
 /**
@@ -128,8 +131,8 @@ export function useCliente(id: number | null) {
     const abiertas = ventas.filter((v) => v.cabecera.por_verificar);
     return {
       ventas: abiertas.length,
-      totalBs: abiertas.reduce((suma, v) => suma + Number(v.cabecera.total_bs), 0),
-      faltaBcv: abiertas.reduce((suma, v) => suma + Number(v.cabecera.falta_bcv ?? 0), 0),
+      totalBs: sumarCifras(abiertas.map((v) => Number(v.cabecera.total_bs))),
+      faltaBcv: sumarCifras(abiertas.map((v) => Number(v.cabecera.falta_bcv ?? 0))),
     };
   }, [ventas]);
 

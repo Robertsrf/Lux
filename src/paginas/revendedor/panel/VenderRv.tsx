@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Aviso, Campo, Cargando, Vacio } from '../../../componentes/Piezas';
 import {
-  abonoEnBcv, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBs, minimoParaApartar, precioEnBs, totalDeLineas,
+  abonoEnBcv, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBs, leerCifra, minimoParaApartar, precioEnBs, totalDeLineas,
 } from '../../../lib/dinero';
 import { urlPublicaFoto } from '../../../lib/fotos';
 import { nombreConVariante } from '../../../lib/familias';
@@ -91,7 +91,7 @@ export function VenderRv() {
   const daCredito = Boolean(resumen?.dias_credito);
   const minimo = daCredito && pct > 0 ? minimoParaApartar(cuentas.cobras, pct) : cuentas.cobras;
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
   const pagado = pago && tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
   const tras = pagado ? faltaTrasAbono(cuentas.cobras, pagado.bcv) : null;
   const llegaAlMinimo = !pago || (pagado !== null && pagado.bcv >= minimo - 0.005 && !tras?.pasa);

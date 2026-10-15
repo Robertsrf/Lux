@@ -27,11 +27,13 @@ No apliques la misma densidad a las dos.
 
 Esta skill decide **qué es Lux**. No sabe todo sobre oficio de interfaz, así que
 para cualquier trabajo visual de peso, consúltala junto con `ui-ux-pro-max`
-(instalada en `~/.claude/skills/ui-ux-pro-max`):
+(es un plugin: vive en `~/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/<versión>/`,
+y la versión cambia al actualizarse, por eso la ruta se busca):
 
 ```bash
-python "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" "<consulta>" --domain ux
-python "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" "<producto> <rubro>" --design-system
+UUX=$(ls -d "$HOME"/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/*/ | sort -V | tail -1)
+python "${UUX}.claude/skills/ui-ux-pro-max/scripts/search.py" "<consulta>" --domain ux
+python "${UUX}.claude/skills/ui-ux-pro-max/scripts/search.py" "<producto> <rubro>" --design-system
 ```
 
 **Qué sí tomarle**, porque es donde aporta y esta skill no llega:
@@ -50,9 +52,14 @@ python "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" "<producto> <rubro
 - Sus estilos de moda (*Liquid Glass*, glassmorphism, degradados). Prohibidos.
 
 Cuando las dos se contradigan, **manda esta**. La otra recomienda; esta define la marca.
-Para una pasada de pulido general también sirve `impeccable`, que aporta el criterio
-de composición y las prohibiciones transversales (nada de tarjetas anidadas ni de
-franjas laterales de color).
+Para el criterio de composición al maquetar sirve `frontend-design` (Anthropic); si
+ese plugin no está, `frontend-design-local` es la misma skill, copiada en
+`~/.claude/skills/frontend-design-local`. De su parte, lo de siempre: la composición
+sí, la paleta y las fuentes no.
+
+Si se activa `disenio-web-pro` (el flujo director de nova-cz), **aquí manda esta
+skill**: el stack es Vite + React + CSS plano (nada de Next.js, Tailwind ni
+shadcn/ui) y `DESIGN.md` ya existe; se respeta, no se escribe uno nuevo.
 
 Así se hizo el rediseño de agosto de 2026, y de ahí salieron los tonos de texto
 medidos, los iconos SVG y el error de formulario pegado a su campo.

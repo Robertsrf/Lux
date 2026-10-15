@@ -25,8 +25,14 @@ const PERIODOS = [
 
 const DORMIDOS = [30, 60, 90];
 
-const DIA_MS = 86_400_000;
-const hace = (dias: number) => new Date(Date.now() - dias * DIA_MS).toISOString().slice(0, 10);
+const dos = (n: number) => String(n).padStart(2, '0');
+/** La fecha de hace N días en el reloj de la tienda. Con toISOString() era
+    la de UTC: desde las 8 de la noche, el período empezaba un día después. */
+const hace = (dias: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+};
 
 interface Totales { ventas: number; piezas: number; bs: number; bcv: number; mercancia: number; deja: number; extra: number }
 

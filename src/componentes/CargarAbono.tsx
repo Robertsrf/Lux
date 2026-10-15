@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, faltaTrasAbono, formatearBcv,
-  formatearBs, margenDeAbono,
+  formatearBs, leerCifra, margenDeAbono,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../lib/tipos';
@@ -43,7 +43,7 @@ export function CargarAbono({ id, falta, tasa, titulo = 'Cargar otro abono', pre
   const [error, setError] = useState<string | null>(null);
 
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
   const hayMonto = Number.isFinite(valor) && valor > 0;
   const pagado = hayMonto ? abonoEnBcv(valor, enDolares, tasa) : null;
   const despues = pagado ? faltaTrasAbono(falta, pagado.bcv, margenDeAbono(enDolares, tasa)) : null;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearBcv, formatearEntero, formatearFecha, formatearMonto } from '../../lib/dinero';
+import { formatearBcv, formatearEntero, formatearFecha, formatearMonto, leerCifra } from '../../lib/dinero';
 import { subirLogoRevendedor, urlPublicaFoto } from '../../lib/fotos';
 import { copiarTexto } from '../../componentes/PagoMovil';
 import {
@@ -138,7 +138,17 @@ export function Revendedores() {
     if (!form) return;
     setGuardando(true);
     setErrorForm(null);
-    const numero = (t: string) => (t.trim() === '' ? null : Number(t.replace(',', '.')));
+    // Vacío es "el de la tienda"; algo que no es cifra se dice, no se manda.
+    // Antes `Number("25%")` salía NaN, viajaba como null y el revendedor se
+    // quedaba sin su descuento propio sin que nadie se enterara.
+    const numero = (t: string) => (t.trim() === '' ? null : leerCifra(t, { cero: true }));
+    const descuento = numero(form.descuento);
+    const tope = numero(form.tope);
+    if ((form.descuento.trim() !== '' && descuento === null) || (form.tope.trim() !== '' && tope === null)) {
+      setGuardando(false);
+      setErrorForm('El descuento y el tope van en números, por ejemplo 25 o 150,50. Vacíos, vale el de la tienda.');
+      return;
+    }
     const { data, error: err } = await supabase.rpc('admin_guardar_revendedor', {
       p_id: form.id,
       p_nombre: form.nombre,
@@ -148,8 +158,8 @@ export function Revendedores() {
       p_catalogo_nombre: form.catalogo,
       p_paleta: form.paleta,
       p_logo_path: form.logo,
-      p_descuento_pct: numero(form.descuento),
-      p_tope_manual_usd: numero(form.tope),
+      p_descuento_pct: descuento,
+      p_tope_manual_usd: tope,
       p_activo: form.activo,
       p_notas: form.notas,
     });

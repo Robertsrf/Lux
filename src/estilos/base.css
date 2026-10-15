@@ -698,6 +698,11 @@ table.tabla tfoot td {
 /* La ubicacion como lista desplegable: solo en el telefono. En escritorio
    mandan las fichas, que son un toque en vez de dos. */
 .selector-ubicacion__movil { display: none; }
+/* La Guía usa la misma ropa para elegir el momento de la atención, pero no
+   tiene lista desplegable: en el teléfono (donde se oculta la de las
+   ubicaciones) se quedaba fija en "Recibir". Ésta no se oculta nunca. */
+.selector-ubicacion.selector-ubicacion--fija { display: flex; }
+.selector-ubicacion--fija button { flex: 1 1 auto; padding-inline: var(--e-4); }
 
 /* --- Inventario en el telefono: fichas en vez de tabla -------------- */
 /* En escritorio manda la tabla, que es donde las trece columnas caben y
@@ -1149,8 +1154,10 @@ table.tabla tfoot td {
     color: var(--texto-secundario);
   }
   .ficha-inv__nombre { font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.3; }
+  /* Bs, $ BCV y $ Binance en un renglón se salían 7 px de un teléfono de
+     390: que bajen cuando no caben. */
   .ficha-inv__precio {
-    display: flex; align-items: baseline; gap: var(--e-3);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--e-3);
     font-family: var(--fuente-display); font-size: var(--t-20);
   }
   .ficha-inv__usd { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); display: block; }
@@ -1187,7 +1194,10 @@ table.tabla tfoot td {
 }
 
 @media (max-width: 380px) {
-  .pagina { padding: var(--e-4) var(--e-3) var(--e-7); }
+  /* Solo arriba y a los lados. Antes decía `padding: ... var(--e-7)` y
+     dejaba el fondo en 48 px, con la barra de abajo de 76 encima: en un
+     teléfono de 360 px lo último de cada pantalla quedaba tapado. */
+  .pagina { padding-top: var(--e-4); padding-inline: var(--e-3); }
   .fila { grid-template-columns: 1fr; }
   .acciones .boton { flex: 1 1 100%; }
   .rejilla-venta { grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
@@ -2368,6 +2378,64 @@ table.tabla tfoot td {
 }
 .ficha-inv__minimo { font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500; color: var(--oro-texto); }
 
+/* El producto con medidas: una fila (o una ficha) y sus medidas debajo,
+   al abrirlo. Las medidas van sobre verde suave y sangradas, para que se
+   lean como parte del producto de arriba y no como otro producto. Los
+   textos sobre ese fondo, medidos: secundario 5,5:1, alerta 5,3:1. */
+.tabla .fila-variante > td,
+.tabla .fila-variante > .col-fija { background: var(--verde-suave); }
+.fila-variante__medida {
+  padding-left: var(--e-3);
+  border-left: 2px solid var(--salvia);
+  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 600;
+}
+.celda-nota--alerta { color: var(--alerta-texto); font-weight: 500; }
+/* El nombre se partía en cinco renglones porque las cifras no se parten y
+   se llevaban todo el ancho. La tabla ya se corre a lo ancho: que corra. */
+.tabla .celda-modelo { min-width: 15rem; }
+.tabla .celda-lote { white-space: nowrap; }
+.boton-medidas {
+  display: inline-flex; align-items: center; gap: var(--e-2);
+  min-height: 32px; margin-top: var(--e-1); padding: 2px var(--e-3);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-align: left; line-height: 1.35;
+  color: var(--texto);
+  background: var(--verde-suave);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  cursor: pointer;
+}
+.boton-medidas::before {
+  content: ''; flex: none;
+  width: 6px; height: 6px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--rapido);
+}
+.boton-medidas[aria-expanded="true"]::before { transform: rotate(45deg); }
+.boton-medidas:hover { border-color: var(--salvia); }
+
+/* En la ficha del teléfono se toca con el dedo: alto de control táctil. */
+.ficha-inv .boton-medidas { min-height: 40px; align-self: flex-start; }
+.ficha-inv__medidas {
+  grid-column: 1 / -1;
+  display: grid; gap: var(--e-2);
+  list-style: none; margin: 0; padding: var(--e-3) 0 0;
+  border-top: 1px solid var(--linea-suave);
+}
+.ficha-medida {
+  display: grid; grid-template-columns: 56px 1fr; gap: var(--e-3);
+  padding: var(--e-3);
+  background: var(--verde-suave);
+  border-radius: var(--radio);
+}
+.ficha-medida__foto { width: 56px; height: 56px; border-radius: var(--radio); }
+.ficha-medida__nombre { font-family: var(--fuente-ui); font-size: var(--t-16); font-weight: 600; color: var(--texto-fuerte); }
+.ficha-medida__precio {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3);
+  font-family: var(--fuente-display); font-size: var(--t-16);
+}
+
 
 /* --- Pedidos: lo que paga, en las tres formas ------------------------ */
 
@@ -2803,3 +2871,297 @@ table.tabla tfoot td {
 .capacitacion__datos dd { margin: 0; font-size: var(--t-16); color: var(--texto-fuerte); }
 .capacitacion__pasos { margin: 0; padding-left: var(--e-5); line-height: 1.55; color: var(--texto); }
 .capacitacion__pasos li + li { margin-top: var(--e-2); }
+
+/* --- Conteo de inventario -------------------------------------------- */
+/* Una fila por pieza y un contador grande a la derecha: el pulgar cuenta,
+   la otra mano sostiene las joyas. A ciegas: la fila no dice cuánto
+   espera el sistema mientras se cuenta (ver ConteoSemanal.tsx). */
+
+.conteo__progreso { display: grid; gap: var(--e-2); margin-bottom: var(--e-4); }
+.conteo__herramientas { display: grid; gap: var(--e-3); margin-bottom: var(--e-4); }
+.conteo__herramientas .campo { margin-bottom: 0; }
+.conteo__vistas { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.conteo__vistas button {
+  flex: 0 1 auto; min-height: 44px; padding: 0 var(--e-4);
+  font-family: var(--fuente-ui);
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.conteo__vistas button:hover { border-color: var(--salvia); }
+.conteo__vistas button[aria-pressed='true'] {
+  background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema);
+}
+
+.conteo__retomado {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--e-2) var(--e-4);
+  padding: var(--e-3) var(--e-4);
+  margin-bottom: var(--e-4);
+  background: var(--panel);
+  border-radius: var(--radio-md);
+}
+.conteo__retomado p { margin: 0; font-size: var(--t-14); color: var(--texto); }
+.conteo__nada {
+  padding: var(--e-6) var(--e-4); text-align: center;
+  font-family: var(--fuente-prosa); font-size: var(--t-16);
+  color: var(--texto-secundario);
+}
+
+.conteo-lista { list-style: none; margin: 0 0 var(--e-5); padding: 0; display: grid; gap: var(--e-3); }
+.conteo-fila {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-areas: 'foto quien paso';
+  align-items: center;
+  gap: var(--e-3) var(--e-4);
+  padding: var(--e-3) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-1);
+  transition: border-color var(--rapido), background var(--rapido);
+}
+/* Contada: un borde y un fondo apenas verdes, y la palabra "contada" en
+   la fila. El color solo no basta para quien no distingue el verde. */
+.conteo-fila--contada {
+  border-color: color-mix(in srgb, var(--exito) 40%, var(--linea-suave));
+  background: color-mix(in srgb, var(--exito) 5%, var(--superficie));
+}
+.conteo-fila__foto {
+  grid-area: foto;
+  width: 56px; height: 56px; object-fit: cover; display: block;
+  border-radius: var(--radio); background: var(--panel-hondo);
+}
+.conteo-fila__quien { grid-area: quien; min-width: 0; display: grid; gap: 2px; }
+.conteo-fila__nombre {
+  font-family: var(--fuente-prosa); font-size: var(--t-16); line-height: 1.25;
+  color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+}
+.conteo-fila__dato {
+  font-size: var(--t-12); color: var(--texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+.conteo-fila__aviso { font-size: var(--t-12); color: var(--alerta-texto); }
+
+.conteo-paso { grid-area: paso; display: flex; align-items: center; gap: var(--e-2); }
+/* Solo los del contador: un .boton dentro (la revisión) lleva su propia ropa. */
+.conteo-paso button:not(.boton) {
+  width: var(--objetivo-tactil); height: var(--objetivo-tactil);
+  display: grid; place-items: center; flex: none;
+  font-family: var(--fuente-ui); font-size: var(--t-20); line-height: 1;
+  color: var(--texto);
+  background: var(--panel);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-pill);
+  transition: background var(--rapido), border-color var(--rapido), transform var(--rapido);
+}
+.conteo-paso button:not(.boton):hover:not(:disabled) { background: var(--verde-suave); border-color: var(--salvia); }
+.conteo-paso button:not(.boton):active:not(:disabled) { transform: scale(0.94); }
+.conteo-paso button:not(.boton):disabled { opacity: 0.35; }
+.conteo-paso input {
+  width: 76px; min-height: var(--objetivo-tactil); padding: 0 var(--e-2);
+  text-align: center;
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.conteo-paso input::placeholder { color: var(--texto-secundario); font-weight: 400; }
+/* En la revisión el paso es una cifra y un botón, no un contador. */
+.conteo-paso--revisar { flex-direction: column; align-items: flex-end; gap: var(--e-2); }
+.conteo-paso--revisar .boton { width: auto; height: auto; }
+
+.conteo-dif {
+  font-family: var(--fuente-display); font-size: var(--t-16); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--texto-fuerte);
+  white-space: nowrap;
+}
+.conteo-dif--falta { color: var(--error); }
+
+.conteo__sin-contar { margin-bottom: var(--e-5); }
+.conteo__sin-contar .acciones { margin-top: var(--e-3); padding-top: 0; border-top: 0; }
+.conteo__agregar {
+  width: 100%; margin: var(--e-2) 0 var(--e-5);
+  white-space: normal; text-align: center; line-height: 1.3;
+  padding-block: var(--e-2);
+}
+.conteo__buscar-otra { margin: var(--e-2) 0 var(--e-5); }
+.conteo-resultados { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.conteo-resultados button {
+  width: 100%; min-height: var(--objetivo-tactil);
+  display: grid; gap: 2px; text-align: left;
+  padding: var(--e-2) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  transition: border-color var(--rapido), background var(--rapido);
+}
+.conteo-resultados button:hover { border-color: var(--salvia); background: var(--verde-suave); }
+
+.conteo__anteriores { margin-top: var(--e-6); }
+.conteo-historial { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.conteo-historial__fila {
+  width: 100%; display: grid; gap: 2px; text-align: left;
+  padding: var(--e-3) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md);
+  transition: border-color var(--rapido);
+}
+.conteo-historial__fila:hover:not(:disabled) { border-color: var(--salvia); }
+.conteo-historial__fila:disabled { cursor: default; }
+.conteo-historial__cuando {
+  font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.conteo-historial__que { font-size: var(--t-14); color: var(--texto-fuerte); }
+.conteo-historial__detalle {
+  list-style: none; margin: var(--e-2) 0 0; padding: var(--e-3) var(--e-4);
+  display: grid; gap: var(--e-2);
+  background: var(--panel); border-radius: var(--radio-md);
+  font-size: var(--t-14); color: var(--texto);
+}
+.conteo-historial__nota { font-family: var(--fuente-prosa); color: var(--texto-fuerte); }
+
+/* En un teléfono angosto el contador baja a su propio renglón: tres
+   botones de 56 px y un nombre no caben juntos en 320 px. */
+@media (max-width: 480px) {
+  .conteo-fila {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-areas: 'foto quien' 'paso paso';
+  }
+  .conteo-paso { justify-content: flex-end; }
+  .conteo-paso--revisar { flex-direction: row; justify-content: space-between; align-items: center; }
+}
+
+/* --- Tarjeta con dos botones hermanos ---------------------------------- */
+/* La tarjeta era un <button> con otros botones dentro (la lupa, mover),
+   que HTML no permite y que los lectores de pantalla no saben leer. Ahora
+   es un <article>: el botón principal ocupa la foto y los datos, y las
+   acciones son botones aparte, encima o debajo. Se ve igual. */
+
+.tarjeta-modelo__principal {
+  display: flex; flex-direction: column; flex: 1 1 auto;
+  width: 100%; padding: 0; margin: 0;
+  text-align: left; font: inherit; color: inherit;
+  background: none; border: 0; border-radius: 0;
+}
+.tarjeta-modelo__principal:focus-visible { outline-offset: -3px; border-radius: var(--radio-lg); }
+.tarjeta-modelo__principal:disabled { cursor: not-allowed; }
+.tarjeta-modelo--agotada { opacity: 0.45; }
+.tarjeta-modelo--agotada:hover { transform: none; box-shadow: var(--sombra-1); border-color: var(--linea-suave); }
+
+/* La acción del catálogo público: "Agregar", y el contador cuando ya va. */
+.tarjeta-modelo__accion { padding: 0 var(--e-3) var(--e-3); }
+.tarjeta-modelo__agregar { width: 100%; min-height: 44px; }
+.contador--tarjeta { justify-content: space-between; gap: var(--e-1); }
+.contador--tarjeta button { width: 44px; height: 44px; }
+
+/* "Ver más piezas": lo que falta por ver, dicho. */
+.catalogo__mas {
+  display: grid; justify-items: center; gap: var(--e-3);
+  margin: var(--e-6) 0 var(--e-4);
+}
+
+/* --- El carrito en las páginas sin barra de abajo ---------------------- */
+/* El catálogo público y el de un revendedor no tienen la navegación de
+   abajo: el carrito flotaba a 88 px del borde, dejando un hueco para una
+   barra que ahí no existe. Va al fondo, y la página le reserva su alto. */
+@media (max-width: 900px) {
+  .barra--publica + .pagina .barra-carrito { bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px)); }
+  .barra--publica + .pagina.pagina--con-barra { padding-bottom: calc(var(--e-7) + 96px + env(safe-area-inset-bottom, 0px)); }
+}
+/* En un teléfono el resumen cabe en dos o tres renglones, y una píldora de
+   radio 999 se comía las esquinas del texto: "Bs" quedaba pegado al borde
+   curvo. Con el radio de las tarjetas, el texto respira. */
+@media (max-width: 560px) {
+  .barra-carrito { border-radius: var(--radio-lg); }
+}
+
+/* --- Catálogo público: la mercancía primero ---------------------------- */
+/* Medido en un teléfono de 390 x 844 (14/10/2026): la primera joya salía
+   a 485 px, detrás del título, la promesa de materiales en un bloque de
+   125 px y el filtro. La promesa se queda (es lo que vende), más compacta. */
+@media (max-width: 560px) {
+  .catalogo-publico .encabezado-pagina { margin-bottom: var(--e-4); }
+  .sello-materiales--catalogo {
+    margin-bottom: var(--e-4);
+    padding: var(--e-3) var(--e-4);
+    font-size: var(--t-14);
+    line-height: 1.4;
+    text-align: left;
+  }
+}
+@media (max-width: 420px) {
+  .barra--publica + .pagina .barra-carrito__vaciar { display: none; }
+}
+
+/* Una línea de cobro o de pedido en un teléfono: el contador baja a su
+   renglón. Con los botones de 56 px al lado, el nombre de la pieza se
+   apretaba en cinco renglones de una palabra (visto a 390 px). */
+@media (max-width: 480px) {
+  .linea-cobro { grid-template-columns: 48px minmax(0, 1fr); row-gap: var(--e-3); }
+  .linea-cobro__foto { width: 48px; height: 48px; }
+  .linea-cobro .contador { grid-column: 1 / -1; justify-content: flex-end; }
+}
+
+/* --- Quitar de un pedido y devolver una pieza ------------------------- */
+/* Paneles que se abren debajo de la pieza, como "Cancelar con dinero":
+   sin caja propia dentro de la tarjeta, se distinguen por su fondo. */
+.quitar-pieza { margin-top: var(--e-4); }
+.quitar-pieza .acciones,
+.devolver-pieza .acciones { margin-top: var(--e-4); padding-top: var(--e-4); }
+.devolver-pieza {
+  grid-column: 1 / -1;
+  margin-top: var(--e-2);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+}
+.compra__pieza .etiqueta { margin-top: var(--e-1); }
+.compra__pieza .num .boton { margin-top: var(--e-2); }
+
+.cambios-pedido { list-style: none; margin: var(--e-2) 0 0; padding: 0; display: grid; gap: var(--e-2); }
+.cambios-pedido li { display: grid; gap: 2px; font-size: var(--t-14); color: var(--texto-fuerte); }
+
+/* --- Conteo: un producto, sus medidas debajo ------------------------- */
+/* La cadena de 45 y la de 60 son el mismo producto: su nombre y su foto
+   una vez, y cada medida en su renglón con su contador. */
+.conteo-familia {
+  padding: var(--e-3) var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-1);
+}
+.conteo-familia--contada { border-color: color-mix(in srgb, var(--exito) 40%, var(--linea-suave)); }
+.conteo-familia__cabeza {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center; gap: var(--e-4);
+  padding-bottom: var(--e-3);
+  border-bottom: 1px solid var(--linea-suave);
+}
+.conteo-familia__variantes { list-style: none; margin: 0; padding: 0; display: grid; }
+.conteo-variante {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--e-2) var(--e-4);
+  padding: var(--e-3) 0 var(--e-3) var(--e-2);
+  border-bottom: 1px solid var(--linea-suave);
+}
+.conteo-variante:last-child { border-bottom: 0; padding-bottom: 0; }
+/* Contada: un filete verde a la izquierda y la palabra "contada". */
+.conteo-variante--contada { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--exito) 55%, transparent); }
+.conteo-variante__quien { display: grid; gap: 2px; min-width: 0; }
+.conteo-variante__medida {
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  color: var(--texto-fuerte); overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .conteo-variante { grid-template-columns: minmax(0, 1fr); }
+  .conteo-variante .conteo-paso { justify-content: flex-end; }
+}

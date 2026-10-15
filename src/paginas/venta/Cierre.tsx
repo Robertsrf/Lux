@@ -20,6 +20,15 @@ import type { CuadreUbicacion } from '../../lib/tipos';
  * porque cada ubicacion se cuadra por separado; lo que cambia es que no
  * tiene que acordarse de pulsar cinco veces.
  */
+/**
+ * Lo que esperaba el sistema CUANDO se contó, guardado en el conteo. No
+ * `esperado`, que es la existencia de ahora: una venta después del conteo
+ * la mueve y la frase dejaba de cuadrar con la diferencia.
+ */
+function esperabaAlContar(f: CuadreUbicacion): number {
+  return (f.cantidad_contada ?? 0) - (f.diferencia ?? 0);
+}
+
 export function Cierre() {
   const [filas, setFilas] = useState<CuadreUbicacion[]>([]);
   const [contado, setContado] = useState<Record<number, string>>({});
@@ -40,10 +49,18 @@ export function Cierre() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  const escritas = Object.entries(contado).filter(([, v]) => v !== '');
+  const escritas = Object.entries(contado).filter(([, v]) => v.trim() !== '');
+  // Un número de piezas es un entero desde cero. "12,5" o "-1" llegaban a la
+  // base, que respondía con un error de tipos que no decía qué ubicación.
+  const ilegibles = escritas.filter(([, v]) => !/^\d+$/.test(v.trim()));
 
   async function guardarTodo() {
     if (escritas.length === 0) return;
+    if (ilegibles.length > 0) {
+      const donde = ilegibles.map(([id]) => filas.find((f) => f.ubicacion_id === Number(id))?.ubicacion ?? 'una ubicación');
+      setError(`${donde.join(', ')}: escribe solo cuántas piezas hay, un número entero.`);
+      return;
+    }
     setGuardando(true);
     setError(null);
 
@@ -52,7 +69,7 @@ export function Cierre() {
     for (const [id, valor] of escritas) {
       const { error: err } = await supabase.rpc('cerrar_dia', {
         p_ubicacion_id: Number(id),
-        p_contado: Number(valor),
+        p_contado: Number(valor.trim()),
         p_notas: null,
       });
       if (err) {
@@ -93,7 +110,7 @@ export function Cierre() {
         <Aviso tono="error" titulo="El inventario no cuadra">
           {descuadres.map((d) => (
             <div key={d.ubicacion_id}>
-              {d.ubicacion}: contaste {d.cantidad_contada} y el sistema esperaba {d.esperado}
+              {d.ubicacion}: contaste {d.cantidad_contada} y el sistema esperaba {esperabaAlContar(d)}
               {' '}({d.diferencia! > 0 ? `sobran ${d.diferencia}` : `faltan ${Math.abs(d.diferencia!)}`}).
             </div>
           ))}
@@ -118,10 +135,17 @@ export function Cierre() {
                     <label className="cuadre__nombre" htmlFor={`contado-${f.ubicacion_id}`}>
                       {f.ubicacion}
                     </label>
+                    {/* A CIEGAS, como el conteo semanal: antes decía "Espera
+                        38" junto al campo, y lo fácil era escribir 38 sin
+                        contar. La cifra del sistema sale después de guardar.
+                        Y decía "faltan 2" cuando sobraban dos. */}
                     <span className={yaContada && !cuadra ? 'cuadre__nota cuadre__nota--mal' : 'cuadre__nota'}>
-                      {yaContada
-                        ? `Contaste ${formatearEntero(f.cantidad_contada)}${cuadra ? ', cuadra' : `, faltan ${f.diferencia}`}`
-                        : `Espera ${formatearEntero(f.esperado)}`}
+                      {!yaContada
+                        ? 'Sin contar hoy'
+                        : cuadra
+                          ? `Contaste ${formatearEntero(f.cantidad_contada)}, cuadra`
+                          : `Contaste ${formatearEntero(f.cantidad_contada)} y el sistema esperaba ${formatearEntero(esperabaAlContar(f))}: `
+                            + (f.diferencia! > 0 ? `sobran ${f.diferencia}` : `faltan ${Math.abs(f.diferencia!)}`)}
                     </span>
                   </div>
                   <input

@@ -5,7 +5,7 @@ import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { useTasa } from '../../hooks/useTasa';
 import {
   abonoEnBcv, formatearBcv, formatearBinance, formatearBs, formatearMonto, formatearPorcentaje,
-  restarCifras, sumarCifras,
+  leerCifra, restarCifras, sumarCifras,
 } from '../../lib/dinero';
 import type { Tasas } from '../../lib/dinero';
 import { CATEGORIAS_CAJA, METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
@@ -503,7 +503,7 @@ function AnotarMovimiento({ hoy, tasa, conceptos, alAnotar }: {
 
   const categorias = CATEGORIAS_CAJA.filter((c) => c.tipo === tipo);
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
-  const valor = Number(monto.replace(',', '.'));
+  const valor = leerCifra(monto) ?? NaN;
   const hayMonto = Number.isFinite(valor) && valor > 0;
   const hayConcepto = concepto.trim().length >= 2;
   const falta = [!hayConcepto ? 'qué fue' : null, !hayMonto ? 'cuánto' : null].filter(Boolean);

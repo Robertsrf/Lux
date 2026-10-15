@@ -558,6 +558,85 @@ async function main() {
     anotaEl.error ? anotaEl.error.message : 'ACEPTO UN CERO');
 
   /*
+    EL CONTEO Y EL TOTAL DEL CATALOGO (esquema-conteo-y-cotizar.sql).
+
+    El inventario y los conteos ya no se escriben en crudo con ninguna
+    sesion: solo por sus funciones, que dejan rastro. El conteo nuevo lo
+    hacen las dos caras; el viejo, que borraba lo apartado, ya no escribe.
+    La cotizacion del catalogo abre sin sesion y no suelta una clave de
+    mas: por dentro llama a precio_de_linea, que conoce el costo.
+    Todo con datos que la base rechaza antes de escribir (id -1).
+  */
+  console.log('\nEL CONTEO Y EL TOTAL DEL CATALOGO');
+  for (const [tabla, cambio] of [['existencias', { cantidad: 0 }], ['conteos', { notas: 'x' }], ['conteo_detalle', { cantidad_contada: 0 }]]) {
+    for (const [quien, S] of [['ella', V], ['el administrador', A]]) {
+      const { error } = await S.from(tabla).update(cambio).eq('id', -1);
+      dice(error?.code === '42501', `${tabla}: ${quien} no la escribe en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO ESCRIBIR');
+    }
+  }
+  const contV = await V.rpc('registrar_conteo', { p_ubicacion_id: -1, p_detalle: [], p_notas: null });
+  dice(!!contV.error && /ubicaci/i.test(contV.error.message), 'puede contar (registrar_conteo)',
+    contV.error ? contV.error.message : 'RESPONDIO');
+  const contP = await P.rpc('registrar_conteo', { p_ubicacion_id: -1, p_detalle: [], p_notas: null });
+  dice(contP.error?.code === '42501', 'registrar_conteo() sin sesion, rechazada', contP.error ? 'rechazada ' + contP.error.code : 'RESPONDIO');
+  const viejo = await V.rpc('registrar_conteo_semanal', { p_ubicacion_id: -1, p_detalle: [], p_notas: null });
+  dice(!!viejo.error && /qued/i.test(viejo.error.message), 'el conteo viejo ya no escribe',
+    viejo.error ? 'avisa que recargue' : 'RESPONDIO');
+  const histV = await V.from('v_conteos').select('id, quien, piezas_faltaron').limit(1);
+  dice(!histV.error, 'v_conteos, los conteos anteriores', histV.error ? 'ERROR ' + histV.error.code : 'responde');
+  const histP = await P.from('v_conteos').select('id').limit(1);
+  dice(!!histP.error || (histP.data?.length ?? 0) === 0, 'v_conteos sin sesion', histP.error ? 'rechazada ' + histP.error.code : (histP.data?.length ?? 0) + ' filas');
+  const detCosto = await V.from('v_conteo_detalle').select('costo_puesto_usd').limit(1);
+  dice(!!detCosto.error, 'ninguna columna de costo en el detalle del conteo', detCosto.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  const retiraV = await V.rpc('admin_desactivar_modelo', { p_id: -1 });
+  dice(!!retiraV.error && /administrador/i.test(retiraV.error.message), 'admin_desactivar_modelo(): ella no retira piezas',
+    retiraV.error ? 'rechazada' : 'RESPONDIO');
+  const unaP = await P.from('v_disponible_publico').select('id').limit(1);
+  const cot = await P.rpc('cotizar_pedido', { p_items: unaP.data?.length ? [{ modelo_id: unaP.data[0].id, cantidad: 1 }] : [] });
+  const clavesCot = Object.keys(cot.data ?? {}).sort().join(',');
+  const clavesLinea = Object.keys(cot.data?.lineas?.[0] ?? {}).sort().join(',');
+  dice(!cot.error && clavesCot === 'descuento_pct,lineas,piezas,sin_precio,subtotal_usd,total_usd',
+    'cotizar_pedido() abre sin sesion, sus claves', cot.error ? 'ERROR ' + cot.error.code : clavesCot);
+  dice(!cot.error && (clavesLinea === '' || clavesLinea === 'cantidad,modelo_id,motivo,precio_lista_usd,precio_usd'),
+    'cotizar_pedido(): cada linea sin costo', clavesLinea || 'sin lineas');
+
+  /*
+    LAS DEVOLUCIONES (esquema-devoluciones.sql).
+
+    Quitar una pieza de un pedido sin entregar es de las dos caras; devolver
+    una ya entregada (la nota de credito, que mueve existencia y caja) es
+    solo del administrador. La historia de los pedidos se lee por su vista,
+    nunca en crudo, y nada de esto abre sin sesion. Todo con id -1: la base
+    rechaza antes de escribir.
+  */
+  console.log('\nLAS DEVOLUCIONES');
+  for (const [quien, S] of [['ella', V], ['el administrador', A]]) {
+    const { error } = await S.from('pedido_cambios').select('id').limit(1);
+    dice(error?.code === '42501', `pedido_cambios: ${quien} no la lee en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+  }
+  const camV = await V.from('v_pedido_cambios').select('reserva_id, antes, despues, quien').limit(1);
+  dice(!camV.error, 'v_pedido_cambios, la historia de los pedidos', camV.error ? 'ERROR ' + camV.error.code : 'responde');
+  const camP = await P.from('v_pedido_cambios').select('reserva_id').limit(1);
+  dice(!!camP.error || (camP.data?.length ?? 0) === 0, 'v_pedido_cambios sin sesion', camP.error ? 'rechazada ' + camP.error.code : (camP.data?.length ?? 0) + ' filas');
+  const quitarArgs = { p_reserva_id: -1, p_modelo_id: -1, p_cantidad: 1, p_motivo: 'verificar' };
+  const quitaV = await V.rpc('quitar_de_pedido', quitarArgs);
+  dice(!!quitaV.error && /no existe/i.test(quitaV.error.message), 'puede quitar una pieza de un pedido (quitar_de_pedido)',
+    quitaV.error ? quitaV.error.message : 'RESPONDIO');
+  const quitaP = await P.rpc('quitar_de_pedido', quitarArgs);
+  dice(quitaP.error?.code === '42501', 'quitar_de_pedido() sin sesion, rechazada', quitaP.error ? 'rechazada ' + quitaP.error.code : 'RESPONDIO');
+  const devArgs = { p_venta_id: -1, p_modelo_id: -1, p_cantidad: 1, p_ubicacion_id: null, p_devolver: false, p_motivo: 'verificar' };
+  const devV = await V.rpc('admin_devolver_pieza', devArgs);
+  dice(!!devV.error && /administrador/i.test(devV.error.message), 'admin_devolver_pieza(): ella no devuelve piezas entregadas',
+    devV.error ? 'rechazada' : 'RESPONDIO');
+  const devP = await P.rpc('admin_devolver_pieza', devArgs);
+  dice(devP.error?.code === '42501', 'admin_devolver_pieza() sin sesion, rechazada', devP.error ? 'rechazada ' + devP.error.code : 'RESPONDIO');
+  const devA = await A.rpc('admin_devolver_pieza', devArgs);
+  dice(!!devA.error && /no existe/i.test(devA.error.message), 'admin_devolver_pieza(): el dueno si (venta -1)',
+    devA.error ? devA.error.message : 'RESPONDIO');
+  const comprasV = await V.from('v_cliente_compras').select('devueltas, foto_path').limit(1);
+  dice(!comprasV.error, 'v_cliente_compras dice cuantas se devolvieron', comprasV.error ? 'ERROR ' + comprasV.error.code : 'responde');
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a

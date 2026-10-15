@@ -4,7 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
-  formatearFechaHora, formatearPorcentaje, formatearTasa, minimoParaApartar, porcentajeRebajado,
+  formatearFechaHora, formatearDescuento, formatearTasa, leerCifra, minimoParaApartar, porcentajeRebajado,
   rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
@@ -46,6 +46,9 @@ const COLUMNAS = [
 ].join(', ');
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
+
+/** Cuantas piezas de una ubicacion trae de una vez. Si hay mas, se dice. */
+const LIMITE = 300;
 
 
 /**
@@ -176,12 +179,12 @@ export function Mostrador() {
       .eq('ubicacion_id', ubicacionId)
       .gt('cantidad', 0)
       .order('nombre', { ascending: true })
-      .limit(300);
+      .limit(LIMITE);
 
     if (tipo) consulta = consulta.eq('categoria', tipo);
 
     if (texto.trim()) {
-      const t = texto.trim().replace(/[%,()]/g, ' ');
+      const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
       consulta = consulta.or(`nombre.ilike.%${t}%,sku.ilike.%${t}%,variante.ilike.%${t}%`);
     }
 
@@ -300,7 +303,7 @@ export function Mostrador() {
     const previa = cuentaDelApartado();
     const r = await carrito.apartar(cliente, {
       metodo,
-      monto: Number(abono.replace(',', '.')),
+      monto: leerCifra(abono) ?? NaN,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
       verificado,
     });
@@ -339,7 +342,7 @@ export function Mostrador() {
     const totalBcv = carrito.totales.piezasBcv;
     if (!tasa || !metodo || totalBcv === null || !reglaApartado) return null;
     const minimo = minimoParaApartar(totalBcv, reglaApartado.pct);
-    const monto = Number(abono.replace(',', '.'));
+    const monto = leerCifra(abono) ?? NaN;
     const hay = Number.isFinite(monto) && monto > 0;
     const pagado = hay ? abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa) : null;
     const { falta, pasa } = faltaTrasAbono(totalBcv, pagado?.bcv ?? 0);
@@ -357,8 +360,16 @@ export function Mostrador() {
     };
   }
 
+  /*
+    Lo que ella escribe se lee con `leerCifra`, como se escribe aquí: "1.500"
+    son mil quinientos. Antes el campo era numérico y se leía con Number():
+    "1.500" eran 1,5 bolívares, quedaba por debajo del mínimo y el carrito
+    ponía la pieza EN su mínimo, la rebaja máxima sin que ella lo quisiera.
+    Lo que no se entiende no cambia nada: la pieza sigue en su precio.
+  */
   function aplicarPrecio(modeloId: number, ubicacionIdLinea: number, valor: string) {
-    if (!edicionCancelada.current) carrito.cambiarPrecio(modeloId, ubicacionIdLinea, Number(valor));
+    const bs = leerCifra(valor);
+    if (!edicionCancelada.current && bs !== null) carrito.cambiarPrecio(modeloId, ubicacionIdLinea, bs);
     edicionCancelada.current = false;
     setEditando(null);
   }
@@ -397,11 +408,11 @@ export function Mostrador() {
               {/* Dicho aqui para que ella pueda decirselo a la clienta con
                   la cifra delante, no de memoria. */}
               {conTramo
-                ? ` · ${formatearPorcentaje(t.descuento)} de descuento por cantidad, ahorra ${formatearBs(t.ahorroBs)}`
+                ? ` · ${formatearDescuento(t.descuento)} de descuento por cantidad, ahorra ${formatearBs(t.ahorroBs)}`
                 : t.regateoBs > 0
                   ? ` · rebajaste ${formatearBs(t.regateoBs)} para cerrar la venta`
                   : t.siguiente
-                    ? ` · con ${t.siguiente.faltan} más baja ${formatearPorcentaje(t.siguiente.pct)}`
+                    ? ` · con ${t.siguiente.faltan} más baja ${formatearDescuento(t.siguiente.pct)}`
                     : ''}
             </p>
           </div>
@@ -413,7 +424,7 @@ export function Mostrador() {
 
         {rebajasIgnoradas ? (
           <Aviso tono="alerta" titulo="Manda el descuento por cantidad">
-            Con {t.piezas} piezas se cobra el {formatearPorcentaje(t.descuento)} en todas. Lo que rebajaste
+            Con {t.piezas} piezas se cobra el {formatearDescuento(t.descuento)} en todas. Lo que rebajaste
             a mano no se suma encima; vuelve si la venta baja de {t.primerTramo} piezas.
           </Aviso>
         ) : null}
@@ -442,12 +453,10 @@ export function Mostrador() {
                       </label>
                       <input
                         id={`rebaja-${clave}`}
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        step="0.01"
-                        min={l.precio_minimo_bs}
-                        max={l.precio_lista_bs}
-                        defaultValue={l.precio_final_bs}
+                        autoComplete="off"
+                        defaultValue={String(l.precio_final_bs).replace('.', ',')}
                         autoFocus
                         aria-describedby={`piso-${clave}`}
                         onBlur={(e) => aplicarPrecio(l.modelo_id, l.ubicacion_id, e.target.value)}
@@ -819,7 +828,7 @@ export function Mostrador() {
   const filtrando = Boolean(texto.trim() || tipo);
 
   return (
-    <div className="pagina mostrador">
+    <div className={carrito.totales.piezas > 0 ? 'pagina mostrador pagina--con-barra' : 'pagina mostrador'}>
       <div className="encabezado-pagina">
         <div>
           <h1>Mostrador</h1>
@@ -922,10 +931,14 @@ export function Mostrador() {
             const etiquetas = etiquetasDe(f);
             const admiteRebaja = m.precio_minimo_bs !== null && m.precio_bs !== null && m.precio_minimo_bs < m.precio_bs;
             return (
+              <article key={f.clave} className={agotado || !tasa ? 'tarjeta-modelo tarjeta-modelo--agotada' : 'tarjeta-modelo'}>
+              {/* Un toque agrega: el mostrador tiene que ser instantaneo.
+                  La lupa y mover son botones HERMANOS, no hijos: un boton
+                  dentro de otro no es HTML valido y el lector de pantalla
+                  no sabe que hacer con el. */}
               <button
-                key={f.clave}
                 type="button"
-                className="tarjeta-modelo"
+                className="tarjeta-modelo__principal"
                 disabled={agotado || !tasa}
                 onClick={() => alTocar(f)}
                 aria-haspopup={unica ? undefined : 'dialog'}
@@ -933,30 +946,6 @@ export function Mostrador() {
                   ? `Agregar ${nombreConVariante(m.nombre, m.variante)}, ${formatearBs(m.precio_bs)}`
                   : `Elegir cuál de ${m.nombre}: ${etiquetas}`}
               >
-                {/* Mover de ubicacion: ella es la que acomoda la vitrina. */}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="mover-pieza"
-                  aria-label={`Mover de ubicación ${m.nombre}`}
-                  title="Mover de ubicación"
-                  onClick={(e) => { e.stopPropagation(); setExito(null); setMoviendo(f.clave); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setMoviendo(f.clave); } }}
-                >
-                  <Icono nombre="mover" />
-                </span>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="lupa"
-                  aria-label={`Ver en detalle ${m.nombre}`}
-                  onClick={(e) => { e.stopPropagation(); verFoto(f); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(f); } }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
-                  </svg>
-                </span>
                 {foto
                   ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
                   : <span className="tarjeta-modelo__foto" />}
@@ -993,10 +982,39 @@ export function Mostrador() {
                   </span>
                 </span>
               </button>
+              {/* Mover de ubicacion: ella es la que acomoda la vitrina. */}
+              <button
+                type="button"
+                className="mover-pieza"
+                aria-label={`Mover de ubicación ${m.nombre}`}
+                title="Mover de ubicación"
+                onClick={() => { setExito(null); setMoviendo(f.clave); }}
+              >
+                <Icono nombre="mover" />
+              </button>
+              <button
+                type="button"
+                className="lupa"
+                aria-label={`Ver en detalle ${m.nombre}`}
+                onClick={() => verFoto(f)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
+                </svg>
+              </button>
+              </article>
             );
           })}
         </div>
       )}
+
+      {/* Lo que no cabe, dicho: antes la pieza 301 de una ubicacion no
+          salia, sin aviso. Con el buscador o el tipo se llega a ella. */}
+      {!cargando && modelos.length >= LIMITE ? (
+        <p className="campo__pista" style={{ textAlign: 'center', marginTop: 'var(--e-4)' }}>
+          Aquí salen las primeras {LIMITE} piezas de {ubicacion?.nombre ?? 'esta ubicación'}. Usa el buscador o el tipo para llegar a las demás.
+        </p>
+      ) : null}
 
       <VisorFoto
         {...visor.props}
@@ -1066,11 +1084,11 @@ export function Mostrador() {
                   cuando sirve: con la clienta delante y el carrito armado. */}
               {carrito.totales.descuento ? (
                 <span className="barra-carrito__tramo">
-                  · {formatearPorcentaje(carrito.totales.descuento)} menos
+                  · {formatearDescuento(carrito.totales.descuento)} menos
                 </span>
               ) : carrito.totales.siguiente ? (
                 <span className="barra-carrito__falta">
-                  · {carrito.totales.siguiente.faltan} más y baja {formatearPorcentaje(carrito.totales.siguiente.pct)}
+                  · {carrito.totales.siguiente.faltan} más y baja {formatearDescuento(carrito.totales.siguiente.pct)}
                 </span>
               ) : null}
             </div>

@@ -99,6 +99,13 @@ export function Campo({ etiqueta, pista, error, children, htmlFor }: {
  *
  * Ahora el fallo se ve, se puede reportar y el resto del sistema sigue en pie.
  */
+const CLAVE_RECARGA = 'lux-recarga-por-version';
+
+/** El error de pedir un trozo de la versión anterior, en Chrome, Firefox y Safari. */
+function esTrozoViejo(error: Error): boolean {
+  return /dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(error.message);
+}
+
 export class LimiteDeError extends Component<{ children: ReactNode }, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
 
@@ -108,6 +115,26 @@ export class LimiteDeError extends Component<{ children: ReactNode }, { error: E
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Fallo de la interfaz', error, info.componentStack);
+    /*
+      UNA VERSION NUEVA SE PUBLICO CON ESTA ABIERTA.
+
+      GitHub Pages reemplaza los archivos al desplegar: quien tenia el
+      sistema abierto conserva la pagina vieja, que pide un trozo (Reportes,
+      la vitrina) con un nombre que ya no existe. Eso no es un fallo de la
+      pantalla: es que hay que cargar la version nueva. Se recarga sola, una
+      vez: si en cinco minutos vuelve a pasar, la recarga no lo arreglo, y se
+      queda el aviso de siempre en vez de entrar en un bucle. Pasados cinco
+      minutos, otro despliegue vuelve a recargar solo.
+    */
+    if (esTrozoViejo(error)) {
+      try {
+        const ultima = Number(sessionStorage.getItem(CLAVE_RECARGA) ?? 0);
+        if (Date.now() - ultima > 5 * 60_000) {
+          sessionStorage.setItem(CLAVE_RECARGA, String(Date.now()));
+          window.location.reload();
+        }
+      } catch { /* sin almacenamiento: queda el boton Recargar */ }
+    }
   }
 
   render() {

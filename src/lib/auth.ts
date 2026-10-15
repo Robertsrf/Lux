@@ -86,8 +86,11 @@ export async function entrarConCodigo(codigo: string) {
   // probaba primero como contrasena de admin y de socio. Tres viajes en vez de
   // uno, y dos cuentas de administrador acumulando intentos fallidos.
   const esPin = /^\d{4}$/.test(limpio);
+  // La vendedora primero y los demás en su orden. Antes era un `sort` con
+  // un comparador que miraba un solo lado, que no es un orden: el resultado
+  // dependía del motor del navegador.
   const orden = esPin
-    ? [...CANDIDATOS].sort((a) => (a.usuario === 'vendedora' ? -1 : 1))
+    ? [...CANDIDATOS.filter((c) => c.usuario === 'vendedora'), ...CANDIDATOS.filter((c) => c.usuario !== 'vendedora')]
     : CANDIDATOS;
 
   let ultimo: { message: string } | null = null;

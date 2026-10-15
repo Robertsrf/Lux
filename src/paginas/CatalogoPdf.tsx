@@ -36,23 +36,41 @@ export function CatalogoPdf() {
     void (async () => {
       setCargando(true);
       const acumulado: ModeloVenta[] = [];
+      // Lo LIBRE de cada pieza, el mismo número del catálogo en línea. El
+      // PDF va a las clientas: antes decía "Quedan 5" con 2 apartadas por
+      // un pedido, y listaba piezas apartadas enteras que nadie podía
+      // pedir. `existencia_total` es lo que hay, no lo que se puede vender.
+      const libres = new Map<number, number>();
 
       try {
         for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
-          const { data, error: err } = await supabase
-            .from('v_catalogo_venta')
-            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, ubicaciones, familia, variante')
-            .gt('existencia_total', 0)
-            .order('categoria', { ascending: true })
-            .order('nombre', { ascending: true })
-            .range(desde, desde + TAMANO_PAGINA - 1);
-
-          if (err) throw err;
-          const lote = (data as unknown as ModeloVenta[] | null) ?? [];
+          const [cat, disp] = await Promise.all([
+            supabase
+              .from('v_catalogo_venta')
+              .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, grupo, precio_usd, precio_bs, precio_usd_real, existencia_total, ubicaciones, familia, variante')
+              .gt('existencia_total', 0)
+              .order('categoria', { ascending: true })
+              .order('nombre', { ascending: true })
+              .order('id', { ascending: true })
+              .range(desde, desde + TAMANO_PAGINA - 1),
+            supabase
+              .from('v_disponible_publico')
+              .select('id, disponible')
+              .order('id', { ascending: true })
+              .range(desde, desde + TAMANO_PAGINA - 1),
+          ]);
+          // Si lanzas dos consultas, miras dos errores.
+          if (cat.error) throw cat.error;
+          if (disp.error) throw disp.error;
+          for (const d of (disp.data as { id: number; disponible: number }[] | null) ?? []) libres.set(d.id, d.disponible);
+          const lote = (cat.data as unknown as ModeloVenta[] | null) ?? [];
           acumulado.push(...lote);
-          if (lote.length < TAMANO_PAGINA) break;
+          const dispLote = disp.data?.length ?? 0;
+          if (lote.length < TAMANO_PAGINA && dispLote < TAMANO_PAGINA) break;
         }
-        setModelos(acumulado);
+        setModelos(acumulado
+          .filter((m) => (libres.get(m.id) ?? 0) > 0)
+          .map((m) => ({ ...m, existencia_total: libres.get(m.id) ?? 0 })));
       } catch (e) {
         setError(mensajeDeError(e));
       } finally {
@@ -82,7 +100,7 @@ export function CatalogoPdf() {
       <div className="encabezado-pagina sin-impresion">
         <div>
           <h1>Catálogo</h1>
-          <p>Solo modelos con existencia. Imprime y elige "Guardar como PDF".</p>
+          <p>Solo lo que se puede pedir: sin lo apartado por pedidos. Imprime y elige "Guardar como PDF".</p>
         </div>
         <div>
           <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>

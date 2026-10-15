@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearBcv, formatearEntero, formatearFecha } from '../../lib/dinero';
+import { formatearBcv, formatearEntero, formatearFecha, sumarCifras } from '../../lib/dinero';
 import { codigoLegible, cuentaVendedora } from '../../lib/vendedoras';
 import type { CodigoNuevo } from '../../lib/vendedoras';
 import type { VendedoraAdmin } from '../../lib/tipos';
@@ -44,7 +44,7 @@ export function Vendedoras() {
   const totales = useMemo(() => ({
     hoy: lista.reduce((n, v) => n + Number(v.piezas_hoy), 0),
     mes: lista.reduce((n, v) => n + Number(v.piezas_mes), 0),
-    bcv: lista.reduce((n, v) => n + Number(v.total_mes_bcv), 0),
+    bcv: sumarCifras(lista.map((v) => Number(v.total_mes_bcv))),
     activas: lista.filter((v) => v.activo).length,
   }), [lista]);
 

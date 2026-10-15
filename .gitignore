@@ -8,6 +8,9 @@ dist/
 # scripts de verificacion desechables
 prueba-temporal.mjs
 
+# La cache de la herramienta de Supabase (version de la CLI y similares).
+supabase/.temp/
+
 # Correcciones de datos de una sola vez: llevan nombres de clientas, no son
 # parte de la instalacion y no se vuelven a correr.
 correccion-*.sql

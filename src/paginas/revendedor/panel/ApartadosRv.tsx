@@ -6,7 +6,7 @@ import { FilaPago, montoDePago, textoMetodo } from '../../../componentes/ListaAb
 import { PagoMovil } from '../../../componentes/PagoMovil';
 import { ReportarPago } from '../../../componentes/ReportarPago';
 import {
-  bsDeBcv, formatearBcv, formatearBs, formatearFecha, formatearFechaHora, precioEnBs, tiempoRestante,
+  bsDeBcv, formatearBcv, formatearBs, formatearFecha, formatearFechaHora, precioEnBs, restarCifras, sumarCifras, tiempoRestante,
 } from '../../../lib/dinero';
 import type { Tasas } from '../../../lib/dinero';
 import { urlPublicaFoto } from '../../../lib/fotos';
@@ -74,7 +74,7 @@ export function ApartadosRv() {
   if (cargando) return <Cargando texto="Buscando tus pedidos" />;
 
   const visibles = grupos[filtro];
-  const teDeben = grupos.deben.reduce((n, a) => n + Number(a.falta_usd), 0);
+  const teDeben = sumarCifras(grupos.deben.map((a) => Number(a.falta_usd)));
 
   return (
     <div className="pagina">
@@ -332,7 +332,7 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
           <span className="panel__titulo">Lo que le pagas a Lux</span>
           <p className="rv-apartado__lux" style={{ marginTop: 'var(--e-3)' }}>
             {formatearBcv(lux)}{tasa ? <>, hoy <strong>{formatearBs(precioEnBs(lux, tasa))}</strong></> : null}
-            {' · '}ganas <strong>{formatearBcv(total - lux)}</strong>
+            {' · '}ganas <strong>{formatearBcv(restarCifras(total, lux))}</strong>
           </p>
           {(a.pagos_lux ?? []).length > 0 ? (
             <ul className="abonos" style={{ marginTop: 'var(--e-3)' }}>

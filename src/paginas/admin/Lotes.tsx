@@ -1,10 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearBinance, formatearEntero, formatearFecha, formatearMonto, formatearTasa, previsualizarProrrateo } from '../../lib/dinero';
+import { formatearBinance, formatearEntero, formatearFecha, formatearMonto, formatearTasa, leerCifra, previsualizarProrrateo } from '../../lib/dinero';
 import type { LoteAdmin } from '../../lib/tipos';
 
-const HOY = () => new Date().toISOString().slice(0, 10);
+const dos = (n: number) => String(n).padStart(2, '0');
+/** Hoy en el reloj de quien carga el lote. toISOString() es UTC: desde las
+    8 de la noche de Venezuela ya decía mañana. */
+const HOY = () => { const d = new Date(); return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`; };
+
+/** Un monto como se escribe aquí: "1.200" son mil doscientos. Vacío es cero. */
+const monto = (texto: string) => (texto.trim() === '' ? 0 : leerCifra(texto, { cero: true }));
+/** Una cifra guardada, con coma decimal, para volver a escribirla. */
+const aCampo = (n: number) => String(n).replace('.', ',');
+
+const MONTOS = [
+  ['costo_mercancia_usd', 'Costo de mercancía'],
+  ['costo_exhibidores_usd', 'Costo de exhibidores'],
+  ['costo_flete_usd', 'Flete total'],
+] as const;
 
 const FORM_VACIO = {
   id: null as number | null,
@@ -49,9 +63,9 @@ export function Lotes() {
   useEffect(() => { void recargar(); }, [recargar]);
 
   const vistaPrevia = useMemo(() => previsualizarProrrateo({
-    costoMercanciaUsd: form.costo_mercancia_usd,
-    costoExhibidoresUsd: form.costo_exhibidores_usd,
-    costoFleteUsd: form.costo_flete_usd,
+    costoMercanciaUsd: monto(form.costo_mercancia_usd) ?? 0,
+    costoExhibidoresUsd: monto(form.costo_exhibidores_usd) ?? 0,
+    costoFleteUsd: monto(form.costo_flete_usd) ?? 0,
     piezasMercancia: form.piezas_mercancia,
     unidadesExhibidores: form.unidades_exhibidores,
   }), [form]);
@@ -66,9 +80,9 @@ export function Lotes() {
       codigo: l.codigo,
       fecha_llegada: l.fecha_llegada,
       tasa_binance_compra: String(l.tasa_binance_compra),
-      costo_mercancia_usd: String(l.costo_mercancia_usd),
-      costo_exhibidores_usd: String(l.costo_exhibidores_usd),
-      costo_flete_usd: String(l.costo_flete_usd),
+      costo_mercancia_usd: aCampo(l.costo_mercancia_usd),
+      costo_exhibidores_usd: aCampo(l.costo_exhibidores_usd),
+      costo_flete_usd: aCampo(l.costo_flete_usd),
       piezas_mercancia: String(l.piezas_mercancia),
       unidades_exhibidores: String(l.unidades_exhibidores),
       notas: l.notas ?? '',
@@ -80,18 +94,28 @@ export function Lotes() {
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
+    setExito(null);
+    /*
+      Los montos como se escriben aquí. Eran campos numéricos leídos con
+      Number(): "1.200" de flete eran 1,2 dólares, y como el flete se
+      reparte entre las piezas, abarataba el costo de todo el lote.
+    */
+    const malos = MONTOS.filter(([campo]) => monto(form[campo]) === null).map(([, etiqueta]) => etiqueta);
+    if (malos.length > 0) {
+      setError(`${malos.join(', ')}: escribe solo el número, por ejemplo 1.200 o 85,50.`);
+      return;
+    }
     setGuardando(true);
     setError(null);
-    setExito(null);
 
     const { error: err } = await supabase.rpc('admin_guardar_lote', {
       p_id: form.id,
       p_codigo: form.codigo,
       p_fecha_llegada: form.fecha_llegada,
       p_tasa_binance_compra: Number(form.tasa_binance_compra),
-      p_costo_mercancia_usd: Number(form.costo_mercancia_usd || 0),
-      p_costo_exhibidores_usd: Number(form.costo_exhibidores_usd || 0),
-      p_costo_flete_usd: Number(form.costo_flete_usd || 0),
+      p_costo_mercancia_usd: monto(form.costo_mercancia_usd),
+      p_costo_exhibidores_usd: monto(form.costo_exhibidores_usd),
+      p_costo_flete_usd: monto(form.costo_flete_usd),
       p_piezas_mercancia: Math.trunc(Number(form.piezas_mercancia || 0)),
       p_unidades_exhibidores: Math.trunc(Number(form.unidades_exhibidores || 0)),
       p_notas: form.notas || null,
@@ -172,13 +196,13 @@ export function Lotes() {
 
         <div className="fila">
           <Campo etiqueta="Costo de mercancía $" htmlFor="l-cm">
-            <input id="l-cm" type="number" step="0.0001" min="0" value={form.costo_mercancia_usd} onChange={(e) => cambiar('costo_mercancia_usd', e.target.value)} />
+            <input id="l-cm" type="text" inputMode="decimal" autoComplete="off" value={form.costo_mercancia_usd} onChange={(e) => cambiar('costo_mercancia_usd', e.target.value)} />
           </Campo>
           <Campo etiqueta="Costo de exhibidores $" htmlFor="l-ce" pista="Inversion de tienda. No entra al costo de las joyas.">
-            <input id="l-ce" type="number" step="0.0001" min="0" value={form.costo_exhibidores_usd} onChange={(e) => cambiar('costo_exhibidores_usd', e.target.value)} />
+            <input id="l-ce" type="text" inputMode="decimal" autoComplete="off" value={form.costo_exhibidores_usd} onChange={(e) => cambiar('costo_exhibidores_usd', e.target.value)} />
           </Campo>
           <Campo etiqueta="Flete total $" htmlFor="l-fl">
-            <input id="l-fl" type="number" step="0.0001" min="0" value={form.costo_flete_usd} onChange={(e) => cambiar('costo_flete_usd', e.target.value)} />
+            <input id="l-fl" type="text" inputMode="decimal" autoComplete="off" value={form.costo_flete_usd} onChange={(e) => cambiar('costo_flete_usd', e.target.value)} />
           </Campo>
         </div>
 

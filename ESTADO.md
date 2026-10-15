@@ -59,8 +59,8 @@ src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
                          panel, con su código. El panel viaja aparte.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             54 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    164 comprobaciones de seguridad (169 con LUX_REVENDEDOR).
+esquema*.sql             56 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    189 comprobaciones de seguridad (194 con LUX_REVENDEDOR).
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 
@@ -166,10 +166,24 @@ npm outdated
 npm audit --omit=dev
 ```
 
-Al día de hoy, cero vulnerabilidades. La que hay que vigilar de verdad es
-`@supabase/supabase-js`, porque es la que habla con la base y la que sostiene la
-sesión. Las mayores de `vite` y `typescript` no corren prisa: este proyecto no
-tiene tests, así que una mayor se prueba a mano o no se prueba.
+Al 14/10/2026, cero vulnerabilidades, también en las de desarrollo (`sharp`
+y `source-map-js` se subieron de parche ese día). La que hay que vigilar de
+verdad es `@supabase/supabase-js`, porque es la que habla con la base y la que
+sostiene la sesión. Las mayores de `vite` y `typescript` no corren prisa: este
+proyecto no tiene tests, así que una mayor se prueba a mano o no se prueba.
+
+**`uqr` va fijado en `0.1.2`, sin `^`.** Dibuja el QR de la vitrina. La 0.1.3
+salió en abril de 2026 después de dos años y medio sin versiones, y un paquete
+que despierta así es justo el patrón de una cuenta comprometida. Antes de
+subirlo: leer su código (es uno solo, `dist/index.mjs`) y buscar `fetch`,
+`eval` o `localStorage`, que hoy no tiene.
+
+**La política de seguridad de contenido** (`vite.config.ts`, solo al
+construir) dice que la página carga cosas de sí misma y del proyecto de
+Supabase, nada más. Si una dependencia nueva necesita otro origen (un CDN, un
+servicio de analítica), no va a funcionar en producción aunque funcione con
+`npm run dev`: hay que añadir el origen allí, sabiendo por qué. Así se descubrió
+que la compresión de fotos bajaba código de cdn.jsdelivr.net en cada subida.
 
 Después de subir cualquier dependencia: `npm run build`, entrar con las dos
 sesiones y abrir el catálogo público sin sesión.
@@ -218,6 +232,17 @@ vuelve a escribir su código. Si un revendedor deja de trabajar con la tienda, s
 **pausa** en Revendedores (su catálogo deja de verse y su sesión se cierra en el
 acto) o se le da **código nuevo** si cree que alguien vio el suyo. No se borra:
 sus apartados y ventas son histórico.
+
+**El conteo a medias.** Lo que la vendedora cuenta vive en su teléfono hasta que
+lo guarda, por ubicación. Si lo deja a medias más de 72 horas se descarta solo:
+la foto de lo que había ya no es la de hoy. Si cambia de teléfono, empieza otra
+vez.
+
+**Una versión nueva con el sistema abierto.** Al publicar, quien tenía una
+pantalla abierta conserva la versión vieja; al entrar a una pantalla que se
+carga aparte (Reportes, la vitrina), la página se recarga sola una vez
+(`LimiteDeError`). Si a los cinco minutos vuelve a fallar, deja el aviso con el
+botón Recargar en vez de entrar en un bucle.
 
 **Los apartados de revendedores.** Vencen solos a los 15 días y la pieza vuelve a
 la tienda; no hace falta hacer nada. Lo que sí conviene mirar de vez en cuando en

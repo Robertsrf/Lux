@@ -1,24 +1,26 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
-import { Aviso, Cargando, Vacio } from '../componentes/Piezas';
+import { Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
+import { CodigoQr } from '../componentes/CodigoQr';
+import { enlacePublico } from '../componentes/CompartirCatalogo';
 import { formatearBcv, formatearBs } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
 import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
-import type { Frase, ModeloVenta } from '../lib/tipos';
+import type { Frase, ModeloPublico } from '../lib/tipos';
+import '../estilos/vitrina.css';
 
 /**
  * Lo que la vitrina ensena de cada pieza. Sale de `v_disponible_publico`,
  * la vista del catalogo publico: sin sesion, sin costos, y sin lo que ya
  * esta apartado por un pedido.
  */
-type PiezaVitrina = Pick<ModeloVenta,
+type PiezaVitrina = Pick<ModeloPublico,
   'id' | 'sku' | 'nombre' | 'categoria' | 'variantes_nota' | 'foto_path' | 'foto_thumb_path'
-  | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante'>;
-import '../estilos/vitrina.css';
+  | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante' | 'disponible'>;
 
 const TAMANO_PAGINA = 500;
 const TOPE = 4000;
@@ -27,10 +29,51 @@ const OCULTAR_MS = 4000;
 /** Cada cuántas piezas entra una frase de marca. */
 const CADA = 4;
 const SEGUNDOS = [5, 8, 12, 20] as const;
+/**
+ * Cada cuánto vuelve a leer el catálogo. Un televisor se queda encendido
+ * toda la tarde: sin esto enseñaba piezas que ya se vendieron y, peor, los
+ * bolívares con la tasa de la mañana después de que la vendedora la
+ * cambiaba. La clienta veía un precio en la pantalla y le cobraban otro.
+ */
+const REFRESCAR_MS = 5 * 60_000;
+/** Si la primera carga falla, se vuelve a probar sola: nadie mira el televisor. */
+const REINTENTOS_MS = [15_000, 30_000, 60_000, 120_000, 300_000];
+/** Si el QR va en pantalla, por televisor. */
+const CLAVE_QR = 'lux-vitrina-qr';
 
 type Diapositiva =
   | { tipo: 'pieza'; familia: Familia<PiezaVitrina>; n: number }
-  | { tipo: 'frase'; frase: Frase };
+  | { tipo: 'frase'; frase: Frase; n: number };
+
+const claveDe = (d: Diapositiva) => (d.tipo === 'pieza' ? `p${d.familia.clave}` : `f${d.n}`);
+
+/**
+ * Las categorias, una pieza de cada una por turno. Ordenado por categoria,
+ * el televisor pasaba cuarenta anillos seguidos antes del primer arete: la
+ * clienta que entra ve solo un tipo de pieza.
+ */
+function intercalar<T extends { categoria: string | null }>(familias: Familia<T>[]): Familia<T>[] {
+  const porCategoria = new Map<string, Familia<T>[]>();
+  for (const f of familias) {
+    const c = f.cabeza.categoria ?? '';
+    const cola = porCategoria.get(c) ?? [];
+    cola.push(f);
+    porCategoria.set(c, cola);
+  }
+  const colas = [...porCategoria.values()];
+  const salida: Familia<T>[] = [];
+  while (salida.length < familias.length) {
+    for (const cola of colas) {
+      const f = cola.shift();
+      if (f) salida.push(f);
+    }
+  }
+  return salida;
+}
+
+const leerQr = () => {
+  try { return localStorage.getItem(CLAVE_QR) !== 'no'; } catch { return true; }
+};
 
 /**
  * Vitrina: el catalogo pasando solo, para dejarlo puesto en un televisor.
@@ -44,6 +87,10 @@ type Diapositiva =
  * mismas de la Guia del Colaborador, recortadas: lo que la vendedora diria
  * de viva voz, dicho por la pantalla mientras ella atiende a otra clienta.
  *
+ * Y en la esquina, el QR del catalogo en linea: la clienta que espera lo
+ * abre en su telefono y arma su pedido ahi. Se puede quitar desde los
+ * controles.
+ *
  * Se abre SIN SESION, como el catalogo: en el televisor basta con el
  * enlace. Por eso lee `v_disponible_publico`, la vista del catalogo
  * publico, y no la del mostrador: no ensena nada que no este ya en el
@@ -55,48 +102,92 @@ export function Vitrina() {
   const [modelos, setModelos] = useState<PiezaVitrina[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actualizada, setActualizada] = useState<Date | null>(null);
+  const [sinRed, setSinRed] = useState(false);
+  const [reintento, setReintento] = useState(0);
 
   const [indice, setIndice] = useState(0);
   const [pausado, setPausado] = useState(false);
   const [segundos, setSegundos] = useState<number>(8);
   const [controles, setControles] = useState(true);
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
+  const [conQr, setConQr] = useState(leerQr);
 
   const temporizadorOcultar = useRef<number | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
+  const claveActual = useRef<string | null>(null);
+  const hayDatos = useRef(false);
 
-  useEffect(() => {
-    void (async () => {
-      setCargando(true);
-      const acumulado: PiezaVitrina[] = [];
-      try {
-        for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
-          const { data, error: err } = await supabase
-            .from('v_disponible_publico')
-            .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante')
-            .order('categoria', { ascending: true })
-            .order('nombre', { ascending: true })
-            .range(desde, desde + TAMANO_PAGINA - 1);
-          if (err) throw err;
-          const lote = (data as unknown as PiezaVitrina[] | null) ?? [];
-          acumulado.push(...lote);
-          if (lote.length < TAMANO_PAGINA) break;
-        }
-        setModelos(acumulado);
-      } catch (e) {
-        setError(mensajeDeError(e));
-      } finally {
-        setCargando(false);
+  /**
+   * Lee el catalogo. La primera vez enseña "Preparando"; las siguientes son
+   * en silencio y, si fallan, se queda lo que ya se veia: una pantalla de
+   * error en la tienda es peor que un catalogo de hace cinco minutos.
+   */
+  const cargar = useCallback(async () => {
+    const acumulado: PiezaVitrina[] = [];
+    try {
+      for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
+        const { data, error: err } = await supabase
+          .from('v_disponible_publico')
+          .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante, disponible')
+          .order('categoria', { ascending: true })
+          .order('nombre', { ascending: true })
+          .order('id', { ascending: true })
+          .range(desde, desde + TAMANO_PAGINA - 1);
+        if (err) throw err;
+        const lote = (data as unknown as PiezaVitrina[] | null) ?? [];
+        acumulado.push(...lote);
+        if (lote.length < TAMANO_PAGINA) break;
       }
-    })();
+      setModelos(acumulado);
+      setError(null);
+      setSinRed(false);
+      setReintento(0);
+      setActualizada(new Date());
+      hayDatos.current = true;
+    } catch (e) {
+      if (hayDatos.current) setSinRed(true);
+      else { setError(mensajeDeError(e)); setReintento((n) => n + 1); }
+    } finally {
+      setCargando(false);
+    }
   }, []);
+
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  // Cada cinco minutos, y al volver a la pestaña si ya pasó un rato.
+  useEffect(() => {
+    const id = window.setInterval(() => void cargar(), REFRESCAR_MS);
+    const alVolver = () => {
+      if (document.visibilityState !== 'visible') return;
+      const hace = actualizada ? Date.now() - actualizada.getTime() : Infinity;
+      if (hace > 60_000) void cargar();
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', alVolver); };
+  }, [cargar, actualizada]);
+
+  // Si la primera carga falló, otra vez, cada vez más espaciado.
+  useEffect(() => {
+    if (!error || reintento === 0) return;
+    const espera = REINTENTOS_MS[Math.min(reintento - 1, REINTENTOS_MS.length - 1)]!;
+    const id = window.setTimeout(() => void cargar(), espera);
+    return () => window.clearTimeout(id);
+  }, [error, reintento, cargar]);
 
   // Un producto con variantes es UNA pantalla, con sus medidas y sus
   // precios: dos pantallas seguidas con la misma cadena parecerian un error.
-  const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
+  //
+  // Sin foto no sale: en un televisor, una pieza sin foto es una pantalla
+  // vacia con un precio. Si ninguna tiene foto, salen todas.
+  const familias = useMemo(() => {
+    const todas = agruparPorFamilia(modelos);
+    const conFotos = todas.filter((f) => f.variantes.some((v) => v.foto_path || v.foto_thumb_path));
+    return intercalar(conFotos.length > 0 ? conFotos : todas);
+  }, [modelos]);
 
   // El guion: piezas con una frase cada CADA. Si no hay frases cargadas
-  // queda solo el catalogo, que es como estaba antes.
+  // queda solo el catalogo.
   const guion = useMemo<Diapositiva[]>(() => {
     const salida: Diapositiva[] = [];
     familias.forEach((familia, i) => {
@@ -104,7 +195,8 @@ export function Vitrina() {
       if (secuencia.length > 0 && (i + 1) % CADA === 0 && i + 1 < familias.length) {
         // La secuencia ya viene alternada por categoria y sin repetir:
         // recorrerla en orden cumple las dos reglas del banco.
-        salida.push({ tipo: 'frase', frase: secuencia[Math.floor(i / CADA) % secuencia.length]! });
+        const n = Math.floor(i / CADA);
+        salida.push({ tipo: 'frase', frase: secuencia[n % secuencia.length]!, n });
       }
     });
     return salida;
@@ -112,6 +204,18 @@ export function Vitrina() {
 
   const total = guion.length;
   const actual = total > 0 ? guion[indice % total] : null;
+
+  // Al refrescar, la pantalla sigue en la pieza que estaba: el guion nuevo
+  // la busca por su clave. Si se vendio, sigue desde el mismo sitio. Va
+  // antes del efecto que recuerda la clave, a proposito: tiene que leer la
+  // de antes del cambio.
+  useEffect(() => {
+    const clave = claveActual.current;
+    if (!clave) return;
+    const i = guion.findIndex((d) => claveDe(d) === clave);
+    if (i >= 0) setIndice(i);
+  }, [guion]);
+  useEffect(() => { claveActual.current = actual ? claveDe(actual) : null; }, [actual]);
 
   const avanzar = useCallback((paso: number) => {
     setIndice((i) => (total > 0 ? (i + paso + total) % total : 0));
@@ -137,17 +241,28 @@ export function Vitrina() {
   }, [indice, guion, total]);
 
   // Un televisor puesto toda la tarde se apaga solo. Donde el navegador lo
-  // permita se le pide que no lo haga; donde no, no pasa nada.
+  // permita se le pide que no lo haga. El permiso se pierde cada vez que la
+  // pestaña se esconde (cambiar de entrada en el televisor, por ejemplo):
+  // se vuelve a pedir al volver. Antes se pedía una sola vez.
   useEffect(() => {
     let candado: WakeLockSentinel | null = null;
     let vivo = true;
-    void (async () => {
+    const pedir = async () => {
+      if (document.visibilityState !== 'visible' || candado) return;
       try {
-        candado = await navigator.wakeLock?.request('screen');
+        candado = await navigator.wakeLock?.request('screen') ?? null;
+        candado?.addEventListener('release', () => { candado = null; });
         if (!vivo) { void candado?.release(); candado = null; }
       } catch { /* el navegador no quiso: la vitrina funciona igual */ }
-    })();
-    return () => { vivo = false; void candado?.release(); };
+    };
+    void pedir();
+    const alVolver = () => { void pedir(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => {
+      vivo = false;
+      document.removeEventListener('visibilitychange', alVolver);
+      void candado?.release();
+    };
   }, []);
 
   const mostrarControles = useCallback(() => {
@@ -168,6 +283,14 @@ export function Vitrina() {
         else await contenedor.current?.requestFullscreen();
       } catch { /* algunos navegadores lo niegan sin gesto directo */ }
     })();
+  }, []);
+
+  const alternarQr = useCallback(() => {
+    setConQr((antes) => {
+      const ahora = !antes;
+      try { localStorage.setItem(CLAVE_QR, ahora ? 'si' : 'no'); } catch { /* solo esta vez */ }
+      return ahora;
+    });
   }, []);
 
   useEffect(() => {
@@ -193,6 +316,8 @@ export function Vitrina() {
     return portada ? urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path) : null;
   }, [actual]);
 
+  const enlace = useMemo(() => enlacePublico(), []);
+
   // Las claves de todas las variantes, sin repetir: "V1 · BG".
   const claves = actual?.tipo === 'pieza'
     ? [...new Set(actual.familia.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ')
@@ -207,10 +332,6 @@ export function Vitrina() {
     pueden seguir sin caber. Aqui se mide lo que de verdad se dibujo y, si
     la ficha se pasa de la pantalla, se baja su letra (--escala) hasta que
     entra entera. Antes de pintar, para que no se vea el salto.
-
-    Se mide y no se calcula porque no se sabe cuanto ocupa un nombre hasta
-    que el navegador lo parte en renglones, y cada televisor lo hace a su
-    manera.
   */
   useLayoutEffect(() => {
     const raiz = contenedor.current;
@@ -235,7 +356,19 @@ export function Vitrina() {
   }, [indice, total, cargando]);
 
   if (cargando) return <Cargando texto="Preparando la vitrina" />;
-  if (error) return <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso>;
+  if (error && total === 0) {
+    // En verde, a pantalla completa y sin botones: es lo que se ve desde la
+    // tienda mientras vuelve la conexion. Se reintenta sola.
+    return (
+      <div className="vitrina vitrina--espera">
+        <div className="vitrina__espera">
+          <Wordmark alto={64} tono="crema" />
+          <p>Volviendo a conectar con el catálogo…</p>
+          <p className="vitrina__espera-detalle">{error}</p>
+        </div>
+      </div>
+    );
+  }
   if (total === 0) {
     return (
       <Vacio titulo="No hay piezas que mostrar">
@@ -247,7 +380,7 @@ export function Vitrina() {
   return (
     <div
       ref={contenedor}
-      className={`vitrina ${controles ? '' : 'vitrina--limpia'}`}
+      className={['vitrina', controles ? '' : 'vitrina--limpia', conQr ? 'vitrina--con-qr' : ''].filter(Boolean).join(' ')}
       onMouseMove={mostrarControles}
       onTouchStart={mostrarControles}
     >
@@ -255,9 +388,10 @@ export function Vitrina() {
         <Wordmark alto={48} tono="crema" />
       </div>
 
-      {/* Cada diapositiva es su propia key: React la reemplaza en vez de
-          reusarla, y asi la animacion de entrada corre en cada cambio. */}
-      <div className="vitrina__escena" key={indice}>
+      {/* La clave de React es la de la diapositiva, no su posicion: al
+          refrescar el catalogo la pieza que se esta viendo no se vuelve a
+          animar como si fuera nueva. */}
+      <div className="vitrina__escena" key={actual ? claveDe(actual) : indice}>
         {actual?.tipo === 'frase' ? (
           <div className="vitrina__frase">
             <div className="vitrina__regla" aria-hidden="true">
@@ -279,11 +413,20 @@ export function Vitrina() {
         ) : null}
       </div>
 
+      {/* El catalogo en el telefono de quien mira. Fuera de la ficha y
+          dentro del margen de seguridad: no se va con los controles,
+          porque es para la clienta. */}
+      {conQr ? (
+        <div className="vitrina__qr">
+          <CodigoQr className="vitrina__qr-codigo" texto={enlace} etiqueta="Código QR del catálogo en línea" />
+          <p className="vitrina__qr-texto">Pide desde tu teléfono</p>
+        </div>
+      ) : null}
 
       {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
           sabe leerlo desde su puesto; la clienta ve una referencia y sigue
-          de largo. Va fuera de la ficha y se queda aunque se vayan los
-          controles, porque es para trabajar, no para vender. */}
+          de largo. Se queda aunque se vayan los controles, porque es para
+          trabajar, no para vender. */}
       {claves ? <p className="vitrina__clave">{claves}</p> : null}
 
       {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
@@ -316,11 +459,24 @@ export function Vitrina() {
               {s}s
             </button>
           ))}
+          <button
+            type="button"
+            className="boton boton--secundario boton--pequeno"
+            aria-pressed={conQr}
+            onClick={alternarQr}
+          >
+            QR
+          </button>
         </div>
 
         <div className="vitrina__grupo">
           <span className="vitrina__cuenta">
             {actual?.tipo === 'pieza' ? `Pieza ${actual.n} de ${familias.length}` : 'Lux by Emory'}
+            {/* Si se cayo la red, se sigue mostrando lo ultimo que llego, y
+                se dice desde cuando. */}
+            {sinRed && actualizada
+              ? ` · sin conexión desde las ${actualizada.toLocaleTimeString('es-VE', { hour: 'numeric', minute: '2-digit' })}`
+              : ''}
           </span>
           <button type="button" className="boton boton--confirmar" onClick={alternarPantallaCompleta}>
             {pantallaCompleta ? 'Salir' : 'Pantalla completa'}
@@ -350,6 +506,8 @@ function FichaVitrina({ familia, foto, materiales }: {
   const nota = varias
     ? (mismoPrecio ? etiquetasDe(familia) : null)
     : [cabeza.variante, cabeza.variantes_nota].filter(Boolean).join(' · ') || null;
+  // Lo mismo que dice el catalogo en linea ("Queda 1"), dicho de lejos.
+  const ultima = variantes.reduce((n, v) => n + v.disponible, 0) === 1;
 
   return (
     <div className="vitrina__pieza">
@@ -388,6 +546,7 @@ function FichaVitrina({ familia, foto, materiales }: {
           </>
         )}
 
+        {ultima ? <p className="vitrina__ultima">Última pieza</p> : null}
         {materiales ? <p className="vitrina__materiales">{materiales}</p> : null}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aviso, Campo, Cargando, Vacio } from '../../../componentes/Piezas';
-import { bsDeBcv, formatearBcv, formatearBs, formatearFecha } from '../../../lib/dinero';
+import { bsDeBcv, formatearBcv, formatearBs, formatearFecha, sumarCifras } from '../../../lib/dinero';
 import { enlaceWhatsApp, rpcRv } from '../../../lib/revendedor';
 import { useTasa } from '../../../hooks/useTasa';
 import type { ClienteRevendedor } from '../../../lib/tipos';
@@ -49,7 +49,7 @@ export function ClientesRv() {
       || (digitos.length >= 3 && ((c.cedula ?? '').replace(/\D/g, '').includes(digitos) || (c.telefono ?? '').replace(/\D/g, '').includes(digitos))));
   }, [lista, buscar]);
 
-  const deuda = useMemo(() => lista.reduce((s, c) => s + Number(c.falta_usd), 0), [lista]);
+  const deuda = useMemo(() => sumarCifras(lista.map((c) => Number(c.falta_usd))), [lista]);
 
   async function guardar() {
     if (!borrador) return;

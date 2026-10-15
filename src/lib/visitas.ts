@@ -38,6 +38,9 @@ function visitante(): string {
 
 /** La llama el catálogo al abrirse. Si falla, la clienta no se entera. */
 export function registrarVisita(): void {
+  // Abrir el catálogo en desarrollo (npm run dev) lee la base de verdad:
+  // sin esto, cada prueba contaba como una clienta.
+  if (import.meta.env.DEV) return;
   void (async () => {
     try {
       await supabase.rpc('registrar_visita', { p_visitante: visitante() });

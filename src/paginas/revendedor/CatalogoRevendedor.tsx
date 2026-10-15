@@ -10,7 +10,7 @@ import { enlaceCatalogoRv, enlaceWhatsApp } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
 import { useTemaRv } from '../../hooks/useTemaRv';
-import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
+import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
@@ -19,6 +19,8 @@ import type { ModeloRevendedor, PerfilRevendedor } from '../../lib/tipos';
 import '../../estilos/revendedor.css';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, familia, variante';
+/** Cuántas piezas trae de una vez. Si llega al tope, se dice. */
+const LIMITE = 400;
 
 /**
  * El catálogo de un revendedor: /#/r/<usuario>. Lo abre su clienta desde el
@@ -41,6 +43,12 @@ export function CatalogoRevendedor() {
   const [perfil, setPerfil] = useState<PerfilRevendedor | null>(null);
   const [perfilListo, setPerfilListo] = useState(false);
   const [modelos, setModelos] = useState<ModeloRevendedor[]>([]);
+  // Todas las piezas que se han visto, no solo las de la búsqueda actual,
+  // como en el catálogo de la tienda. Antes salía de `modelos`: si la
+  // clienta agregaba un anillo y después buscaba "cadena", el anillo
+  // dejaba de sumar en la barra y desaparecía de "Tu apartado", aunque se
+  // mandaba igual al apartar.
+  const [porId, setPorId] = useState<Map<number, ModeloRevendedor>>(new Map());
   const [categorias, setCategorias] = useState<string[]>([]);
   const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
   const [texto, setTexto] = useState('');
@@ -54,7 +62,6 @@ export function CatalogoRevendedor() {
   const [apartando, setApartando] = useState(false);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   const visor = useVisorFoto();
-  const esDobleToque = useDobleToque();
 
   useTemaRv(perfil?.paleta);
   const primerNombre = perfil?.nombre.trim().split(/\s+/)[0] ?? '';
@@ -92,15 +99,21 @@ export function CatalogoRevendedor() {
       .select(COLUMNAS)
       .order('categoria', { ascending: true })
       .order('nombre', { ascending: true })
-      .limit(400);
+      .limit(LIMITE);
     if (categoria) consulta = consulta.eq('categoria', categoria);
     if (texto.trim()) {
-      const t = texto.trim().replace(/[%,()]/g, ' ');
+      const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
       consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
     }
     const { data, error: err } = await consulta;
     if (err) setError(mensajeDeError(err));
-    setModelos((data as unknown as ModeloRevendedor[] | null) ?? []);
+    const filas = (data as unknown as ModeloRevendedor[] | null) ?? [];
+    setModelos(filas);
+    setPorId((antes) => {
+      const copia = new Map(antes);
+      for (const f of filas) copia.set(f.id, f);
+      return copia;
+    });
     setCargando(false);
   }, [usuario, texto, categoria]);
 
@@ -108,8 +121,6 @@ export function CatalogoRevendedor() {
     const t = setTimeout(() => void cargar(), texto ? 300 : 0);
     return () => clearTimeout(t);
   }, [cargar, texto]);
-
-  const porId = useMemo(() => new Map(modelos.map((m) => [m.id, m])), [modelos]);
 
   const resumen = useMemo(() => {
     let piezas = 0;
@@ -149,19 +160,8 @@ export function CatalogoRevendedor() {
   );
   const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
 
-  function agregar(m: ModeloRevendedor) {
-    setSeleccion((prev) => {
-      const ahora = prev.get(m.id) ?? 0;
-      if (ahora >= m.disponible) return prev;
-      const copia = new Map(prev);
-      copia.set(m.id, ahora + 1);
-      return copia;
-    });
-  }
-
   function agregarPorId(id: number) {
-    const m = porId.get(id);
-    if (m) agregar(m);
+    cambiar(id, (seleccion.get(id) ?? 0) + 1);
   }
 
   function cambiar(modeloId: number, cantidad: number) {
@@ -177,19 +177,6 @@ export function CatalogoRevendedor() {
   function verFoto(f: Familia<ModeloRevendedor>) {
     const ficha = fichas.find((x) => x.clave === f.clave);
     if (ficha) visor.abrir(ficha, fichas);
-  }
-
-  /** Un toque suma; dos seguidos abren el detalle y deshacen el primero. */
-  function alTocar(f: Familia<ModeloRevendedor>) {
-    if (f.variantes.length > 1) { setFamiliaAbierta(f.clave); return; }
-    const m = f.cabeza;
-    if (esDobleToque(m.id)) {
-      const puestas = seleccion.get(m.id) ?? 0;
-      if (puestas > 0) cambiar(m.id, puestas - 1);
-      verFoto(f);
-      return;
-    }
-    agregar(m);
   }
 
   async function apartar() {
@@ -342,7 +329,7 @@ export function CatalogoRevendedor() {
           <div>
             <h1>Catálogo</h1>
             <p>
-              Toca las piezas que te gusten y apártalas.
+              Agrega las piezas que te gusten y apártalas; toca una para verla de cerca.
               {perfil.dias_credito ? ` Puedes pagarlas por partes en ${perfil.dias_credito} días.` : ''}
             </p>
           </div>
@@ -389,55 +376,84 @@ export function CatalogoRevendedor() {
               const bs = rangoDe(f.variantes, (v) => v.precio_bs);
               const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
               const etiquetas = etiquetasDe(f);
+              const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
+              /*
+                Como el catálogo de la tienda desde el 14/10/2026: tocar la
+                pieza abre su detalle, y "Agregar" va en su propio botón. Antes
+                la tarjeta entera era un botón con la lupa DENTRO (un botón en
+                otro, que el lector de pantalla no sabe anunciar) y un toque
+                agregaba y dos abrían el detalle.
+              */
               return (
-                <button
-                  key={f.clave}
-                  type="button"
-                  className="tarjeta-modelo"
-                  disabled={agotado}
-                  onClick={() => alTocar(f)}
-                  aria-haspopup={unica ? undefined : 'dialog'}
-                  aria-label={unica
-                    ? `Agregar ${nombreConVariante(m.nombre, m.variante)} al apartado`
-                    : `Elegir cuál de ${m.nombre}: ${etiquetas}`}
-                >
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="lupa"
-                    aria-label={`Ver en detalle ${m.nombre}`}
-                    onClick={(e) => { e.stopPropagation(); verFoto(f); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); verFoto(f); } }}
+                <article key={f.clave} className="tarjeta-modelo">
+                  <button
+                    type="button"
+                    className="tarjeta-modelo__principal"
+                    onClick={() => verFoto(f)}
+                    aria-label={`Ver de cerca ${nombre}`}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true">
-                      <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" />
-                    </svg>
-                  </span>
-                  {foto
-                    ? <img className="tarjeta-modelo__foto" {...foto} alt={m.nombre} loading="lazy" />
-                    : <span className="tarjeta-modelo__foto" />}
-                  <span className="tarjeta-modelo__cuerpo">
-                    <span className="tarjeta-modelo__nombre">{m.nombre}</span>
-                    {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
-                    {textos.materiales_corto ? <span className="tarjeta-modelo__material">{textos.materiales_corto}</span> : null}
-                    {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
-                    {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
-                    <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
-                    <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
-                    <span className="tarjeta-modelo__pie">
-                      <span className="tarjeta-modelo__datos">
-                        <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                          Quedan {quedan}
+                    {foto
+                      ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
+                      : <span className="tarjeta-modelo__foto" />}
+                    <span className="tarjeta-modelo__cuerpo">
+                      <span className="tarjeta-modelo__nombre">{m.nombre}</span>
+                      {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
+                      {textos.materiales_corto ? <span className="tarjeta-modelo__material">{textos.materiales_corto}</span> : null}
+                      {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
+                      {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
+                      <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
+                      <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
+                      <span className="tarjeta-modelo__pie">
+                        <span className="tarjeta-modelo__datos">
+                          <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
+                            {quedan === 1 ? 'Queda 1' : `Quedan ${quedan}`}
+                          </span>
                         </span>
                       </span>
-                      {puestas > 0 ? <span className="tarjeta-modelo__contador">{puestas}</span> : null}
                     </span>
-                  </span>
-                </button>
+                  </button>
+
+                  <div className="tarjeta-modelo__accion">
+                    {!unica ? (
+                      <button
+                        type="button"
+                        className="boton boton--secundario tarjeta-modelo__agregar"
+                        onClick={() => setFamiliaAbierta(f.clave)}
+                        aria-haspopup="dialog"
+                        aria-label={`Elegir cuál de ${m.nombre}: ${etiquetas}`}
+                      >
+                        {puestas > 0 ? `Llevas ${puestas} · elegir` : 'Elegir'}
+                      </button>
+                    ) : puestas > 0 ? (
+                      <div className="contador contador--tarjeta">
+                        <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(m.id, puestas - 1)}>&minus;</button>
+                        <span className="contador__valor" aria-live="polite">{puestas}</span>
+                        <button type="button" aria-label={`Agregar otra de ${nombre}`} disabled={agotado} onClick={() => cambiar(m.id, puestas + 1)}>+</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="boton boton--secundario tarjeta-modelo__agregar"
+                        onClick={() => agregarPorId(m.id)}
+                        disabled={agotado}
+                        aria-label={`Agregar ${nombre} al apartado`}
+                      >
+                        Agregar
+                      </button>
+                    )}
+                  </div>
+                </article>
               );
             })}
           </div>
         )}
+
+        {/* Antes cortaba en 400 sin decirlo: la pieza 401 no salía nunca. */}
+        {!cargando && modelos.length >= LIMITE ? (
+          <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
+            Se ven las primeras {LIMITE} piezas. Busca por nombre o elige una categoría para ver las demás.
+          </p>
+        ) : null}
 
         <VisorFoto
           {...visor.props}

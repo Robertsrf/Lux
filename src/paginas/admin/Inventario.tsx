@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Cargando, Campo, Vacio, Filtros } from '../../componentes/Piezas';
@@ -6,18 +6,46 @@ import {
   aMonto, binanceDesdeBs, deMonto, formatearBcv, formatearBinance, formatearBs, formatearMonto,
   formatearPorcentaje, porCantidad, rebajaMaximaPct, sumar,
 } from '../../lib/dinero';
-import { urlPublicaFoto } from '../../lib/fotos';
+import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import type { Familia } from '../../lib/familias';
 import { useTextos } from '../../hooks/useTextos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { MoverUbicacion } from '../../componentes/MoverUbicacion';
+import { MiniaturaTocable } from '../../componentes/MiniaturaTocable';
 import { Icono } from '../../componentes/Iconos';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
 import type { ModeloAdmin } from '../../lib/tipos';
 
+/**
+ * Una cifra de las medidas de un producto: "Bs 700,00 – Bs 950,00", o una
+ * sola si todas valen lo mismo. La más baja y la más alta, nunca un
+ * promedio: no hay ninguna pieza que cueste eso.
+ */
+function rango(filas: ModeloAdmin[], valor: (m: ModeloAdmin) => number | null | undefined, formato: (n: number | null) => string): string {
+  const { min, max } = rangoDe(filas, valor);
+  if (min === null || max === null) return formato(null);
+  return min === max ? formato(min) : `${formato(min)} – ${formato(max)}`;
+}
+
+/** "desde Bs 700,00", o la cifra sola si todas las medidas valen lo mismo. */
+function desde(filas: ModeloAdmin[], valor: (m: ModeloAdmin) => number | null | undefined, formato: (n: number | null) => string): string {
+  const { min, max } = rangoDe(filas, valor);
+  return min !== null && max !== null && min !== max ? `desde ${formato(min)}` : formato(min);
+}
+
+/** El grupo o el lote, si todas las medidas comparten uno. */
+function unico(valores: (string | null)[]): string {
+  const distintos = [...new Set(valores.map((v) => v ?? '—'))];
+  return distintos.length === 1 ? distintos[0]! : 'varios';
+}
+
+function tieneMinimo(m: ModeloAdmin): boolean {
+  return m.precio_minimo_bs != null && m.precio_bs != null && m.precio_minimo_bs < m.precio_bs;
+}
 
 /**
  * Vista de inventario del administrador: densa, tabular, para comparar cifras.
@@ -33,9 +61,11 @@ export function Inventario() {
   const [filtros, setFiltros] = useState<FiltrosInventario>(FILTROS_VACIOS);
   const [pagina, setPagina] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  // La pieza que se esta moviendo de ubicacion, si hay una.
-  const [moviendo, setMoviendo] = useState<ModeloAdmin | null>(null);
+  // Lo que se está moviendo de ubicación: una pieza, o las medidas de un producto.
+  const [moviendo, setMoviendo] = useState<ModeloAdmin[] | null>(null);
   const [movido, setMovido] = useState<string | null>(null);
+  // Los productos con medidas que están abiertos.
+  const [abiertas, setAbiertas] = useState<Set<number>>(new Set());
   const [lotes, setLotes] = useState<{ id: number; codigo: string }[]>([]);
   const visor = useVisorFoto();
 
@@ -49,7 +79,7 @@ export function Inventario() {
   const { grupos } = useGrupos();
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
-  const { modelos, existencias, total, cargando, error: errorCarga, recargar } = useInventario(filtros, pagina);
+  const { modelos, existencias, apartadas, total, cargando, error: errorCarga, recargar } = useInventario(filtros, pagina);
 
   useEffect(() => {
     void (async () => {
@@ -95,7 +125,19 @@ export function Inventario() {
   }
 
   async function desactivar(id: number, nombre: string) {
-    if (!window.confirm(`Retirar "${nombre}" del catálogo? Sus ventas pasadas se conservan.`)) return;
+    const m = modelos.find((x) => x.id === id);
+    const hay = m?.existencia_total ?? 0;
+    const deUnPedido = apartadas.get(id) ?? 0;
+    if (deUnPedido > 0) {
+      setError(`"${nombre}" tiene ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'} por pedidos. Entrega o cancela esos pedidos en Pedidos y después retírala.`);
+      return;
+    }
+    // Retirar no saca las piezas de la tienda: dejan de verse en el
+    // mostrador y en el catálogo, pero siguen en el cierre del día.
+    const aviso = hay > 0
+      ? `\n\nTodavía hay ${hay} pieza${hay === 1 ? '' : 's'} en la tienda: dejarán de verse en el mostrador y en el catálogo, pero siguen contando en el cierre del día. Si ya no están, pon su existencia en cero antes de retirarla.`
+      : '';
+    if (!window.confirm(`Retirar "${nombre}" del catálogo? Sus ventas pasadas se conservan.${aviso}`)) return;
     const { error: err } = await supabase.rpc('admin_desactivar_modelo', { p_id: id });
     if (err) setError(mensajeDeError(err));
     else await recargar();
@@ -131,13 +173,26 @@ export function Inventario() {
     };
   }, [modelos, tasa?.tasa_venta]);
 
-  // El detalle pasa de pieza en pieza por la pagina que se esta viendo.
-  const fichas = useMemo<FotoAmpliada[]>(() => modelos.map((m) => ({
-    clave: m.id,
-    nombre: m.nombre,
-    categoria: m.categoria,
+  /*
+    UN PRODUCTO, UNA FILA.
+
+    La cadena de 45 cm y la de 60 cm salían como dos productos, uno debajo
+    del otro, y el dueño no sabía si tenía dos cadenas o una con dos
+    medidas. Ahora el producto ocupa una fila (con sus cifras de la medida
+    más baja a la más alta y la existencia sumada) y sus medidas se abren
+    debajo. La página son cincuenta productos (`useInventario`), así que
+    una familia nunca queda partida entre dos páginas.
+  */
+  const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
+
+  // El detalle pasa de producto en producto por la página, y dentro de
+  // cada uno se elige la medida, como en el mostrador.
+  const fichas = useMemo<FotoAmpliada[]>(() => familias.map((f) => ({
+    clave: f.clave,
+    nombre: f.cabeza.nombre,
+    categoria: f.cabeza.categoria,
     materiales: textos.materiales_corto ?? null,
-    variantes: [{
+    variantes: f.variantes.map((m) => ({
       id: m.id,
       etiqueta: m.variante,
       sku: m.sku,
@@ -146,14 +201,333 @@ export function Inventario() {
       bs: m.precio_bs,
       bcv: m.precio_usd,
       binance: binanceDesdeBs(m.precio_bs, tasa?.tasa_venta),
-      quedan: m.existencia_total,
+      // Lo que se puede vender, como en el mostrador: sin lo apartado.
+      quedan: Math.max(0, m.existencia_total - (apartadas.get(m.id) ?? 0)),
       nota: m.variantes_nota,
-    }],
-  })), [modelos, textos.materiales_corto, tasa?.tasa_venta]);
+    })),
+  })), [familias, apartadas, textos.materiales_corto, tasa?.tasa_venta]);
 
-  function verFoto(id: number) {
-    const ficha = fichas.find((f) => f.clave === id);
-    if (ficha) visor.abrir(ficha, fichas);
+  /** Abre el producto; si se tocó la foto de una medida, en esa medida. */
+  function verFoto(familia: number, varianteId?: number) {
+    const lista = varianteId === undefined
+      ? fichas
+      : fichas.map((f) => (f.clave === familia ? { ...f, inicial: varianteId } : f));
+    const ficha = lista.find((f) => f.clave === familia);
+    if (ficha) visor.abrir(ficha, lista);
+  }
+
+  function alternar(familia: number) {
+    setAbiertas((antes) => {
+      const despues = new Set(antes);
+      if (despues.has(familia)) despues.delete(familia); else despues.add(familia);
+      return despues;
+    });
+  }
+
+  /** "Bóveda: 3 · Vitrina 1: 2", sumando las medidas que se pidan. */
+  function detalleUbicaciones(ids: number[]): string {
+    const suma = new Map<number, number>();
+    for (const id of ids) {
+      for (const e of existencias.get(id) ?? []) {
+        if (e.cantidad > 0) suma.set(e.ubicacion_id, (suma.get(e.ubicacion_id) ?? 0) + e.cantidad);
+      }
+    }
+    return [...suma]
+      .map(([u, n]) => `${ubicaciones.find((x) => x.id === u)?.nombre ?? 'Ubicación'}: ${n}`)
+      .join(' · ');
+  }
+
+  function textoApartadas(n: number): string {
+    return `${n} apartada${n === 1 ? '' : 's'} por pedidos`;
+  }
+
+  function botonMover(piezas: ModeloAdmin[], etiqueta = 'Mover') {
+    const conPiezas = piezas.filter((m) => m.existencia_total > 0);
+    return (
+      <button
+        type="button"
+        className="boton boton--secundario boton--pequeno"
+        disabled={conPiezas.length === 0}
+        onClick={() => { setMovido(null); setMoviendo(conPiezas); }}
+      >
+        <Icono nombre="mover" className="icono icono--sm" />
+        {etiqueta}
+      </button>
+    );
+  }
+
+  function botonRetirar(m: ModeloAdmin) {
+    return (
+      <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, nombreConVariante(m.nombre, m.variante))}>
+        Retirar
+      </button>
+    );
+  }
+
+  /**
+   * Abre y cierra las medidas. Va sobre el nombre del producto y no entre
+   * los botones anclados: ahí ensanchaba la columna fija a media pantalla.
+   */
+  function botonMedidas(f: Familia<ModeloAdmin>) {
+    const abierta = abiertas.has(f.clave);
+    return (
+      <button
+        type="button"
+        className="boton-medidas"
+        aria-expanded={abierta}
+        aria-label={`${abierta ? 'Ocultar' : 'Ver'} las ${f.variantes.length} medidas de ${f.cabeza.nombre}`}
+        onClick={() => alternar(f.clave)}
+      >
+        {f.variantes.length} medidas: {etiquetasDe(f) || 'sin nombre'}
+      </button>
+    );
+  }
+
+  /** Una pieza: suelta, o una medida debajo de su producto. */
+  function filaModelo(m: ModeloAdmin, enFamilia: boolean) {
+    const detalle = detalleUbicaciones([m.id]);
+    const deUnPedido = apartadas.get(m.id) ?? 0;
+    return (
+      <tr key={m.id} className={enFamilia ? 'fila-variante' : undefined}>
+        <td className="col-fija">
+          <div className="grupo-botones grupo-botones--firme">
+            {/* La medida no lleva Editar: el formulario es del producto
+                entero y ya está en su fila. */}
+            {enFamilia ? null : <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>}
+            {botonMover([m])}
+            {botonRetirar(m)}
+          </div>
+        </td>
+        <td>
+          <MiniaturaTocable thumb={m.foto_thumb_path} nombre={nombreConVariante(m.nombre, m.variante)} alVer={() => verFoto(m.familia, m.id)} />
+        </td>
+        <td className="celda-sku">{m.sku}</td>
+        <td className="celda-modelo">
+          {enFamilia ? (
+            <div className="celda-nombre fila-variante__medida">{m.variante ?? m.nombre}</div>
+          ) : (
+            <>
+              <div className="celda-nombre">
+                {m.nombre}
+                {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
+              </div>
+              {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
+            </>
+          )}
+        </td>
+        <td className="util">{m.grupo ?? '—'}</td>
+        <td className="util celda-lote">{m.lote_codigo ?? '—'}</td>
+        <td className="num">{formatearMonto(m.costo_puesto_usd, 4)}</td>
+        <td className="num">
+          {formatearMonto(m.costo_total_usd, 4)}
+          <div className="celda-nota">{formatearMonto(m.costo_mercancia_bcv)} mercancía + {formatearMonto(m.costo_operativo_usd)} tienda</div>
+        </td>
+        <td className="num">{formatearMonto(m.precio_usd)}</td>
+        <td className="num precio">{formatearBs(m.precio_bs)}</td>
+        <td className="num">{formatearMonto(binanceDesdeBs(m.precio_bs, tasa?.tasa_venta))}</td>
+        <td className="num">
+          {tieneMinimo(m) ? (
+            <>
+              {formatearBs(m.precio_minimo_bs)}
+              <div className="celda-nota">
+                {rebajaMaximaPct(m.precio_bs, m.precio_minimo_bs)} % menos · {formatearBcv(m.precio_minimo_usd ?? null)}
+              </div>
+            </>
+          ) : <span className="secundario util">precio fijo</span>}
+        </td>
+        <td className="num">{formatearMonto(m.ganancia_real_usd)}</td>
+        <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
+          {formatearMonto(m.margen_usd)}
+        </td>
+        <td className={m.margen_pct !== null && m.margen_pct < 0 ? 'num negativo' : 'num'}>
+          {formatearPorcentaje(m.margen_pct)}
+        </td>
+        <td className="num">
+          {m.existencia_total <= 2 ? (
+            <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
+          ) : m.existencia_total}
+          {detalle ? <div className="celda-nota">{detalle}</div> : null}
+          {/* Las de pedidos siguen en la tienda pero no se venden:
+              se dice para que la cifra cuadre con el mostrador. */}
+          {deUnPedido ? <div className="celda-nota">{textoApartadas(deUnPedido)}</div> : null}
+        </td>
+      </tr>
+    );
+  }
+
+  /** En el teléfono: una pieza suelta. */
+  function fichaModelo(m: ModeloAdmin) {
+    const deUnPedido = apartadas.get(m.id) ?? 0;
+    return (
+      <li className="ficha-inv" key={m.id}>
+        <MiniaturaTocable className="miniatura ficha-inv__foto" thumb={m.foto_thumb_path} nombre={nombreConVariante(m.nombre, m.variante)} alVer={() => verFoto(m.familia, m.id)} />
+        <div className="ficha-inv__cuerpo">
+          <div className="ficha-inv__sku">{m.sku} · {m.grupo ?? 'sin grupo'}</div>
+          <div className="ficha-inv__nombre">
+            {m.nombre}
+            {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
+          </div>
+          <div className="ficha-inv__precio">
+            {formatearBs(m.precio_bs)}
+            <span className="ficha-inv__usd">{formatearBcv(m.precio_usd)}</span>
+            {tasa ? <span className="ficha-inv__usd">{formatearBinance(binanceDesdeBs(m.precio_bs, tasa.tasa_venta))}</span> : null}
+          </div>
+          {tieneMinimo(m) ? <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div> : null}
+          <div className="ficha-inv__datos">
+            <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
+              Margen {formatearPorcentaje(m.margen_pct)}
+            </span>
+            <span>
+              {m.existencia_total <= 2
+                ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
+                : m.existencia_total} en tienda
+              {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
+            </span>
+          </div>
+          <div className="grupo-botones">
+            <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
+            {botonMover([m])}
+            {botonRetirar(m)}
+          </div>
+        </div>
+      </li>
+    );
+  }
+
+  /** En el teléfono: el producto, y sus medidas al abrirlo. */
+  function fichaFamilia(f: Familia<ModeloAdmin>) {
+    const vs = f.variantes;
+    const existencia = vs.reduce((n, m) => n + m.existencia_total, 0);
+    const deUnPedido = vs.reduce((n, m) => n + (apartadas.get(m.id) ?? 0), 0);
+    const sinPiezas = vs.filter((m) => m.existencia_total <= 0).length;
+    return (
+      <li className="ficha-inv ficha-inv--familia" key={`f${f.clave}`}>
+        <MiniaturaTocable className="miniatura ficha-inv__foto" thumb={conFoto(vs)?.foto_thumb_path ?? null} nombre={f.cabeza.nombre} alVer={() => verFoto(f.clave)} />
+        <div className="ficha-inv__cuerpo">
+          <div className="ficha-inv__sku">{f.cabeza.sku} · {unico(vs.map((m) => m.grupo))}</div>
+          <div className="ficha-inv__nombre">{f.cabeza.nombre}</div>
+          {botonMedidas(f)}
+          {/* "Desde", como la tarjeta del mostrador: el rango entero no
+              cabía en el ancho de un teléfono. Cada medida dice el suyo. */}
+          <div className="ficha-inv__precio">
+            {desde(vs, (m) => m.precio_bs, formatearBs)}
+            <span className="ficha-inv__usd">{desde(vs, (m) => m.precio_usd, formatearBcv)}</span>
+          </div>
+          <div className="ficha-inv__datos">
+            <span>Margen {rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</span>
+            <span>
+              {existencia <= 2 ? <span className="etiqueta etiqueta--alerta">{existencia}</span> : existencia} en tienda
+              {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
+            </span>
+            {sinPiezas > 0 ? <span className="celda-nota--alerta">{sinPiezas === 1 ? 'Una medida sin piezas' : `${sinPiezas} medidas sin piezas`}</span> : null}
+          </div>
+          <div className="grupo-botones">
+            <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${f.cabeza.id}`}>Editar</Link>
+            {botonMover(vs)}
+          </div>
+        </div>
+
+        {abiertas.has(f.clave) ? (
+          <ul className="ficha-inv__medidas">
+            {vs.map((m) => {
+              const apartadasDe = apartadas.get(m.id) ?? 0;
+              return (
+                <li className="ficha-medida" key={m.id}>
+                  <MiniaturaTocable className="miniatura ficha-medida__foto" thumb={m.foto_thumb_path} nombre={nombreConVariante(m.nombre, m.variante)} alVer={() => verFoto(f.clave, m.id)} />
+                  <div className="ficha-inv__cuerpo">
+                    <div className="ficha-medida__nombre">
+                      {m.variante ?? m.nombre}
+                      <span className="ficha-inv__sku"> · {m.sku}</span>
+                    </div>
+                    <div className="ficha-medida__precio">
+                      {formatearBs(m.precio_bs)}
+                      <span className="ficha-inv__usd">
+                        {formatearBcv(m.precio_usd)}
+                        {tasa ? ` · ${formatearBinance(binanceDesdeBs(m.precio_bs, tasa.tasa_venta))}` : ''}
+                      </span>
+                    </div>
+                    {tieneMinimo(m) ? <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div> : null}
+                    <div className="ficha-inv__datos">
+                      <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
+                        Margen {formatearPorcentaje(m.margen_pct)}
+                      </span>
+                      <span>
+                        {m.existencia_total <= 2
+                          ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
+                          : m.existencia_total} en tienda
+                        {apartadasDe ? ` · ${apartadasDe} apartada${apartadasDe === 1 ? '' : 's'}` : ''}
+                      </span>
+                    </div>
+                    <div className="grupo-botones">
+                      {botonMover([m])}
+                      {botonRetirar(m)}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </li>
+    );
+  }
+
+  /** El producto con medidas, resumido en una fila. */
+  function filaFamilia(f: Familia<ModeloAdmin>) {
+    const vs = f.variantes;
+    const existencia = vs.reduce((n, m) => n + m.existencia_total, 0);
+    const deUnPedido = vs.reduce((n, m) => n + (apartadas.get(m.id) ?? 0), 0);
+    const sinPiezas = vs.filter((m) => m.existencia_total <= 0).length;
+    const conMinimo = vs.filter(tieneMinimo);
+    const detalle = detalleUbicaciones(vs.map((m) => m.id));
+    const margenBajo = vs.some((m) => m.margen_pct !== null && m.margen_pct < 0);
+    const gananciaBaja = vs.some((m) => m.margen_usd !== null && m.margen_usd < 0);
+    return (
+      <tr key={`f${f.clave}`} className="fila-familia">
+        <td className="col-fija">
+          <div className="grupo-botones grupo-botones--firme">
+            <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${f.cabeza.id}`}>Editar</Link>
+            {botonMover(vs)}
+          </div>
+        </td>
+        <td>
+          <MiniaturaTocable thumb={conFoto(vs)?.foto_thumb_path ?? null} nombre={f.cabeza.nombre} alVer={() => verFoto(f.clave)} />
+        </td>
+        <td className="celda-sku">
+          {f.cabeza.sku}
+          <div className="celda-nota">y {vs.length - 1} más</div>
+        </td>
+        <td className="celda-modelo">
+          <div className="celda-nombre">{f.cabeza.nombre}</div>
+          {botonMedidas(f)}
+          {f.cabeza.variantes_nota ? <div className="celda-nota">{f.cabeza.variantes_nota}</div> : null}
+        </td>
+        <td className="util">{unico(vs.map((m) => m.grupo))}</td>
+        <td className="util celda-lote">{unico(vs.map((m) => m.lote_codigo))}</td>
+        <td className="num">{rango(vs, (m) => m.costo_puesto_usd, (n) => formatearMonto(n, 4))}</td>
+        <td className="num">{rango(vs, (m) => m.costo_total_usd, (n) => formatearMonto(n, 4))}</td>
+        <td className="num">{rango(vs, (m) => m.precio_usd, (n) => formatearMonto(n))}</td>
+        <td className="num precio">{rango(vs, (m) => m.precio_bs, formatearBs)}</td>
+        <td className="num">{rango(vs, (m) => binanceDesdeBs(m.precio_bs, tasa?.tasa_venta), (n) => formatearMonto(n))}</td>
+        <td className="num">
+          {conMinimo.length > 0
+            ? rango(conMinimo, (m) => m.precio_minimo_bs, formatearBs)
+            : <span className="secundario util">precio fijo</span>}
+        </td>
+        <td className="num">{rango(vs, (m) => m.ganancia_real_usd, (n) => formatearMonto(n))}</td>
+        <td className={gananciaBaja ? 'num negativo' : 'num positivo'}>{rango(vs, (m) => m.margen_usd, (n) => formatearMonto(n))}</td>
+        <td className={margenBajo ? 'num negativo' : 'num'}>{rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</td>
+        <td className="num">
+          {existencia <= 2 ? <span className="etiqueta etiqueta--alerta">{existencia}</span> : existencia}
+          {detalle ? <div className="celda-nota">{detalle}</div> : null}
+          {deUnPedido ? <div className="celda-nota">{textoApartadas(deUnPedido)}</div> : null}
+          {/* Cerrada, la suma escondía la medida agotada. */}
+          {sinPiezas > 0 ? (
+            <div className="celda-nota celda-nota--alerta">{sinPiezas === 1 ? 'Una medida sin piezas' : `${sinPiezas} medidas sin piezas`}</div>
+          ) : null}
+        </td>
+      </tr>
+    );
   }
 
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
@@ -213,9 +587,16 @@ export function Inventario() {
           la misma cifra que ella ve en cada tarjeta del mostrador.
         </p>
         <p>
-          Toca dos veces una foto para verla en grande, con su categoría y sus
-          materiales. Los botones de editar y retirar van anclados a la
-          izquierda, así que siguen ahi aunque corras la tabla a lo ancho.
+          Un producto con medidas (una cadena de 45 y de 60 cm) ocupa una sola
+          fila: cada cifra va de la medida más baja a la más alta y la
+          existencia es la suma. Toca la línea de sus medidas, debajo del
+          nombre, para ver cada una con lo suyo; <strong>Editar</strong> abre
+          el producto con todas sus medidas.
+        </p>
+        <p>
+          Toca una foto para verla en grande, con su categoría y sus
+          materiales. Los botones van anclados a la izquierda, así que siguen
+          ahí aunque corras la tabla a lo ancho.
         </p>
         <p>
           Los precios en bolivares no están guardados: se calculan con la tasa
@@ -227,7 +608,7 @@ export function Inventario() {
 
       {moviendo ? (
         <MoverUbicacion
-          piezas={[{ modelo_id: moviendo.id, nombre: moviendo.nombre, variante: moviendo.variante }]}
+          piezas={moviendo.map((m) => ({ modelo_id: m.id, nombre: m.nombre, variante: m.variante }))}
           alCerrar={() => setMoviendo(null)}
           alMover={(mensaje) => { setMoviendo(null); setMovido(mensaje); void recargar(); }}
         />
@@ -302,89 +683,12 @@ export function Inventario() {
                 </tr>
               </thead>
               <tbody>
-                {modelos.map((m) => {
-                  const porUbicacion = existencias.get(m.id) ?? [];
-                  const detalle = porUbicacion
-                    .filter((e) => e.cantidad > 0)
-                    .map((e) => `${ubicaciones.find((u) => u.id === e.ubicacion_id)?.nombre ?? 'Ubicacion'}: ${e.cantidad}`)
-                    .join(' · ');
-                  const foto = urlPublicaFoto(m.foto_thumb_path);
-
-                  return (
-                    <tr key={m.id}>
-                      <td className="col-fija">
-                        <div className="grupo-botones grupo-botones--firme">
-                          <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
-                          {/* Mover de ubicacion sin abrir el producto entero. */}
-                          <button
-                            type="button"
-                            className="boton boton--secundario boton--pequeno"
-                            disabled={m.existencia_total <= 0}
-                            onClick={() => { setMovido(null); setMoviendo(m); }}
-                          >
-                            <Icono nombre="mover" className="icono icono--sm" />
-                            Mover
-                          </button>
-                          <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
-                            Retirar
-                          </button>
-                        </div>
-                      </td>
-                      <td>
-                        {foto ? (
-                          <button
-                            type="button"
-                            className="miniatura miniatura--tocable"
-                            style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                            aria-label={`Ver la foto de ${m.nombre}`}
-                            onClick={() => verFoto(m.id)}
-                          />
-                        ) : <span className="miniatura" />}
-                      </td>
-                      <td className="celda-sku">{m.sku}</td>
-                      <td>
-                        <div className="celda-nombre">
-                          {m.nombre}
-                          {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
-                        </div>
-                        {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
-                      </td>
-                      <td className="util">{m.grupo ?? '—'}</td>
-                      <td className="util">{m.lote_codigo ?? '—'}</td>
-                      <td className="num">{formatearMonto(m.costo_puesto_usd, 4)}</td>
-                      <td className="num">
-                        {formatearMonto(m.costo_total_usd, 4)}
-                        <div className="celda-nota">{formatearMonto(m.costo_mercancia_bcv)} mercancía + {formatearMonto(m.costo_operativo_usd)} tienda</div>
-                      </td>
-                      <td className="num">{formatearMonto(m.precio_usd)}</td>
-                      <td className="num precio">{formatearBs(m.precio_bs)}</td>
-                      <td className="num">{formatearMonto(binanceDesdeBs(m.precio_bs, tasa?.tasa_venta))}</td>
-                      <td className="num">
-                        {m.precio_minimo_bs != null && m.precio_bs != null && m.precio_minimo_bs < m.precio_bs ? (
-                          <>
-                            {formatearBs(m.precio_minimo_bs)}
-                            <div className="celda-nota">
-                              {rebajaMaximaPct(m.precio_bs, m.precio_minimo_bs)} % menos · {formatearBcv(m.precio_minimo_usd ?? null)}
-                            </div>
-                          </>
-                        ) : <span className="secundario util">precio fijo</span>}
-                      </td>
-                      <td className="num">{formatearMonto(m.ganancia_real_usd)}</td>
-                      <td className={m.margen_usd !== null && m.margen_usd < 0 ? 'num negativo' : 'num positivo'}>
-                        {formatearMonto(m.margen_usd)}
-                      </td>
-                      <td className={m.margen_pct !== null && m.margen_pct < 0 ? 'num negativo' : 'num'}>
-                        {formatearPorcentaje(m.margen_pct)}
-                      </td>
-                      <td className="num">
-                        {m.existencia_total <= 2 ? (
-                          <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
-                        ) : m.existencia_total}
-                        {detalle ? <div className="celda-nota">{detalle}</div> : null}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {familias.map((f) => (f.variantes.length === 1 ? filaModelo(f.cabeza, false) : (
+                  <Fragment key={`f${f.clave}`}>
+                    {filaFamilia(f)}
+                    {abiertas.has(f.clave) ? f.variantes.map((m) => filaModelo(m, true)) : null}
+                  </Fragment>
+                )))}
               </tbody>
               <tfoot>
                 <tr>
@@ -430,63 +734,7 @@ export function Inventario() {
             reacomodado, es enseñar menos.
           */}
           <ul className="fichas-inv">
-            {modelos.map((m) => {
-              const foto = urlPublicaFoto(m.foto_thumb_path);
-              return (
-                <li className="ficha-inv" key={m.id}>
-                  {foto ? (
-                    <button
-                      type="button"
-                      className="miniatura miniatura--tocable ficha-inv__foto"
-                      style={{ padding: 0, backgroundImage: `url(${foto})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                      aria-label={`Ver la foto de ${m.nombre}`}
-                      onClick={() => verFoto(m.id)}
-                    />
-                  ) : <span className="miniatura ficha-inv__foto" />}
-
-                  <div className="ficha-inv__cuerpo">
-                    <div className="ficha-inv__sku">{m.sku} · {m.grupo ?? 'sin grupo'}</div>
-                    <div className="ficha-inv__nombre">
-                      {m.nombre}
-                      {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
-                    </div>
-                    <div className="ficha-inv__precio">
-                      {formatearBs(m.precio_bs)}
-                      <span className="ficha-inv__usd">{formatearBcv(m.precio_usd)}</span>
-                      {tasa ? <span className="ficha-inv__usd">{formatearBinance(binanceDesdeBs(m.precio_bs, tasa.tasa_venta))}</span> : null}
-                    </div>
-                    {m.precio_minimo_bs != null && m.precio_bs != null && m.precio_minimo_bs < m.precio_bs ? (
-                      <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div>
-                    ) : null}
-                    <div className="ficha-inv__datos">
-                      <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
-                        Margen {formatearPorcentaje(m.margen_pct)}
-                      </span>
-                      <span>
-                        {m.existencia_total <= 2
-                          ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
-                          : m.existencia_total} en tienda
-                      </span>
-                    </div>
-                    <div className="grupo-botones">
-                      <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
-                      <button
-                        type="button"
-                        className="boton boton--secundario boton--pequeno"
-                        disabled={m.existencia_total <= 0}
-                        onClick={() => { setMovido(null); setMoviendo(m); }}
-                      >
-                        <Icono nombre="mover" className="icono icono--sm" />
-                        Mover
-                      </button>
-                      <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void desactivar(m.id, m.nombre)}>
-                        Retirar
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
+            {familias.map((f) => (f.variantes.length === 1 ? fichaModelo(f.cabeza) : fichaFamilia(f)))}
           </ul>
 
           <div className="paginacion">

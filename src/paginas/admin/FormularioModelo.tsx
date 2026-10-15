@@ -368,6 +368,12 @@ function Formulario() {
       if (!form.variante.trim()) campoVariante.current?.focus();
       return;
     }
+    // El campo es numérico: "4,2" con coma lo deja VACÍO, y vacío se
+    // guardaba como costo cero, sin aviso. El cero escrito sí vale.
+    if (form.costo_unitario_usd.trim() === '') {
+      setError('Falta el costo de la pieza, en $ Binance y con punto para los decimales: 4.25. Si de verdad no costó nada, escribe 0.');
+      return;
+    }
     setGuardando(true);
 
     try {
@@ -563,8 +569,8 @@ function Formulario() {
                 {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearBinance(l.flete_por_unidad_usd, 4)} por pieza`}</option>)}
               </select>
             </Campo>
-            <Campo etiqueta="Costo unitario $" htmlFor="m-costo">
-              <input id="m-costo" type="number" step="0.0001" min="0" value={form.costo_unitario_usd} onChange={(e) => cambiar('costo_unitario_usd', e.target.value)} />
+            <Campo etiqueta="Costo unitario · $ Binance" htmlFor="m-costo" pista="Con punto para los decimales: 4.25.">
+              <input id="m-costo" type="number" step="0.0001" min="0" inputMode="decimal" required value={form.costo_unitario_usd} onChange={(e) => cambiar('costo_unitario_usd', e.target.value)} />
             </Campo>
           </div>
 

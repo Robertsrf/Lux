@@ -26,8 +26,8 @@ export function RutaProtegida({ soloAdmin = false, children }: { soloAdmin?: boo
   if (soloAdmin && !esAdmin) {
     return (
       <div className="pagina pagina--angosta">
-        <Aviso tono="alerta" titulo="Seccion de administracion">
-          Esta pantalla muestra costos y margenes, y tu sesion es de {perfil?.rol ?? 'otro rol'}.
+        <Aviso tono="alerta" titulo="Sección de administración">
+          Esta pantalla muestra costos y márgenes, y tu sesión es de {perfil?.rol ?? 'otro rol'}.
           Entra con el usuario administrador para verla.
         </Aviso>
       </div>
