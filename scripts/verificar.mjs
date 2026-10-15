@@ -636,6 +636,19 @@ async function main() {
   const comprasV = await V.from('v_cliente_compras').select('devueltas, foto_path').limit(1);
   dice(!comprasV.error, 'v_cliente_compras dice cuantas se devolvieron', comprasV.error ? 'ERROR ' + comprasV.error.code : 'responde');
 
+  // Quitar una pieza de una venta por verificar (esquema-quitar-por-verificar.sql):
+  // de las dos caras, con su historia por la vista y cerrado sin sesion.
+  const qvArgs = { p_venta_id: -1, p_modelo_id: -1, p_cantidad: 1, p_motivo: 'verificar' };
+  const qvV = await V.rpc('quitar_de_venta', qvArgs);
+  dice(!!qvV.error && /no existe/i.test(qvV.error.message), 'puede quitar una pieza de una venta por verificar (quitar_de_venta)',
+    qvV.error ? qvV.error.message : 'RESPONDIO');
+  const qvP = await P.rpc('quitar_de_venta', qvArgs);
+  dice(qvP.error?.code === '42501', 'quitar_de_venta() sin sesion, rechazada', qvP.error ? 'rechazada ' + qvP.error.code : 'RESPONDIO');
+  const vcV = await V.from('venta_cambios').select('id').limit(1);
+  dice(vcV.error?.code === '42501', 'venta_cambios: ella no la lee en crudo', vcV.error ? 'rechazada ' + vcV.error.code : 'LA DEJO LEER');
+  const vcP = await P.from('v_venta_cambios').select('venta_id').limit(1);
+  dice(!!vcP.error || (vcP.data?.length ?? 0) === 0, 'v_venta_cambios sin sesion', vcP.error ? 'rechazada ' + vcP.error.code : (vcP.data?.length ?? 0) + ' filas');
+
   /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas

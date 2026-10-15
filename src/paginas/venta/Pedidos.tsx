@@ -10,8 +10,8 @@ import { MiniaturaTocable } from '../../componentes/MiniaturaTocable';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import {
-  abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs,
-  formatearFecha, formatearFechaHora, formatearMonto, leerCifra, precioEnBs, restarCifras, tiempoRestante, totalDeLineas,
+  abonoEnBcv, bcvDesdeBs, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs,
+  formatearFecha, formatearFechaHora, formatearMonto, leerCifra, precioEnBs, restarCifras, sumarCifras, tiempoRestante, totalDeLineas,
 } from '../../lib/dinero';
 import type { Tasas } from '../../lib/dinero';
 import { nombreConVariante } from '../../lib/familias';
@@ -20,7 +20,7 @@ import { useTasa } from '../../hooks/useTasa';
 import { useSesion } from '../../hooks/useSesion';
 import { useFotosGrandes } from '../../hooks/useFotosGrandes';
 import { METODOS_EN_DOLARES, METODOS_PAGO } from '../../lib/tipos';
-import type { AbonoDetalle, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago, PedidoCambio } from '../../lib/tipos';
+import type { AbonoDetalle, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago, PedidoCambio, VentaCambio } from '../../lib/tipos';
 
 /** Lo que el visor necesita de una pieza de cualquier lista de esta pantalla. */
 interface PiezaFoto {
@@ -65,6 +65,7 @@ export function Pedidos() {
   const [abonos, setAbonos] = useState<AbonoDetalle[]>([]);
   const [apartados, setApartados] = useState<ApartadoEnTienda[]>([]);
   const [cambios, setCambios] = useState<PedidoCambio[]>([]);
+  const [cambiosVenta, setCambiosVenta] = useState<VentaCambio[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -89,12 +90,18 @@ export function Pedidos() {
       deRv.length ? `apartado_id.in.(${deRv.join(',')})` : null,
       conAbonos.length ? `venta_id.in.(${conAbonos.join(',')})` : null,
     ].filter(Boolean).join(',');
-    const [deAbonos, deCambios] = await Promise.all([
+    const ventasIds = [...new Set(filasVentas.map((f) => f.venta_id))];
+    const [deAbonos, deCambios, deCambiosVenta] = await Promise.all([
       filtro ? supabase.from('v_abonos_detalle').select('*').or(filtro).order('fecha').order('id') : null,
       // Lo que se le quitó a cada pedido. Sin la vista (la base de antes de
       // esquema-devoluciones.sql) no hay historia que contar: no es un error.
       reservas.length
         ? supabase.from('v_pedido_cambios').select('*').in('reserva_id', reservas).order('cambiado_en')
+        : null,
+      // Lo que se le quitó a cada venta por verificar. Igual: sin la vista
+      // (antes de esquema-quitar-por-verificar.sql) no hay nada que contar.
+      ventasIds.length
+        ? supabase.from('v_venta_cambios').select('*').in('venta_id', ventasIds).order('cambiado_en')
         : null,
     ]);
 
@@ -106,6 +113,7 @@ export function Pedidos() {
     setApartados(filasRv);
     setAbonos((deAbonos?.data as unknown as AbonoDetalle[] | null) ?? []);
     setCambios(deCambios?.error ? [] : ((deCambios?.data as PedidoCambio[] | null) ?? []));
+    setCambiosVenta(deCambiosVenta?.error ? [] : ((deCambiosVenta?.data as VentaCambio[] | null) ?? []));
     setCargando(false);
   }, []);
 
@@ -237,6 +245,7 @@ export function Pedidos() {
                 cabecera={cabecera}
                 items={items}
                 abonos={abonos.filter((a) => a.venta_id === cabecera.venta_id)}
+                cambios={cambiosVenta.filter((x) => x.venta_id === cabecera.venta_id)}
                 tasa={tasa}
                 esAdmin={esAdmin}
                 alTerminar={alTerminar}
@@ -431,7 +440,6 @@ function TablaPiezas({ items, conPrecio, verFotos, accion }: {
           <tr>
             <th></th><th>Pieza</th><th>Dónde está</th><th className="num">Cantidad</th>
             {conPrecio ? <th className="num">C/u · $ BCV</th> : null}
-            {accion ? <th><span className="visualmente-oculto">Acciones</span></th> : null}
           </tr>
         </thead>
         <tbody>
@@ -444,11 +452,13 @@ function TablaPiezas({ items, conPrecio, verFotos, accion }: {
               <td>
                 <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                 <div className="celda-nota">{i.sku}</div>
+                {/* Debajo del nombre y no en una última columna: en el
+                    teléfono la tabla se desliza y esa columna quedaba fuera. */}
+                {accion ? <div className="celda-accion">{accion(i)}</div> : null}
               </td>
               <td className="util">{i.donde ?? '—'}</td>
               <td className="num">{i.cantidad}</td>
               {conPrecio ? <td className="num precio">{i.precio !== null && i.precio !== undefined ? formatearMonto(Number(i.precio)) : '—'}</td> : null}
-              {accion ? <td>{accion(i)}</td> : null}
             </tr>
           ))}
         </tbody>
@@ -489,9 +499,13 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
   const precio = Number(item.precio ?? 0);
   const totalNuevo = Math.max(0, restarCifras(total, totalDeLineas([{ precio, cantidad }])));
   const verificado = Number(pedido.verificado_bcv ?? 0);
+  const pagado = Number(pedido.pagado_bcv ?? 0);
+  // Con pagos reportados sin revisar que pasarían del total nuevo, la base
+  // dice que no: se avisa aquí, antes de apretar, y se dice qué hacer.
+  const sinRevisarSobra = pagado > totalNuevo + 0.005 && pagado > verificado + 0.005;
   // Lo que sobraría de lo pagado y comprobado: la misma cuenta de la base.
   const sobra = restarCifras(verificado, totalNuevo);
-  const haySobra = sobra > 0.005;
+  const haySobra = !sinRevisarSobra && sobra > 0.005;
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const valor = leerCifra(monto) ?? NaN;
   const devuelve = tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
@@ -500,7 +514,7 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
     ? (enDolares ? centavoArriba(binanceDesdeBs(bsDeBcv(sobra, tasa.tasa_bcv), tasa.tasa_venta) ?? 0) : bsDeBcv(sobra, tasa.tasa_bcv))
     : null;
   const quitaTodas = Number(pedido.piezas_total ?? 0) - cantidad <= 0;
-  const listo = motivo.trim() !== '' && !quitaTodas
+  const listo = motivo.trim() !== '' && !quitaTodas && !sinRevisarSobra
     && (!haySobra || (esAdmin && devolver !== null && (!devolver || (valor > 0 && devuelve !== null && devuelve.bcv <= sobra + 0.01))));
 
   async function quitar() {
@@ -551,6 +565,12 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
       </p>
       {quitaTodas ? (
         <p className="campo__error" role="alert">Es la última pieza del pedido: para quitarlas todas, cancela el pedido.</p>
+      ) : null}
+      {sinRevisarSobra ? (
+        <p className="campo__error" role="alert">
+          Con esa pieza fuera, lo que reportó que pagó pasaría del total. Primero marca sus pagos por revisar
+          como que llegaron o que no llegaron (aquí abajo, en Abonos), y después quita la pieza.
+        </p>
       ) : null}
 
       {haySobra ? (
@@ -618,6 +638,189 @@ function CambiosDelPedido({ cambios }: { cambios: PedidoCambio[] }) {
             {' '}· {formatearBcv(Number(x.total_antes))} → {formatearBcv(Number(x.total_despues))}
             {x.dinero === 'devuelto' ? ` · se le devolvieron ${formatearBs(Number(x.devuelto_bs))}` : ''}
             {x.dinero === 'a_favor' ? ' · lo que sobraba quedó a su favor' : ''}
+            <span className="campo__pista">
+              {formatearFechaHora(x.cambiado_en)} · {x.quien ?? '—'}{x.motivo ? ` · "${x.motivo}"` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Quitar una pieza de una venta POR VERIFICAR (`quitar_de_venta`).
+ *
+ * Todavía no se comprobó el pago: la venta es lo que se espera cobrar. La
+ * pieza vuelve a su ubicación y el total baja con su precio congelado; las
+ * demás conservan el suyo. Lo hacen las dos caras, como anular. Si es por
+ * partes y lo ya pagado pasa del total nuevo, el administrador decide si se
+ * le devuelve (sale de la caja como "Devolución", hoy) o se queda.
+ */
+function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa, esAdmin, alCerrar, alTerminar }: {
+  venta: LineaPorVerificar;
+  item: LineaPorVerificar;
+  /** Cuántas de esta pieza lleva la venta, sumando sus líneas. */
+  tieneEnVenta: number;
+  piezasEnVenta: number;
+  abonos: AbonoDetalle[];
+  tasa: Tasas | null;
+  esAdmin: boolean;
+  alCerrar: () => void;
+  alTerminar: (mensaje: string) => void;
+}) {
+  const [cantidad, setCantidad] = useState(1);
+  const [motivo, setMotivo] = useState('');
+  const [devolver, setDevolver] = useState<boolean | null>(null);
+  const [metodo, setMetodo] = useState<MetodoPago>(venta.metodo);
+  const [monto, setMonto] = useState('');
+  const [trabajando, setTrabajando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const nombre = nombreConVariante(item.nombre, item.variante);
+  const totalBs = Number(venta.total_bs ?? 0);
+  const totalNuevoBs = Math.max(0, restarCifras(totalBs, totalDeLineas([{ precio: Number(item.precio_unitario_bs), cantidad }])));
+  // La tasa BCV de la venta, de sus propios totales: la deuda se mide con
+  // la de ese día, como la mide la base.
+  const tasaVenta = venta.total_bcv ? totalBs / Number(venta.total_bcv) : null;
+  const totalNuevoBcv = bcvDesdeBs(totalNuevoBs, tasaVenta) ?? 0;
+  const vivos = abonos.filter((a) => !a.anulado_en);
+  const pagado = sumarCifras(vivos.map((a) => Number(a.monto_bcv)));
+  const verificado = sumarCifras(vivos.filter((a) => a.verificado_en).map((a) => Number(a.monto_bcv)));
+  // La misma cuenta que la base: con pagos sin revisar que sobrarían, primero se revisan.
+  const sinRevisarSobra = pagado > totalNuevoBcv + 0.005 && pagado > verificado + 0.005;
+  const sobra = restarCifras(verificado, totalNuevoBcv);
+  const haySobra = !sinRevisarSobra && sobra > 0.005;
+  const enDolares = METODOS_EN_DOLARES.includes(metodo);
+  const valor = leerCifra(monto) ?? NaN;
+  const devuelve = tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
+  const sobraEnSuMoneda = tasa
+    ? (enDolares ? centavoArriba(binanceDesdeBs(bsDeBcv(sobra, tasa.tasa_bcv), tasa.tasa_venta) ?? 0) : bsDeBcv(sobra, tasa.tasa_bcv))
+    : null;
+  const quitaTodas = piezasEnVenta - cantidad <= 0;
+  const listo = motivo.trim() !== '' && !quitaTodas && !sinRevisarSobra
+    && (!haySobra || (esAdmin && devolver !== null && (!devolver || (valor > 0 && devuelve !== null && devuelve.bcv <= sobra + 0.01))));
+
+  async function quitar() {
+    setTrabajando(true);
+    setError(null);
+    const { error: err } = await supabase.rpc('quitar_de_venta', {
+      p_venta_id: venta.venta_id,
+      p_modelo_id: item.modelo_id,
+      p_cantidad: cantidad,
+      p_motivo: motivo.trim(),
+      p_devolver: haySobra ? devolver : null,
+      p_metodo: haySobra && devolver ? metodo : null,
+      p_monto: haySobra && devolver ? valor : null,
+    });
+    setTrabajando(false);
+    if (err) { setError(mensajeDeError(err)); return; }
+    alTerminar(`${cantidad === 1 ? 'Quitada' : `Quitadas ${cantidad}`} de la venta ${venta.venta_id}: ${nombre}. Volvió a su ubicación y la venta queda en ${formatearBs(totalNuevoBs)}.`
+      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba se queda.') : ''));
+  }
+
+  return (
+    <div className="panel quitar-pieza">
+      <span className="panel__titulo">Quitar de la venta: {nombre}</span>
+      <div className="fila">
+        {tieneEnVenta > 1 ? (
+          <div className="campo">
+            <label htmlFor={`qv-cant-${venta.venta_id}`}>Cuántas</label>
+            <select id={`qv-cant-${venta.venta_id}`} value={cantidad} onChange={(e) => setCantidad(Number(e.target.value))}>
+              {Array.from({ length: tieneEnVenta }, (_, k) => k + 1).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </div>
+        ) : null}
+        <div className="campo">
+          <label htmlFor={`qv-motivo-${venta.venta_id}`}>Por qué</label>
+          <input
+            id={`qv-motivo-${venta.venta_id}`} autoComplete="off" value={motivo} maxLength={200}
+            placeholder="La devolvió, no le quedó…" onChange={(e) => setMotivo(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <p className="campo__pista">
+        La venta queda en <strong>{formatearBs(totalNuevoBs)}</strong>
+        {tasaVenta ? <> ({formatearBcv(totalNuevoBcv)})</> : null}
+        {venta.pago_parcial ? '.' : ': es lo que tienes que ver en el banco para verificarla.'}
+        {' '}La pieza vuelve a {item.ubicacion ?? 'su ubicación'}. Las demás conservan el precio con que se cobraron.
+      </p>
+      {quitaTodas ? (
+        <p className="campo__error" role="alert">Es la última pieza de la venta: para quitarlas todas, anula la venta.</p>
+      ) : null}
+      {sinRevisarSobra ? (
+        <p className="campo__error" role="alert">
+          Con esa pieza fuera, lo pagado pasaría del total. Primero marca los pagos por revisar como que
+          llegaron o que no llegaron, y después quita la pieza.
+        </p>
+      ) : null}
+
+      {haySobra ? (
+        esAdmin ? (
+          <>
+            <span className="panel__titulo">Sobran {formatearBcv(sobra)} de lo que pagó</span>
+            <div className="metodos-pago" role="group" aria-label="Qué pasa con lo que sobra" style={{ marginTop: 'var(--e-3)' }}>
+              <button type="button" aria-pressed={devolver === true} onClick={() => setDevolver(true)}>Se le devuelve</button>
+              <button type="button" aria-pressed={devolver === false} onClick={() => setDevolver(false)}>Se queda</button>
+            </div>
+            {devolver ? (
+              <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
+                <div className="campo">
+                  <label htmlFor={`qv-metodo-${venta.venta_id}`}>Cómo se le devuelve</label>
+                  <select id={`qv-metodo-${venta.venta_id}`} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
+                    {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+                  </select>
+                </div>
+                <div className="campo">
+                  <label htmlFor={`qv-monto-${venta.venta_id}`}>{enDolares ? 'Cuánto · $' : 'Cuánto · Bs'}</label>
+                  <input id={`qv-monto-${venta.venta_id}`} inputMode="decimal" autoComplete="off" value={monto} onChange={(e) => setMonto(e.target.value)} />
+                  {sobraEnSuMoneda !== null ? (
+                    <button type="button" className="boton boton--secundario boton--pequeno cargar-abono__todo" onClick={() => setMonto(String(sobraEnSuMoneda).replace('.', ','))}>
+                      Todo lo que sobra
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {devolver && devuelve && devuelve.bcv > sobra + 0.01 ? (
+              <p className="campo__error" role="alert">Es más de lo que sobra.</p>
+            ) : null}
+          </>
+        ) : (
+          <p className="campo__pista">
+            Con esa pieza fuera, lo pagado pasa del total en {formatearBcv(sobra)}. Lo hace el administrador,
+            que decide si se le devuelve.
+          </p>
+        )
+      ) : null}
+
+      {error ? <p className="campo__error" role="alert">{error}</p> : null}
+      <div className="acciones">
+        <button type="button" className="boton boton--peligro" disabled={trabajando || !listo} onClick={() => void quitar()}>
+          {trabajando ? 'Guardando' : 'Quitar de la venta'}
+        </button>
+        <button type="button" className="boton boton--secundario" disabled={trabajando} onClick={alCerrar}>
+          No quitar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Lo que se le ha quitado a una venta por verificar: qué, quién, cuándo, por qué y qué pasó con el dinero. */
+function CambiosDeLaVenta({ cambios }: { cambios: VentaCambio[] }) {
+  if (cambios.length === 0) return null;
+  return (
+    <div className="panel" style={{ marginTop: 'var(--e-4)' }}>
+      <span className="panel__titulo">Cambios de la venta</span>
+      <ul className="cambios-pedido">
+        {cambios.map((x) => (
+          <li key={x.id}>
+            Se {x.antes - x.despues === 1 ? 'quitó' : `quitaron ${x.antes - x.despues}`} {nombreConVariante(x.nombre, x.variante)}
+            {' '}· {formatearBs(Number(x.total_antes_bs))} → {formatearBs(Number(x.total_despues_bs))}
+            {x.dinero === 'devuelto' ? ` · se le devolvieron ${formatearBs(Number(x.devuelto_bs))}` : ''}
+            {x.dinero === 'se_queda' ? ' · lo que sobraba se quedó' : ''}
             <span className="campo__pista">
               {formatearFechaHora(x.cambiado_en)} · {x.quien ?? '—'}{x.motivo ? ` · "${x.motivo}"` : ''}
             </span>
@@ -1003,10 +1206,11 @@ function CerrarPedidoDeAntes({ cabecera, alTerminar }: {
  * Las que se cobraron por partes antes del apartado llevan sus abonos, y
  * siguen recibiendo los que falten. Mientras falte algo no se verifica.
  */
-function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar, verFotos }: {
+function VentaPorVerificar({ cabecera, items, abonos, cambios, tasa, esAdmin, alTerminar, verFotos }: {
   cabecera: LineaPorVerificar;
   items: LineaPorVerificar[];
   abonos: AbonoDetalle[];
+  cambios: VentaCambio[];
   tasa: Tasas | null;
   esAdmin: boolean;
   alTerminar: (mensaje: string) => void;
@@ -1014,6 +1218,8 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar,
 }) {
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // La pieza que se está quitando de la venta, si hay una.
+  const [quitando, setQuitando] = useState<LineaPorVerificar | null>(null);
   // Una venta cobrada completa que en realidad se paga por partes: el
   // formulario se abre con un botón, porque casi todas sí se pagaron enteras.
   const [abonando, setAbonando] = useState(false);
@@ -1023,7 +1229,10 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar,
   const extraBs = Number(cabecera.extra_bs ?? 0);
   const falta = Number(cabecera.falta_bcv ?? 0);
   const total = Number(cabecera.total_bcv ?? 0);
-  const recibidoBs = abonos.filter((a) => !a.anulado_en).reduce((s, a) => s + Number(a.monto_bs), 0);
+  const recibidoBs = sumarCifras(abonos.filter((a) => !a.anulado_en).map((a) => Number(a.monto_bs)));
+  // Quitar es para cuando se lleva menos de lo que se cobró. La última
+  // pieza no se quita: eso es anular la venta, que ya tiene su botón.
+  const sePuedeQuitar = piezas > 1;
 
   async function verificar() {
     setTrabajando(true);
@@ -1093,7 +1302,9 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar,
       <div className="tabla-envoltura">
         <table className="tabla">
           <thead>
-            <tr><th></th><th>Pieza</th><th>Salió de</th><th className="num">Cantidad</th><th className="num">C/u · Bs</th></tr>
+            <tr>
+              <th></th><th>Pieza</th><th>Salió de</th><th className="num">Cantidad</th><th className="num">C/u · Bs</th>
+            </tr>
           </thead>
           <tbody>
             {items.map((i, n) => {
@@ -1105,6 +1316,19 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar,
                   <td>
                     <div className="celda-nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                     <div className="celda-nota">{i.sku}</div>
+                    {sePuedeQuitar ? (
+                      <div className="celda-accion">
+                      <button
+                        type="button"
+                        className="boton boton--secundario boton--pequeno"
+                        disabled={trabajando}
+                        aria-label={`Quitar de la venta ${nombreConVariante(i.nombre, i.variante)}`}
+                        onClick={() => setQuitando(i)}
+                      >
+                        Quitar
+                      </button>
+                      </div>
+                    ) : null}
                   </td>
                   <td className="util">{i.ubicacion ?? '—'}</td>
                   <td className="num">{i.cantidad}</td>
@@ -1127,6 +1351,23 @@ function VentaPorVerificar({ cabecera, items, abonos, tasa, esAdmin, alTerminar,
           </tbody>
         </table>
       </div>
+
+      {quitando ? (
+        <QuitarDeVenta
+          key={quitando.modelo_id}
+          venta={cabecera}
+          item={quitando}
+          tieneEnVenta={items.filter((i) => i.modelo_id === quitando.modelo_id).reduce((n, i) => n + i.cantidad, 0)}
+          piezasEnVenta={piezas}
+          abonos={abonos}
+          tasa={tasa}
+          esAdmin={esAdmin}
+          alCerrar={() => setQuitando(null)}
+          alTerminar={(m) => { setQuitando(null); alTerminar(m); }}
+        />
+      ) : null}
+
+      <CambiosDeLaVenta cambios={cambios} />
 
       {cabecera.pago_parcial && falta > 0 && tasa ? (
         <CargarAbono

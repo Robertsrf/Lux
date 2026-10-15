@@ -267,9 +267,13 @@ export function ConteoSemanal() {
     })),
   })), [familias]);
 
-  function verFoto(clave: number) {
-    const f = fichas.find((x) => x.clave === clave);
-    if (f) visor.abrir(f, fichas);
+  /** Abre el producto; si se tocó la foto de una medida, en esa medida. */
+  function verFoto(clave: number, varianteId?: number) {
+    const lista = varianteId === undefined
+      ? fichas
+      : fichas.map((x) => (x.clave === clave ? { ...x, inicial: varianteId } : x));
+    const f = lista.find((x) => x.clave === clave);
+    if (f) visor.abrir(f, lista);
   }
 
   function poner(id: number, valor: number | null) {
@@ -629,10 +633,11 @@ export function ConteoSemanal() {
                 // cada medida debajo con su contador.
                 const contadas = f.variantes.filter((v) => contado.has(v.modelo_id)).length;
                 const todas = contadas === f.variantes.length;
+                const fotoCabeza = (f.variantes.find((v) => v.foto_thumb_path) ?? f.cabeza).foto_thumb_path;
                 return (
                   <li className={todas ? 'conteo-familia conteo-familia--contada' : 'conteo-familia'} key={`f${f.clave}`}>
                     <div className="conteo-familia__cabeza">
-                      <MiniaturaTocable className="conteo-fila__foto" thumb={(f.variantes.find((v) => v.foto_thumb_path) ?? f.cabeza).foto_thumb_path} nombre={f.cabeza.nombre} alVer={() => verFoto(f.clave)} />
+                      <MiniaturaTocable className="conteo-fila__foto" thumb={fotoCabeza} nombre={f.cabeza.nombre} alVer={() => verFoto(f.clave)} />
                       <div className="conteo-fila__quien">
                         <span className="conteo-fila__nombre">{f.cabeza.nombre}</span>
                         <span className="conteo-fila__dato">
@@ -644,8 +649,16 @@ export function ConteoSemanal() {
                       {f.variantes.map((v) => {
                         const n = contado.get(v.modelo_id);
                         const nombre = nombreConVariante(v.nombre, v.variante);
+                        // Su propia foto solo si es otra que la de arriba: un
+                        // color o un baño distinto se reconoce por la foto.
+                        const fotoPropia = v.foto_thumb_path && v.foto_thumb_path !== fotoCabeza ? v.foto_thumb_path : null;
+                        const clase = ['conteo-variante', fotoPropia ? 'conteo-variante--con-foto' : '', n === undefined ? '' : 'conteo-variante--contada']
+                          .filter(Boolean).join(' ');
                         return (
-                          <li className={n === undefined ? 'conteo-variante' : 'conteo-variante conteo-variante--contada'} key={v.modelo_id}>
+                          <li className={clase} key={v.modelo_id}>
+                            {fotoPropia ? (
+                              <MiniaturaTocable className="conteo-variante__foto" thumb={fotoPropia} nombre={nombre} alVer={() => verFoto(f.clave, v.modelo_id)} />
+                            ) : null}
                             <div className="conteo-variante__quien">
                               <span className="conteo-variante__medida">{v.variante ?? v.sku}</span>
                               <span className="conteo-fila__dato">{v.sku}{n !== undefined ? ' · contada' : ''}</span>

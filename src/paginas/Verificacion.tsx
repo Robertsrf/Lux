@@ -221,6 +221,13 @@ export function Verificacion() {
       obtenido: quita.error ? quita.error.message : 'RESPONDIÓ SIN PEDIDO',
       bien: !!quita.error && /no existe/i.test(quita.error.message),
     });
+    const quitaVenta = await supabase.rpc('quitar_de_venta', { p_venta_id: -1, p_modelo_id: -1, p_cantidad: 1, p_motivo: 'verificar' });
+    resultados.push({
+      nombre: 'Quitar una pieza de una venta por verificar (quitar_de_venta)',
+      esperado: 'Se puede ejecutar: con una venta que no existe responde que no existe',
+      obtenido: quitaVenta.error ? quitaVenta.error.message : 'RESPONDIÓ SIN VENTA',
+      bien: !!quitaVenta.error && /no existe/i.test(quitaVenta.error.message),
+    });
     const devuelve = await supabase.rpc('admin_devolver_pieza', {
       p_venta_id: -1, p_modelo_id: -1, p_cantidad: 1, p_ubicacion_id: null, p_devolver: false, p_motivo: 'verificar',
     });

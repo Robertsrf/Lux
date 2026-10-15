@@ -3115,6 +3115,9 @@ table.tabla tfoot td {
 /* Paneles que se abren debajo de la pieza, como "Cancelar con dinero":
    sin caja propia dentro de la tarjeta, se distinguen por su fondo. */
 .quitar-pieza { margin-top: var(--e-4); }
+/* La acción de una pieza (Quitar), debajo de su nombre: una última columna
+   quedaba fuera de la pantalla del teléfono, al otro lado del desliz. */
+.celda-accion { margin-top: var(--e-2); }
 .quitar-pieza .acciones,
 .devolver-pieza .acciones { margin-top: var(--e-4); padding-top: var(--e-4); }
 .devolver-pieza {
@@ -3140,8 +3143,14 @@ table.tabla tfoot td {
   box-shadow: var(--sombra-1);
 }
 .conteo-familia--contada { border-color: color-mix(in srgb, var(--exito) 40%, var(--linea-suave)); }
+/* LAS ÁREAS SE DECLARAN EN CADA REJILLA. La foto, el nombre y el contador
+   traen `grid-area` (foto, quien, paso) de la fila suelta. En una rejilla
+   que no declara esas áreas, el navegador las manda a una columna
+   implícita a la derecha: la foto quedaba encima del nombre y la medida se
+   partía en tres renglones. */
 .conteo-familia__cabeza {
   display: grid; grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-areas: 'foto quien';
   align-items: center; gap: var(--e-4);
   padding-bottom: var(--e-3);
   border-bottom: 1px solid var(--linea-suave);
@@ -3149,19 +3158,27 @@ table.tabla tfoot td {
 .conteo-familia__variantes { list-style: none; margin: 0; padding: 0; display: grid; }
 .conteo-variante {
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'quien paso';
   align-items: center; gap: var(--e-2) var(--e-4);
   padding: var(--e-3) 0 var(--e-3) var(--e-2);
   border-bottom: 1px solid var(--linea-suave);
 }
+/* La medida con foto propia (otro color, otro baño): su miniatura al lado. */
+.conteo-variante--con-foto {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-areas: 'foto quien paso';
+}
+.conteo-variante__foto { grid-area: foto; width: 44px; height: 44px; border-radius: var(--radio); }
 .conteo-variante:last-child { border-bottom: 0; padding-bottom: 0; }
 /* Contada: un filete verde a la izquierda y la palabra "contada". */
 .conteo-variante--contada { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--exito) 55%, transparent); }
-.conteo-variante__quien { display: grid; gap: 2px; min-width: 0; }
+.conteo-variante__quien { grid-area: quien; display: grid; gap: 2px; min-width: 0; }
 .conteo-variante__medida {
   font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
   color: var(--texto-fuerte); overflow-wrap: anywhere;
 }
 @media (max-width: 480px) {
-  .conteo-variante { grid-template-columns: minmax(0, 1fr); }
+  .conteo-variante { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'quien' 'paso'; }
+  .conteo-variante--con-foto { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: 'foto quien' 'paso paso'; }
   .conteo-variante .conteo-paso { justify-content: flex-end; }
 }

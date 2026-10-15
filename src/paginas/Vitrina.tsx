@@ -1,13 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Cargando, Vacio } from '../componentes/Piezas';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { CodigoQr } from '../componentes/CodigoQr';
+import { FiligranaArco, FiligranaDivisor, FiligranaMarco } from '../componentes/Filigrana';
+import { SiluetaEscote } from '../componentes/SiluetaEscote';
 import { enlacePublico } from '../componentes/CompartirCatalogo';
 import { formatearBcv, formatearBs } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante } from '../lib/familias';
 import type { Familia } from '../lib/familias';
+import { ESCOTES, piezasParaEscote } from '../lib/escotes';
+import type { Escote } from '../lib/escotes';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
 import type { Frase, ModeloPublico } from '../lib/tipos';
@@ -21,13 +26,12 @@ import '../estilos/vitrina.css';
 type PiezaVitrina = Pick<ModeloPublico,
   'id' | 'sku' | 'nombre' | 'categoria' | 'variantes_nota' | 'foto_path' | 'foto_thumb_path'
   | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante' | 'disponible'>;
+type FamiliaVitrina = Familia<PiezaVitrina>;
 
 const TAMANO_PAGINA = 500;
 const TOPE = 4000;
 /** Tras este rato sin tocar nada, los controles se van y queda solo la pieza. */
 const OCULTAR_MS = 4000;
-/** Cada cuántas piezas entra una frase de marca. */
-const CADA = 4;
 const SEGUNDOS = [5, 8, 12, 20] as const;
 /**
  * Cada cuánto vuelve a leer el catálogo. Un televisor se queda encendido
@@ -40,12 +44,63 @@ const REFRESCAR_MS = 5 * 60_000;
 const REINTENTOS_MS = [15_000, 30_000, 60_000, 120_000, 300_000];
 /** Si el QR va en pantalla, por televisor. */
 const CLAVE_QR = 'lux-vitrina-qr';
+/** Lo que dura la salida de una escena mientras entra la siguiente. */
+const SALIDA_MS = 900;
 
-type Diapositiva =
-  | { tipo: 'pieza'; familia: Familia<PiezaVitrina>; n: number }
-  | { tipo: 'frase'; frase: Frase; n: number };
+/*
+  LAS ESCENAS
 
-const claveDe = (d: Diapositiva) => (d.tipo === 'pieza' ? `p${d.familia.clave}` : `f${d.n}`);
+  La vitrina ya no es una pieza tras otra: es un guion de seis tipos de
+  escena, cada uno con su forma de presentar y su entrada.
+
+    pieza      una pieza estelar, en un arco de vitrina que se dibuja
+    trio       tres piezas de categorías distintas, para combinar
+    coleccion  una categoría entera: la palabra grande y cuatro piezas
+    detalle    la foto de cerca, con los materiales
+    frase      una frase de la marca, palabra por palabra
+    escote     qué joya va con un escote, dibujado, y las piezas que le van
+
+  El patrón se repite hasta que han salido todas las piezas. Cada escena
+  dura los segundos elegidos en los controles por su factor: la guía de
+  escotes se lee más despacio que una frase.
+*/
+type TipoEscena = 'pieza' | 'trio' | 'coleccion' | 'detalle' | 'frase' | 'escote';
+
+type Escena =
+  | { tipo: 'pieza'; clave: string; familia: FamiliaVitrina; lado: 'izq' | 'der' }
+  | { tipo: 'trio'; clave: string; piezas: PiezaVitrina[] }
+  | { tipo: 'coleccion'; clave: string; categoria: string; cuantas: number; piezas: PiezaVitrina[] }
+  | { tipo: 'detalle'; clave: string; familia: FamiliaVitrina }
+  | { tipo: 'frase'; clave: string; frase: Frase }
+  | { tipo: 'escote'; clave: string; escote: Escote; piezas: PiezaVitrina[] };
+
+const PATRON: TipoEscena[] = [
+  'pieza', 'pieza', 'trio', 'frase', 'pieza', 'escote', 'coleccion',
+  'pieza', 'detalle', 'frase', 'trio', 'pieza', 'escote', 'frase',
+];
+
+const FACTOR: Record<TipoEscena, number> = {
+  pieza: 1, detalle: 1.1, frase: 0.85, trio: 1.35, coleccion: 1.4, escote: 1.7,
+};
+
+/** "anillo" → "Anillos". Lo que no está aquí sale con mayúscula, tal cual. */
+const PLURAL: Record<string, string> = {
+  anillo: 'Anillos', arete: 'Aretes', brazalete: 'Brazaletes', cadena: 'Cadenas', collar: 'Collares',
+  pulsera: 'Pulseras', set: 'Sets', tobillera: 'Tobilleras', cabello: 'Para el cabello',
+};
+const tituloCategoria = (c: string) => PLURAL[c.toLowerCase()] ?? (c.charAt(0).toUpperCase() + c.slice(1));
+
+/** La foto con la que se presenta una pieza: la grande, o la miniatura si no hay. */
+const fotoDe = (p: PiezaVitrina | undefined) => (p ? urlPublicaFoto(p.foto_path ?? p.foto_thumb_path) : null);
+
+/** Las piezas que salen en una escena, para descargar sus fotos antes de que entre. */
+function fotosDe(e: Escena): (string | null)[] {
+  switch (e.tipo) {
+    case 'pieza': case 'detalle': return [fotoDe(conFoto(e.familia.variantes))];
+    case 'trio': case 'coleccion': case 'escote': return e.piezas.map(fotoDe);
+    default: return [];
+  }
+}
 
 /**
  * Las categorias, una pieza de cada una por turno. Ordenado por categoria,
@@ -71,6 +126,79 @@ function intercalar<T extends { categoria: string | null }>(familias: Familia<T>
   return salida;
 }
 
+/** El guion entero: el patrón repetido hasta que salen todas las piezas. */
+function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: boolean, piezas: PiezaVitrina[]): Escena[] {
+  const salida: Escena[] = [];
+  if (familias.length === 0) return salida;
+
+  let siguiente = 0;
+  const tomar = () => familias[siguiente++ % familias.length]!;
+  const portada = (f: FamiliaVitrina) => conFoto(f.variantes) ?? f.cabeza;
+
+  // Las categorías con al menos tres productos, para su escena propia.
+  const porCategoria = new Map<string, FamiliaVitrina[]>();
+  for (const f of familias) {
+    const c = f.cabeza.categoria?.trim();
+    if (!c) continue;
+    porCategoria.set(c, [...(porCategoria.get(c) ?? []), f]);
+  }
+  const colecciones = [...porCategoria].filter(([, fs]) => fs.length >= 3);
+  const escotes = ESCOTES.filter((e) => piezasParaEscote(e, piezas).length > 0);
+
+  let nFrase = 0;
+  let nEscote = 0;
+  let nColeccion = 0;
+  let lado = 0;
+  for (let paso = 0; (siguiente < familias.length || paso < PATRON.length) && paso < 4000; paso++) {
+    const tipo = PATRON[paso % PATRON.length]!;
+    const pieza = () => {
+      const f = tomar();
+      salida.push({ tipo: 'pieza', clave: `p${paso}-${f.clave}`, familia: f, lado: lado++ % 2 === 0 ? 'izq' : 'der' });
+    };
+    switch (tipo) {
+      case 'pieza':
+        pieza();
+        break;
+      case 'detalle':
+        if (!conMateriales) { pieza(); break; }
+        {
+          const f = tomar();
+          salida.push({ tipo: 'detalle', clave: `d${paso}-${f.clave}`, familia: f });
+        }
+        break;
+      case 'trio':
+        if (familias.length < 3) { pieza(); break; }
+        {
+          const tres = [tomar(), tomar(), tomar()].map(portada);
+          salida.push({ tipo: 'trio', clave: `t${paso}-${tres.map((p) => p.id).join('.')}`, piezas: tres });
+        }
+        break;
+      case 'coleccion': {
+        if (colecciones.length === 0) break;
+        const [categoria, fs] = colecciones[nColeccion % colecciones.length]!;
+        const desde = Math.floor(nColeccion / colecciones.length) * 4;
+        const cuatro = Array.from({ length: Math.min(4, fs.length) }, (_, k) => portada(fs[(desde + k) % fs.length]!));
+        salida.push({ tipo: 'coleccion', clave: `c${paso}-${categoria}`, categoria, cuantas: fs.length, piezas: cuatro });
+        nColeccion++;
+        break;
+      }
+      case 'escote': {
+        if (escotes.length === 0) break;
+        const escote = escotes[nEscote % escotes.length]!;
+        const de = piezasParaEscote(escote, piezas, Math.floor(nEscote / escotes.length) * 3);
+        salida.push({ tipo: 'escote', clave: `e${paso}-${escote.clave}`, escote, piezas: de });
+        nEscote++;
+        break;
+      }
+      case 'frase':
+        if (frases.length === 0) break;
+        salida.push({ tipo: 'frase', clave: `f${paso}`, frase: frases[nFrase++ % frases.length]! });
+        break;
+    }
+  }
+  return salida;
+}
+
 const leerQr = () => {
   try { return localStorage.getItem(CLAVE_QR) !== 'no'; } catch { return true; }
 };
@@ -78,14 +206,10 @@ const leerQr = () => {
 /**
  * Vitrina: el catalogo pasando solo, para dejarlo puesto en un televisor.
  *
- * La pantalla es la pieza y nada mas. Sin barra lateral, sin tablas, sin
+ * La pantalla es la escena y nada mas. Sin barra lateral, sin tablas, sin
  * botones a la vista: los controles aparecen al mover el raton y se esconden
  * de nuevo. Un televisor de tienda se mira de lejos, asi que todo lo que se
  * lee esta en tamanos grandes de la escala, no en los de trabajo.
- *
- * Cada cuatro piezas entra una frase de marca a pantalla completa. Son las
- * mismas de la Guia del Colaborador, recortadas: lo que la vendedora diria
- * de viva voz, dicho por la pantalla mientras ella atiende a otra clienta.
  *
  * Y en la esquina, el QR del catalogo en linea: la clienta que espera lo
  * abre en su telefono y arma su pedido ahi. Se puede quitar desde los
@@ -112,10 +236,13 @@ export function Vitrina() {
   const [controles, setControles] = useState(true);
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [conQr, setConQr] = useState(leerQr);
+  // La escena que se va, mientras entra la nueva: se funde encima.
+  const [saliente, setSaliente] = useState<Escena | null>(null);
 
   const temporizadorOcultar = useRef<number | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
   const claveActual = useRef<string | null>(null);
+  const escenaAnterior = useRef<Escena | null>(null);
   const hayDatos = useRef(false);
 
   /**
@@ -175,47 +302,45 @@ export function Vitrina() {
     return () => window.clearTimeout(id);
   }, [error, reintento, cargar]);
 
-  // Un producto con variantes es UNA pantalla, con sus medidas y sus
-  // precios: dos pantallas seguidas con la misma cadena parecerian un error.
-  //
   // Sin foto no sale: en un televisor, una pieza sin foto es una pantalla
   // vacia con un precio. Si ninguna tiene foto, salen todas.
-  const familias = useMemo(() => {
-    const todas = agruparPorFamilia(modelos);
-    const conFotos = todas.filter((f) => f.variantes.some((v) => v.foto_path || v.foto_thumb_path));
-    return intercalar(conFotos.length > 0 ? conFotos : todas);
+  const conFotos = useMemo(() => {
+    const algunas = modelos.filter((m) => m.foto_path || m.foto_thumb_path);
+    return algunas.length > 0 ? algunas : modelos;
   }, [modelos]);
+  const familias = useMemo(() => intercalar(agruparPorFamilia(conFotos)), [conFotos]);
 
-  // El guion: piezas con una frase cada CADA. Si no hay frases cargadas
-  // queda solo el catalogo.
-  const guion = useMemo<Diapositiva[]>(() => {
-    const salida: Diapositiva[] = [];
-    familias.forEach((familia, i) => {
-      salida.push({ tipo: 'pieza', familia, n: i + 1 });
-      if (secuencia.length > 0 && (i + 1) % CADA === 0 && i + 1 < familias.length) {
-        // La secuencia ya viene alternada por categoria y sin repetir:
-        // recorrerla en orden cumple las dos reglas del banco.
-        const n = Math.floor(i / CADA);
-        salida.push({ tipo: 'frase', frase: secuencia[n % secuencia.length]!, n });
-      }
-    });
-    return salida;
-  }, [familias, secuencia]);
+  const materiales = textos.materiales_largo?.trim() || textos.materiales_corto?.trim() || null;
+  const guion = useMemo(
+    () => armarGuion(familias, secuencia, Boolean(materiales), conFotos),
+    [familias, secuencia, materiales, conFotos],
+  );
 
   const total = guion.length;
-  const actual = total > 0 ? guion[indice % total] : null;
+  const actual = total > 0 ? guion[indice % total]! : null;
+  const duracion = actual ? Math.round(segundos * FACTOR[actual.tipo] * 10) / 10 : segundos;
 
-  // Al refrescar, la pantalla sigue en la pieza que estaba: el guion nuevo
-  // la busca por su clave. Si se vendio, sigue desde el mismo sitio. Va
-  // antes del efecto que recuerda la clave, a proposito: tiene que leer la
-  // de antes del cambio.
+  // Al refrescar, la pantalla sigue en la escena que estaba: el guion nuevo
+  // la busca por su clave. Va antes del efecto que recuerda la clave, a
+  // proposito: tiene que leer la de antes del cambio.
   useEffect(() => {
     const clave = claveActual.current;
     if (!clave) return;
-    const i = guion.findIndex((d) => claveDe(d) === clave);
+    const i = guion.findIndex((d) => d.clave === clave);
     if (i >= 0) setIndice(i);
   }, [guion]);
-  useEffect(() => { claveActual.current = actual ? claveDe(actual) : null; }, [actual]);
+  useEffect(() => { claveActual.current = actual ? actual.clave : null; }, [actual]);
+
+  // La escena que se va se queda un momento, fundiéndose, mientras entra la
+  // nueva: sin esto, cada cambio era un corte en seco.
+  useEffect(() => {
+    const antes = escenaAnterior.current;
+    escenaAnterior.current = actual;
+    if (!antes || !actual || antes.clave === actual.clave) return;
+    setSaliente(antes);
+    const id = window.setTimeout(() => setSaliente(null), SALIDA_MS);
+    return () => window.clearTimeout(id);
+  }, [actual]);
 
   const avanzar = useCallback((paso: number) => {
     setIndice((i) => (total > 0 ? (i + paso + total) % total : 0));
@@ -225,25 +350,25 @@ export function Vitrina() {
   // mano tambien reinicia la cuenta: no salta a los dos segundos.
   useEffect(() => {
     if (pausado || total <= 1) return;
-    const id = window.setTimeout(() => avanzar(1), segundos * 1000);
+    const id = window.setTimeout(() => avanzar(1), duracion * 1000);
     return () => window.clearTimeout(id);
-  }, [indice, pausado, segundos, total, avanzar]);
+  }, [indice, pausado, duracion, total, avanzar]);
 
-  // La siguiente foto se descarga mientras se mira la de ahora. Sin esto la
-  // pieza aparece a medio cargar en la conexion de la tienda.
+  // Las fotos de la siguiente escena se descargan mientras se mira esta: en
+  // la conexion de la tienda, una escena a medio cargar no se ve bien.
   useEffect(() => {
     if (total <= 1) return;
     const siguiente = guion[(indice + 1) % total];
-    if (siguiente?.tipo !== 'pieza') return;
-    const portada = conFoto(siguiente.familia.variantes);
-    const url = portada ? urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path) : null;
-    if (url) { const img = new Image(); img.src = url; }
+    if (!siguiente) return;
+    for (const url of fotosDe(siguiente)) {
+      if (url) { const img = new Image(); img.src = url; }
+    }
   }, [indice, guion, total]);
 
   // Un televisor puesto toda la tarde se apaga solo. Donde el navegador lo
   // permita se le pide que no lo haga. El permiso se pierde cada vez que la
   // pestaña se esconde (cambiar de entrada en el televisor, por ejemplo):
-  // se vuelve a pedir al volver. Antes se pedía una sola vez.
+  // se vuelve a pedir al volver.
   useEffect(() => {
     let candado: WakeLockSentinel | null = null;
     let vivo = true;
@@ -310,16 +435,10 @@ export function Vitrina() {
     return () => window.removeEventListener('keydown', alTeclear);
   }, [avanzar, mostrarControles, alternarPantallaCompleta]);
 
-  const foto = useMemo(() => {
-    if (actual?.tipo !== 'pieza') return null;
-    const portada = conFoto(actual.familia.variantes);
-    return portada ? urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path) : null;
-  }, [actual]);
-
   const enlace = useMemo(() => enlacePublico(), []);
 
-  // Las claves de todas las variantes, sin repetir: "V1 · BG".
-  const claves = actual?.tipo === 'pieza'
+  // La clave de ubicación ("V1 · BG") solo cuando hay una pieza en pantalla.
+  const claves = actual && (actual.tipo === 'pieza' || actual.tipo === 'detalle')
     ? [...new Set(actual.familia.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ')
     : '';
 
@@ -330,19 +449,35 @@ export function Vitrina() {
     el precio por debajo del borde. Las letras ya se miden contra el alto
     de la pantalla (vitrina.css), pero un nombre muy largo o cinco medidas
     pueden seguir sin caber. Aqui se mide lo que de verdad se dibujo y, si
-    la ficha se pasa de la pantalla, se baja su letra (--escala) hasta que
-    entra entera. Antes de pintar, para que no se vea el salto.
+    una caja de texto se pasa de su sitio, se baja su letra (--escala)
+    hasta que entra entera. Antes de pintar, para que no se vea el salto.
+    Solo en la escena que entra: la que se va ya está medida.
   */
   useLayoutEffect(() => {
     const raiz = contenedor.current;
     if (!raiz) return;
     const MINIMO = 0.5;
+    /*
+      Lo que de verdad ocupa el contenido, por la maquetación y no por
+      scrollHeight: Chrome cuenta en scrollHeight a los hijos desplazados por
+      su animación de entrada (las piezas entran 5vh más abajo), y la letra
+      se encogía al 66 % sin que nada se saliera.
+    */
+    const ocupa = (caja: HTMLElement) => {
+      let fin = 0;
+      for (const hijo of Array.from(caja.children)) {
+        if (hijo instanceof HTMLElement && getComputedStyle(hijo).position !== 'absolute') {
+          fin = Math.max(fin, hijo.offsetTop + hijo.offsetHeight);
+        }
+      }
+      return fin + (parseFloat(getComputedStyle(caja).paddingBottom) || 0);
+    };
     const ajustar = () => {
-      for (const caja of raiz.querySelectorAll<HTMLElement>('.vitrina__ficha, .vitrina__frase')) {
+      for (const caja of raiz.querySelectorAll<HTMLElement>('.vitrina__escena--entra .vitrina__ajustable')) {
         let escala = 1;
         caja.style.setProperty('--escala', '1');
-        for (let vuelta = 0; vuelta < 6 && caja.scrollHeight > caja.clientHeight + 1 && escala > MINIMO; vuelta++) {
-          escala = Math.max(MINIMO, escala * Math.min(0.94, caja.clientHeight / caja.scrollHeight));
+        for (let vuelta = 0; vuelta < 6 && ocupa(caja) > caja.clientHeight + 1 && escala > MINIMO; vuelta++) {
+          escala = Math.max(MINIMO, escala * Math.min(0.94, caja.clientHeight / ocupa(caja)));
           caja.style.setProperty('--escala', escala.toFixed(3));
         }
       }
@@ -369,13 +504,18 @@ export function Vitrina() {
       </div>
     );
   }
-  if (total === 0) {
+  if (total === 0 || !actual) {
     return (
       <Vacio titulo="No hay piezas que mostrar">
         <p>La vitrina muestra los modelos con existencia. Carga inventario y vuelve.</p>
       </Vacio>
     );
   }
+
+  // La que se va y la que entra, con su clave: React no vuelve a montar la
+  // que se va, así que sus animaciones no se repiten mientras se funde.
+  const enPantalla = saliente && saliente.clave !== actual.clave ? [saliente, actual] : [actual];
+  const materialesCortos = textos.materiales_corto ?? null;
 
   return (
     <div
@@ -388,32 +528,22 @@ export function Vitrina() {
         <Wordmark alto={48} tono="crema" />
       </div>
 
-      {/* La clave de React es la de la diapositiva, no su posicion: al
-          refrescar el catalogo la pieza que se esta viendo no se vuelve a
-          animar como si fuera nueva. */}
-      <div className="vitrina__escena" key={actual ? claveDe(actual) : indice}>
-        {actual?.tipo === 'frase' ? (
-          <div className="vitrina__frase">
-            <div className="vitrina__regla" aria-hidden="true">
-              <span /><Monograma tamano={30} /><span />
-            </div>
-
-            {/* Las micro-frases del banco son de dos a seis palabras y
-                piden mas cuerpo: de lejos, un destello corto tiene que
-                pesar tanto como una frase larga. */}
-            <p className={actual.frase.texto.length <= 24 ? 'vitrina__frase-texto vitrina__frase-texto--corta' : 'vitrina__frase-texto'}>
-              {actual.frase.texto}
-            </p>
-            <div className="vitrina__regla" aria-hidden="true">
-              <span /><Monograma tamano={30} /><span />
-            </div>
+      {enPantalla.map((e) => {
+        const entra = e.clave === actual.clave;
+        const estilo = { '--dur': `${entra ? duracion : segundos}s` } as CSSProperties;
+        return (
+          <div
+            key={e.clave}
+            className={`vitrina__escena vitrina__escena--${e.tipo} ${entra ? 'vitrina__escena--entra' : 'vitrina__escena--sale'}`}
+            style={estilo}
+            aria-hidden={entra ? undefined : true}
+          >
+            <EscenaVitrina escena={e} materiales={materiales} materialesCortos={materialesCortos} />
           </div>
-        ) : actual?.tipo === 'pieza' ? (
-          <FichaVitrina familia={actual.familia} foto={foto} materiales={textos.materiales_corto ?? null} />
-        ) : null}
-      </div>
+        );
+      })}
 
-      {/* El catalogo en el telefono de quien mira. Fuera de la ficha y
+      {/* El catalogo en el telefono de quien mira. Fuera de la escena y
           dentro del margen de seguridad: no se va con los controles,
           porque es para la clienta. */}
       {conQr ? (
@@ -425,16 +555,15 @@ export function Vitrina() {
 
       {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
           sabe leerlo desde su puesto; la clienta ve una referencia y sigue
-          de largo. Se queda aunque se vayan los controles, porque es para
-          trabajar, no para vender. */}
+          de largo. */}
       {claves ? <p className="vitrina__clave">{claves}</p> : null}
 
       {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
       <div className="vitrina__progreso" aria-hidden="true">
         <div
           className="vitrina__progreso-barra"
-          key={`${indice}-${segundos}-${pausado}`}
-          style={{ animationDuration: `${segundos}s`, animationPlayState: pausado ? 'paused' : 'running' }}
+          key={`${indice}-${duracion}-${pausado}`}
+          style={{ animationDuration: `${duracion}s`, animationPlayState: pausado ? 'paused' : 'running' }}
         />
       </div>
 
@@ -471,7 +600,7 @@ export function Vitrina() {
 
         <div className="vitrina__grupo">
           <span className="vitrina__cuenta">
-            {actual?.tipo === 'pieza' ? `Pieza ${actual.n} de ${familias.length}` : 'Lux by Emory'}
+            {`Escena ${(indice % total) + 1} de ${total} · ${familias.length} piezas`}
             {/* Si se cayo la red, se sigue mostrando lo ultimo que llego, y
                 se dice desde cuando. */}
             {sinRed && actualizada
@@ -487,50 +616,73 @@ export function Vitrina() {
   );
 }
 
-/**
- * La ficha de una pieza en la vitrina.
- *
- * Con variantes del mismo precio, las medidas en una linea y un precio.
- * Con precios distintos, cada medida con los suyos: "desde" en una pantalla
- * que se lee de lejos no dice nada, y la clienta no pregunta por lo que no
- * ve.
- */
-function FichaVitrina({ familia, foto, materiales }: {
-  familia: Familia<PiezaVitrina>;
-  foto: string | null;
+/* ------------------------------------------------------------ escenas */
+
+function EscenaVitrina({ escena, materiales, materialesCortos }: {
+  escena: Escena;
   materiales: string | null;
+  materialesCortos: string | null;
 }) {
+  switch (escena.tipo) {
+    case 'pieza': return <EscenaPieza familia={escena.familia} lado={escena.lado} materiales={materialesCortos} />;
+    case 'trio': return <EscenaTrio piezas={escena.piezas} />;
+    case 'coleccion': return <EscenaColeccion categoria={escena.categoria} cuantas={escena.cuantas} piezas={escena.piezas} />;
+    case 'detalle': return <EscenaDetalle familia={escena.familia} materiales={materiales} />;
+    case 'frase': return <EscenaFrase frase={escena.frase} />;
+    case 'escote': return <EscenaEscote escote={escena.escote} piezas={escena.piezas} />;
+  }
+}
+
+/** Los dos precios, bolívares y $ BCV, del mismo tamaño: ninguno es letra chica. */
+function Precios({ pieza, clase = 'vitrina__precio' }: { pieza: PiezaVitrina; clase?: string }) {
+  return (
+    <div className="vitrina__precios">
+      <p className={clase}>{formatearBs(pieza.precio_bs)}</p>
+      <p className={clase}>{formatearBcv(pieza.precio_usd)}</p>
+    </div>
+  );
+}
+
+/** La foto en su arco de vitrina, con el arco de oro que se dibuja. */
+function Arco({ pieza, nombre, clase = '' }: { pieza: PiezaVitrina | undefined; nombre: string; clase?: string }) {
+  const url = fotoDe(pieza);
+  return (
+    <div className={`vitrina__arco ${clase}`}>
+      <div className="vitrina__arco-foto">
+        {url ? <img src={url} alt={nombre} /> : <div className="vitrina__sinfoto"><Monograma tamano={120} /></div>}
+      </div>
+      <FiligranaArco />
+    </div>
+  );
+}
+
+/**
+ * Una pieza estelar. Con variantes del mismo precio, las medidas en una
+ * línea y un precio; con precios distintos, cada medida con los suyos:
+ * "desde" en una pantalla que se lee de lejos no dice nada.
+ */
+function EscenaPieza({ familia, lado, materiales }: { familia: FamiliaVitrina; lado: 'izq' | 'der'; materiales: string | null }) {
   const { cabeza, variantes } = familia;
   const varias = variantes.length > 1;
   const mismoPrecio = variantes.every((v) => v.precio_bs === cabeza.precio_bs);
   const nota = varias
     ? (mismoPrecio ? etiquetasDe(familia) : null)
     : [cabeza.variante, cabeza.variantes_nota].filter(Boolean).join(' · ') || null;
-  // Lo mismo que dice el catalogo en linea ("Queda 1"), dicho de lejos.
   const ultima = variantes.reduce((n, v) => n + v.disponible, 0) === 1;
 
   return (
-    <div className="vitrina__pieza">
-      <div className="vitrina__foto">
-        {foto
-          ? <img src={foto} alt={cabeza.nombre} />
-          : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
-      </div>
+    <div className={`vitrina__pieza vitrina__pieza--${lado}`}>
+      <Arco pieza={conFoto(variantes)} nombre={cabeza.nombre} clase="vitrina__arco--estelar" />
 
-      <div className="vitrina__ficha">
-        {cabeza.categoria ? <p className="vitrina__categoria">{cabeza.categoria}</p> : null}
-        <h1 className="vitrina__nombre">{cabeza.nombre}</h1>
-        {nota ? <p className="vitrina__nota">{nota}</p> : null}
+      <div className="vitrina__ficha vitrina__ajustable">
+        {cabeza.categoria ? <p className="vitrina__categoria vitrina__aparece">{cabeza.categoria}</p> : null}
+        <h1 className="vitrina__nombre vitrina__aparece">{cabeza.nombre}</h1>
+        {nota ? <p className="vitrina__nota vitrina__aparece">{nota}</p> : null}
 
-        <div className="vitrina__regla" aria-hidden="true">
-          <span /><Monograma tamano={26} /><span />
-        </div>
+        <FiligranaDivisor className="vitrina__divisor" retraso={0.5} />
 
-        {/* Bolívares y dólares BCV, del mismo tamaño y el mismo peso:
-            quien mira de lejos piensa en una de las dos monedas, y
-            ninguna tiene que ser la letra chica. */}
         {varias && !mismoPrecio ? (
-          <ul className="vitrina__variantes">
+          <ul className="vitrina__variantes vitrina__aparece vitrina__aparece--tarde">
             {variantes.map((v) => (
               <li key={v.id}>
                 <span className="vitrina__variante">{v.variante ?? v.sku}</span>
@@ -540,14 +692,139 @@ function FichaVitrina({ familia, foto, materiales }: {
             ))}
           </ul>
         ) : (
-          <>
-            <p className="vitrina__precio">{formatearBs(cabeza.precio_bs)}</p>
-            <p className="vitrina__precio">{formatearBcv(cabeza.precio_usd)}</p>
-          </>
+          <div className="vitrina__aparece vitrina__aparece--tarde"><Precios pieza={cabeza} /></div>
         )}
 
-        {ultima ? <p className="vitrina__ultima">Última pieza</p> : null}
-        {materiales ? <p className="vitrina__materiales">{materiales}</p> : null}
+        {ultima ? <p className="vitrina__ultima vitrina__aparece vitrina__aparece--ultimo">Última pieza</p> : null}
+        {materiales ? <p className="vitrina__materiales vitrina__aparece vitrina__aparece--ultimo">{materiales}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/** Una pieza pequeña: su arco, su nombre con la medida que se enseña y sus dos precios. */
+function Tesela({ pieza, n }: { pieza: PiezaVitrina; n: number }) {
+  const nombre = nombreConVariante(pieza.nombre, pieza.variante);
+  return (
+    <li className="vitrina__tesela" style={{ '--n': n } as CSSProperties}>
+      <Arco pieza={pieza} nombre={nombre} clase="vitrina__arco--tesela" />
+      <p className="vitrina__tesela-nombre">{pieza.nombre}</p>
+      {pieza.variante ? <p className="vitrina__tesela-medida">{pieza.variante}</p> : null}
+      <Precios pieza={pieza} clase="vitrina__tesela-precio" />
+    </li>
+  );
+}
+
+function EscenaTrio({ piezas }: { piezas: PiezaVitrina[] }) {
+  return (
+    <div className="vitrina__trio vitrina__ajustable">
+      <h2 className="vitrina__titular vitrina__aparece">Para combinar</h2>
+      <FiligranaDivisor className="vitrina__divisor vitrina__divisor--centro" retraso={0.3} />
+      <ul className="vitrina__teselas">
+        {piezas.map((p, n) => <Tesela key={p.id} pieza={p} n={n} />)}
+      </ul>
+    </div>
+  );
+}
+
+function EscenaColeccion({ categoria, cuantas, piezas }: { categoria: string; cuantas: number; piezas: PiezaVitrina[] }) {
+  return (
+    <div className="vitrina__coleccion">
+      <div className="vitrina__coleccion-titulo vitrina__ajustable">
+        <h2 className="vitrina__palabra">{tituloCategoria(categoria)}</h2>
+        <FiligranaDivisor className="vitrina__divisor" retraso={0.6} />
+        <p className="vitrina__nota vitrina__aparece vitrina__aparece--tarde">
+          {cuantas} para elegir en la vitrina
+        </p>
+      </div>
+      <ul className="vitrina__mosaico">
+        {piezas.map((p, n) => {
+          const url = fotoDe(p);
+          const nombre = nombreConVariante(p.nombre, p.variante);
+          return (
+            <li key={p.id} className="vitrina__baldosa" style={{ '--n': n } as CSSProperties}>
+              <div className="vitrina__baldosa-foto">
+                {url ? <img src={url} alt={nombre} /> : <div className="vitrina__sinfoto"><Monograma tamano={60} /></div>}
+              </div>
+              <p className="vitrina__baldosa-nombre">{nombre}</p>
+              <Precios pieza={p} clase="vitrina__baldosa-precio" />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function EscenaDetalle({ familia, materiales }: { familia: FamiliaVitrina; materiales: string | null }) {
+  const portada = conFoto(familia.variantes) ?? familia.cabeza;
+  const url = fotoDe(portada);
+  return (
+    <div className="vitrina__detalle">
+      <div className="vitrina__detalle-foto">
+        {url ? <img src={url} alt={familia.cabeza.nombre} /> : <div className="vitrina__sinfoto"><Monograma tamano={140} /></div>}
+      </div>
+      <div className="vitrina__detalle-texto vitrina__ajustable">
+        <p className="vitrina__categoria vitrina__aparece">De cerca</p>
+        {materiales ? <p className="vitrina__detalle-materiales vitrina__aparece">{materiales}</p> : null}
+        <FiligranaDivisor className="vitrina__divisor" retraso={0.8} />
+        <p className="vitrina__nombre vitrina__nombre--chico vitrina__aparece vitrina__aparece--tarde">
+          {nombreConVariante(familia.cabeza.nombre, familia.variantes.length === 1 ? familia.cabeza.variante : null)}
+        </p>
+        <div className="vitrina__aparece vitrina__aparece--ultimo"><Precios pieza={portada} /></div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Una frase de la marca. Las palabras entran una tras otra, como se dicen,
+ * entre las cuatro esquinas que se dibujan.
+ */
+function EscenaFrase({ frase }: { frase: Frase }) {
+  const palabras = frase.texto.split(/\s+/).filter(Boolean);
+  // Hasta un segundo y medio para que entre la frase entera, la tenga el largo que tenga.
+  const paso = Math.min(0.12, 1.5 / Math.max(palabras.length, 1));
+  return (
+    <div className="vitrina__frase vitrina__ajustable">
+      <FiligranaMarco />
+      <div className="vitrina__frase-monograma vitrina__aparece"><Monograma tamano={44} /></div>
+      <p className={frase.texto.length <= 24 ? 'vitrina__frase-texto vitrina__frase-texto--corta' : 'vitrina__frase-texto'}>
+        {/* El espacio va FUERA de cada palabra: dentro de un inline-block,
+            el espacio del final se pierde y las palabras se pegaban. */}
+        {palabras.map((p, n) => (
+          <Fragment key={`${n}-${p}`}>
+            <span className="vitrina__palabra-frase" style={{ animationDelay: `${0.35 + n * paso}s` }}>{p}</span>
+            {n < palabras.length - 1 ? ' ' : null}
+          </Fragment>
+        ))}
+      </p>
+      <FiligranaDivisor className="vitrina__divisor vitrina__divisor--centro" retraso={0.6 + palabras.length * paso} />
+    </div>
+  );
+}
+
+/**
+ * Qué joya va con un escote: la silueta se dibuja (el cuerpo, el borde de
+ * la prenda y, en oro, la joya) y al lado las piezas de la tienda que le
+ * van, en la medida que le va.
+ */
+function EscenaEscote({ escote, piezas }: { escote: Escote; piezas: PiezaVitrina[] }) {
+  return (
+    <div className="vitrina__escote">
+      <div className="vitrina__escote-dibujo">
+        <SiluetaEscote clave={escote.clave} descripcion={`${escote.titulo}: ${escote.joya}`} />
+      </div>
+      <div className="vitrina__escote-texto vitrina__ajustable">
+        <p className="vitrina__categoria vitrina__aparece">Qué joya va con tu escote</p>
+        <h2 className="vitrina__titular vitrina__titular--escote vitrina__aparece">{escote.titulo}</h2>
+        <p className="vitrina__consejo vitrina__aparece vitrina__aparece--tarde">{escote.consejo}</p>
+        <FiligranaDivisor className="vitrina__divisor" retraso={1.6} />
+        {piezas.length > 0 ? (
+          <ul className="vitrina__teselas vitrina__teselas--escote">
+            {piezas.map((p, n) => <Tesela key={p.id} pieza={p} n={n} />)}
+          </ul>
+        ) : null}
       </div>
     </div>
   );

@@ -56,6 +56,7 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 src/
   lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts,
                 revendedor.ts (su sesión, sus enlaces, las paletas),
+                escotes.ts (qué joya va con cada escote, para la vitrina),
                 vendedoras.ts (llama a la función de servidor de las cuentas),
                 visitas.ts (el catálogo público cuenta su visita)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
@@ -81,6 +82,8 @@ src/
                 Lux o del revendedor), Graficos, Progreso, Recordatorio,
                 CompartirCatalogo (y `enlacePublico`, el enlace del
                 catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
+                Filigrana (las líneas de oro de la vitrina que se dibujan),
+                SiluetaEscote (el busto de cada escote, a línea),
                 BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario (un producto por fila; sus medidas se abren
@@ -90,7 +93,8 @@ src/
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
                 y de dónde saca cada dato)
     venta/      Mostrador, Pedidos ("Quitar" una pieza de un pedido sin
-                entregar, con su historia), Tablero, Cierre, Guia,
+                entregar o de una venta por verificar, con su historia),
+                Tablero, Cierre, Guia,
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
                 con sus medidas dentro y los conteos anteriores)
@@ -208,6 +212,10 @@ devuelven), con las tasas de la venta original. Un disparador
 `pedido_cambios` (revocada, se lee por `v_pedido_cambios`) es la historia
 de lo que se quitó de un pedido: antes, después, total, el dinero, quién y
 por qué. Una línea quitada de `reserva_items` queda en cero, no se borra.
+`venta_cambios` (revocada, se lee por `v_venta_cambios`) es lo mismo para
+una venta por verificar. Una línea de `venta_items` puede quedar en cero
+SOLO en una venta por verificar (lo vigila `venta_items_signo`); en una
+verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 
 ### Las vistas, que es por donde entra la vendedora
 
@@ -220,6 +228,7 @@ por qué. Una línea quitada de `reserva_items` queda en cero, no se borra.
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
 | `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
+| `v_venta_cambios` | Lo mismo para una venta por verificar, con los totales en bolívares | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
 | `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
 | `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
@@ -255,8 +264,9 @@ primero la vuelve por partes), `admin_guardar_modelo`,
 `admin_guardar_revendedor`, `admin_codigo_revendedor`, `admin_cancelar_apartado`,
 `admin_anotar_caja`, `admin_anular_caja`, `registrar_conteo` (el conteo de
 inventario, de las dos caras), `quitar_de_pedido` (una pieza fuera de un
-pedido sin entregar, de las dos caras) y `admin_devolver_pieza` (la nota de
-crédito de una pieza ya entregada).
+pedido sin entregar, de las dos caras), `quitar_de_venta` (una pieza fuera
+de una venta por verificar, de las dos caras) y `admin_devolver_pieza` (la
+nota de crédito de una pieza ya entregada).
 
 `registrar_conteo(ubicación, detalle, notas)` recibe solo lo contado, cada
 línea con `contada` y `vista` (la existencia FÍSICA que la pantalla vio al
@@ -624,6 +634,20 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     cuenta en `caja_flujo`, para no restarlo dos veces. No se devuelve de una
     venta por verificar (primero se verifica o se anula), una venta con
     devoluciones no se anula entera y una nota de crédito no se anula.
+  - **La venta está por verificar** (15/10/2026): todavía no es un hecho
+    cerrado, es lo que se espera cobrar. "Quitar" en Pedidos
+    (`quitar_de_venta`) hace lo mismo que en un pedido: la línea baja (en
+    cero queda "quitada"), la pieza vuelve a la ubicación de donde salió y
+    el total se recalcula con los bolívares congelados de cada línea más lo
+    de fuera del catálogo, como lo calcula `registrar_venta`. No es una nota
+    de crédito porque la caja cuenta la venta por su total y "lo que falta"
+    de una por partes sale de su total: con una nota los dos seguirían en el
+    total viejo. De las dos caras; si es por partes y lo pagado y
+    comprobado pasa del total nuevo, el administrador decide (se devuelve
+    por la caja o se queda). La última pieza no se quita: se anula la venta.
+    Las vistas que listan líneas una por una (`v_ventas_por_verificar`,
+    `v_cliente_compras`, `v_rebajas`, `v_rotacion_modelo`) se saltan las de
+    cero; las que suman multiplican por la cantidad y no cambian.
   - Las devoluciones de los pedidos de revendedores no están: lo suyo se
     sigue cerrando con `admin_cerrar_apartado`.
 - **Lo apartado no se vende en el mostrador.** Un pedido dice "2 de esta cadena",
@@ -641,6 +665,17 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   sola. Intercala las categorías, salta las piezas sin foto (si hay alguna con
   foto), dice "Última pieza" y lleva el QR del catálogo en línea (se quita desde
   los controles; `CodigoQr`, con `uqr` fijado en 0.1.2, ver ESTADO.md).
+  **Desde el 15/10/2026 es un guion de seis escenas** (pieza estelar en un arco,
+  tres para combinar, colección de una categoría, de cerca con los materiales,
+  frase, y qué joya va con cada escote), con filigranas de oro que se dibujan y
+  una entrada distinta por escena. Cada escena dura los segundos de los
+  controles por su factor (`FACTOR` en `Vitrina.tsx`). La guía de escotes son
+  consejos de estilo en `lib/escotes.ts`, no cifras del negocio: sus piezas
+  salen de la tienda, filtradas por categoría y por la medida de la variante
+  ("45 cm"), y un escote sin piezas que le vayan no sale. Lo que se dibuja
+  está en `SiluetaEscote.tsx`. El ajuste de letra mide con `offsetTop` y no
+  con `scrollHeight`: Chrome cuenta en scrollHeight lo desplazado por una
+  animación de entrada y encogía la letra sin que nada se saliera.
 - **El conteo de inventario** (rehecho en la auditoría del 14/10/2026). Se
   cuenta lo FÍSICO, las piezas apartadas también, a ciegas (la pantalla no dice
   cuánto espera el sistema mientras se cuenta), y solo se guarda lo que se
@@ -740,12 +775,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 189 comprobaciones con las dos sesiones (194 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 193 comprobaciones con las dos sesiones (198 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta y una
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

@@ -902,6 +902,29 @@ export interface PedidoCambio {
 }
 
 /**
+ * Vista v_venta_cambios (esquema-quitar-por-verificar.sql): lo que se le
+ * quitó a una venta por verificar. Los totales en bolívares: una venta los
+ * guarda así, congelados.
+ */
+export interface VentaCambio {
+  id: number;
+  venta_id: number;
+  modelo_id: number;
+  nombre: string;
+  variante: string | null;
+  antes: number;
+  despues: number;
+  total_antes_bs: number;
+  total_despues_bs: number;
+  dinero: 'devuelto' | 'se_queda' | null;
+  devuelto_bs: number | null;
+  devuelto_metodo: MetodoPago | null;
+  motivo: string | null;
+  quien: string | null;
+  cambiado_en: string;
+}
+
+/**
  * Vista v_ventas_por_verificar: una fila por pieza de cada venta que se
  * registro sin comprobar el pago. Sin costos.
  */
