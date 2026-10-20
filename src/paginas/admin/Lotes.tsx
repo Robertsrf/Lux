@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearBinance, formatearEntero, formatearFecha, formatearMonto, formatearTasa, leerCifra, previsualizarProrrateo } from '../../lib/dinero';
@@ -31,6 +32,8 @@ const FORM_VACIO = {
   piezas_mercancia: '',
   unidades_exhibidores: '',
   notas: '',
+  /** Todavía no llega: lo que se cargue no se vende hasta liberarlo. */
+  en_camino: false,
 };
 
 /**
@@ -42,6 +45,7 @@ const FORM_VACIO = {
  * parte del flete no se cargan jamas al costo de las joyas.
  */
 export function Lotes() {
+  const navegar = useNavigate();
   const [lotes, setLotes] = useState<LoteAdmin[]>([]);
   const [cargando, setCargando] = useState(true);
   const [form, setForm] = useState(FORM_VACIO);
@@ -53,7 +57,7 @@ export function Lotes() {
     setCargando(true);
     const { data, error: err } = await supabase
       .from('v_lotes_admin')
-      .select('id, codigo, fecha_llegada, tasa_binance_compra, costo_mercancia_usd, costo_exhibidores_usd, costo_flete_usd, piezas_mercancia, unidades_exhibidores, notas, flete_mercancia_usd, flete_exhibidores_usd, capex_total_usd, flete_por_unidad_usd, modelos_cargados')
+      .select('id, codigo, fecha_llegada, tasa_binance_compra, costo_mercancia_usd, costo_exhibidores_usd, costo_flete_usd, piezas_mercancia, unidades_exhibidores, notas, flete_mercancia_usd, flete_exhibidores_usd, capex_total_usd, flete_por_unidad_usd, modelos_cargados, en_camino, liberado_en, liberado_por, piezas_esperadas, piezas_recibidas')
       .order('fecha_llegada', { ascending: false });
     if (err) setError(mensajeDeError(err));
     setLotes((data as LoteAdmin[] | null) ?? []);
@@ -69,6 +73,13 @@ export function Lotes() {
     piezasMercancia: form.piezas_mercancia,
     unidadesExhibidores: form.unidades_exhibidores,
   }), [form]);
+
+  // "En camino" se elige mientras el lote no tenga nada cargado. Con piezas
+  // dentro, "ya llegó" es liberarlo (que revisa lo que vino), y a un lote
+  // cuyas piezas ya se venden no se le pone "en camino". La base dice lo mismo.
+  const loteEditado = form.id === null ? null : lotes.find((l) => l.id === form.id) ?? null;
+  const puedeCambiarEstado = loteEditado === null
+    || (loteEditado.liberado_en === null && loteEditado.modelos_cargados === 0 && loteEditado.piezas_esperadas === 0);
 
   function cambiar<K extends keyof typeof FORM_VACIO>(campo: K, valor: (typeof FORM_VACIO)[K]) {
     setForm((f) => ({ ...f, [campo]: valor }));
@@ -86,6 +97,7 @@ export function Lotes() {
       piezas_mercancia: String(l.piezas_mercancia),
       unidades_exhibidores: String(l.unidades_exhibidores),
       notas: l.notas ?? '',
+      en_camino: l.en_camino,
     });
     setExito(null);
     setError(null);
@@ -108,7 +120,7 @@ export function Lotes() {
     setGuardando(true);
     setError(null);
 
-    const { error: err } = await supabase.rpc('admin_guardar_lote', {
+    const { data, error: err } = await supabase.rpc('admin_guardar_lote', {
       p_id: form.id,
       p_codigo: form.codigo,
       p_fecha_llegada: form.fecha_llegada,
@@ -119,10 +131,17 @@ export function Lotes() {
       p_piezas_mercancia: Math.trunc(Number(form.piezas_mercancia || 0)),
       p_unidades_exhibidores: Math.trunc(Number(form.unidades_exhibidores || 0)),
       p_notas: form.notas || null,
+      // Null: como esta. Con piezas cargadas el estado no se toca aqui:
+      // "ya llego" es liberarlo, en la pantalla del lote.
+      p_en_camino: puedeCambiarEstado ? form.en_camino : null,
     });
 
     if (err) setError(mensajeDeError(err));
-    else {
+    else if (!form.id && form.en_camino && typeof data === 'number') {
+      // Lo siguiente es cargarle lo que trae: se va directo a su pantalla.
+      navegar(`/admin/lotes/${data}`);
+      return;
+    } else {
       setExito(form.id ? 'Lote actualizado. Se recalculo el flete de sus modelos.' : 'Lote registrado con su tasa sellada.');
       setForm({ ...FORM_VACIO, fecha_llegada: HOY() });
       await recargar();
@@ -163,6 +182,14 @@ export function Lotes() {
           costo de un lote viejo cambiaria solo y no sabrias cuanto ganaste de
           verdad.
         </p>
+        <p>
+          <strong>Un lote que todavía no llega</strong> se registra con
+          {' '}"Todavía no ha llegado" y se le carga todo con tiempo: productos
+          nuevos y más piezas de los que ya vendes. Nada de eso se vende ni
+          cuenta en el inventario; las clientas ven lo nuevo como Próximamente.
+          Cuando llegue, en <strong>Lo que viene</strong>, revisas lo que vino
+          y lo liberas.
+        </p>
       </Ayuda>
 
 
@@ -177,7 +204,11 @@ export function Lotes() {
           <Campo etiqueta="Código" htmlFor="l-codigo" pista="Si lo dejas vacio, el sistema lo genera.">
             <input id="l-codigo" value={form.codigo} onChange={(e) => cambiar('codigo', e.target.value)} maxLength={30} />
           </Campo>
-          <Campo etiqueta="Fecha de llegada" htmlFor="l-fecha">
+          <Campo
+            etiqueta={form.en_camino ? 'Llegada estimada' : 'Fecha de llegada'}
+            htmlFor="l-fecha"
+            pista={form.en_camino ? 'Al liberarlo, queda la fecha del día en que llegó.' : undefined}
+          >
             <input id="l-fecha" type="date" required value={form.fecha_llegada} onChange={(e) => cambiar('fecha_llegada', e.target.value)} />
           </Campo>
           <Campo
@@ -193,6 +224,24 @@ export function Lotes() {
             />
           </Campo>
         </div>
+
+        <label className="casilla" htmlFor="l-camino">
+          <input
+            id="l-camino" type="checkbox"
+            checked={form.en_camino}
+            disabled={!puedeCambiarEstado}
+            aria-describedby="l-camino-pista"
+            onChange={(e) => cambiar('en_camino', e.target.checked)}
+          />
+          <span>Todavía no ha llegado</span>
+        </label>
+        <p className="campo__pista" id="l-camino-pista">
+          {!puedeCambiarEstado && loteEditado?.en_camino
+            ? 'Ya tiene piezas cargadas: para darlo por llegado, revísalo y libéralo en su pantalla.'
+            : !puedeCambiarEstado
+              ? 'Sus piezas ya se venden.'
+              : 'Lo que cargues en este lote no se vende hasta que lo liberes. Las clientas lo ven en el catálogo como Próximamente.'}
+        </p>
 
         <div className="fila">
           <Campo etiqueta="Costo de mercancía $" htmlFor="l-cm">
@@ -247,7 +296,7 @@ export function Lotes() {
 
         <div className="acciones">
           <button type="submit" className="boton boton--confirmar" disabled={guardando}>
-            {guardando ? 'Guardando' : form.id ? 'Guardar cambios' : 'Registrar lote'}
+            {guardando ? 'Guardando' : form.id ? 'Guardar cambios' : form.en_camino ? 'Registrar y cargar lo que viene' : 'Registrar lote'}
           </button>
           {form.id ? (
             <button type="button" className="boton boton--secundario" onClick={() => setForm({ ...FORM_VACIO, fecha_llegada: HOY() })}>
@@ -282,8 +331,28 @@ export function Lotes() {
             <tbody>
               {lotes.map((l) => (
                 <tr key={l.id}>
-                  <td className="util">{l.codigo}</td>
-                  <td>{formatearFecha(l.fecha_llegada)}</td>
+                  <td>
+                    <span className="util">{l.codigo}</span>
+                    {/* El estado y el camino a lo que trae, junto al código: la
+                        última columna queda fuera de la pantalla hasta que se
+                        desliza la tabla. */}
+                    {l.en_camino ? (
+                      <div className="lote-estado">
+                        <span className="etiqueta etiqueta--proxima">En camino</span>
+                        <span className="celda-nota">llegan {formatearEntero(l.piezas_esperadas)}</span>
+                        <Link className="boton boton--pequeno" to={`/admin/lotes/${l.id}`}>Lo que viene</Link>
+                      </div>
+                    ) : l.liberado_en ? (
+                      <div className="lote-estado">
+                        <span className="celda-nota">llegaron {formatearEntero(l.piezas_recibidas ?? 0)} de {formatearEntero(l.piezas_esperadas)}</span>
+                        <Link className="boton boton--secundario boton--pequeno" to={`/admin/lotes/${l.id}`}>Lo que llegó</Link>
+                      </div>
+                    ) : null}
+                  </td>
+                  <td>
+                    {formatearFecha(l.fecha_llegada)}
+                    {l.en_camino ? <div className="celda-nota">estimada</div> : null}
+                  </td>
                   <td className="num">{formatearTasa(l.tasa_binance_compra)}</td>
                   <td className="num">{formatearMonto(l.costo_mercancia_usd)}</td>
                   <td className="num">{formatearMonto(l.flete_mercancia_usd)}</td>

@@ -40,6 +40,15 @@ Y desde el 30/09/2026, **el apartado**: toda clienta puede apartar pagando una p
 (el 40 %) y terminar de pagar en 15 días, abono por abono con su referencia; si no
 termina, lo abonado se queda. En el mostrador reemplazó a vender a crédito.
 
+Y desde el 20/10/2026, **el lote en camino**: el dueño carga un lote antes de que
+llegue (productos nuevos y más piezas de los que ya vende) sin que nada salga a la
+venta, y cuando llega revisa lo que vino y lo libera. Mientras tanto, para la
+vendedora no existe y para la clienta es **Próximamente**: al final del catálogo en
+línea, en su página del catálogo PDF y en su escena de la vitrina, con foto y precio,
+sin poder pedirlo. Se enseña para antojar ("que den ganas de reservarlo", dijo el
+dueño), no para vender. Antes, cargarlo era ponerlo disponible y las clientas
+preguntaban por piezas que no estaban en la tienda.
+
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el
 inventario en un teléfono era una tabla de trece columnas de la que solo se veían

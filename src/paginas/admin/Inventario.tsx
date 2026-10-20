@@ -48,6 +48,32 @@ function tieneMinimo(m: ModeloAdmin): boolean {
 }
 
 /**
+ * Lo de los lotes que no han llegado, dicho junto a la existencia. Una
+ * pieza nueva de un lote en camino no tiene existencia (lo suyo va aparte
+ * hasta liberarlo): sale "Próximamente" y cuántas vienen, no un 0 en
+ * alerta. Una que ya se vende y repone dice cuántas más vienen.
+ */
+function notaPorLlegar(vs: ModeloAdmin[]) {
+  const vienen = vs.reduce((n, m) => n + (m.por_llegar ?? 0), 0);
+  const lotes = [...new Set(vs.flatMap((m) => (m.por_llegar_lotes ?? '').split(' · ')).filter(Boolean))].join(' · ');
+  if (vs.length > 0 && vs.every((m) => m.proximamente)) {
+    return (
+      <div className="celda-nota">
+        <span className="etiqueta etiqueta--proxima">Próximamente</span>
+        {' '}{vienen > 0 ? `llegan ${vienen}` : 'sin cantidad'}{lotes ? ` · ${lotes}` : ''}
+      </div>
+    );
+  }
+  return vienen > 0 ? <div className="celda-nota">+{vienen} en camino{lotes ? ` · ${lotes}` : ''}</div> : null;
+}
+
+/** La existencia de una pieza o de un producto: sin alerta de "quedan pocas" si todavía no ha llegado. */
+function cifraExistencia(n: number, proximo: boolean) {
+  if (proximo) return <span className="secundario">—</span>;
+  return n <= 2 ? <span className="etiqueta etiqueta--alerta">{n}</span> : n;
+}
+
+/**
  * Vista de inventario del administrador: densa, tabular, para comparar cifras.
  * Muestra costo puesto, precio, margen en $ y en %.
  * La vendedora no llega aqui: la vista v_catalogo_admin filtra con es_admin().
@@ -66,13 +92,13 @@ export function Inventario() {
   const [movido, setMovido] = useState<string | null>(null);
   // Los productos con medidas que están abiertos.
   const [abiertas, setAbiertas] = useState<Set<number>>(new Set());
-  const [lotes, setLotes] = useState<{ id: number; codigo: string }[]>([]);
+  const [lotes, setLotes] = useState<{ id: number; codigo: string; en_camino: boolean }[]>([]);
   const visor = useVisorFoto();
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from('v_lotes_admin').select('id, codigo').order('fecha_llegada', { ascending: false });
-      setLotes((data as { id: number; codigo: string }[] | null) ?? []);
+      const { data } = await supabase.from('v_lotes_admin').select('id, codigo, en_camino').order('fecha_llegada', { ascending: false });
+      setLotes((data as { id: number; codigo: string; en_camino: boolean }[] | null) ?? []);
     })();
   }, []);
 
@@ -201,9 +227,10 @@ export function Inventario() {
       bs: m.precio_bs,
       bcv: m.precio_usd,
       binance: binanceDesdeBs(m.precio_bs, tasa?.tasa_venta),
-      // Lo que se puede vender, como en el mostrador: sin lo apartado.
-      quedan: Math.max(0, m.existencia_total - (apartadas.get(m.id) ?? 0)),
-      nota: m.variantes_nota,
+      // Lo que se puede vender, como en el mostrador: sin lo apartado. Lo
+      // que no ha llegado no "queda": viene.
+      quedan: m.proximamente ? null : Math.max(0, m.existencia_total - (apartadas.get(m.id) ?? 0)),
+      nota: m.proximamente ? ['Próximamente: su lote no ha llegado', m.variantes_nota].filter(Boolean).join(' · ') : m.variantes_nota,
     })),
   })), [familias, apartadas, textos.materiales_corto, tasa?.tasa_venta]);
 
@@ -343,9 +370,8 @@ export function Inventario() {
           {formatearPorcentaje(m.margen_pct)}
         </td>
         <td className="num">
-          {m.existencia_total <= 2 ? (
-            <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
-          ) : m.existencia_total}
+          {cifraExistencia(m.existencia_total, m.proximamente)}
+          {notaPorLlegar([m])}
           {detalle ? <div className="celda-nota">{detalle}</div> : null}
           {/* Las de pedidos siguen en la tienda pero no se venden:
               se dice para que la cifra cuadre con el mostrador. */}
@@ -377,13 +403,14 @@ export function Inventario() {
             <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
               Margen {formatearPorcentaje(m.margen_pct)}
             </span>
-            <span>
-              {m.existencia_total <= 2
-                ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
-                : m.existencia_total} en tienda
-              {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
-            </span>
+            {m.proximamente ? null : (
+              <span>
+                {cifraExistencia(m.existencia_total, false)} en tienda
+                {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
+              </span>
+            )}
           </div>
+          {notaPorLlegar([m])}
           <div className="grupo-botones">
             <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${m.id}`}>Editar</Link>
             {botonMover([m])}
@@ -399,7 +426,9 @@ export function Inventario() {
     const vs = f.variantes;
     const existencia = vs.reduce((n, m) => n + m.existencia_total, 0);
     const deUnPedido = vs.reduce((n, m) => n + (apartadas.get(m.id) ?? 0), 0);
-    const sinPiezas = vs.filter((m) => m.existencia_total <= 0).length;
+    const proximo = vs.every((m) => m.proximamente);
+    // Una medida que todavía no llega no está "sin piezas": está en camino.
+    const sinPiezas = vs.filter((m) => m.existencia_total <= 0 && !m.proximamente).length;
     return (
       <li className="ficha-inv ficha-inv--familia" key={`f${f.clave}`}>
         <MiniaturaTocable className="miniatura ficha-inv__foto" thumb={conFoto(vs)?.foto_thumb_path ?? null} nombre={f.cabeza.nombre} alVer={() => verFoto(f.clave)} />
@@ -415,12 +444,15 @@ export function Inventario() {
           </div>
           <div className="ficha-inv__datos">
             <span>Margen {rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</span>
-            <span>
-              {existencia <= 2 ? <span className="etiqueta etiqueta--alerta">{existencia}</span> : existencia} en tienda
-              {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
-            </span>
+            {proximo ? null : (
+              <span>
+                {cifraExistencia(existencia, false)} en tienda
+                {deUnPedido ? ` · ${deUnPedido} apartada${deUnPedido === 1 ? '' : 's'}` : ''}
+              </span>
+            )}
             {sinPiezas > 0 ? <span className="celda-nota--alerta">{sinPiezas === 1 ? 'Una medida sin piezas' : `${sinPiezas} medidas sin piezas`}</span> : null}
           </div>
+          {notaPorLlegar(vs)}
           <div className="grupo-botones">
             <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${f.cabeza.id}`}>Editar</Link>
             {botonMover(vs)}
@@ -451,13 +483,14 @@ export function Inventario() {
                       <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
                         Margen {formatearPorcentaje(m.margen_pct)}
                       </span>
-                      <span>
-                        {m.existencia_total <= 2
-                          ? <span className="etiqueta etiqueta--alerta">{m.existencia_total}</span>
-                          : m.existencia_total} en tienda
-                        {apartadasDe ? ` · ${apartadasDe} apartada${apartadasDe === 1 ? '' : 's'}` : ''}
-                      </span>
+                      {m.proximamente ? null : (
+                        <span>
+                          {cifraExistencia(m.existencia_total, false)} en tienda
+                          {apartadasDe ? ` · ${apartadasDe} apartada${apartadasDe === 1 ? '' : 's'}` : ''}
+                        </span>
+                      )}
                     </div>
+                    {notaPorLlegar([m])}
                     <div className="grupo-botones">
                       {botonMover([m])}
                       {botonRetirar(m)}
@@ -477,7 +510,7 @@ export function Inventario() {
     const vs = f.variantes;
     const existencia = vs.reduce((n, m) => n + m.existencia_total, 0);
     const deUnPedido = vs.reduce((n, m) => n + (apartadas.get(m.id) ?? 0), 0);
-    const sinPiezas = vs.filter((m) => m.existencia_total <= 0).length;
+    const sinPiezas = vs.filter((m) => m.existencia_total <= 0 && !m.proximamente).length;
     const conMinimo = vs.filter(tieneMinimo);
     const detalle = detalleUbicaciones(vs.map((m) => m.id));
     const margenBajo = vs.some((m) => m.margen_pct !== null && m.margen_pct < 0);
@@ -518,7 +551,8 @@ export function Inventario() {
         <td className={gananciaBaja ? 'num negativo' : 'num positivo'}>{rango(vs, (m) => m.margen_usd, (n) => formatearMonto(n))}</td>
         <td className={margenBajo ? 'num negativo' : 'num'}>{rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</td>
         <td className="num">
-          {existencia <= 2 ? <span className="etiqueta etiqueta--alerta">{existencia}</span> : existencia}
+          {cifraExistencia(existencia, vs.every((m) => m.proximamente))}
+          {notaPorLlegar(vs)}
           {detalle ? <div className="celda-nota">{detalle}</div> : null}
           {deUnPedido ? <div className="celda-nota">{textoApartadas(deUnPedido)}</div> : null}
           {/* Cerrada, la suma escondía la medida agotada. */}
@@ -587,6 +621,13 @@ export function Inventario() {
           la misma cifra que ella ve en cada tarjeta del mostrador.
         </p>
         <p>
+          <strong>Próximamente</strong> es una pieza de un lote que todavía no
+          llega: no se vende, no suma en los totales y dice cuántas vienen. Sale
+          a la venta cuando liberas su lote, en Lotes. <strong>+3 en
+          camino</strong>, en una que ya vendes, son tres más que llegan en un
+          lote: se suman al liberarlo.
+        </p>
+        <p>
           Un producto con medidas (una cadena de 45 y de 60 cm) ocupa una sola
           fila: cada cifra va de la medida más baja a la más alta y la
           existencia es la suma. Toca la línea de sus medidas, debajo del
@@ -648,7 +689,7 @@ export function Inventario() {
           <Campo etiqueta="Lote" htmlFor="f-lote">
             <select id="f-lote" value={filtros.loteId} onChange={(e) => cambiarFiltro('loteId', e.target.value)}>
               <option value="">Todos</option>
-              {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}</option>)}
+              {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.en_camino ? ' · en camino' : ''}</option>)}
             </select>
           </Campo>
         </div>

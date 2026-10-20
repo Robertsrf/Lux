@@ -428,6 +428,28 @@ porque, mientras nadie lo aprueba, la pieza seguiría "disponible" y otra person
 la podría vender. Verificar solo la marca como comprobada; si el pago no llega,
 `anular_venta_por_verificar` la anula y devuelve las piezas.
 
+### Lo que no ha llegado no tiene existencia
+Desde el 20/10/2026 (`esquema-lote-en-camino.sql`). Un lote "en camino"
+(`lotes.en_camino`) se carga antes de que llegue, y lo que trae se anota en
+`por_llegar`, **nunca en `existencias`**. Así no se vende, no se cuenta y no
+sale en la vitrina por construcción: todo lo que vende o cuenta mira la
+existencia, y no hay que acordarse de filtrarlo pantalla por pantalla. El
+disparador `existencia_no_en_camino` lo vigila en toda escritura.
+
+- Una función nueva que escriba existencia no tiene que hacer nada: el
+  disparador la para si la pieza es de un lote en camino. Una que liste
+  modelos activos SIN mirar la existencia (un conteo de modelos, un promedio
+  de catálogo) sí tiene que dejar fuera lo que está en camino, como
+  `v_valor_inventario` y `v_diagnostico`.
+- La venta lee `v_catalogo_venta`, que ya lo deja fuera. Lo próximo lo ven
+  el dueño (`v_catalogo_admin.proximamente`, `v_por_llegar`) y la clienta
+  (`v_proximamente`: foto, nombre y precio, nada más), que la leen el
+  catálogo en línea, el PDF y la vitrina en su sección aparte. Una pantalla
+  nueva que quiera enseñarlo lo lee de ahí, nunca de una vista de venta; el
+  mostrador no lo enseña.
+- Liberar (`admin_liberar_lote`) quita primero el "en camino" y después
+  escribe la existencia; al revés, el disparador lo impide.
+
 ### El histórico no se borra
 `ventas`, `venta_items`, `reservas`, `reserva_items`, `abonos` y `abono_cambios` no se borran: ni con sesión
 (sin permiso de `delete` ni `truncate`) ni desde el SQL Editor (el disparador

@@ -10,7 +10,7 @@ import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
 import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
-import type { ModeloVenta } from '../lib/tipos';
+import type { ModeloProximo, ModeloVenta } from '../lib/tipos';
 import '../estilos/impresion.css';
 
 const TAMANO_PAGINA = 500;
@@ -29,8 +29,12 @@ export function CatalogoPdf() {
   const textos = useTextos();
   const { secuencia: frases } = useFrases('TV');
   const [modelos, setModelos] = useState<ModeloVenta[]>([]);
+  // Lo que viene en un lote que no ha llegado (pedido del dueño del
+  // 20/10/2026): va al final, marcado "Próximamente", sin cantidad.
+  const [proximos, setProximos] = useState<ModeloProximo[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorProximos, setErrorProximos] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -73,9 +77,20 @@ export function CatalogoPdf() {
           .map((m) => ({ ...m, existencia_total: libres.get(m.id) ?? 0 })));
       } catch (e) {
         setError(mensajeDeError(e));
-      } finally {
-        setCargando(false);
       }
+
+      // Aparte: si falla, el catálogo de lo que se vende sale igual, y se
+      // dice que faltó lo próximo para no mandar un PDF incompleto sin saberlo.
+      const prox = await supabase
+        .from('v_proximamente')
+        .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante')
+        .order('categoria', { ascending: true })
+        .order('nombre', { ascending: true })
+        .order('id', { ascending: true })
+        .range(0, TAMANO_PAGINA - 1);
+      setErrorProximos(prox.error ? mensajeDeError(prox.error) : null);
+      setProximos((prox.data as unknown as ModeloProximo[] | null) ?? []);
+      setCargando(false);
     })();
   }, []);
 
@@ -92,6 +107,7 @@ export function CatalogoPdf() {
     for (let i = 0; i < familias.length; i += POR_TANDA) salida.push(familias.slice(i, i + POR_TANDA));
     return salida;
   }, [familias]);
+  const familiasProximas = useMemo(() => agruparPorFamilia(proximos), [proximos]);
 
   if (cargando) return <Cargando texto="Armando el catálogo" />;
 
@@ -100,7 +116,10 @@ export function CatalogoPdf() {
       <div className="encabezado-pagina sin-impresion">
         <div>
           <h1>Catálogo</h1>
-          <p>Solo lo que se puede pedir: sin lo apartado por pedidos. Imprime y elige "Guardar como PDF".</p>
+          <p>
+            Lo que se puede pedir, sin lo apartado por pedidos{familiasProximas.length > 0 ? ', y al final lo que viene en camino, como Próximamente' : ''}.
+            {' '}Imprime y elige "Guardar como PDF".
+          </p>
         </div>
         <div>
           <button type="button" className="boton" onClick={() => window.print()}>Imprimir o guardar PDF</button>
@@ -113,6 +132,13 @@ export function CatalogoPdf() {
       </div>
 
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
+      {errorProximos ? (
+        <div className="sin-impresion">
+          <Aviso tono="alerta" titulo="No se pudo traer lo que viene en camino">
+            El catálogo sale sin la sección Próximamente. {errorProximos}
+          </Aviso>
+        </div>
+      ) : null}
 
       <div className="sin-impresion">
         <VisitasCatalogo />
@@ -138,6 +164,7 @@ export function CatalogoPdf() {
 
         <p className="portada__dato">
           Catalogo del {formatearFecha(new Date().toISOString())} · {familias.length} modelos disponibles
+          {familiasProximas.length > 0 ? ` · ${familiasProximas.length} próximamente` : ''}
         </p>
 
         <p className="portada__lugar">
@@ -177,23 +204,7 @@ export function CatalogoPdf() {
                     <div className="ficha__material">{textos.materiales_corto}</div>
                   ) : null}
                   <div>
-                    {varias && !mismoPrecio ? (
-                      // Cada medida con su precio, los dos del mismo tamano.
-                      <ul className="ficha__opciones">
-                        {f.variantes.map((v) => (
-                          <li key={v.id}>
-                            <span className="ficha__opcion">{v.variante ?? v.sku}</span>
-                            <span className="ficha__opcion-precio">{formatearBs(v.precio_bs)}</span>
-                            <span className="ficha__opcion-precio">{formatearBcv(v.precio_usd)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <>
-                        <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
-                        <div className="ficha__precio">{formatearBcv(m.precio_usd)}</div>
-                      </>
-                    )}
+                    <PreciosDeFicha familia={f} />
                     <div className="ficha__existencia">
                       {quedan === 1 ? 'Queda 1 pieza' : `Quedan ${quedan} piezas`}
                     </div>
@@ -218,11 +229,93 @@ export function CatalogoPdf() {
           </div>
           ))}
 
-          <p className="catalogo__pie">
-            {textos.catalogo_pie ?? 'Lux by Emory · Desde Sabana de Mendoza para toda Venezuela'}
-          </p>
         </>
       )}
+
+      {/*
+        PRÓXIMAMENTE. Lo nuevo de un lote que no ha llegado, en su propia
+        página: una franja verde que lo anuncia y las mismas fichas, con
+        "Próximamente" donde las demás dicen cuántas quedan. Sin cantidad
+        ni ubicación: no está en la tienda y no se puede pedir todavía.
+      */}
+      {familiasProximas.length > 0 ? (
+        <section className="catalogo__proximos">
+          <aside className="catalogo__franja">
+            <p className="franja__titulo">Próximamente</p>
+            <p className="franja__texto">Vienen en camino. Todavía no se pueden pedir: en cuanto lleguen, se pueden apartar.</p>
+            <div className="franja__regla" aria-hidden="true">
+              <span /><Monograma tamano={26} /><span />
+            </div>
+          </aside>
+          <div className="catalogo__rejilla">
+            {familiasProximas.map((f) => {
+              const m = f.cabeza;
+              const portada = conFoto(f.variantes) ?? m;
+              const foto = urlPublicaFoto(portada.foto_path ?? portada.foto_thumb_path);
+              const varias = f.variantes.length > 1;
+              const mismoPrecio = f.variantes.every((v) => v.precio_bs === m.precio_bs);
+              return (
+                <article className="ficha" key={f.clave}>
+                  {foto
+                    ? <img className="ficha__foto" src={foto} alt={m.nombre} loading="lazy" />
+                    : <div className="ficha__foto" />}
+                  <div className="ficha__sku">{varias ? f.variantes.map((v) => v.sku).join(' · ') : m.sku}</div>
+                  <div className="ficha__nombre">{m.nombre}</div>
+                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasDe(f)}</div> : null}
+                  {!varias && (m.variante || m.variantes_nota) ? (
+                    <div className="ficha__variantes">{[m.variante, m.variantes_nota].filter(Boolean).join(' · ')}</div>
+                  ) : null}
+                  {textos.materiales_corto ? (
+                    <div className="ficha__material">{textos.materiales_corto}</div>
+                  ) : null}
+                  <div>
+                    <PreciosDeFicha familia={f} />
+                    <div className="ficha__proxima">Próximamente</div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {modelos.length > 0 || familiasProximas.length > 0 ? (
+        <p className="catalogo__pie">
+          {textos.catalogo_pie ?? 'Lux by Emory · Desde Sabana de Mendoza para toda Venezuela'}
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Los precios de una ficha: con medidas de distinto precio, cada una con
+ * los suyos; si no, los dos del producto. Bolívares y $ BCV del mismo
+ * tamaño, siempre. La usan las fichas de lo que se vende y las de lo
+ * próximo.
+ */
+function PreciosDeFicha({ familia }: { familia: Familia<Pick<ModeloVenta, 'id' | 'sku' | 'variante' | 'precio_bs' | 'precio_usd'>> }) {
+  const m = familia.cabeza;
+  const varias = familia.variantes.length > 1;
+  const mismoPrecio = familia.variantes.every((v) => v.precio_bs === m.precio_bs);
+  if (varias && !mismoPrecio) {
+    return (
+      // Cada medida con su precio, los dos del mismo tamano.
+      <ul className="ficha__opciones">
+        {familia.variantes.map((v) => (
+          <li key={v.id}>
+            <span className="ficha__opcion">{v.variante ?? v.sku}</span>
+            <span className="ficha__opcion-precio">{formatearBs(v.precio_bs)}</span>
+            <span className="ficha__opcion-precio">{formatearBcv(v.precio_usd)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <>
+      <div className="ficha__precio">{formatearBs(m.precio_bs)}</div>
+      <div className="ficha__precio">{formatearBcv(m.precio_usd)}</div>
+    </>
   );
 }

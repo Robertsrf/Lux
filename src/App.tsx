@@ -44,6 +44,7 @@ import { Pedidos } from './paginas/venta/Pedidos';
 const Inventario = lazy(() => import('./paginas/admin/Inventario').then((m) => ({ default: m.Inventario })));
 const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').then((m) => ({ default: m.FormularioModelo })));
 const Lotes = lazy(() => import('./paginas/admin/Lotes').then((m) => ({ default: m.Lotes })));
+const LoteEnCamino = lazy(() => import('./paginas/admin/LoteEnCamino').then((m) => ({ default: m.LoteEnCamino })));
 const Grupos = lazy(() => import('./paginas/admin/Grupos').then((m) => ({ default: m.Grupos })));
 const Tasas = lazy(() => import('./paginas/Tasas').then((m) => ({ default: m.Tasas })));
 const Tramos = lazy(() => import('./paginas/admin/Tramos').then((m) => ({ default: m.Tramos })));
@@ -154,6 +155,7 @@ export function App() {
             <Route path="/admin/modelos/nuevo" element={soloAdmin(<FormularioModelo />)} />
             <Route path="/admin/modelos/:id" element={soloAdmin(<FormularioModelo />)} />
             <Route path="/admin/lotes" element={soloAdmin(<Lotes />)} />
+            <Route path="/admin/lotes/:id" element={soloAdmin(<LoteEnCamino />)} />
             <Route path="/admin/grupos" element={soloAdmin(<Grupos />)} />
             <Route path="/admin/tramos" element={soloAdmin(<Tramos />)} />
             <Route path="/admin/textos" element={soloAdmin(<Textos />)} />

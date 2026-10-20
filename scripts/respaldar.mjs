@@ -46,6 +46,8 @@ const POR_FUNCION = [
   'abonos', 'abono_cambios', 'caja_movimientos',
   'revendedores', 'revendedor_precios', 'revendedor_clientes',
   'apartados', 'apartado_items', 'apartado_abonos',
+  // Lo que viene en los lotes en camino, y lo que llegó de cada uno.
+  'por_llegar',
 ];
 
 function leerEnv() {

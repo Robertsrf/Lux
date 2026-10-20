@@ -87,7 +87,11 @@ src/
                 BuscadorCliente, RutaProtegida
   paginas/
     admin/      Inventario (un producto por fila; sus medidas se abren
-                debajo), FormularioModelo, Lotes, Grupos, Tramos,
+                debajo; "Próximamente" lo que no ha llegado),
+                FormularioModelo, Lotes ("Todavía no ha llegado"),
+                LoteEnCamino (/admin/lotes/:id: lo que viene en un lote,
+                la reposición y "Revisar y liberar"; liberado, lo que
+                llegó), Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
                 Caja (lo que entra y lo que sale, día por día y mes por mes),
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
@@ -98,7 +102,8 @@ src/
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
                 con sus medidas dentro y los conteos anteriores)
-    publico/    Catalogo, Reserva, GuiaRevendedor (/guia-revendedor, la guía
+    publico/    Catalogo (con "Próximamente" al final), Reserva,
+                GuiaRevendedor (/guia-revendedor, la guía
                 para quien quiere ser revendedor) con GuiaRevendedorPiezas
                 (calculadora, recorrido, manual, preguntas, solicitud)
                                            (sin sesión)
@@ -108,9 +113,10 @@ src/
                 InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
                 ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
                                            (con SU código, no con Supabase)
-    Vitrina                                (sin sesión, como el catálogo)
+    Vitrina (con su escena "Próximamente")  (sin sesión, como el catálogo)
     Clientes (la ficha: cada compra con su foto y, para el
-    administrador, "Devolver"), Tasas, CatalogoPdf, Entrar,
+    administrador, "Devolver"), Tasas, CatalogoPdf (con "Próximamente"
+    en su página al final), Entrar,
     Verificacion                           (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
                 revendedor.css (las seis paletas de su catálogo, medidas),
@@ -182,6 +188,15 @@ número al azar que guarda su navegador; revocada a todos, se escribe por
 `registrar_visita` y se lee por `visitas_catalogo`).
 Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
 `gastos_fijos_partidas()`.
+`lotes.en_camino` dice que el lote todavía no llega (`liberado_en` y
+`liberado_por`, cuándo y quién lo puso a la venta) · `por_llegar` (lo que
+viene en un lote en camino: pieza, ubicación a la que va, cuántas se esperan
+y, al liberar, cuántas llegaron; revocada a todos, se lee por `v_por_llegar`).
+**Una pieza cuyo lote está en camino no tiene existencia**: lo suyo vive en
+`por_llegar`, y el disparador `existencia_no_en_camino` no deja escribirle
+existencia por ningún camino (ni el conteo ni el SQL Editor). Otro,
+`modelo_no_pasa_a_lote_en_camino`, no deja mover a un lote en camino una
+pieza que ya tiene piezas en la tienda.
 `perfiles.numero_vendedora` es el número de cada vendedora del local (los dos
 primeros dígitos de su código); null en los administradores y en la cuenta de
 antes.
@@ -221,10 +236,13 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 
 | Vista | Qué da | Quién |
 |---|---|---|
-| `v_catalogo_venta` | El catálogo **sin una sola columna de costo** | vendedora y admin |
+| `v_catalogo_venta` | El catálogo **sin una sola columna de costo**, y sin lo que no ha llegado | vendedora y admin |
 | `v_venta_ubicacion` | Lo mismo, desglosado por ubicación | vendedora y admin |
 | `v_disponible_publico` | El catálogo público, menos lo reservado. La ubicación va **en clave** (`V1 · BG`), nunca con el nombre | cualquiera, sin sesión |
-| `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()` | solo admin |
+| `v_catalogo_admin` | Agrega costo y margen; filtra con `es_admin()`. Trae también lo próximo (`proximamente`, `por_llegar`, `por_llegar_lotes`) | solo admin |
+| `v_catalogo_base` | Las fórmulas del catálogo, con lo próximo dentro: de ella cuelgan `v_catalogo_venta` (sin lo próximo) y `v_catalogo_admin` (con todo) | nadie: la leen las otras vistas |
+| `v_proximamente` | Lo nuevo de un lote en camino: foto, nombre, precio. Sin cantidad, ubicación ni pisos. La leen el catálogo en línea, el PDF y la vitrina | cualquiera, sin sesión |
+| `v_por_llegar` | Lo que viene en cada lote, línea por línea: nueva o reposición (y cuántas hay ya), a dónde va, cuántas se esperan y cuántas llegaron | solo admin |
 | `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
 | `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
@@ -265,8 +283,27 @@ primero la vuelve por partes), `admin_guardar_modelo`,
 `admin_anotar_caja`, `admin_anular_caja`, `registrar_conteo` (el conteo de
 inventario, de las dos caras), `quitar_de_pedido` (una pieza fuera de un
 pedido sin entregar, de las dos caras), `quitar_de_venta` (una pieza fuera
-de una venta por verificar, de las dos caras) y `admin_devolver_pieza` (la
-nota de crédito de una pieza ya entregada).
+de una venta por verificar, de las dos caras), `admin_devolver_pieza` (la
+nota de crédito de una pieza ya entregada), `admin_guardar_por_llegar` (la
+reposición: cuántas más de una pieza que ya se vende vienen en un lote en
+camino) y `admin_liberar_lote` (lo que llegó, a la existencia).
+
+`admin_guardar_modelo` (y `guardar_variantes_de`) guardan la cantidad con
+`guardar_cantidades_de`, por dentro: a `existencias` si el lote de la pieza
+ya llegó, a `por_llegar` si no. El navegador manda lo mismo de siempre; la
+base decide dónde va. Si a una pieza que venía en un lote en camino se le
+pone uno que ya llegó, sale a la venta con lo que diga el formulario (la
+pantalla lo avisa antes de guardar). `admin_guardar_lote` ganó `p_en_camino`
+al final (null: como estaba); el estado solo se cambia ahí mientras el lote
+no tenga nada cargado.
+
+`admin_liberar_lote(lote, llegaron)` recibe una fila por CADA línea de lo
+que viene (pieza activa y ubicación) con lo que llegó: si falta una o sobra
+una, alguien cargó algo mientras se revisaba y no libera a medias, pide
+recargar. Primero el lote deja de estar en camino (si no, el disparador no
+dejaría escribir la existencia), después SUMA lo que llegó (en una
+reposición ya había piezas) y la fecha de llegada del lote pasa a ser la de
+hoy en Venezuela. Lo esperado y lo que llegó quedan en `por_llegar`.
 
 `registrar_conteo(ubicación, detalle, notas)` recibe solo lo contado, cada
 línea con `contada` y `vista` (la existencia FÍSICA que la pantalla vio al
@@ -673,7 +710,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   consejos de estilo en `lib/escotes.ts`, no cifras del negocio: sus piezas
   salen de la tienda, filtradas por categoría y por la medida de la variante
   ("45 cm"), y un escote sin piezas que le vayan no sale. Lo que se dibuja
-  está en `SiluetaEscote.tsx`. El ajuste de letra mide con `offsetTop` y no
+  está en `SiluetaEscote.tsx`. **Desde el 20/10/2026 hay una séptima,
+  "Próximamente"**: la pieza estelar de un lote que no ha llegado, con el
+  sello "Próximamente" en vez de la categoría, "Viene en camino" en vez de
+  "Última pieza" y sin la clave de ubicación. Sale dos veces por vuelta del
+  patrón, rota entre todas las próximas y se refresca con lo demás; si esa
+  lectura falla, se queda la de antes. El ajuste de letra mide con `offsetTop` y no
   con `scrollHeight`: Chrome cuenta en scrollHeight lo desplazado por una
   animación de entrada y encogía la letra sin que nada se saliera.
 - **El conteo de inventario** (rehecho en la auditoría del 14/10/2026). Se
@@ -695,6 +737,31 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   excepciones llevan 4 decimales y su propia red: las tasas (confirmación
   "antes → después" y aviso de salto) y el costo de una pieza en el
   formulario (con punto decimal, y vacío no se guarda).
+- **El lote en camino** (pedido del dueño del 20/10/2026: cargar un lote
+  antes de que llegue sin que confunda a las clientas). Se registra en Lotes
+  con "Todavía no ha llegado" y se le carga todo en su pantalla, "Lo que
+  viene": productos nuevos (el formulario de siempre, con el lote puesto) y
+  reposición de los que ya se venden. **Nada de eso existe para la venta**:
+  ni mostrador, ni catálogo de la vendedora, ni el del revendedor, ni conteo,
+  ni cierre, ni las estadísticas que cuentan inventario o modelos
+  (`v_valor_inventario`, `v_diagnostico`, `v_rotacion_modelo`). No porque
+  cada pantalla lo filtre: porque no tiene existencia (vive en `por_llegar`),
+  y todo lo que vende o cuenta mira la existencia. El dueño lo ve en el
+  Inventario como "Próximamente · llegan 6" (sin alerta de "quedan pocas") y
+  la reposición como "+5 en camino". **Lo NUEVO se enseña para antojar,
+  nunca para pedir** (lo pidió el dueño el 20/10/2026, "para crear esa
+  sensación de quererlo reservar"): en el catálogo en línea, al final, con
+  foto y precio y sin botón; en el catálogo PDF, en su propia página tras una
+  franja verde, con "Próximamente" donde las demás fichas dicen cuántas
+  quedan; y en la vitrina, en una escena propia. Las tres leen
+  `v_proximamente`, aparte de lo que se vende: nunca se mezcla en un trío,
+  una colección o un escote. El mostrador no lo enseña. Cuando llega,
+  **Revisar y liberar**: cada línea empieza en lo esperado, se cambia lo que
+  no cuadre (el mismo contador del conteo) y al liberar entra a la venta lo
+  contado. Desde ahí es inventario como cualquier otro, y la rotación cuenta
+  sus días desde que se liberó. El dinero del lote no cambia: ya se pagó.
+  Una medida nueva de un producto que ya se vende: se crea en su ficha con
+  cantidad 0 y se suma en el lote como reposición.
 - **Cada pantalla dice la misma existencia.** Lo que se puede vender es lo
   LIBRE (`v_venta_ubicacion.cantidad`, `v_disponible_publico.disponible`): el
   mostrador, el catálogo, el del revendedor, la vitrina y el catálogo PDF, que
@@ -775,12 +842,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 193 comprobaciones con las dos sesiones (198 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 214 comprobaciones con las dos sesiones (219 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta y una
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta y tres
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve

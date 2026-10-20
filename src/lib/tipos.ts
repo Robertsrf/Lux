@@ -69,6 +69,56 @@ export interface LoteAdmin {
   /** Lo que paga de flete cada bulto: flete / (joyas + exhibidores). */
   flete_por_unidad_usd: number | null;
   modelos_cargados: number;
+  /** Todavía no llega: lo que trae no se vende hasta liberarlo. */
+  en_camino: boolean;
+  /** Cuándo se revisó y se puso a la venta. Null si nunca estuvo en camino. */
+  liberado_en: string | null;
+  /** El nombre de quien lo liberó. */
+  liberado_por: string | null;
+  /** Lo que se espera que traiga (piezas nuevas y reposición). */
+  piezas_esperadas: number;
+  /** Lo que llegó de verdad, al liberarlo. Null antes. */
+  piezas_recibidas: number | null;
+}
+
+/**
+ * Una línea de lo que viene en un lote (v_por_llegar, del dueño): una
+ * pieza, a qué ubicación va y cuántas. `es_nueva` dice si la pieza es del
+ * lote o si es más de una que ya se vende (reposición, y `hay` es lo que
+ * ya tiene ahí).
+ */
+export interface LineaPorLlegar {
+  id: number;
+  lote_id: number;
+  lote_codigo: string;
+  en_camino: boolean;
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  categoria: string;
+  familia: number;
+  foto_path: string | null;
+  foto_thumb_path: string | null;
+  activo: boolean;
+  es_nueva: boolean;
+  ubicacion_id: number;
+  ubicacion: string;
+  /** Lo que se espera. */
+  cantidad: number;
+  /** Lo que llegó, al liberar el lote. */
+  recibida: number | null;
+  hay: number;
+}
+
+/** Lo que devuelve admin_liberar_lote. */
+export interface LoteLiberado {
+  lote: string;
+  lineas: number;
+  esperadas: number;
+  llegaron: number;
+  faltaron: number;
+  sobraron: number;
 }
 
 /** Vista v_catalogo_venta: lo unico que puede leer la vendedora. Sin costos. */
@@ -128,6 +178,12 @@ export interface ModeloAdmin extends ModeloVenta {
   grupo_precio_id: number | null;
   precio_override_usd: number | null;
   lote_codigo: string | null;
+  /** Su lote todavía no llega: no se vende, sale como "Próximamente". */
+  proximamente: boolean;
+  /** Lo que viene de ella en lotes en camino (nueva o reposición). */
+  por_llegar: number;
+  /** En qué lotes viene: "L2611-03". */
+  por_llegar_lotes: string | null;
 }
 
 export interface Existencia {
@@ -418,6 +474,24 @@ export interface ModeloPublico {
   disponible: number;
   /** En clave de tienda, "V1 · BG". Nunca el nombre completo: esto lo abre cualquiera. */
   ubicaciones_codigo: string | null;
+  familia: number;
+  variante: string | null;
+}
+
+/**
+ * Una pieza de un lote que todavía no llega, para el catálogo en línea
+ * (v_proximamente). Se mira y no se pide: sin cantidad ni ubicación.
+ */
+export interface ModeloProximo {
+  id: number;
+  sku: string;
+  nombre: string;
+  categoria: string;
+  variantes_nota: string | null;
+  foto_path: string | null;
+  foto_thumb_path: string | null;
+  precio_usd: number | null;
+  precio_bs: number | null;
   familia: number;
   variante: string | null;
 }

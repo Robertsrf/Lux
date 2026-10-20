@@ -91,7 +91,8 @@
 .vitrina__escena--entra { z-index: 1; }
 .vitrina__escena--sale  { z-index: 0; animation: vitrina-se-va 900ms var(--v-entra) both; }
 
-.vitrina__escena--entra.vitrina__escena--pieza     { animation: vitrina-telon 1.1s var(--v-curva) both; }
+.vitrina__escena--entra.vitrina__escena--pieza,
+.vitrina__escena--entra.vitrina__escena--proxima   { animation: vitrina-telon 1.1s var(--v-curva) both; }
 .vitrina__escena--entra.vitrina__escena--coleccion { animation: vitrina-barrido 1.1s var(--v-curva) both; }
 .vitrina__escena--entra.vitrina__escena--detalle   { animation: vitrina-acerca 1.2s var(--v-entra) both; }
 .vitrina__escena--entra.vitrina__escena--trio,
@@ -289,6 +290,15 @@
   font-weight: 600;
   line-height: 1; font-variant-numeric: tabular-nums;
   color: var(--oro-arena);
+}
+
+/* "Próximamente": un sello de oro, no una categoría. Oro sobre el verde,
+   5,38:1 medido, con su filete fino, como el arco que se dibuja. */
+.vitrina__proxima {
+  display: inline-block;
+  padding: calc(0.35em * var(--escala)) calc(1em * var(--escala));
+  border: 1px solid var(--oro-arena);
+  border-radius: var(--radio-pill);
 }
 
 /* "Ultima pieza": oro sobre el verde, 5,38:1 medido. */
@@ -795,6 +805,7 @@
 @media (prefers-reduced-motion: reduce) {
   .vitrina__escena--entra,
   .vitrina__escena--entra.vitrina__escena--pieza,
+  .vitrina__escena--entra.vitrina__escena--proxima,
   .vitrina__escena--entra.vitrina__escena--coleccion,
   .vitrina__escena--entra.vitrina__escena--detalle { animation: vitrina-funde 500ms ease both; }
   .vitrina__escena--sale { animation: vitrina-se-va 500ms ease both; }

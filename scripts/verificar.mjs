@@ -650,6 +650,62 @@ async function main() {
   dice(!!vcP.error || (vcP.data?.length ?? 0) === 0, 'v_venta_cambios sin sesion', vcP.error ? 'rechazada ' + vcP.error.code : (vcP.data?.length ?? 0) + ' filas');
 
   /*
+    EL LOTE EN CAMINO (esquema-lote-en-camino.sql).
+
+    Lo que viene en un lote que no ha llegado vive en `por_llegar`, que no
+    se lee en crudo con ninguna sesión; el dueño lo ve por `v_por_llegar`.
+    `v_catalogo_base` lleva lo próximo dentro y no se abre a nadie: la venta
+    lee `v_catalogo_venta`, que lo deja fuera. La clienta ve lo nuevo en
+    `v_proximamente`, sin cantidad, ubicación ni pisos. Anotar y liberar
+    son del dueño. Todo con id -1: la base rechaza antes de escribir.
+  */
+  console.log('\nEL LOTE EN CAMINO');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.from('por_llegar').select('id').limit(1);
+    dice(error?.code === '42501', `por_llegar: ${quien} no la lee en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+  }
+  for (const [quien, S] of [['sin sesion', P], ['ella', V]]) {
+    const { error } = await S.from('v_catalogo_base').select('id').limit(1);
+    dice(error?.code === '42501', `v_catalogo_base: ${quien}, cerrada`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+  }
+  const plV = await V.from('v_por_llegar').select('id').limit(1);
+  dice(!!plV.error || (plV.data?.length ?? 0) === 0, 'v_por_llegar: ella, nada', plV.error ? 'rechazada ' + plV.error.code : (plV.data?.length ?? 0) + ' filas');
+  const plP = await P.from('v_por_llegar').select('id').limit(1);
+  dice(!!plP.error || (plP.data?.length ?? 0) === 0, 'v_por_llegar sin sesion', plP.error ? 'rechazada ' + plP.error.code : (plP.data?.length ?? 0) + ' filas');
+  const plA = await A.from('v_por_llegar').select('id, cantidad, recibida, es_nueva, hay').limit(1);
+  dice(!plA.error, 'v_por_llegar: el dueno, lo que viene', plA.error ? 'ERROR ' + plA.error.code : 'responde');
+  const proxP = await P.from('v_proximamente').select('*').limit(20);
+  const clavesProx = [...new Set((proxP.data ?? []).flatMap((f) => Object.keys(f)))].sort().join(',');
+  dice(!proxP.error && (clavesProx === '' || clavesProx === 'categoria,familia,foto_path,foto_thumb_path,id,nombre,precio_bs,precio_usd,sku,variante,variantes_nota'),
+    'v_proximamente sin sesion, sus claves', proxP.error ? 'ERROR ' + proxP.error.code : clavesProx || 'sin piezas en camino');
+  // Ni costo, ni pisos, ni cuántas vienen ni a dónde: eso es de la tienda.
+  for (const col of ['costo_puesto_usd', 'precio_minimo_usd', 'piso_tramo_usd', 'por_llegar', 'ubicaciones_codigo']) {
+    const f = await P.from('v_proximamente').select(col).limit(1);
+    dice(!!f.error, col + ' no sale en Proximamente', f.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');
+  }
+  // Lo próximo no se vende: ni en el catálogo de ella ni en el público.
+  const proxA = await A.from('v_catalogo_admin').select('id').eq('proximamente', true).limit(500);
+  const idsProx = (proxA.data ?? []).map((f) => f.id);
+  for (const [donde, S, vista] of [['el catalogo de venta', V, 'v_catalogo_venta'], ['el catalogo publico', P, 'v_disponible_publico']]) {
+    const r = idsProx.length ? await S.from(vista).select('id').in('id', idsProx) : { data: [], error: null };
+    dice(!proxA.error && !r.error && (r.data?.length ?? 0) === 0, `lo proximo no esta en ${donde}`,
+      proxA.error || r.error ? 'ERROR ' + (proxA.error ?? r.error).code
+        : idsProx.length ? `${idsProx.length} en camino, ${r.data?.length ?? 0} a la venta` : 'ningun lote en camino');
+  }
+  const libArgs = { p_lote_id: -1, p_llegaron: [] };
+  const libV = await V.rpc('admin_liberar_lote', libArgs);
+  dice(!!libV.error && /administrador/i.test(libV.error.message), 'admin_liberar_lote(): ella no libera', libV.error ? 'rechazada' : 'RESPONDIO');
+  const libP = await P.rpc('admin_liberar_lote', libArgs);
+  dice(libP.error?.code === '42501', 'admin_liberar_lote() sin sesion, rechazada', libP.error ? 'rechazada ' + libP.error.code : 'RESPONDIO');
+  const libA = await A.rpc('admin_liberar_lote', libArgs);
+  dice(!!libA.error && /no existe/i.test(libA.error.message), 'admin_liberar_lote(): el dueno si (lote -1)', libA.error ? libA.error.message : 'RESPONDIO');
+  const anoArgs = { p_lote_id: -1, p_modelo_id: -1, p_cantidades: [] };
+  const anoV = await V.rpc('admin_guardar_por_llegar', anoArgs);
+  dice(!!anoV.error && /administrador/i.test(anoV.error.message), 'admin_guardar_por_llegar(): ella no anota', anoV.error ? 'rechazada' : 'RESPONDIO');
+  const anoP = await P.rpc('admin_guardar_por_llegar', anoArgs);
+  dice(anoP.error?.code === '42501', 'admin_guardar_por_llegar() sin sesion, rechazada', anoP.error ? 'rechazada ' + anoP.error.code : 'RESPONDIO');
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
@@ -15,9 +15,14 @@ import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../c
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
 import { registrarVisita } from '../../lib/visitas';
-import type { Cotizacion, ModeloPublico, Tramo } from '../../lib/tipos';
+import type { Cotizacion, ModeloProximo, ModeloPublico, Tramo } from '../../lib/tipos';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante';
+
+/** Lo de "Próximamente": sin cantidad ni ubicación, que no se puede pedir. */
+const COLUMNAS_PROXIMO = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante';
+/** Un lote trae decenas de piezas, no miles: se traen de una vez, y si fueran más, se dice. */
+const TOPE_PROXIMO = 240;
 
 /**
  * Cuántas filas trae cada vez. Antes eran 400 de una y nada más: la pieza
@@ -91,6 +96,13 @@ export function Catalogo() {
   const [reservando, setReservando] = useState(false);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   const visor = useVisorFoto();
+  // Lo que viene en un lote que todavía no llega (pedido del dueño del
+  // 20/10/2026): se enseña para antojar, nunca para pedir. Su propio visor,
+  // sin el botón de agregar.
+  const [proximos, setProximos] = useState<ModeloProximo[]>([]);
+  const [totalProximos, setTotalProximos] = useState(0);
+  const visorProximo = useVisorFoto();
+  const seccionProximos = useRef<HTMLElement>(null);
 
   const consulta = useCallback((desde: number) => {
     let q = supabase.from('v_disponible_publico').select(COLUMNAS, { count: 'exact' });
@@ -160,6 +172,25 @@ export function Catalogo() {
   // Una visita por teléfono y por día: la tienda ve la cuenta en Catálogo.
   // Va aparte de cargar(), que se repite con cada búsqueda.
   useEffect(() => { registrarVisita(); }, []);
+
+  // Lo próximo se pide una vez y se filtra aquí con la búsqueda y la
+  // categoría: son pocas piezas. Su error se mira y a propósito no se
+  // enseña: si esta sección falla, el catálogo de verdad sigue entero, y
+  // un aviso rojo por un adelanto asustaría a la clienta por nada.
+  useEffect(() => {
+    void (async () => {
+      const { data, count, error: err } = await supabase
+        .from('v_proximamente')
+        .select(COLUMNAS_PROXIMO, { count: 'exact' })
+        .order('categoria', { ascending: true }).order('nombre', { ascending: true })
+        .order('familia', { ascending: true }).order('id', { ascending: true })
+        .range(0, TOPE_PROXIMO - 1);
+      if (err) return;
+      const filas = (data as unknown as ModeloProximo[] | null) ?? [];
+      setProximos(filas);
+      setTotalProximos(count ?? filas.length);
+    })();
+  }, []);
 
   // Las categorias se piden una sola vez y sin filtrar: si salieran de lo
   // que ya esta en pantalla, elegir una haria desaparecer a las demas. Las
@@ -244,6 +275,38 @@ export function Catalogo() {
       })),
     };
   }), [familias, textos.materiales_largo]);
+
+  // Lo próximo con la misma búsqueda y la misma categoría que el resto.
+  const familiasProximas = useMemo(() => {
+    const t = texto.trim().toLowerCase();
+    return agruparPorFamilia(proximos.filter((m) => (!categoria || m.categoria === categoria)
+      && (!t || [m.nombre, m.categoria, m.variante ?? ''].some((s) => s.toLowerCase().includes(t)))));
+  }, [proximos, texto, categoria]);
+  const productosProximos = useMemo(() => new Set(proximos.map((m) => m.familia)).size, [proximos]);
+
+  const fichasProximas = useMemo<FotoAmpliada[]>(() => familiasProximas.map((f) => {
+    const portada = conFoto(f.variantes);
+    return {
+      clave: f.clave,
+      nombre: f.cabeza.nombre,
+      categoria: f.cabeza.categoria,
+      materiales: textos.materiales_largo ?? null,
+      variantes: f.variantes.map((v) => ({
+        id: v.id,
+        etiqueta: v.variante,
+        path: v.foto_path ?? portada?.foto_path ?? null,
+        thumbPath: v.foto_thumb_path ?? portada?.foto_thumb_path ?? null,
+        bs: v.precio_bs,
+        bcv: v.precio_usd,
+        nota: ['Próximamente: todavía no se puede pedir', v.variantes_nota].filter(Boolean).join(' · '),
+      })),
+    };
+  }), [familiasProximas, textos.materiales_largo]);
+
+  function irAProximos() {
+    const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    seccionProximos.current?.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
+  }
 
   const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
 
@@ -444,6 +507,13 @@ export function Catalogo() {
           <div>
             <h1>Catálogo</h1>
             <p>Toca una pieza para verla de cerca. Arma tu pedido desde una pieza.</p>
+            {/* Lo que viene va al final, después de lo que se vende; esto
+                avisa que existe sin quitarle la primera pantalla a la mercancía. */}
+            {productosProximos > 0 ? (
+              <button type="button" className="enlace-proximos" onClick={irAProximos}>
+                Próximamente: {productosProximos === 1 ? 'una pieza nueva' : `${formatearEntero(productosProximos)} piezas nuevas`} en camino
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -602,6 +672,69 @@ export function Catalogo() {
             ) : null}
           </>
         )}
+
+        {/*
+          PRÓXIMAMENTE. Lo nuevo de un lote que todavía no llega: foto,
+          nombre y precio, y ningún botón de pedir. No dice cuántas vienen
+          ni dónde van: eso es de la tienda. Cuando el dueño libera el lote,
+          estas piezas suben a la cuadrícula de arriba con su "Agregar".
+        */}
+        {!cargando && familiasProximas.length > 0 ? (
+          <section className="proximos" ref={seccionProximos} aria-labelledby="titulo-proximos">
+            <h2 className="seccion-titulo" id="titulo-proximos">Próximamente</h2>
+            <p className="proximos__nota">
+              Vienen en camino. Todavía no se pueden pedir: cuando lleguen, salen arriba con su botón para agregar.
+            </p>
+            <div className="rejilla-venta">
+              {familiasProximas.map((f) => {
+                const m = f.cabeza;
+                const unica = f.variantes.length === 1;
+                const portada = conFoto(f.variantes) ?? m;
+                const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
+                const bs = rangoDe(f.variantes, (v) => v.precio_bs);
+                const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
+                const etiquetas = etiquetasDe(f);
+                const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
+                return (
+                  <article key={f.clave} className="tarjeta-modelo tarjeta-modelo--proxima">
+                    <button
+                      type="button"
+                      className="tarjeta-modelo__principal"
+                      onClick={() => {
+                        const ficha = fichasProximas.find((x) => x.clave === f.clave);
+                        if (ficha) visorProximo.abrir(ficha, fichasProximas);
+                      }}
+                      aria-label={`Ver de cerca ${nombre}, próximamente`}
+                    >
+                      {foto
+                        ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
+                        : <span className="tarjeta-modelo__foto" />}
+                      <span className="tarjeta-modelo__cuerpo">
+                        <span className="tarjeta-modelo__nombre">{m.nombre}</span>
+                        {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
+                        {textos.materiales_corto ? (
+                          <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
+                        ) : null}
+                        {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
+                        {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
+                        <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
+                        <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
+                        <span className="tarjeta-modelo__pie">
+                          <span className="etiqueta etiqueta--proxima">Próximamente</span>
+                        </span>
+                      </span>
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+            {totalProximos > proximos.length ? (
+              <p className="paginacion__cuenta">Y {formatearEntero(totalProximos - proximos.length)} más que vienen en camino.</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        <VisorFoto {...visorProximo.props} />
 
         <VisorFoto
           {...visor.props}

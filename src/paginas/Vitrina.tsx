@@ -59,12 +59,17 @@ const SALIDA_MS = 900;
     detalle    la foto de cerca, con los materiales
     frase      una frase de la marca, palabra por palabra
     escote     qué joya va con un escote, dibujado, y las piezas que le van
+    proxima    una pieza de un lote que todavía no llega: "Próximamente"
 
-  El patrón se repite hasta que han salido todas las piezas. Cada escena
-  dura los segundos elegidos en los controles por su factor: la guía de
-  escotes se lee más despacio que una frase.
+  El patrón se repite hasta que han salido todas las piezas (y todas las
+  próximas). Cada escena dura los segundos elegidos en los controles por su
+  factor: la guía de escotes se lee más despacio que una frase.
+
+  Lo próximo (pedido del dueño del 20/10/2026) sale en su propia escena y
+  nunca en las demás: un trío o una colección son lo que se puede llevar
+  hoy. No lleva la clave de ubicación, porque no está en la tienda.
 */
-type TipoEscena = 'pieza' | 'trio' | 'coleccion' | 'detalle' | 'frase' | 'escote';
+type TipoEscena = 'pieza' | 'trio' | 'coleccion' | 'detalle' | 'frase' | 'escote' | 'proxima';
 
 type Escena =
   | { tipo: 'pieza'; clave: string; familia: FamiliaVitrina; lado: 'izq' | 'der' }
@@ -72,15 +77,16 @@ type Escena =
   | { tipo: 'coleccion'; clave: string; categoria: string; cuantas: number; piezas: PiezaVitrina[] }
   | { tipo: 'detalle'; clave: string; familia: FamiliaVitrina }
   | { tipo: 'frase'; clave: string; frase: Frase }
-  | { tipo: 'escote'; clave: string; escote: Escote; piezas: PiezaVitrina[] };
+  | { tipo: 'escote'; clave: string; escote: Escote; piezas: PiezaVitrina[] }
+  | { tipo: 'proxima'; clave: string; familia: FamiliaVitrina; lado: 'izq' | 'der' };
 
 const PATRON: TipoEscena[] = [
-  'pieza', 'pieza', 'trio', 'frase', 'pieza', 'escote', 'coleccion',
-  'pieza', 'detalle', 'frase', 'trio', 'pieza', 'escote', 'frase',
+  'pieza', 'pieza', 'trio', 'proxima', 'frase', 'pieza', 'escote', 'coleccion',
+  'pieza', 'detalle', 'proxima', 'frase', 'trio', 'pieza', 'escote', 'frase',
 ];
 
 const FACTOR: Record<TipoEscena, number> = {
-  pieza: 1, detalle: 1.1, frase: 0.85, trio: 1.35, coleccion: 1.4, escote: 1.7,
+  pieza: 1, detalle: 1.1, frase: 0.85, trio: 1.35, coleccion: 1.4, escote: 1.7, proxima: 1.1,
 };
 
 /** "anillo" → "Anillos". Lo que no está aquí sale con mayúscula, tal cual. */
@@ -96,7 +102,7 @@ const fotoDe = (p: PiezaVitrina | undefined) => (p ? urlPublicaFoto(p.foto_path 
 /** Las piezas que salen en una escena, para descargar sus fotos antes de que entre. */
 function fotosDe(e: Escena): (string | null)[] {
   switch (e.tipo) {
-    case 'pieza': case 'detalle': return [fotoDe(conFoto(e.familia.variantes))];
+    case 'pieza': case 'detalle': case 'proxima': return [fotoDe(conFoto(e.familia.variantes))];
     case 'trio': case 'coleccion': case 'escote': return e.piezas.map(fotoDe);
     default: return [];
   }
@@ -126,10 +132,17 @@ function intercalar<T extends { categoria: string | null }>(familias: Familia<T>
   return salida;
 }
 
-/** El guion entero: el patrón repetido hasta que salen todas las piezas. */
-function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: boolean, piezas: PiezaVitrina[]): Escena[] {
+/** El guion entero: el patrón repetido hasta que salen todas las piezas y todas las próximas. */
+function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: boolean, piezas: PiezaVitrina[], proximas: FamiliaVitrina[] = []): Escena[] {
   const salida: Escena[] = [];
-  if (familias.length === 0) return salida;
+  // Sin nada a la venta, solo lo que viene, entre frases.
+  if (familias.length === 0) {
+    proximas.forEach((f, i) => {
+      salida.push({ tipo: 'proxima', clave: `x${i}-${f.clave}`, familia: f, lado: i % 2 === 0 ? 'izq' : 'der' });
+      if (frases.length > 0) salida.push({ tipo: 'frase', clave: `xf${i}`, frase: frases[i % frases.length]! });
+    });
+    return salida;
+  }
 
   let siguiente = 0;
   const tomar = () => familias[siguiente++ % familias.length]!;
@@ -148,8 +161,9 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
   let nFrase = 0;
   let nEscote = 0;
   let nColeccion = 0;
+  let nProxima = 0;
   let lado = 0;
-  for (let paso = 0; (siguiente < familias.length || paso < PATRON.length) && paso < 4000; paso++) {
+  for (let paso = 0; (siguiente < familias.length || nProxima < proximas.length || paso < PATRON.length) && paso < 4000; paso++) {
     const tipo = PATRON[paso % PATRON.length]!;
     const pieza = () => {
       const f = tomar();
@@ -194,6 +208,13 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
         if (frases.length === 0) break;
         salida.push({ tipo: 'frase', clave: `f${paso}`, frase: frases[nFrase++ % frases.length]! });
         break;
+      case 'proxima': {
+        if (proximas.length === 0) break;
+        const f = proximas[nProxima % proximas.length]!;
+        salida.push({ tipo: 'proxima', clave: `x${paso}-${f.clave}`, familia: f, lado: nProxima % 2 === 0 ? 'der' : 'izq' });
+        nProxima++;
+        break;
+      }
     }
   }
   return salida;
@@ -224,6 +245,8 @@ export function Vitrina() {
   const textos = useTextos();
   const { secuencia } = useFrases('TV');
   const [modelos, setModelos] = useState<PiezaVitrina[]>([]);
+  // Lo que viene en un lote que no ha llegado: sin existencia ni ubicación.
+  const [proximos, setProximos] = useState<PiezaVitrina[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actualizada, setActualizada] = useState<Date | null>(null);
@@ -272,6 +295,20 @@ export function Vitrina() {
       setReintento(0);
       setActualizada(new Date());
       hayDatos.current = true;
+
+      // Lo próximo. Su error se mira y, si falla, se queda lo que ya había:
+      // es un adelanto, y no tumba la vitrina de lo que sí se vende.
+      const prox = await supabase
+        .from('v_proximamente')
+        .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante')
+        .order('categoria', { ascending: true })
+        .order('nombre', { ascending: true })
+        .order('id', { ascending: true })
+        .range(0, TAMANO_PAGINA - 1);
+      if (!prox.error) {
+        const filas = (prox.data as unknown as Omit<PiezaVitrina, 'ubicaciones_codigo' | 'disponible'>[] | null) ?? [];
+        setProximos(filas.map((p) => ({ ...p, ubicaciones_codigo: null, disponible: 0 })));
+      }
     } catch (e) {
       if (hayDatos.current) setSinRed(true);
       else { setError(mensajeDeError(e)); setReintento((n) => n + 1); }
@@ -309,11 +346,16 @@ export function Vitrina() {
     return algunas.length > 0 ? algunas : modelos;
   }, [modelos]);
   const familias = useMemo(() => intercalar(agruparPorFamilia(conFotos)), [conFotos]);
+  // Lo próximo, con la misma regla de la foto.
+  const familiasProximas = useMemo(() => {
+    const algunas = proximos.filter((m) => m.foto_path || m.foto_thumb_path);
+    return intercalar(agruparPorFamilia(algunas.length > 0 ? algunas : proximos));
+  }, [proximos]);
 
   const materiales = textos.materiales_largo?.trim() || textos.materiales_corto?.trim() || null;
   const guion = useMemo(
-    () => armarGuion(familias, secuencia, Boolean(materiales), conFotos),
-    [familias, secuencia, materiales, conFotos],
+    () => armarGuion(familias, secuencia, Boolean(materiales), conFotos, familiasProximas),
+    [familias, secuencia, materiales, conFotos, familiasProximas],
   );
 
   const total = guion.length;
@@ -630,6 +672,7 @@ function EscenaVitrina({ escena, materiales, materialesCortos }: {
     case 'detalle': return <EscenaDetalle familia={escena.familia} materiales={materiales} />;
     case 'frase': return <EscenaFrase frase={escena.frase} />;
     case 'escote': return <EscenaEscote escote={escena.escote} piezas={escena.piezas} />;
+    case 'proxima': return <EscenaPieza familia={escena.familia} lado={escena.lado} materiales={materialesCortos} proxima />;
   }
 }
 
@@ -660,22 +703,28 @@ function Arco({ pieza, nombre, clase = '' }: { pieza: PiezaVitrina | undefined; 
  * Una pieza estelar. Con variantes del mismo precio, las medidas en una
  * línea y un precio; con precios distintos, cada medida con los suyos:
  * "desde" en una pantalla que se lee de lejos no dice nada.
+ *
+ * `proxima`: la misma pieza estelar, de un lote que no ha llegado. Dice
+ * "Próximamente" donde va la categoría y "Viene en camino" donde iría
+ * "Última pieza": se mira y se desea, todavía no se pide.
  */
-function EscenaPieza({ familia, lado, materiales }: { familia: FamiliaVitrina; lado: 'izq' | 'der'; materiales: string | null }) {
+function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: FamiliaVitrina; lado: 'izq' | 'der'; materiales: string | null; proxima?: boolean }) {
   const { cabeza, variantes } = familia;
   const varias = variantes.length > 1;
   const mismoPrecio = variantes.every((v) => v.precio_bs === cabeza.precio_bs);
   const nota = varias
     ? (mismoPrecio ? etiquetasDe(familia) : null)
     : [cabeza.variante, cabeza.variantes_nota].filter(Boolean).join(' · ') || null;
-  const ultima = variantes.reduce((n, v) => n + v.disponible, 0) === 1;
+  const ultima = !proxima && variantes.reduce((n, v) => n + v.disponible, 0) === 1;
 
   return (
     <div className={`vitrina__pieza vitrina__pieza--${lado}`}>
       <Arco pieza={conFoto(variantes)} nombre={cabeza.nombre} clase="vitrina__arco--estelar" />
 
       <div className="vitrina__ficha vitrina__ajustable">
-        {cabeza.categoria ? <p className="vitrina__categoria vitrina__aparece">{cabeza.categoria}</p> : null}
+        {proxima ? (
+          <p className="vitrina__categoria vitrina__proxima vitrina__aparece">Próximamente</p>
+        ) : cabeza.categoria ? <p className="vitrina__categoria vitrina__aparece">{cabeza.categoria}</p> : null}
         <h1 className="vitrina__nombre vitrina__aparece">{cabeza.nombre}</h1>
         {nota ? <p className="vitrina__nota vitrina__aparece">{nota}</p> : null}
 
@@ -696,6 +745,7 @@ function EscenaPieza({ familia, lado, materiales }: { familia: FamiliaVitrina; l
         )}
 
         {ultima ? <p className="vitrina__ultima vitrina__aparece vitrina__aparece--ultimo">Última pieza</p> : null}
+        {proxima ? <p className="vitrina__ultima vitrina__aparece vitrina__aparece--ultimo">Viene en camino</p> : null}
         {materiales ? <p className="vitrina__materiales vitrina__aparece vitrina__aparece--ultimo">{materiales}</p> : null}
       </div>
     </div>

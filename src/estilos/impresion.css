@@ -205,3 +205,28 @@
 .ficha__opciones li { display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap; }
 .ficha__opcion { font-family: var(--fuente-ui); font-size: var(--t-12); color: var(--texto-secundario); min-width: 5ch; }
 .ficha__opcion-precio { font-family: var(--fuente-display); font-size: var(--t-16); font-variant-numeric: tabular-nums; }
+
+/* --- Próximamente ----------------------------------------------------- */
+/* Lo que viene en un lote que no ha llegado: su propia página, abierta por
+   una franja verde como las de las frases, con el título en oro (5,38:1
+   sobre el verde). Cada ficha lleva el sello en oro de texto donde las
+   demás dicen cuántas quedan: 5,86:1 sobre el blanco de la ficha. */
+.catalogo__proximos { margin-top: var(--e-6); }
+.catalogo__proximos .catalogo__franja { margin-top: 0; }
+.franja__titulo {
+  margin: 0;
+  font-family: var(--fuente-display); font-weight: 600; font-size: var(--t-28);
+  color: var(--oro-arena);
+}
+.ficha__proxima {
+  display: inline-block; margin-top: var(--e-2);
+  padding: 2px var(--e-3);
+  font-family: var(--fuente-ui); font-size: 10px; font-weight: 500;
+  letter-spacing: var(--tracking); text-transform: uppercase;
+  color: var(--oro-texto);
+  border: 1px solid currentColor; border-radius: var(--radio-pill);
+}
+@media print {
+  .catalogo__proximos { break-before: page; page-break-before: always; margin-top: 0; }
+  .franja__titulo { font-size: 20pt; }
+}

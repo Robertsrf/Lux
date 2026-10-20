@@ -308,6 +308,25 @@ export function Verificacion() {
       bien: Boolean(nombrePublico.error),
     });
 
+    // Lo que viene en un lote en camino: en crudo no lo lee nadie, y lo
+    // que ve la clienta como "Próximamente" no dice cuántas ni cuesta nada.
+    const [porLlegar, proximoCosto] = await Promise.all([
+      supabase.from('por_llegar').select('id').limit(1),
+      supabase.from('v_proximamente').select('costo_puesto_usd, por_llegar').limit(1),
+    ]);
+    resultados.push({
+      nombre: 'Lo que viene en un lote, en crudo (por_llegar)',
+      esperado: 'Rechazada para todos: el dueño lo ve por su vista',
+      obtenido: porLlegar.error ? `Rechazada: ${porLlegar.error.message}` : 'Devolvio datos',
+      bien: Boolean(porLlegar.error),
+    });
+    resultados.push({
+      nombre: 'Costo o cantidad en Próximamente',
+      esperado: 'Rechazada: la clienta solo ve foto, nombre y precio',
+      obtenido: proximoCosto.error ? 'No existen esas columnas' : 'LAS COLUMNAS ESTAN AHI',
+      bien: Boolean(proximoCosto.error),
+    });
+
     // La meta de la vendedora tiene que ser la misma cuenta que ve el dueno
     // en Costos. Si algun dia alguien le arma una formula propia, esto lo ve.
     const [metaV, planV] = await Promise.all([

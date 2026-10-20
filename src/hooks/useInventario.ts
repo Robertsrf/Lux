@@ -30,6 +30,9 @@ const COLUMNAS = [
   'lote_id', 'lote_codigo', 'margen_usd', 'margen_pct', 'ganancia_real_usd',
   'descripcion', 'activo',
   'precio_minimo_usd', 'precio_minimo_bs', 'familia', 'variante',
+  // Lo de los lotes en camino: si es nueva de uno ("Próximamente") y
+  // cuántas vienen de ella.
+  'proximamente', 'por_llegar', 'por_llegar_lotes',
 ].join(', ');
 
 /**

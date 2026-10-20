@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
 import { Icono } from '../../componentes/Iconos';
@@ -53,6 +53,20 @@ interface PrecioDeFila {
   alcanza: boolean;
 }
 
+/** Cómo llegó el producto de la base: para avisar si cambiarle el lote lo saca o lo pone a la venta. */
+interface Original {
+  loteId: string;
+  /** Su lote no había llegado. */
+  proximo: boolean;
+  /** Lo que tiene en la tienda, sumando sus medidas. */
+  existencia: number;
+  /** Lo que viene de él en lotes en camino (reposición), y en cuáles. */
+  porLlegar: number;
+  lotesPorLlegar: string | null;
+}
+
+type LoteElegible = Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd' | 'en_camino'>;
+
 const suma = (cantidades: Record<number, string>, sin: number | null) =>
   Object.entries(cantidades)
     .filter(([u]) => Number(u) !== sin)
@@ -91,15 +105,20 @@ function Formulario() {
   const { id } = useParams();
   const navegar = useNavigate();
   const esNuevo = !id;
+  // Si se vino desde "Lo que viene" de un lote, se vuelve ahí, y un
+  // producto nuevo nace con ese lote puesto.
+  const [parametros] = useSearchParams();
+  const loteDeVuelta = parametros.get('lote');
 
   const { grupos } = useGrupos();
   const categorias = useCategorias();
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
 
-  const [form, setForm] = useState(VACIO);
+  const [form, setForm] = useState(() => (esNuevo && loteDeVuelta ? { ...VACIO, lote_id: loteDeVuelta } : VACIO));
   const [cantidades, setCantidades] = useState<Record<number, string>>({});
-  const [lotes, setLotes] = useState<Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd'>[]>([]);
+  const [lotes, setLotes] = useState<LoteElegible[]>([]);
+  const [original, setOriginal] = useState<Original | null>(null);
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   const [fotoActual, setFotoActual] = useState<string | null>(null);
   const [previa, setPrevia] = useState<string | null>(null);
@@ -126,8 +145,8 @@ function Formulario() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from('v_lotes_admin').select('id, codigo, flete_por_unidad_usd').order('fecha_llegada', { ascending: false });
-      setLotes((data as Pick<LoteAdmin, 'id' | 'codigo' | 'flete_por_unidad_usd'>[] | null) ?? []);
+      const { data } = await supabase.from('v_lotes_admin').select('id, codigo, flete_por_unidad_usd, en_camino').order('fecha_llegada', { ascending: false });
+      setLotes((data as LoteElegible[] | null) ?? []);
     })();
   }, []);
 
@@ -137,7 +156,7 @@ function Formulario() {
       setCargando(true);
       const { data, error: err } = await supabase
         .from('v_catalogo_admin')
-        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd, familia, variante')
+        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd, familia, variante, existencia_total, proximamente, por_llegar, por_llegar_lotes')
         .eq('id', Number(id))
         .maybeSingle();
 
@@ -164,20 +183,32 @@ function Formulario() {
       // de todas en una sola consulta.
       const { data: hermanas, error: errH } = await supabase
         .from('v_catalogo_admin')
-        .select('id, sku, variante, costo_unitario_usd, precio_usd, grupo')
+        .select('id, sku, variante, costo_unitario_usd, precio_usd, grupo, existencia_total, por_llegar, por_llegar_lotes')
         .eq('familia', m.familia)
         .neq('id', m.id)
         .order('variante', { ascending: true });
-      const lista = (hermanas as { id: number; sku: string; variante: string | null; costo_unitario_usd: number; precio_usd: number | null; grupo: string | null }[] | null) ?? [];
+      const lista = (hermanas as { id: number; sku: string; variante: string | null; costo_unitario_usd: number; precio_usd: number | null; grupo: string | null; existencia_total: number; por_llegar: number; por_llegar_lotes: string | null }[] | null) ?? [];
 
       const ids = [m.id, ...lista.map((h) => h.id)];
-      const { data: ex, error: errEx } = await supabase
-        .from('existencias')
-        .select('modelo_id, ubicacion_id, cantidad')
-        .in('modelo_id', ids);
+      // Un producto de un lote que no ha llegado no tiene existencia: sus
+      // cantidades son las que vienen, y se leen de lo que viene. Guardar
+      // las vuelve a mandar allí (admin_guardar_modelo).
+      const { data: ex, error: errEx } = m.proximamente
+        ? await supabase.from('v_por_llegar').select('modelo_id, ubicacion_id, cantidad').in('modelo_id', ids).eq('lote_id', m.lote_id ?? -1)
+        : await supabase.from('existencias').select('modelo_id, ubicacion_id, cantidad').in('modelo_id', ids);
       // Dos consultas, dos errores mirados.
       const fallo = errH ?? errEx;
       if (fallo) setError(mensajeDeError(fallo));
+
+      const familia = [m, ...lista];
+      setOriginal({
+        loteId: m.lote_id ? String(m.lote_id) : '',
+        proximo: m.proximamente,
+        existencia: familia.reduce((n, x) => n + (x.existencia_total ?? 0), 0),
+        // De un producto próximo no es reposición: es lo suyo, y ya está en las cantidades.
+        porLlegar: m.proximamente ? 0 : familia.reduce((n, x) => n + (x.por_llegar ?? 0), 0),
+        lotesPorLlegar: [...new Set(familia.flatMap((x) => (x.por_llegar_lotes ?? '').split(' · ')).filter(Boolean))].join(' · ') || null,
+      });
 
       const porModelo = new Map<number, Record<number, string>>();
       for (const fila of (ex as { modelo_id: number; ubicacion_id: number; cantidad: number }[] | null) ?? []) {
@@ -419,12 +450,21 @@ function Formulario() {
 
       if (err) throw err;
       if (!data) throw new Error('La base no devolvio el modelo guardado.');
-      navegar('/admin/inventario');
+      navegar(volverA);
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
     }
   }
+
+  // El lote elegido no ha llegado: lo que se escribe abajo es lo que viene,
+  // no lo que hay, y la pieza sale como Próximamente.
+  const loteElegido = lotes.find((l) => String(l.id) === form.lote_id) ?? null;
+  const enCamino = loteElegido?.en_camino ?? false;
+  const loteOriginal = original ? lotes.find((l) => String(l.id) === original.loteId) ?? null : null;
+  const cambiaDeLote = original !== null && original.loteId !== form.lote_id;
+  // Se vuelve al lote si se vino de él y la pieza sigue en uno que no ha llegado.
+  const volverA = loteDeVuelta && enCamino ? `/admin/lotes/${form.lote_id}` : loteDeVuelta ? `/admin/lotes/${loteDeVuelta}` : '/admin/inventario';
 
   const grupoElegido = grupos.find((g) => String(g.id) === form.grupo_precio_id);
   const precioBcv = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
@@ -453,6 +493,13 @@ function Formulario() {
       </div>
 
       {error ? <Aviso tono="error" titulo="No se pudo guardar">{error}</Aviso> : null}
+
+      {enCamino && loteElegido ? (
+        <Aviso titulo={`Viene en el lote ${loteElegido.codigo}, que todavía no llega`}>
+          Sale como Próximamente: no se vende, no cuenta en el inventario y las clientas la ven en el
+          catálogo sin poder pedirla. Se pone a la venta cuando revises y liberes el lote.
+        </Aviso>
+      ) : null}
 
       <form
         onSubmit={(e) => { e.preventDefault(); void guardar(); }}
@@ -566,7 +613,11 @@ function Formulario() {
             <Campo etiqueta="Lote" htmlFor="m-lote" pista="De el sale el flete que le toca a esta pieza.">
               <select id="m-lote" value={form.lote_id} onChange={(e) => cambiar('lote_id', e.target.value)}>
                 <option value="">Sin lote</option>
-                {lotes.map((l) => <option key={l.id} value={l.id}>{l.codigo}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearBinance(l.flete_por_unidad_usd, 4)} por pieza`}</option>)}
+                {lotes.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.codigo}{l.en_camino ? ' · en camino' : ''}{l.flete_por_unidad_usd === null ? '' : ` · flete ${formatearBinance(l.flete_por_unidad_usd, 4)} por pieza`}
+                  </option>
+                ))}
               </select>
             </Campo>
             <Campo etiqueta="Costo unitario · $ Binance" htmlFor="m-costo" pista="Con punto para los decimales: 4.25.">
@@ -747,9 +798,38 @@ function Formulario() {
         </div>
 
         <div className="tarjeta">
-          <h2>Existencia por ubicación</h2>
+          <h2>{enCamino ? 'Lo que viene, por ubicación' : 'Existencia por ubicación'}</h2>
           <hr className="divisor" />
-          <p className="campo__pista">No hay un total guardado: la existencia siempre es por ubicación y se suma.</p>
+          <p className="campo__pista">
+            {enCamino
+              ? 'Cuántas vienen en el lote y a dónde van cuando llegue. Al liberarlo revisas cuántas llegaron de verdad.'
+              : 'No hay un total guardado: la existencia siempre es por ubicación y se suma.'}
+          </p>
+
+          {/* Cambiarle el lote puede sacarla de la venta o ponerla: se dice antes de guardar. */}
+          {cambiaDeLote && original?.proximo && !enCamino ? (
+            <Aviso tono="alerta" titulo="Al guardar, sale a la venta ya">
+              Venía en el lote {loteOriginal?.codigo ?? 'que no ha llegado'}. En este lote se vende desde que guardes, con las
+              cantidades de abajo y sin pasar por la revisión del lote.
+            </Aviso>
+          ) : null}
+          {cambiaDeLote && original && !original.proximo && enCamino ? (
+            original.existencia > 0 ? (
+              <Aviso tono="error" titulo="Este lote todavía no llega">
+                Esta pieza ya tiene {original.existencia} en la tienda y no puede pasar a un lote que no ha llegado.
+                Si vienen más, súmalas en ese lote como reposición: Lotes, Lo que viene.
+              </Aviso>
+            ) : (
+              <Aviso tono="alerta" titulo="Pasa a ser Próximamente">
+                Deja de verse en la tienda hasta que liberes el lote {loteElegido?.codigo}. Las cantidades de abajo son las que vienen.
+              </Aviso>
+            )
+          ) : null}
+          {!enCamino && original && original.porLlegar > 0 ? (
+            <p className="campo__pista">
+              Y vienen {original.porLlegar} más en {original.lotesPorLlegar ?? 'un lote en camino'}: se suman al liberarlo.
+            </p>
+          ) : null}
 
           <div className="fila">
             {ubicaciones.map((u) => (
@@ -779,7 +859,7 @@ function Formulario() {
           {filas.length > 0 ? (
             <>
               <div className="variantes__ubicacion">
-                <Campo etiqueta="Las cantidades de la tabla son de" htmlFor="v-ubicacion">
+                <Campo etiqueta={enCamino ? 'Las que vienen en la tabla van a' : 'Las cantidades de la tabla son de'} htmlFor="v-ubicacion">
                   <select
                     id="v-ubicacion"
                     value={ubicVar ?? ''}
@@ -793,7 +873,7 @@ function Formulario() {
               <div className="variantes" role="table" aria-label="Variantes del producto">
                 <div className="variantes__cabeza" role="row">
                   <span role="columnheader">Variante</span>
-                  <span role="columnheader">Cantidad</span>
+                  <span role="columnheader">{enCamino ? 'Vienen' : 'Cantidad'}</span>
                   <span role="columnheader">Costo · $ Binance</span>
                   <span role="columnheader">Sale en</span>
                   <span role="columnheader"><span className="visualmente-oculto">Quitar</span></span>
@@ -816,7 +896,7 @@ function Formulario() {
                     <span className="variante-fila__nota">esta pieza</span>
                   </div>
                   <div role="cell">
-                    <label className="variante-fila__etiqueta" htmlFor="v-cantidad-esta">Cantidad</label>
+                    <label className="variante-fila__etiqueta" htmlFor="v-cantidad-esta">{enCamino ? 'Vienen' : 'Cantidad'}</label>
                     <input
                       id="v-cantidad-esta"
                       type="number" min="0" step="1" placeholder="0"
@@ -864,7 +944,7 @@ function Formulario() {
                         </span>
                       </div>
                       <div role="cell">
-                        <label className="variante-fila__etiqueta" htmlFor={`v-cantidad-${f.clave}`}>Cantidad</label>
+                        <label className="variante-fila__etiqueta" htmlFor={`v-cantidad-${f.clave}`}>{enCamino ? 'Vienen' : 'Cantidad'}</label>
                         <input
                           id={`v-cantidad-${f.clave}`}
                           type="number" min="0" step="1" placeholder="0"
@@ -943,7 +1023,7 @@ function Formulario() {
           <button type="submit" className="boton boton--confirmar" disabled={guardando || procesandoFoto}>
             {guardando ? 'Guardando' : esNuevo ? 'Agregar producto' : 'Guardar cambios'}
           </button>
-          <button type="button" className="boton boton--secundario" onClick={() => navegar('/admin/inventario')}>
+          <button type="button" className="boton boton--secundario" onClick={() => navegar(loteDeVuelta ? `/admin/lotes/${loteDeVuelta}` : '/admin/inventario')}>
             Cancelar
           </button>
         </div>

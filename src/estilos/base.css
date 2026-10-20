@@ -482,6 +482,10 @@ select {
 .etiqueta--alerta { color: var(--alerta-texto); background: color-mix(in srgb, var(--alerta) 8%, transparent); }
 .etiqueta--exito  { color: var(--exito);  background: color-mix(in srgb, var(--exito) 8%, transparent); }
 .etiqueta--error  { color: var(--error);  background: color-mix(in srgb, var(--error) 8%, transparent); }
+/* "Próximamente" y "En camino": lo que todavía no llega. El oro de texto,
+   medido: 5,58 sobre blanco, 4,95 sobre papel y 4,52 sobre crema con su
+   8 % de fondo. No es una alerta: es una promesa. */
+.etiqueta--proxima { color: var(--oro-texto); background: color-mix(in srgb, var(--oro-arena) 8%, transparent); }
 
 /* --- Tablas: bordes suaves, sin lineas duras ------------------------- */
 
@@ -3182,3 +3186,45 @@ table.tabla tfoot td {
   .conteo-variante--con-foto { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: 'foto quien' 'paso paso'; }
   .conteo-variante .conteo-paso { justify-content: flex-end; }
 }
+
+/* --- El lote en camino ------------------------------------------------- */
+/* Lo que viene en un lote usa las filas del conteo (.conteo-fila,
+   .conteo-paso): revisar lo que llegó ES contar, y se ve igual. Aquí solo
+   lo que esa pantalla tiene de suyo. */
+.lote-viene__resumen {
+  margin: var(--e-2) 0 0;
+  font-family: var(--fuente-prosa); font-size: var(--t-16); color: var(--texto);
+}
+.lote-viene__elegida {
+  margin: var(--e-2) 0 var(--e-4);
+  font-family: var(--fuente-prosa); font-size: var(--t-20); color: var(--texto-fuerte);
+}
+.lote-viene__cuenta p { margin: var(--e-2) 0 0; font-variant-numeric: tabular-nums; }
+/* En la tabla de Lotes, bajo el código: el estado y el botón a lo que trae. */
+.lote-estado {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-1);
+  margin-top: var(--e-2);
+}
+.lote-viene__diferencias {
+  margin: var(--e-3) 0 0; padding-left: var(--e-5);
+  font-size: var(--t-14); color: var(--texto);
+  display: grid; gap: var(--e-1);
+}
+
+/* Próximamente, en el catálogo en línea: va después de lo que se vende,
+   con las mismas tarjetas y sin botón de pedir. */
+.enlace-proximos {
+  display: inline-flex; align-items: center;
+  min-height: 44px; margin-top: var(--e-2); padding: 0;
+  font-family: var(--fuente-util); font-size: var(--t-16); color: var(--texto);
+  background: none; border: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--oro-texto);
+  text-decoration-thickness: 1px; text-underline-offset: 4px;
+}
+.enlace-proximos:hover { text-decoration-thickness: 2px; }
+.proximos { scroll-margin-top: var(--e-5); }
+.proximos__nota {
+  margin: calc(-1 * var(--e-2)) 0 var(--e-4);
+  font-family: var(--fuente-prosa); font-size: var(--t-16); color: var(--texto-secundario);
+}
+.tarjeta-modelo--proxima .tarjeta-modelo__pie { margin-top: var(--e-2); }

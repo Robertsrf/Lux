@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-14T00:00:00Z",
+  "generatedAt": "2026-10-20T00:00:00Z",
   "title": "Design System: Lux by Emory",
   "extensions": {
     "colorMeta": {
@@ -344,9 +344,9 @@
       "name": "Píldora de estado",
       "kind": "chip",
       "refersTo": "chip-alerta",
-      "description": "Existencia baja, servicio vigente, descuadre. Borde en el propio color y fondo al 8 %.",
-      "html": "<span class=\"ds-chip ds-chip-alerta\">Quedan 2</span> <span class=\"ds-chip ds-chip-exito\">Servicio vigente</span>",
-      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; } .ds-chip-alerta { color: #875C2D; background: rgba(168,118,62,.08); } .ds-chip-exito { color: #4A6B52; background: rgba(74,107,82,.08); }"
+      "description": "Existencia baja, servicio vigente, descuadre. Borde en el propio color y fondo al 8 %. \"Próximamente\" y \"En camino\" van en oro de texto sobre oro arena al 8 % (5,58 sobre blanco, 4,52 sobre crema): lo que todavía no llega es una promesa, no una alerta.",
+      "html": "<span class=\"ds-chip ds-chip-alerta\">Quedan 2</span> <span class=\"ds-chip ds-chip-exito\">Servicio vigente</span> <span class=\"ds-chip ds-chip-proxima\">Próximamente</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; } .ds-chip-alerta { color: #875C2D; background: rgba(168,118,62,.08); } .ds-chip-exito { color: #4A6B52; background: rgba(74,107,82,.08); } .ds-chip-proxima { color: #835D35; background: rgba(208,174,138,.08); }"
     },
     {
       "name": "Cabecera de tabla",
@@ -459,6 +459,22 @@
       "description": "Una pieza del conteo de inventario: miniatura de 56 px, nombre con su medida y SKU, y un contador − [ ] + de 56 px con la cifra en Fraunces 20 px. Vacío (\"—\") es \"no la conté\", distinto de cero. A ciegas: no dice lo que espera el sistema. Contada, borde y fondo apenas verdes y la palabra \"contada\". Por debajo de 480 px el contador baja a su renglón.",
       "html": "<div class=\"ds-conteo\"><span class=\"ds-conteo-foto\"></span><div class=\"ds-conteo-quien\"><span class=\"ds-conteo-nombre\">Cadena cubana · 45 cm</span><span class=\"ds-conteo-dato\">CAD-001 · contada</span></div><div class=\"ds-conteo-paso\"><button>−</button><input value=\"12\" aria-label=\"Piezas contadas\"><button>+</button></div></div>",
       "css": ".ds-conteo { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; align-items: center; gap: 12px 16px; padding: 12px 16px; width: 420px; background: color-mix(in srgb, #4A6B52 5%, #FFFFFF); border: 1px solid color-mix(in srgb, #4A6B52 40%, #EDE7DA); border-radius: 16px; } .ds-conteo-foto { width: 56px; height: 56px; border-radius: 12px; background: #EFE8DA; } .ds-conteo-quien { display: grid; gap: 2px; min-width: 0; } .ds-conteo-nombre { font-family: 'EB Garamond', Georgia, serif; font-size: 16px; color: #14292C; } .ds-conteo-dato { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-conteo-paso { display: flex; align-items: center; gap: 8px; } .ds-conteo-paso button { width: 56px; height: 56px; border-radius: 999px; border: 1px solid #E0D8C7; background: #FAF6EE; font-size: 20px; color: #1F4045; cursor: pointer; } .ds-conteo-paso input { width: 76px; height: 56px; text-align: center; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; border: 1px solid #E0D8C7; border-radius: 12px; color: #14292C; }"
+    },
+    {
+      "name": "Lo que viene en un lote (revisar y liberar)",
+      "kind": "custom",
+      "refersTo": "list-item",
+      "description": "La pantalla de un lote en camino usa la fila del conteo: revisar lo que llegó es contar. Fuera de la revisión, cada línea dice \"llegan 5\" en Fraunces 16 px con Editar (nueva) o Cambiar y Quitar (reposición), y \"va a Bodega · nueva\" o \"reposición, hay 3\" en Jost 12 px secundario. En la revisión empieza en lo esperado con el contador de 56 px; la que cuadra gana el verde de contada y la que no dice \"Falta 1\" en alerta de texto. Abajo, \"Esperabas 18 · contaste 17 · falta 1\" y \"Liberar lote\" con borde de oro.",
+      "html": "<div class=\"ds-viene\"><span class=\"ds-viene-foto\"></span><div class=\"ds-viene-quien\"><span class=\"ds-viene-nombre\">Collar luna con circones</span><span class=\"ds-viene-dato\">CO-040 · va a Bodega · nueva</span><span class=\"ds-viene-dato\">Esperabas 6</span><span class=\"ds-viene-aviso\">Falta 1</span></div><div class=\"ds-viene-paso\"><button>−</button><input value=\"5\" aria-label=\"Llegaron\"><button>+</button></div></div>",
+      "css": ".ds-viene { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; align-items: center; gap: 12px 16px; padding: 12px 16px; width: 440px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 16px; } .ds-viene-foto { width: 56px; height: 56px; border-radius: 12px; background: #EFE8DA; } .ds-viene-quien { display: grid; gap: 2px; min-width: 0; } .ds-viene-nombre { font-family: \"EB Garamond\", Georgia, serif; font-size: 16px; color: #14292C; } .ds-viene-dato { font-family: \"Jost\", system-ui, sans-serif; font-size: 12px; color: #506664; } .ds-viene-aviso { font-family: \"Jost\", system-ui, sans-serif; font-size: 12px; color: #875C2D; } .ds-viene-paso { display: flex; align-items: center; gap: 8px; } .ds-viene-paso button { width: 56px; height: 56px; border-radius: 999px; border: 1px solid #E0D8C7; background: #FAF6EE; font-size: 20px; color: #1F4045; } .ds-viene-paso input { width: 76px; height: 56px; text-align: center; font-family: \"Fraunces\", Georgia, serif; font-size: 20px; font-weight: 600; border: 1px solid #E0D8C7; border-radius: 12px; color: #14292C; }"
+    },
+    {
+      "name": "Próximamente (catálogo en línea, PDF y vitrina)",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Lo nuevo de un lote en camino, para antojar y nunca para pedir. En el catálogo en línea, al final: la misma tarjeta de modelo sin \"Agregar\", con la píldora Próximamente en el pie, y un enlace de 44 px bajo el título (Jost 16 px en tinta, subrayado en oro de texto) que baja hasta la sección. En el PDF, su propia página tras una franja verde con \"Próximamente\" en Fraunces oro arena, y el sello en oro de texto donde las fichas dicen cuántas quedan. En la vitrina, la composición de la pieza estelar con un sello de filete oro \"Próximamente\" y \"Viene en camino\" en vez de \"Última pieza\", sin clave de ubicación.",
+      "html": "<article class=\"ds-prox\"><span class=\"ds-prox-foto\"></span><span class=\"ds-prox-cuerpo\"><span class=\"ds-prox-nombre\">Collar luna con circones</span><span class=\"ds-prox-precio\">Bs 1.800,00</span><span class=\"ds-prox-precio\">$18,00 BCV</span><span class=\"ds-chip ds-chip-proxima\">Próximamente</span></span></article>",
+      "css": ".ds-prox { display: flex; flex-direction: column; width: 210px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 22px; overflow: hidden; } .ds-prox-foto { display: block; aspect-ratio: 1; background: #EFE8DA; } .ds-prox-cuerpo { display: grid; gap: 4px; padding: 16px; justify-items: start; } .ds-prox-nombre { font-family: \"EB Garamond\", Georgia, serif; font-size: 16px; color: #14292C; } .ds-prox-precio { font-family: \"Fraunces\", Georgia, serif; font-size: 20px; font-weight: 600; color: #14292C; } .ds-chip { display: inline-flex; padding: 3px 12px; font-family: \"Jost\", system-ui, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid currentColor; border-radius: 999px; } .ds-chip-proxima { color: #835D35; background: rgba(208,174,138,.08); margin-top: 8px; }"
     },
     {
       "name": "QR de la vitrina",
