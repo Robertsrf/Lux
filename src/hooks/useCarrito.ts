@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import {
   aCuatroDecimales, aMonto, bcvDesdeBs, binanceDesdeBs, bsDeBcv, deMonto,
-  descuentoPara, leerBs, porCantidad, precioConTramo, sumar,
+  descuentosDeCarrito, leerBs, porCantidad, precioConTramo, sumar,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
@@ -103,6 +103,7 @@ export function useCarrito(tasa: Tasas | null) {
         precio_manual_usd: null,
         cantidad: 1,
         disponible: m.cantidad,
+        armado: m.armado ?? null,
       }];
     });
   }, []);
@@ -149,7 +150,10 @@ export function useCarrito(tasa: Tasas | null) {
 
   const totales = useMemo(() => {
     const piezas = lineas.reduce((n, l) => n + l.cantidad, 0);
-    const descuento = descuentoPara(tramos, piezas);
+    // El tramo, linea por linea, como `tramo_de_carrito`: los dijes no
+    // cuentan, y solo lo reciben los que van con una base.
+    const tramo = descuentosDeCarrito(tramos, lineas);
+    const descuento = tramo.descuento;
     const tasaBcv = tasa?.tasa_bcv ?? null;
 
     // Mismo orden de decisiones que `registrar_venta`, a proposito:
@@ -159,8 +163,9 @@ export function useCarrito(tasa: Tasas | null) {
     const calculadas: LineaCobro[] = lineas.map((l) => {
       let usd = l.precio_lista_usd;
       let motivo: LineaCobro['motivo'] = null;
-      if (descuento) {
-        usd = precioConTramo(l.precio_lista_usd, descuento, l.piso_tramo_usd);
+      const descuentoLinea = tramo.porModelo.get(l.modelo_id) ?? null;
+      if (descuentoLinea) {
+        usd = precioConTramo(l.precio_lista_usd, descuentoLinea, l.piso_tramo_usd);
         if (usd < l.precio_lista_usd) motivo = 'tramo';
       } else if (l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd) {
         usd = l.precio_manual_usd;
@@ -169,7 +174,7 @@ export function useCarrito(tasa: Tasas | null) {
       // A etiqueta, los bolivares de la vista tal cual; rebajada, la misma
       // cuenta de la base: round(dolares x tasa BCV, 2).
       const bs = motivo !== null && tasaBcv ? bsDeBcv(usd, tasaBcv) : l.precio_lista_bs;
-      return { ...l, precio_final_usd: usd, precio_final_bs: bs, motivo };
+      return { ...l, precio_final_usd: usd, precio_final_bs: bs, motivo, en_tramo: descuentoLinea !== null };
     });
 
     const piezasBs = deMonto(sumar(calculadas.map((l) => porCantidad(aMonto(l.precio_final_bs), l.cantidad))));
@@ -183,10 +188,13 @@ export function useCarrito(tasa: Tasas | null) {
     const bs = deMonto(sumar([aMonto(piezasBs), aMonto(extraBs ?? 0)]));
 
     const activos = tramos.filter((t) => t.activo).sort((a, b) => a.min_piezas - b.min_piezas);
-    const siguiente = activos.find((t) => t.min_piezas > piezas) ?? null;
+    // Lo que falta para el siguiente tramo se cuenta sin dijes.
+    const siguiente = activos.find((t) => t.min_piezas > tramo.piezas) ?? null;
 
     return {
       piezas,
+      /** Las que cuentan para el tramo: todas menos los dijes. */
+      piezasTramo: tramo.piezas,
       totalBs: bs,
       /** En dolares BCV: lo que dice la etiqueta. */
       totalBcv: bcvDesdeBs(bs, tasaBcv),
@@ -208,7 +216,11 @@ export function useCarrito(tasa: Tasas | null) {
       regateoBs: deMonto(sumar(regateadas.map((l) => porCantidad(aMonto(l.precio_lista_bs - l.precio_final_bs), l.cantidad)))),
       /** Desde cuantas piezas empieza el primer tramo: ahi el regateo deja de contar. */
       primerTramo: activos[0]?.min_piezas ?? null,
-      siguiente: siguiente ? { faltan: siguiente.min_piezas - piezas, pct: siguiente.descuento_pct } : null,
+      siguiente: siguiente ? { faltan: siguiente.min_piezas - tramo.piezas, pct: siguiente.descuento_pct } : null,
+      /** Las piezas de dije que no van con una base: el tramo no les llega. */
+      dijesSinBase: descuento
+        ? calculadas.filter((l) => l.armado === 'dije' && !l.en_tramo).reduce((n, l) => n + l.cantidad, 0)
+        : 0,
       lineas: calculadas,
     };
   }, [lineas, tramos, extra, tasa?.tasa_bcv, tasa?.tasa_venta]);
@@ -308,12 +320,14 @@ export function useCarrito(tasa: Tasas | null) {
    * sería dejar que el navegador decidiera el precio.
    */
   function piezasParaLaBase() {
-    const conTramo = descuentoPara(tramos, lineas.reduce((n, l) => n + l.cantidad, 0)) !== null;
+    // Linea por linea: un dije sin base, en una venta con tramo, esta fuera
+    // del tramo y se puede regatear como en una venta chica.
+    const tramo = descuentosDeCarrito(tramos, lineas);
     return lineas.map((l) => ({
       modelo_id: l.modelo_id,
       ubicacion_id: l.ubicacion_id,
       cantidad: l.cantidad,
-      precio_unitario_usd: !conTramo && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
+      precio_unitario_usd: !tramo.porModelo.get(l.modelo_id) && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
         ? l.precio_manual_usd
         : null,
     }));

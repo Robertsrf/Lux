@@ -43,6 +43,8 @@ const COLUMNAS = [
   // `cantidad` es lo libre; esto es lo apartado por pedidos del catalogo,
   // que ella no puede vender pero tiene que saber que esta ahi.
   'apartadas',
+  // Dije, base para armar o nada: el tramo lo necesita (esquema-dijes.sql).
+  'armado',
 ].join(', ');
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
@@ -382,7 +384,7 @@ export function Mostrador() {
     const enDolares = metodo !== null && METODOS_EN_DOLARES.includes(metodo);
     // Precios que ella escribio y que el tramo deja sin efecto. Se dice, no
     // se calla: si no, la clienta oye un precio y paga otro.
-    const rebajasIgnoradas = conTramo && carrito.lineas.some((l) => l.precio_manual_usd !== null);
+    const rebajasIgnoradas = t.lineas.some((l) => l.en_tramo && l.precio_manual_usd !== null);
     // Lo de fuera del catalogo, si se escribio, tiene que ser una cifra y
     // decir que es: si no, no se cobra todavia.
     const extraEnOrden = !t.extraIlegible && !t.extraSinNota;
@@ -424,8 +426,17 @@ export function Mostrador() {
 
         {rebajasIgnoradas ? (
           <Aviso tono="alerta" titulo="Manda el descuento por cantidad">
-            Con {t.piezas} piezas se cobra el {formatearDescuento(t.descuento)} en todas. Lo que rebajaste
+            Con {t.piezasTramo} piezas se cobra el {formatearDescuento(t.descuento)} en todas. Lo que rebajaste
             a mano no se suma encima; vuelve si la venta baja de {t.primerTramo} piezas.
+          </Aviso>
+        ) : null}
+
+        {/* El dije que no lleva su base no cuenta para el tramo ni lo
+            recibe: es una venta chica dentro de la grande. */}
+        {t.dijesSinBase > 0 ? (
+          <Aviso titulo="Dijes sin su cadena o pulsera">
+            {t.dijesSinBase === 1 ? 'Un dije va' : `${t.dijesSinBase} dijes van`} sin base de armar: el descuento
+            por cantidad no les llega. Su precio se puede rebajar hasta su mínimo.
           </Aviso>
         ) : null}
 
@@ -446,7 +457,7 @@ export function Mostrador() {
                   : <span className="linea-cobro__foto" />}
                 <div>
                   <div className="linea-cobro__nombre">{nombre}</div>
-                  {editando === clave && !conTramo ? (
+                  {editando === clave && !l.en_tramo ? (
                     <div className="rebaja">
                       <label className="rebaja__etiqueta" htmlFor={`rebaja-${clave}`}>
                         Lo que cobras por esta pieza, en bolívares
@@ -470,7 +481,7 @@ export function Mostrador() {
                         que la etiqueta. Para volver a la etiqueta, escribe {formatearBs(l.precio_lista_bs)}.
                       </span>
                     </div>
-                  ) : conTramo ? (
+                  ) : l.en_tramo ? (
                     <div className="linea-cobro__precio linea-cobro__precio--fijo">
                       <span>{formatearBs(l.precio_final_bs)} c/u</span>
                       {rebajada ? <s>{formatearBs(l.precio_lista_bs)}</s> : null}
@@ -950,7 +961,11 @@ export function Mostrador() {
                   ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
                   : <span className="tarjeta-modelo__foto" />}
                 <span className="tarjeta-modelo__cuerpo">
-                  {m.categoria ? <span className="tarjeta-modelo__categoria">{m.categoria}</span> : null}
+                  {m.categoria ? (
+                    <span className="tarjeta-modelo__categoria">
+                      {m.categoria}{m.armado === 'base' ? ' · para armar' : m.armado === 'dije' && !/dije/i.test(m.categoria) ? ' · dije' : ''}
+                    </span>
+                  ) : null}
                   <span className="tarjeta-modelo__nombre">{m.nombre}</span>
                   {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
                   {desde ? <span className="tarjeta-modelo__desde">desde</span> : null}

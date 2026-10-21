@@ -42,6 +42,16 @@ interface AccionVisor {
   llevas?: (varianteId: number) => number;
 }
 
+/**
+ * Una segunda acción, más discreta, que solo sale en algunas piezas: en una
+ * cadena o pulsera para armar, "Agrégale un dije".
+ */
+interface AccionSecundaria {
+  texto: string;
+  alTocar: (varianteId: number) => void;
+  visible: (varianteId: number) => boolean;
+}
+
 interface PropsVisor {
   foto: FotoAmpliada | null;
   alCerrar: () => void;
@@ -49,6 +59,7 @@ interface PropsVisor {
   alSiguiente?: (() => void) | undefined;
   posicion?: { n: number; total: number } | null;
   accion?: AccionVisor;
+  secundaria?: AccionSecundaria;
 }
 
 /** Cuanto hay que arrastrar el dedo para que cuente como pasar de pieza. */
@@ -74,7 +85,7 @@ const UMBRAL_PX = 48;
  * Se cierra con Escape, tocando el fondo o con el boton, y devuelve el foco
  * a donde estaba: en el mostrador, la pieza que se estaba mirando.
  */
-export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, accion }: PropsVisor) {
+export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, accion, secundaria }: PropsVisor) {
   const caja = useRef<HTMLDivElement>(null);
   const previo = useRef<Element | null>(null);
   const inicio = useRef<{ x: number; y: number } | null>(null);
@@ -188,18 +199,20 @@ export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, a
         direccion={direccion}
         posicion={posicion ?? null}
         {...(accion ? { accion } : {})}
+        {...(secundaria ? { secundaria } : {})}
       />
     </div>
   );
 }
 
 function Contenido({
-  foto, direccion, posicion, accion,
+  foto, direccion, posicion, accion, secundaria,
 }: {
   foto: FotoAmpliada;
   direccion: 'antes' | 'despues' | null;
   posicion: { n: number; total: number } | null;
   accion?: AccionVisor;
+  secundaria?: AccionSecundaria;
 }) {
   const [elegida, setElegida] = useState(() => Math.max(0, foto.variantes.findIndex((x) => x.id === foto.inicial)));
   const v = foto.variantes[elegida] ?? foto.variantes[0];
@@ -256,6 +269,16 @@ function Contenido({
           >
             {accion.texto}
             {llevas > 0 ? <span className="visor__llevas">llevas {llevas}</span> : null}
+          </button>
+        ) : null}
+
+        {secundaria && v && secundaria.visible(v.id) ? (
+          <button
+            type="button"
+            className="boton boton--secundario visor__accion"
+            onClick={() => secundaria.alTocar(v.id)}
+          >
+            {secundaria.texto}
           </button>
         ) : null}
 

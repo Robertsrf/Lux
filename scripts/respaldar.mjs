@@ -48,6 +48,8 @@ const POR_FUNCION = [
   'apartados', 'apartado_items', 'apartado_abonos',
   // Lo que viene en los lotes en camino, y lo que llegó de cada uno.
   'por_llegar',
+  // Qué dije va en qué base, en cada pedido del catálogo (esquema-dijes.sql).
+  'reserva_armados',
 ];
 
 function leerEnv() {

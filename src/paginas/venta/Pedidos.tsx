@@ -20,7 +20,7 @@ import { useTasa } from '../../hooks/useTasa';
 import { useSesion } from '../../hooks/useSesion';
 import { useFotosGrandes } from '../../hooks/useFotosGrandes';
 import { METODOS_EN_DOLARES, METODOS_PAGO } from '../../lib/tipos';
-import type { AbonoDetalle, ApartadoEnTienda, LineaPedido, LineaPorVerificar, MetodoPago, PedidoCambio, VentaCambio } from '../../lib/tipos';
+import type { AbonoDetalle, ApartadoEnTienda, ArmadoPedido, LineaPedido, LineaPorVerificar, MetodoPago, PedidoCambio, VentaCambio } from '../../lib/tipos';
 
 /** Lo que el visor necesita de una pieza de cualquier lista de esta pantalla. */
 interface PiezaFoto {
@@ -66,6 +66,7 @@ export function Pedidos() {
   const [apartados, setApartados] = useState<ApartadoEnTienda[]>([]);
   const [cambios, setCambios] = useState<PedidoCambio[]>([]);
   const [cambiosVenta, setCambiosVenta] = useState<VentaCambio[]>([]);
+  const [armados, setArmados] = useState<ArmadoPedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -91,7 +92,7 @@ export function Pedidos() {
       conAbonos.length ? `venta_id.in.(${conAbonos.join(',')})` : null,
     ].filter(Boolean).join(',');
     const ventasIds = [...new Set(filasVentas.map((f) => f.venta_id))];
-    const [deAbonos, deCambios, deCambiosVenta] = await Promise.all([
+    const [deAbonos, deCambios, deCambiosVenta, deArmados] = await Promise.all([
       filtro ? supabase.from('v_abonos_detalle').select('*').or(filtro).order('fecha').order('id') : null,
       // Lo que se le quitó a cada pedido. Sin la vista (la base de antes de
       // esquema-devoluciones.sql) no hay historia que contar: no es un error.
@@ -102,6 +103,11 @@ export function Pedidos() {
       // (antes de esquema-quitar-por-verificar.sql) no hay nada que contar.
       ventasIds.length
         ? supabase.from('v_venta_cambios').select('*').in('venta_id', ventasIds).order('cambiado_en')
+        : null,
+      // Qué dije va en qué cadena. Sin la vista (antes de esquema-dijes.sql)
+      // no hay parejas que decir: tampoco es un error.
+      reservas.length
+        ? supabase.from('v_pedido_armado').select('*').in('reserva_id', reservas)
         : null,
     ]);
 
@@ -114,6 +120,7 @@ export function Pedidos() {
     setAbonos((deAbonos?.data as unknown as AbonoDetalle[] | null) ?? []);
     setCambios(deCambios?.error ? [] : ((deCambios?.data as PedidoCambio[] | null) ?? []));
     setCambiosVenta(deCambiosVenta?.error ? [] : ((deCambiosVenta?.data as VentaCambio[] | null) ?? []));
+    setArmados(deArmados?.error ? [] : ((deArmados?.data as ArmadoPedido[] | null) ?? []));
     setCargando(false);
   }, []);
 
@@ -222,6 +229,7 @@ export function Pedidos() {
                 items={items}
                 abonos={abonos.filter((a) => a.reserva_id === cabecera.reserva_id)}
                 cambios={cambios.filter((x) => x.reserva_id === cabecera.reserva_id)}
+                armados={armados.filter((x) => x.reserva_id === cabecera.reserva_id)}
                 tasa={tasa}
                 esAdmin={esAdmin}
                 ahora={ahora}
@@ -625,6 +633,27 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
   );
 }
 
+/**
+ * Qué dije va en qué cadena o pulsera: lo eligió la clienta en el catálogo
+ * con "Agrégale un dije". Para armarlo sin adivinar con dos cadenas y dos
+ * dijes. No cambia ningún precio: eso ya lo decidió el pedido.
+ */
+function ArmadosDelPedido({ armados }: { armados: ArmadoPedido[] }) {
+  if (armados.length === 0) return null;
+  return (
+    <div className="panel" style={{ marginTop: 'var(--e-4)' }}>
+      <span className="panel__titulo">Para armar</span>
+      <ul className="cambios-pedido">
+        {armados.map((a, i) => (
+          <li key={`${a.dije_id}-${a.base_id}-${i}`}>
+            {a.cantidad > 1 ? `${a.cantidad} × ` : ''}{a.dije_nombre} va en {a.base_nombre}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Lo que se le ha quitado a un pedido: qué, quién, cuándo, por qué y qué pasó con el dinero. */
 function CambiosDelPedido({ cambios }: { cambios: PedidoCambio[] }) {
   if (cambios.length === 0) return null;
@@ -840,11 +869,12 @@ function CambiosDeLaVenta({ cambios }: { cambios: VentaCambio[] }) {
  * se cobran completos al entregar. Los demás se pagan por abonos, cada uno
  * con su referencia; se entregan cuando todo el dinero está verificado.
  */
-function PedidoDeTienda({ cabecera: c, items, abonos, cambios, tasa, esAdmin, ahora, alTerminar, verFotos }: {
+function PedidoDeTienda({ cabecera: c, items, abonos, cambios, armados, tasa, esAdmin, ahora, alTerminar, verFotos }: {
   cabecera: LineaPedido;
   items: LineaPedido[];
   abonos: AbonoDetalle[];
   cambios: PedidoCambio[];
+  armados: ArmadoPedido[];
   tasa: Tasas | null;
   esAdmin: boolean;
   ahora: number;
@@ -1041,6 +1071,8 @@ function PedidoDeTienda({ cabecera: c, items, abonos, cambios, tasa, esAdmin, ah
           alTerminar={(m) => { setQuitando(null); alTerminar(m); }}
         />
       ) : null}
+
+      <ArmadosDelPedido armados={armados} />
 
       <CambiosDelPedido cambios={cambios} />
 

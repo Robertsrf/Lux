@@ -12,7 +12,7 @@ export function useGrupos() {
     setCargando(true);
     const { data, error: err } = await supabase
       .from('grupos_precio')
-      .select('id, nombre, precio_usd, orden, activo')
+      .select('id, nombre, precio_usd, orden, activo, escalera')
       .order('orden', { ascending: true })
       .order('nombre', { ascending: true });
 

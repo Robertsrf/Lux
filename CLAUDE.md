@@ -58,7 +58,8 @@ src/
                 revendedor.ts (su sesión, sus enlaces, las paletas),
                 escotes.ts (qué joya va con cada escote, para la vitrina),
                 vendedoras.ts (llama a la función de servidor de las cuentas),
-                visitas.ts (el catálogo público cuenta su visita)
+                visitas.ts (el catálogo público cuenta su visita),
+                armados.ts (qué dije va en qué base, en los dos catálogos)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
@@ -69,9 +70,11 @@ src/
                 lateral y la de abajo, de la tienda y del revendedor), Piezas
                 (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
                 Marca, VisorFoto (detalle que pasa de pieza; abre en la
-                medida que se tocó), MiniaturaTocable (la foto pequeña que
+                medida que se tocó; una segunda acción, "Agrégale un
+                dije", en las bases), MiniaturaTocable (la foto pequeña que
                 se toca para verla en grande), ElegirVariante
-                (la hoja de medidas), VisitasCatalogo (cuánta gente abre el
+                (la hoja de medidas), ArmarDije (la hoja de "Agrégale un
+                dije", sobre ElegirVariante), VisitasCatalogo (cuánta gente abre el
                 catálogo, en la pantalla Catálogo), TusDatos (el pedido público empieza por
                 la cédula), MoverUbicacion (pasar piezas de una ubicación a
                 otra), CargarAbono (un abono en dólares BCV, de la tienda y
@@ -185,7 +188,14 @@ sale de la tienda, y lo que entra sin ser venta, anotado por el dueño; revocada
 a todos, se lee por `v_caja`, se anula y no se borra) ·
 `catalogo_visitas` (un teléfono por día que abrió el catálogo público, con un
 número al azar que guarda su navegador; revocada a todos, se escribe por
-`registrar_visita` y se lee por `visitas_catalogo`).
+`registrar_visita` y se lee por `visitas_catalogo`) ·
+`reserva_armados` (qué dije va en qué base en un pedido del catálogo, con
+cuántas; revocada a todos, se escribe por `crear_reserva(..., p_armados)` y se
+lee por `v_pedido_armado`).
+`modelos.armado` dice si la pieza es un **dije** o una **base** para armar
+(null: una pieza como cualquiera); `grupos_precio.escalera`, si el grupo es de
+la escalera de las piezas o de la de los dijes; `venta_items.es_dije`, si la
+línea era un dije al venderse (lo congela el disparador `venta_items_dije`).
 Los gastos fijos del mes no son una tabla: son claves de `configuracion` que lee
 `gastos_fijos_partidas()`.
 `lotes.en_camino` dice que el lote todavía no llega (`liberado_en` y
@@ -247,6 +257,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
 | `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
 | `v_venta_cambios` | Lo mismo para una venta por verificar, con los totales en bolívares | vendedora y admin |
+| `v_pedido_armado` | Qué dije va en qué cadena o pulsera, en cada pedido del catálogo | vendedora y admin |
 | `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
 | `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
 | `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
@@ -322,7 +333,11 @@ de las que hay libres** (sumadas por pieza), igual que `crear_reserva`: cuando
 el piso de margen manda, el precio de la línea es el piso, y sin ese tope
 cualquiera sin sesión sacaba el piso de todo el catálogo pidiendo "20 de una
 pieza que tiene 1" (revisión de seguridad del 14/10/2026). Con el tope no
-enseña nada que no enseñe un pedido que se podría apartar.
+enseña nada que no enseñe un pedido que se podría apartar. Ojo: hasta el #60
+`crear_reserva` miraba lo libre **línea por línea**, no sumado, así que veinte
+líneas de "1" de una pieza que tiene 1 pasaban y llegaban al tramo (revisión de
+seguridad del 21/10/2026). Desde `esquema-dijes.sql` lo mira sumado por pieza,
+con el mismo tope de 300 líneas.
 
 `admin_desactivar_modelo` no retira una pieza que un pedido tiene apartada.
 
@@ -351,6 +366,20 @@ y `apartado_al_dia` (mueven el plazo), `cliente_de_revendedor`. Lo que falta
 sale de `saldo_padre_bcv` (y de `falta_bcv_de`, `falta_pedido_bcv`); la fase, de
 `fase_pedido` y `rv_fase_de`; lo que quedaba tras cada abono, de las vistas
 internas `abonos_saldo` y `apartado_abonos_saldo`.
+
+De los dijes (`esquema-dijes.sql`), revocadas a todos: `tramo_de_carrito(items)`
+(la única regla de qué línea recibe el tramo: la llaman `registrar_venta`,
+`apartar_en_tienda`, `crear_reserva` y `cotizar_pedido`; el carrito la repite
+con `descuentosDeCarrito` de `lib/dinero.ts`), `costo_bcv_pieza(costo, es_dije)`
+(el costo en $ BCV, sin lo de tienda si es un dije; la usan `piso_margen_de` y
+`admin_reasignar_grupos`), `guardar_armados` (las parejas dije–base que cuadran
+con el pedido) y el disparador `venta_items_dije`, que congela `es_dije` en
+cada línea de venta (también la de una nota de crédito, que copia la de la
+línea que devuelve) y, si es un dije, pone lo de tienda en cero.
+`admin_sugerir_precio` ganó `p_es_dije` al final (sin lo de tienda y en la
+escalera de dijes; sin escalera de dijes cargada no da grupo, nunca uno de las
+piezas), `admin_guardar_modelo` ganó `p_armado` (null: como estaba; lo llevan
+todas las medidas del producto) y `crear_reserva` ganó `p_armados`.
 
 `caja_flujo(desde, hasta)` es la única regla de qué dinero entró y salió: las
 ventas cobradas completas por su total, las ventas por partes abono por abono y
@@ -495,7 +524,9 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   12 piezas 10 %, 20 piezas 15 %) que se aplican en tres sitios y **los tres dicen lo
   mismo**: `registrar_venta` manda, el carrito lo enseña con la misma cuenta
   (`precioConTramo`) y `crear_reserva` cobra igual. Los kits se retiraron en
-  septiembre de 2026.
+  septiembre de 2026. Desde el 21/10/2026 el tramo es **línea por línea**
+  (`tramo_de_carrito`): los dijes no cuentan, y solo lo recibe el dije que va
+  con una base (ver "Los dijes").
 - **Dos pisos, dos trabajos.** `piso_margen_de` es lo que todavía deja el margen
   mínimo: es el piso del TRAMO. `precio_minimo_de` es el mayor entre ese y la
   etiqueta menos la rebaja máxima: es el piso del REGATEO. Antes el tramo usaba el
@@ -523,6 +554,36 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   abren debajo; pagina por producto, así una familia nunca se parte entre dos
   páginas. El conteo semanal cuenta cada producto con sus medidas dentro. Al
   tocar la foto de una medida, el visor abre en esa medida.
+- **Los dijes y las bases para armar** (pedido del dueño del 21/10/2026: un dije
+  de $0,88 salía en $9). Una pieza se marca en su formulario como **dije** o
+  como **base** (la cadena o pulsera que se trajo para colgarle uno). La base es
+  una pieza como cualquiera. El dije lleva su mercancía (con brecha y merma) y el
+  margen, **sin lo de tienda**, empaque incluido: eso ya lo paga la base. Como el
+  margen es un porcentaje, base + dije cuesta lo mismo que una pieza con los dos
+  costos sumados, salvo el redondeo de las escaleras. El dije cae en **su propia
+  escalera** (`grupos_precio.escalera = 'dije'`), que el dueño carga en Grupos:
+  nunca se siembra una cifra, y sin ella un dije no tiene precio sugerido.
+  - **Un solo precio.** Se vende solo (para una cadena propia o una que ya
+    compró) o puesto en una base, al mismo precio.
+  - **Solo, cuenta en las estadísticas** (lo vendido, la caja, la ganancia, las
+    piezas de Reportes) **pero no para el tramo ni para la meta** de la
+    vendedora. **Con una base es una joya**: cuenta como una pieza (la base) y el
+    tramo le llega también. Qué dije "va con base" lo dice `tramo_de_carrito`:
+    las bases de la venta, repartidas entre los dijes por modelo, de menor a
+    mayor id; el que no cabe entero, no lo recibe. Un dije sin base en una venta
+    con tramo se cobra a su etiqueta o se regatea hasta su mínimo.
+  - **Las cuentas que cuentan piezas las cuentan sin dijes**, por
+    `venta_items.es_dije`: el volumen del mes (que reparte lo de tienda; si
+    contara los dijes, abarataría todo el catálogo), `plan_ventas` (las piezas;
+    el dinero sí con ellos), la meta, "Mi día", Vendedoras, y el empaque que
+    restan "Te dejaron", la mezcla por grupo y la recuperación.
+  - En los catálogos (el de la tienda y el de cada revendedor), la ficha de una
+    base dice **"Agrégale un dije"**; en el de la tienda el pedido guarda qué
+    dije va en qué base (`reserva_armados`) y Pedidos lo dice ("Para armar").
+    En el del revendedor solo mete las dos piezas: lo arma él. En el mostrador
+    se tocan las dos y listo. La vitrina no enseña dijes sueltos.
+  - Los pisos (`piso_margen_de`, `precio_minimo_de`) y el precio del revendedor
+    miden al dije igual, sin lo de tienda.
 - **El tercer precio, en $ Binance.** Lo que se cobra si pagan en dólares, en
   efectivo o por Binance: bolívares entre la tasa Binance (`binanceDesdeBs`), la
   misma cuenta con la que la base guarda `ventas.total_usd`. Solo en el mostrador y
@@ -842,7 +903,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 214 comprobaciones con las dos sesiones (219 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 229 comprobaciones con las dos sesiones (234 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
@@ -946,6 +1007,13 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   lavado a la clienta y saldría como su última compra. Toda vista o pantalla
   nueva que cuente ventas, o busque la última, filtra
   `devolucion_de is null`; la caja ya la deja fuera en `caja_flujo`.
+- **Una cuenta de piezas tiene que saber qué es una pieza.** El volumen del mes
+  reparte lo de tienda entre las piezas vendidas (`sum(venta_items.cantidad)`).
+  Si los dijes, que no llevan lo de tienda, contaran como piezas, lo de tienda
+  por pieza bajaría y todo el catálogo se abarataría sin un error. Por eso cada
+  línea congela `es_dije` y toda cuenta que CUENTA piezas (o resta empaque por
+  pieza) la filtra; las que SUMAN dinero, no. Visto antes de construir, en la
+  revisión del diseño de los dijes (21/10/2026).
 - **Lo que mide el total tiene que ser lo que cobra la base.** El carrito
   público multiplicaba el subtotal por el tramo, sin el piso de cada pieza:
   $88,35 en la barra y $91,35 en el pedido (probado en PGlite). Si una regla

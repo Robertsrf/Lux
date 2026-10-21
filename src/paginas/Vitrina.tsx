@@ -280,6 +280,9 @@ export function Vitrina() {
         const { data, error: err } = await supabase
           .from('v_disponible_publico')
           .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante, disponible')
+          // Un dije suelto no es la pieza que vende la tienda: no sale como
+          // estelar, ni en un trío, ni en una colección (esquema-dijes.sql).
+          .or('armado.is.null,armado.neq.dije')
           .order('categoria', { ascending: true })
           .order('nombre', { ascending: true })
           .order('id', { ascending: true })

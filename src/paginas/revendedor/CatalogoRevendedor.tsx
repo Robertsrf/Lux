@@ -13,6 +13,9 @@ import { useTemaRv } from '../../hooks/useTemaRv';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
+import { ArmarDije } from '../../componentes/ArmarDije';
+import { armar, paresVigentes } from '../../lib/armados';
+import type { ParArmado } from '../../lib/armados';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import type { ModeloRevendedor, PerfilRevendedor } from '../../lib/tipos';
@@ -62,6 +65,14 @@ export function CatalogoRevendedor() {
   const [apartando, setApartando] = useState(false);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   const visor = useVisorFoto();
+  // "Agrégale un dije": qué piezas son dijes o bases (de la vista pública,
+  // que lo dice sin ningún precio), sus dijes con SU precio cuando se
+  // piden, y las parejas, para saber si hace falta otra cadena. Aquí no se
+  // guardan con el pedido: lo arma él con su clienta.
+  const [tipos, setTipos] = useState<Map<number, 'dije' | 'base'>>(new Map());
+  const [dijes, setDijes] = useState<ModeloRevendedor[] | null>(null);
+  const [pares, setPares] = useState<ParArmado[]>([]);
+  const [armandoBase, setArmandoBase] = useState<number | null>(null);
 
   useTemaRv(perfil?.paleta);
   const primerNombre = perfil?.nombre.trim().split(/\s+/)[0] ?? '';
@@ -86,6 +97,24 @@ export function CatalogoRevendedor() {
       setPerfilListo(true);
     })();
   }, [usuario]);
+
+  // Qué es dije y qué es base. Mirado, pero sin tumbar el catálogo: si no
+  // llega, su clienta sigue pidiendo; solo no sale "Agrégale un dije".
+  useEffect(() => {
+    void (async () => {
+      const { data, error: err } = await supabase
+        .from('v_disponible_publico')
+        .select('id, armado')
+        .not('armado', 'is', null)
+        .limit(2000);
+      if (err) return;
+      const mapa = new Map<number, 'dije' | 'base'>();
+      for (const f of (data as { id: number; armado: 'dije' | 'base' | null }[] | null) ?? []) {
+        if (f.armado) mapa.set(f.id, f.armado);
+      }
+      setTipos(mapa);
+    })();
+  }, []);
 
   useEffect(() => {
     if (perfil) document.title = `${perfil.catalogo_nombre} · Joyas Lux by Emory`;
@@ -165,13 +194,51 @@ export function CatalogoRevendedor() {
   }
 
   function cambiar(modeloId: number, cantidad: number) {
-    setSeleccion((prev) => {
-      const copia = new Map(prev);
-      const max = porId.get(modeloId)?.disponible ?? 0;
-      const n = Math.max(0, Math.min(cantidad, max));
-      if (n === 0) copia.delete(modeloId); else copia.set(modeloId, n);
-      return copia;
-    });
+    const copia = new Map(seleccion);
+    const max = porId.get(modeloId)?.disponible ?? 0;
+    const n = Math.max(0, Math.min(cantidad, max));
+    if (n === 0) copia.delete(modeloId); else copia.set(modeloId, n);
+    setSeleccion(copia);
+    // Las parejas que ya no caben se caen: si no, un dije quitado y vuelto
+    // a poner suelto contaría como puesto en su cadena.
+    setPares((p) => paresVigentes(p, copia));
+  }
+
+  /** Los dijes de SU catálogo, con su precio, la primera vez que se pide uno. */
+  async function abrirArmar(baseId: number) {
+    visor.cerrar();
+    if (dijes === null) {
+      const ids = [...tipos].filter(([, t]) => t === 'dije').map(([id]) => id);
+      const { data, error: err } = ids.length === 0
+        ? { data: [], error: null }
+        : await supabase
+          .rpc('rv_catalogo_publico', { p_usuario: usuario })
+          .select(COLUMNAS)
+          .in('id', ids)
+          .order('nombre', { ascending: true })
+          .limit(LIMITE);
+      if (err) { setError('No se pudieron traer los dijes: ' + mensajeDeError(err)); return; }
+      const filas = (data as unknown as ModeloRevendedor[] | null) ?? [];
+      setPorId((antes) => {
+        const copia = new Map(antes);
+        for (const f of filas) copia.set(f.id, f);
+        return copia;
+      });
+      setDijes(filas);
+    }
+    setArmandoBase(baseId);
+  }
+
+  function armarCon(dijeId: number) {
+    if (armandoBase === null) return;
+    const hecho = armar(seleccion, pares, armandoBase, dijeId, (id) => porId.get(id)?.disponible ?? 0);
+    if (!hecho) {
+      setError('Ya no quedan piezas para armar esa: elige otra cadena o pulsera, u otro dije.');
+    } else {
+      setSeleccion(hecho.seleccion);
+      setPares(hecho.pares);
+    }
+    setArmandoBase(null);
   }
 
   function verFoto(f: Familia<ModeloRevendedor>) {
@@ -466,7 +533,22 @@ export function CatalogoRevendedor() {
             },
             llevas: (id) => seleccion.get(id) ?? 0,
           }}
+          secundaria={{
+            texto: 'Agrégale un dije',
+            visible: (id) => tipos.get(id) === 'base',
+            alTocar: (id) => void abrirArmar(id),
+          }}
         />
+
+        {armandoBase !== null && dijes !== null ? (
+          <ArmarDije
+            base={nombreConVariante(porId.get(armandoBase)?.nombre ?? 'tu cadena', porId.get(armandoBase)?.variante)}
+            dijes={dijes}
+            llevas={(id) => seleccion.get(id) ?? 0}
+            alElegir={armarCon}
+            alCerrar={() => setArmandoBase(null)}
+          />
+        ) : null}
 
         {(() => {
           const abierta = familiaAbierta === null ? null : familias.find((x) => x.clave === familiaAbierta);
@@ -503,7 +585,7 @@ export function CatalogoRevendedor() {
               <div className="barra-carrito__piezas">{resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}</div>
               <div className="barra-carrito__total">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
             </div>
-            <button type="button" className="boton boton--secundario" onClick={() => setSeleccion(new Map())}>Vaciar</button>
+            <button type="button" className="boton boton--secundario" onClick={() => { setSeleccion(new Map()); setPares([]); }}>Vaciar</button>
             <button type="button" className="boton" onClick={() => setPaso('apartar')}>Apartar</button>
           </div>
         ) : null}

@@ -38,7 +38,19 @@ export interface GrupoPrecio {
   precio_usd: number;
   orden: number;
   activo: boolean;
+  /** La escalera de las piezas (G9 a G30) o la de los dijes, que carga el dueño. */
+  escalera: Escalera;
 }
+
+/** Las dos escaleras de precio: la de siempre y la de los dijes. */
+export type Escalera = 'pieza' | 'dije';
+
+/**
+ * Qué es la pieza para armar: un dije (se cuelga de una cadena o pulsera, y
+ * su precio no lleva lo de tienda), una base (la cadena o pulsera para
+ * colgarle uno) o nada, una pieza como cualquiera.
+ */
+export type Armado = 'dije' | 'base' | null;
 
 export interface Ubicacion {
   id: number;
@@ -154,6 +166,8 @@ export interface ModeloVenta {
   familia: number;
   /** Lo que la distingue de sus hermanas: "45 cm". Null si va suelta. */
   variante: string | null;
+  /** Dije, base para armar o nada. Opcional: no todas las consultas lo piden. */
+  armado?: Armado;
 }
 
 /** Vista v_catalogo_admin: agrega costos y margen. Filtra con es_admin(). */
@@ -329,6 +343,8 @@ export interface ModeloEnUbicacion {
   existencia: number;
   /** Lo apartado por pedidos del catalogo que salen de esta ubicacion. */
   apartadas: number;
+  /** Dije, base para armar o nada: el tramo lo necesita. */
+  armado?: Armado;
 }
 
 /** Una linea del carrito, antes de cobrar. Todo en dolares BCV salvo los _bs. */
@@ -351,6 +367,8 @@ export interface LineaCarrito {
   precio_manual_usd: number | null;
   cantidad: number;
   disponible: number;
+  /** Dije, base para armar o nada: un dije sin su base no cuenta para el tramo. */
+  armado: Armado;
 }
 
 /** Una linea ya calculada: lo que se va a cobrar de verdad y por que. */
@@ -358,6 +376,8 @@ export interface LineaCobro extends LineaCarrito {
   precio_final_usd: number;
   precio_final_bs: number;
   motivo: 'regateo' | 'tramo' | null;
+  /** El tramo le llega a esta linea (un dije sin su base, no): ahi no se regatea. */
+  en_tramo: boolean;
 }
 
 export interface TableroDia {
@@ -476,6 +496,8 @@ export interface ModeloPublico {
   ubicaciones_codigo: string | null;
   familia: number;
   variante: string | null;
+  /** Dije, base para armar o nada. Opcional: no todas las consultas lo piden. */
+  armado?: Armado;
 }
 
 /**
@@ -640,6 +662,16 @@ export interface LineaPedido {
   creado_por: string | null;
 }
 
+/** v_pedido_armado: qué dije va en qué cadena o pulsera, en un pedido del catálogo. */
+export interface ArmadoPedido {
+  reserva_id: number;
+  dije_id: number;
+  dije_nombre: string;
+  base_id: number;
+  base_nombre: string;
+  cantidad: number;
+}
+
 /** Lo que devuelve admin_sugerir_precio: el resultado y todo el camino. */
 export interface PrecioSugerido {
   flete_unitario_usd: number;
@@ -667,6 +699,8 @@ export interface PrecioSugerido {
   grupo_alcanza: boolean;
   precio_grupo_real: number | null;
   margen_resultante_pct: number | null;
+  /** En qué escalera buscó el grupo. Falta si la base es de antes del #60. */
+  escalera?: Escalera;
 }
 
 /** Una frase o recordatorio de la guia del colaborador. */

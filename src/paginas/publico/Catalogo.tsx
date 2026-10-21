@@ -3,7 +3,10 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
-import { aMonto, aplicarDescuento, deMonto, descuentoPara, formatearBcv, formatearBs, formatearEntero, formatearDescuento, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
+import { aMonto, aplicarDescuento, deMonto, descuentosDeCarrito, formatearBcv, formatearBs, formatearEntero, formatearDescuento, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
+import { armadosParaLaBase, armar, paresVigentes } from '../../lib/armados';
+import type { ParArmado } from '../../lib/armados';
+import { ArmarDije } from '../../componentes/ArmarDije';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
@@ -17,7 +20,7 @@ import { useTextos } from '../../hooks/useTextos';
 import { registrarVisita } from '../../lib/visitas';
 import type { Cotizacion, ModeloProximo, ModeloPublico, Tramo } from '../../lib/tipos';
 
-const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante';
+const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante, armado';
 
 /** Lo de "Próximamente": sin cantidad ni ubicación, que no se puede pedir. */
 const COLUMNAS_PROXIMO = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante';
@@ -96,6 +99,12 @@ export function Catalogo() {
   const [reservando, setReservando] = useState(false);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   const visor = useVisorFoto();
+  // Las piezas armadas: qué dije va en qué cadena o pulsera. Los dijes se
+  // traen aparte, la primera vez que se pide uno: la clienta puede estar
+  // mirando solo cadenas, y la hoja tiene que enseñarlos todos.
+  const [pares, setPares] = useState<ParArmado[]>([]);
+  const [dijes, setDijes] = useState<ModeloPublico[] | null>(null);
+  const [armandoBase, setArmandoBase] = useState<number | null>(null);
   // Lo que viene en un lote que todavía no llega (pedido del dueño del
   // 20/10/2026): se enseña para antojar, nunca para pedir. Su propio visor,
   // sin el botón de agregar.
@@ -222,33 +231,47 @@ export function Catalogo() {
 
   const resumen = useMemo(() => {
     let piezas = 0;
-    const partes = [];
     const items: { modelo_id: number; cantidad: number }[] = [];
     for (const [id, n] of seleccion) {
       piezas += n;
       items.push({ modelo_id: id, cantidad: n });
-      const m = conocidos.get(id);
-      if (m?.precio_usd != null) partes.push(porCantidad(aMonto(m.precio_usd), n));
+    }
+    // El tramo, línea por línea, como `tramo_de_carrito`: un dije sin su
+    // cadena o pulsera no cuenta ni recibe el descuento.
+    const tramo = descuentosDeCarrito(tramos, items.map((i) => ({ ...i, armado: conocidos.get(i.modelo_id)?.armado ?? null })));
+    const partes = [];
+    const conDescuento = [];
+    for (const i of items) {
+      const m = conocidos.get(i.modelo_id);
+      if (m?.precio_usd == null) continue;
+      const monto = porCantidad(aMonto(m.precio_usd), i.cantidad);
+      partes.push(monto);
+      // Mientras responde la base: el porcentaje de su línea, sin el piso.
+      conDescuento.push(aMonto(aplicarDescuento(deMonto(monto), tramo.porModelo.get(i.modelo_id) ?? null) ?? deMonto(monto)));
     }
     const subtotal = deMonto(sumar(partes));
-    const descuento = descuentoPara(tramos, piezas);
-    // El tramo que viene: "3 mas y baja 5 %". Desde una pieza se puede
-    // pedir, y esto es lo que invita a llevar mas.
+    const descuento = tramo.descuento;
+    // El tramo que viene: "3 mas y baja 5 %", contado sin dijes. Desde una
+    // pieza se puede pedir, y esto es lo que invita a llevar mas.
     const siguiente = tramos
-      .filter((t) => t.activo && t.min_piezas > piezas)
+      .filter((t) => t.activo && t.min_piezas > tramo.piezas)
       .sort((x, y) => x.min_piezas - y.min_piezas)[0] ?? null;
     const deLaBase = cotizacion !== null && cotizacion.clave === claveDe(items) ? cotizacion : null;
     return {
       piezas,
       subtotal: deLaBase ? Number(deLaBase.subtotal_usd) : subtotal,
       descuento: deLaBase ? (Number(deLaBase.descuento_pct) || null) : descuento,
-      totalUsd: deLaBase ? Number(deLaBase.total_usd) : aplicarDescuento(subtotal, descuento),
+      totalUsd: deLaBase ? Number(deLaBase.total_usd) : deMonto(sumar(conDescuento)),
       /** El precio de cada pieza en este pedido, si ya respondió la base. */
       precioDe: new Map((deLaBase?.lineas ?? []).map((l) => [l.modelo_id, Number(l.precio_usd)])),
       calculando: seleccion.size > 0 && !deLaBase,
-      siguiente: siguiente ? { faltan: siguiente.min_piezas - piezas, pct: siguiente.descuento_pct } : null,
+      siguiente: siguiente ? { faltan: siguiente.min_piezas - tramo.piezas, pct: siguiente.descuento_pct } : null,
     };
   }, [seleccion, tramos, conocidos, cotizacion]);
+
+  // Las parejas que caben en lo que lleva el pedido: si quita una cadena,
+  // la pareja de esa cadena se cae sola (como en `guardar_armados`).
+  const armados = useMemo(() => paresVigentes(pares, seleccion), [pares, seleccion]);
 
   // Un producto con variantes es UNA tarjeta, no dos: la cadena de 45 cm y
   // la de 60 cm son la misma pieza con dos opciones.
@@ -311,18 +334,53 @@ export function Catalogo() {
   const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
 
   function cambiar(modeloId: number, cantidad: number) {
-    setSeleccion((prev) => {
-      const copia = new Map(prev);
-      const max = conocidos.get(modeloId)?.disponible ?? 0;
-      const n = Math.max(0, Math.min(cantidad, max));
-      if (n === 0) copia.delete(modeloId); else copia.set(modeloId, n);
-      return copia;
-    });
+    const copia = new Map(seleccion);
+    const max = conocidos.get(modeloId)?.disponible ?? 0;
+    const n = Math.max(0, Math.min(cantidad, max));
+    if (n === 0) copia.delete(modeloId); else copia.set(modeloId, n);
+    setSeleccion(copia);
+    // Las parejas que ya no caben se caen aquí, no solo al mirarlas: si no,
+    // el dije que se quitó y vuelve suelto reviviría su pareja.
+    setPares((p) => paresVigentes(p, copia));
   }
 
   function agregarPorId(id: number) {
     cambiar(id, (seleccion.get(id) ?? 0) + 1);
   }
+
+  /** "Agrégale un dije", desde una cadena o pulsera para armar. */
+  async function abrirArmar(baseId: number) {
+    visor.cerrar();
+    if (dijes === null) {
+      const { data, error: err } = await supabase
+        .from('v_disponible_publico')
+        .select(COLUMNAS)
+        .eq('armado', 'dije')
+        .order('nombre', { ascending: true })
+        .order('familia', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(400);
+      if (err) { setError('No se pudieron traer los dijes: ' + mensajeDeError(err)); return; }
+      const filas = (data as unknown as ModeloPublico[] | null) ?? [];
+      recordar(filas);
+      setDijes(filas);
+    }
+    setArmandoBase(baseId);
+  }
+
+  function armarCon(dijeId: number) {
+    if (armandoBase === null) return;
+    const hecho = armar(seleccion, pares, armandoBase, dijeId, (id) => conocidos.get(id)?.disponible ?? 0);
+    if (!hecho) {
+      setError('Ya no quedan piezas para armar esa: elige otra cadena o pulsera, u otro dije.');
+    } else {
+      setSeleccion(hecho.seleccion);
+      setPares(hecho.pares);
+    }
+    setArmandoBase(null);
+  }
+
+  const esBase = (id: number) => conocidos.get(id)?.armado === 'base';
 
   function verFoto(f: Familia<ModeloPublico>) {
     const ficha = fichas.find((x) => x.clave === f.clave);
@@ -348,11 +406,25 @@ export function Catalogo() {
       p_envio_empresa: entrega === 'envio' ? empresa : null,
       p_envio_agencia: entrega === 'envio' ? agencia : null,
       p_envio_direccion: entrega === 'envio' ? direccion : null,
+      // Qué dije va en qué base, solo si armó alguna: así un pedido sin
+      // dijes encaja también en la base de antes de esquema-dijes.sql.
+      ...(armados.length > 0 ? { p_armados: armadosParaLaBase(armados) } : {}),
     });
 
     if (err) { setError(mensajeDeError(err)); setReservando(false); return; }
     navegar(`/reserva/${data as string}`);
   }
+
+  // La hoja de "Agrégale un dije": sale en el catálogo y en "Tu pedido".
+  const hojaArmar = armandoBase !== null && dijes !== null ? (
+    <ArmarDije
+      base={nombreConVariante(conocidos.get(armandoBase)?.nombre ?? 'tu cadena', conocidos.get(armandoBase)?.variante)}
+      dijes={dijes}
+      llevas={(id) => seleccion.get(id) ?? 0}
+      alElegir={armarCon}
+      alCerrar={() => setArmandoBase(null)}
+    />
+  ) : null;
 
   /* ------------------------------------------------------------ pedido */
 
@@ -395,6 +467,21 @@ export function Catalogo() {
                     {precio !== null ? `${formatearBs(precioEnBs(precio, tasa))} c/u · ` : ''}
                     {m ? `quedan ${m.disponible}` : ''}
                   </div>
+                  {/* La cadena dice qué dijes lleva puestos, y deja ponerle uno. */}
+                  {m?.armado === 'base' ? (
+                    <>
+                      {armados.some((p) => p.base === id) ? (
+                        <div className="campo__pista">
+                          Con {armados.filter((p) => p.base === id)
+                            .map((p) => nombreConVariante(conocidos.get(p.dije)?.nombre ?? 'un dije', conocidos.get(p.dije)?.variante))
+                            .join(', ')}
+                        </div>
+                      ) : null}
+                      <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void abrirArmar(id)}>
+                        Agrégale un dije
+                      </button>
+                    </>
+                  ) : null}
                 </div>
                 <div className="contador">
                   <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(id, cantidad - 1)}>&minus;</button>
@@ -477,7 +564,7 @@ export function Catalogo() {
           <button type="button" className="boton boton--secundario" onClick={() => setPaso('catalogo')}>
             Seguir viendo
           </button>
-          <button type="button" className="boton boton--secundario" onClick={() => { setSeleccion(new Map()); setPaso('catalogo'); }}>
+          <button type="button" className="boton boton--secundario" onClick={() => { setSeleccion(new Map()); setPares([]); setPaso('catalogo'); }}>
             Vaciar el pedido
           </button>
         </div>
@@ -485,6 +572,7 @@ export function Catalogo() {
         {!datosParaReservar(datos)
           ? <p className="campo__pista">{queFalta(datos)}</p>
           : faltaEnvio ? <p className="campo__pista">Falta la agencia y su dirección para el envío.</p> : null}
+        {hojaArmar}
       </div>
     );
   }
@@ -747,7 +835,14 @@ export function Catalogo() {
             },
             llevas: (id) => seleccion.get(id) ?? 0,
           }}
+          secundaria={{
+            texto: 'Agrégale un dije',
+            visible: esBase,
+            alTocar: (id) => void abrirArmar(id),
+          }}
         />
+
+        {hojaArmar}
 
         {(() => {
           const abierta = familiaAbierta === null ? null : familias.find((x) => x.clave === familiaAbierta);
@@ -794,7 +889,7 @@ export function Catalogo() {
               </div>
             </div>
             {/* En un teléfono angosto no cabe con el total: ahí vive en "Tu pedido". */}
-            <button type="button" className="boton boton--secundario barra-carrito__vaciar" onClick={() => setSeleccion(new Map())}>
+            <button type="button" className="boton boton--secundario barra-carrito__vaciar" onClick={() => { setSeleccion(new Map()); setPares([]); }}>
               Vaciar
             </button>
             <button type="button" className="boton" onClick={() => setPaso('pedido')}>

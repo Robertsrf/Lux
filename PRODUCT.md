@@ -49,6 +49,15 @@ sin poder pedirlo. Se enseña para antojar ("que den ganas de reservarlo", dijo 
 dueño), no para vender. Antes, cargarlo era ponerlo disponible y las clientas
 preguntaban por piezas que no estaban en la tienda.
 
+Y desde el 21/10/2026, **los dijes para armar**: el dueño trae dijes sueltos y
+cadenas o pulseras sin dije, y la clienta arma la suya. Un dije de $0,88 salía en
+$9, porque el sistema le cargaba lo de tienda de una joya entera; ahora el dije va
+con su mercancía y el margen, y lo de tienda lo paga la cadena: las dos juntas
+cuestan lo que una sola joya con los dos costos sumados. En el catálogo, la cadena
+dice "Agrégale un dije". El dije también se vende solo, para una cadena que ya tiene
+la clienta; así cuenta en lo vendido, pero no para el descuento por cantidad ni para
+la meta de la vendedora, que se miden en joyas.
+
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el
 inventario en un teléfono era una tabla de trece columnas de la que solo se veían

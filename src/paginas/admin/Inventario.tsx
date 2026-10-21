@@ -48,6 +48,16 @@ function tieneMinimo(m: ModeloAdmin): boolean {
 }
 
 /**
+ * Dije o base para armar, junto al nombre: el dije va sin lo de tienda, y
+ * por eso su margen y su grupo no se leen como los de una pieza.
+ */
+function EtiquetaArmado({ armado }: { armado?: ModeloAdmin['armado'] }) {
+  if (armado === 'dije') return <span className="etiqueta-variante">dije</span>;
+  if (armado === 'base') return <span className="etiqueta-variante">para armar</span>;
+  return null;
+}
+
+/**
  * Lo de los lotes que no han llegado, dicho junto a la existencia. Una
  * pieza nueva de un lote en camino no tiene existencia (lo suyo va aparte
  * hasta liberarlo): sale "Próximamente" y cuántas vienen, no un 0 en
@@ -128,14 +138,19 @@ export function Inventario() {
     setReasignado(null);
     const { data, error: err } = await supabase.rpc('admin_reasignar_grupos');
     if (err) { setError(mensajeDeError(err)); setReasignando(false); return; }
-    const r = data as { piezas_movidas: number; sin_grupo_que_alcance: number };
+    // `dijes_sin_escalera` llega desde esquema-dijes.sql; antes no existía.
+    const r = data as { piezas_movidas: number; sin_grupo_que_alcance: number; dijes_sin_escalera?: number };
+    const dijes = r.dijes_sin_escalera ?? 0;
     setReasignado(
-      r.piezas_movidas === 0
+      (r.piezas_movidas === 0
         ? 'Todas estaban en su sitio: no hubo nada que mover.'
         : `Se movieron ${r.piezas_movidas} piezas al grupo que les toca.`
         + (r.sin_grupo_que_alcance > 0
           ? ` Ojo: ${r.sin_grupo_que_alcance} no llegan ni con el grupo más alto; hace falta crear uno por encima.`
-          : ''),
+          : ''))
+      + (dijes > 0
+        ? ` ${dijes === 1 ? 'Un dije sigue' : `${dijes} dijes siguen`} en un grupo de las piezas: carga la escalera de los dijes en Grupos y vuelve a reacomodar.`
+        : ''),
     );
     setReasignando(false);
     await recargar();
@@ -337,6 +352,7 @@ export function Inventario() {
               <div className="celda-nombre">
                 {m.nombre}
                 {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
+                <EtiquetaArmado armado={m.armado} />
               </div>
               {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
             </>
@@ -531,7 +547,7 @@ export function Inventario() {
           <div className="celda-nota">y {vs.length - 1} más</div>
         </td>
         <td className="celda-modelo">
-          <div className="celda-nombre">{f.cabeza.nombre}</div>
+          <div className="celda-nombre">{f.cabeza.nombre} <EtiquetaArmado armado={f.cabeza.armado} /></div>
           {botonMedidas(f)}
           {f.cabeza.variantes_nota ? <div className="celda-nota">{f.cabeza.variantes_nota}</div> : null}
         </td>

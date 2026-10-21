@@ -25,6 +25,8 @@ const VACIO = {
   costo_unitario_usd: '',
   grupo_precio_id: '',
   precio_override_usd: '',
+  /** pieza, base (cadena o pulsera para armar) o dije (sin lo de tienda). */
+  armado: 'pieza',
 };
 
 /** Una fila de la tabla de variantes: otra medida del mismo producto. */
@@ -136,6 +138,11 @@ function Formulario() {
   const [ubicVar, setUbicVar] = useState<number | null>(null);
   // Lo que da `admin_sugerir_precio` para cada costo distinto, ya pedido.
   const [sugeridas, setSugeridas] = useState<Record<string, PrecioSugerido>>({});
+  // El tipo con que llegó de la base: si cambia, una variante con costo
+  // propio vuelve a buscar su grupo (como `guardar_variantes_de`).
+  const [armadoOriginal, setArmadoOriginal] = useState('pieza');
+  // Se cambió el tipo y falta la sugerencia de su escalera.
+  const [tipoCambiado, setTipoCambiado] = useState(false);
   const campoVariante = useRef<HTMLInputElement>(null);
   const nuevas = useRef(0);
 
@@ -156,7 +163,7 @@ function Formulario() {
       setCargando(true);
       const { data, error: err } = await supabase
         .from('v_catalogo_admin')
-        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd, familia, variante, existencia_total, proximamente, por_llegar, por_llegar_lotes')
+        .select('id, sku, nombre, categoria, descripcion, variantes_nota, foto_path, foto_thumb_path, grupo_precio_id, precio_override_usd, lote_id, costo_unitario_usd, flete_unitario_usd, familia, variante, existencia_total, proximamente, por_llegar, por_llegar_lotes, armado')
         .eq('id', Number(id))
         .maybeSingle();
 
@@ -175,7 +182,9 @@ function Formulario() {
         costo_unitario_usd: String(m.costo_unitario_usd ?? ''),
         grupo_precio_id: m.grupo_precio_id ? String(m.grupo_precio_id) : '',
         precio_override_usd: m.precio_override_usd === null ? '' : String(m.precio_override_usd),
+        armado: m.armado ?? 'pieza',
       });
+      setArmadoOriginal(m.armado ?? 'pieza');
       setFotoActual(urlPublicaFoto(m.foto_thumb_path ?? m.foto_path));
       setAutoAsignado(true);
 
@@ -247,7 +256,9 @@ function Formulario() {
   // El precio de cada variante con costo propio lo calcula la base, con la
   // misma cuenta que el producto. Se pide cuando se deja de escribir.
   const lotePrecio = form.lote_id ? Number(form.lote_id) : null;
-  const claveSugerida = (costo: string) => `${lotePrecio ?? '-'}|${Number(costo)}`;
+  // Un dije busca sin lo de tienda y en su escalera: es otra respuesta.
+  const esDije = form.armado === 'dije';
+  const claveSugerida = (costo: string) => `${lotePrecio ?? '-'}|${Number(costo)}|${esDije ? 'dije' : 'pieza'}`;
   useEffect(() => {
     const faltan = [...new Set(filas
       .filter((f) => !f.quitar && f.costo.trim() !== '' && Number.isFinite(Number(f.costo)) && Number(f.costo) >= 0)
@@ -260,6 +271,7 @@ function Formulario() {
           p_lote_id: lotePrecio,
           p_costo_usd: Number(c),
           p_margen_pct: null,
+          p_es_dije: esDije,
         })));
         setSugeridas((s) => {
           const copia = { ...s };
@@ -271,7 +283,7 @@ function Formulario() {
       })();
     }, 450);
     return () => clearTimeout(espera);
-  }, [filas, lotePrecio, sugeridas]);
+  }, [filas, lotePrecio, sugeridas, esDije]);
 
   function cambiarFila(clave: string, cambio: Partial<FilaVariante>) {
     setFilas((fs) => fs.map((f) => (f.clave === clave ? { ...f, ...cambio } : f)));
@@ -314,9 +326,10 @@ function Formulario() {
       p_lote_id: form.lote_id ? Number(form.lote_id) : null,
       p_costo_usd: Number(form.costo_unitario_usd || 0),
       p_margen_pct: margenObjetivo === '' ? null : Number(margenObjetivo),
+      p_es_dije: form.armado === 'dije',
     });
     if (!err) setSugerencia(data as unknown as PrecioSugerido);
-  }, [form.lote_id, form.costo_unitario_usd, margenObjetivo]);
+  }, [form.lote_id, form.costo_unitario_usd, margenObjetivo, form.armado]);
 
   useEffect(() => {
     const t = setTimeout(() => void pedirSugerencia(), 400);
@@ -326,12 +339,37 @@ function Formulario() {
   // Asignacion automatica del grupo: solo la primera vez y solo si el
   // admin no ha elegido nada. Si el elige a mano, no se le vuelve a mover.
   useEffect(() => {
-    if (autoAsignado || !sugerencia?.grupo_id) return;
+    if (!sugerencia) return;
+    // Que la sugerencia sea la del tipo de ahora, no la que llegó antes de
+    // cambiarlo: si no, un dije se quedaría con un grupo de las piezas.
+    if ((sugerencia.escalera ?? 'pieza') !== (form.armado === 'dije' ? 'dije' : 'pieza')) return;
+    // Cambió el tipo: el grupo de la escalera nueva reemplaza al que tenía.
+    // Sin grupo en ella (no hay escalera de dijes todavía), se queda el de
+    // antes: mejor G9 que sin precio, y el formulario dice qué falta.
+    if (tipoCambiado) {
+      if (sugerencia.grupo_id && form.precio_override_usd === '') {
+        setForm((f) => ({ ...f, grupo_precio_id: String(sugerencia.grupo_id) }));
+      }
+      setTipoCambiado(false);
+      setAutoAsignado(true);
+      return;
+    }
+    if (autoAsignado || !sugerencia.grupo_id) return;
     if (form.grupo_precio_id !== '' || form.precio_override_usd !== '') return;
     if (Number(form.costo_unitario_usd || 0) <= 0) return;
     setForm((f) => ({ ...f, grupo_precio_id: String(sugerencia.grupo_id) }));
     setAutoAsignado(true);
-  }, [sugerencia, autoAsignado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd]);
+  }, [sugerencia, autoAsignado, tipoCambiado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd, form.armado]);
+
+  /**
+   * Cambiar el tipo cambia de escalera. El grupo elegido NO se suelta aquí:
+   * se reemplaza cuando llega la sugerencia de la escalera nueva, y solo si
+   * trae uno (salvo con precio propio, que es una decisión suya).
+   */
+  function cambiarArmado(valor: string) {
+    setForm((f) => ({ ...f, armado: valor }));
+    setTipoCambiado(true);
+  }
 
   async function elegirFoto(archivo: File | undefined) {
     if (!archivo) return;
@@ -363,7 +401,7 @@ function Formulario() {
         alcanza: true,
       };
     }
-    if (f.id !== null && f.costoOriginal !== null && Number(f.costo) === f.costoOriginal) {
+    if (f.id !== null && f.costoOriginal !== null && Number(f.costo) === f.costoOriginal && form.armado === armadoOriginal) {
       return { bcv: f.precioActualBcv, detalle: f.grupoActual ?? 'precio propio', alcanza: true };
     }
     const s = sugeridas[claveSugerida(f.costo.trim())];
@@ -446,6 +484,8 @@ function Formulario() {
             .filter(([, c]) => c !== '' && Number.isFinite(Number(c)))
             .map(([u, c]) => ({ ubicacion_id: Number(u), cantidad: Math.max(0, Math.trunc(Number(c))) })),
         })),
+        // Pieza, base o dije: es del producto, y lo llevan todas sus medidas.
+        p_armado: form.armado,
       });
 
       if (err) throw err;
@@ -467,6 +507,7 @@ function Formulario() {
   const volverA = loteDeVuelta && enCamino ? `/admin/lotes/${form.lote_id}` : loteDeVuelta ? `/admin/lotes/${loteDeVuelta}` : '/admin/inventario';
 
   const grupoElegido = grupos.find((g) => String(g.id) === form.grupo_precio_id);
+  const escaleraDelForm = form.armado === 'dije' ? 'dije' : 'pieza';
   const precioBcv = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
 
   // Todo se compara en DOLARES BCV, que es la moneda de la etiqueta. El
@@ -576,6 +617,25 @@ function Formulario() {
             </Campo>
           </div>
 
+          {/* Un dije va sin lo de tienda: se lo cobra la base en la que va,
+              y así cadena + dije cuesta lo que una pieza con los dos costos
+              sumados (esquema-dijes.sql). */}
+          <Campo
+            etiqueta="Tipo de pieza"
+            htmlFor="m-armado"
+            pista={form.armado === 'dije'
+              ? 'Su precio es su mercancía con el margen, sin lo de tienda, y sale de la escalera de dijes. Solo no cuenta para el descuento por cantidad ni para la meta; con una base, sí.'
+              : form.armado === 'base'
+                ? 'Una pieza como cualquiera, con lo de tienda. En el catálogo ofrece "Agrégale un dije".'
+                : 'Las piezas de siempre.'}
+          >
+            <select id="m-armado" value={form.armado} onChange={(e) => cambiarArmado(e.target.value)}>
+              <option value="pieza">Pieza normal</option>
+              <option value="base">Base para armar: cadena o pulsera para un dije</option>
+              <option value="dije">Dije</option>
+            </select>
+          </Campo>
+
           {categoriaNueva ? (
             <Campo
               etiqueta="Nombre de la categoría nueva"
@@ -629,9 +689,15 @@ function Formulario() {
             <Campo etiqueta="Grupo de precio" htmlFor="m-grupo">
               <select id="m-grupo" value={form.grupo_precio_id} onChange={(e) => cambiar('grupo_precio_id', e.target.value)}>
                 <option value="">Sin grupo</option>
-                {grupos.filter((g) => g.activo).map((g) => (
-                  <option key={g.id} value={g.id}>{g.nombre} · {formatearBcv(g.precio_usd)}</option>
-                ))}
+                {/* Los de su escalera; y el que ya tenga, aunque sea de la
+                    otra, para que se vea en qué está. */}
+                {grupos
+                  .filter((g) => (g.activo && (g.escalera ?? 'pieza') === escaleraDelForm) || String(g.id) === form.grupo_precio_id)
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nombre} · {formatearBcv(g.precio_usd)}{(g.escalera ?? 'pieza') !== escaleraDelForm ? ' (de la otra escalera)' : ''}
+                    </option>
+                  ))}
               </select>
             </Campo>
             <Campo etiqueta="Precio propio $" htmlFor="m-override" pista="Solo si esta pieza no sigue el precio de su grupo.">
@@ -693,7 +759,11 @@ function Formulario() {
               <li>
                 <span className="dato__etiqueta">3 · Más lo que carga de tienda</span>
                 <div className="dato__valor">{formatearBcv(sugerencia?.costo_operativo_usd ?? null, 4)}</div>
-                <div className="campo__pista">alquiler, sueldo y empaque · se pagan aqui, no se convierten</div>
+                <div className="campo__pista">
+                  {form.armado === 'dije'
+                    ? 'un dije no carga lo de tienda: se lo cobra la base en la que va'
+                    : 'alquiler, sueldo y empaque · se pagan aqui, no se convierten'}
+                </div>
               </li>
               <li>
                 <span className="dato__etiqueta">4 · Te sale en</span>
@@ -739,6 +809,11 @@ function Formulario() {
                     {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
                   </>
                 )}
+              </Aviso>
+            ) : sugerencia && form.armado === 'dije' ? (
+              <Aviso tono="alerta">
+                Todavía no hay escalera de dijes. Cárgala en Grupos, con los precios que tú decidas: un dije
+                nunca se pone en un grupo de las piezas, que llevan lo de tienda.
               </Aviso>
             ) : sugerencia ? (
               <Aviso tono="alerta">

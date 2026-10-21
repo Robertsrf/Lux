@@ -33,6 +33,8 @@ const COLUMNAS = [
   // Lo de los lotes en camino: si es nueva de uno ("Próximamente") y
   // cuántas vienen de ella.
   'proximamente', 'por_llegar', 'por_llegar_lotes',
+  // Dije o base para armar (esquema-dijes.sql).
+  'armado',
 ].join(', ');
 
 /**

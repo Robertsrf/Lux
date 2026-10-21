@@ -706,6 +706,49 @@ async function main() {
   dice(anoP.error?.code === '42501', 'admin_guardar_por_llegar() sin sesion, rechazada', anoP.error ? 'rechazada ' + anoP.error.code : 'RESPONDIO');
 
   /*
+    LOS DIJES (esquema-dijes.sql).
+
+    El dije va sin lo de tienda y en su propia escalera. Las cuentas que
+    lo deciden (`tramo_de_carrito`, `costo_bcv_pieza`) son internas: no se
+    ejecutan con ninguna sesión. Qué dije va en qué base vive en
+    `reserva_armados`, que no se lee en crudo; la tienda lo ve por
+    `v_pedido_armado`. La marca `armado` sale en el catálogo público: dice
+    dije o base, ningún costo.
+  */
+  console.log('\nLOS DIJES');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.rpc('tramo_de_carrito', { p_items: [] });
+    dice(error?.code === '42501', `tramo_de_carrito(): ${quien}, cerrada`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+  }
+  for (const [quien, S] of [['sin sesion', P], ['ella', V]]) {
+    const { error } = await S.rpc('costo_bcv_pieza', { p_costo_puesto_usd: 1, p_es_dije: true });
+    dice(error?.code === '42501', `costo_bcv_pieza(): ${quien}, cerrada`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+  }
+  const gaP = await P.rpc('guardar_armados', { p_reserva_id: -1, p_armados: [] });
+  dice(gaP.error?.code === '42501', 'guardar_armados() sin sesion, cerrada', gaP.error ? 'rechazada ' + gaP.error.code : 'RESPONDIO');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.from('reserva_armados').select('id').limit(1);
+    dice(error?.code === '42501', `reserva_armados: ${quien} no la lee en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+  }
+  // Rechazada por permiso, no por cualquier cosa: "no existe" sería otra falla.
+  const paP = await P.from('v_pedido_armado').select('reserva_id').limit(1);
+  dice(paP.error?.code === '42501', 'v_pedido_armado sin sesion, cerrada', paP.error ? 'rechazada ' + paP.error.code : (paP.data?.length ?? 0) + ' filas');
+  const paV = await V.from('v_pedido_armado').select('reserva_id, dije_nombre, base_nombre, cantidad').limit(1);
+  dice(!paV.error, 'v_pedido_armado: ella, para armar los pedidos', paV.error ? 'ERROR ' + paV.error.code : 'responde');
+  const arP = await P.from('v_disponible_publico').select('id, armado').limit(1);
+  dice(!arP.error, 'v_disponible_publico dice si es dije o base, sin sesion', arP.error ? 'ERROR ' + arP.error.code : 'responde');
+  const sdV = await V.rpc('admin_sugerir_precio', { p_lote_id: null, p_costo_usd: 1, p_margen_pct: null, p_es_dije: true });
+  // Que ella no obtenga la cuenta es lo que importa; si dejara de ser del
+  // dueño, la comprobación de abajo lo dice.
+  dice(!!sdV.error, 'admin_sugerir_precio(dije): ella no', sdV.error ? 'rechazada' : 'RESPONDIO');
+  const sdA = await A.rpc('admin_sugerir_precio', { p_lote_id: null, p_costo_usd: 1, p_margen_pct: null, p_es_dije: true });
+  dice(!sdA.error && sdA.data?.escalera === 'dije' && Number(sdA.data?.costo_operativo_usd) === 0,
+    'admin_sugerir_precio(dije): sin lo de tienda y en su escalera',
+    sdA.error ? 'ERROR ' + sdA.error.code : `escalera ${sdA.data?.escalera}, tienda ${sdA.data?.costo_operativo_usd}`);
+  const esA = await A.from('grupos_precio').select('id, escalera').limit(1);
+  dice(!esA.error, 'grupos_precio dice su escalera', esA.error ? 'ERROR ' + esA.error.code : 'responde');
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a

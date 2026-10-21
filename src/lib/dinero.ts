@@ -10,6 +10,8 @@
  *  4. El margen se mide en dolares.
  */
 
+import type { Armado } from './tipos';
+
 /** Un monto en enteros de 1/10.000 (misma escala que numeric(12,4)). */
 export type Monto = bigint;
 
@@ -515,6 +517,61 @@ export function descuentoPara(
   const aplicables = tramos.filter((t) => t.activo && t.min_piezas <= piezas);
   if (aplicables.length === 0) return null;
   return aplicables.reduce((mejor, t) => (t.min_piezas > mejor.min_piezas ? t : mejor)).descuento_pct;
+}
+
+/** Lo que el tramo necesita de cada línea del carrito. */
+export interface LineaTramo {
+  modelo_id: number;
+  cantidad: number;
+  armado?: Armado;
+}
+
+/**
+ * El tramo de un carrito, línea por línea. Es la cuenta de
+ * `tramo_de_carrito` en la base, paso por paso:
+ *
+ *   1. las piezas del tramo son todo menos los dijes;
+ *   2. el descuento es el del tramo de esas piezas;
+ *   3. cada pieza que no es dije lleva ese descuento;
+ *   4. los dijes, por modelo de menor a mayor id: lo llevan si sus unidades
+ *      caben enteras en las bases que quedan (y las gastan); si no, nada.
+ *
+ * Un dije solo no cuenta para el tramo ni lo recibe; puesto en una base es
+ * parte de una joya, y le llega el descuento de ella. `porModelo` da null a
+ * la línea sin descuento, como `descuentoPara`.
+ */
+export function descuentosDeCarrito(
+  tramos: { min_piezas: number; descuento_pct: number; activo: boolean }[],
+  lineas: LineaTramo[],
+): { piezas: number; descuento: number | null; porModelo: Map<number, number | null> } {
+  // Por modelo: la misma pieza en dos ubicaciones es una sola línea aquí.
+  const porId = new Map<number, { cantidad: number; armado: Armado }>();
+  for (const l of lineas) {
+    const previa = porId.get(l.modelo_id);
+    porId.set(l.modelo_id, { cantidad: (previa?.cantidad ?? 0) + Math.max(l.cantidad, 0), armado: l.armado ?? null });
+  }
+  const ordenadas = [...porId.entries()].sort((a, b) => a[0] - b[0]);
+
+  let piezas = 0;
+  let bases = 0;
+  for (const [, l] of ordenadas) {
+    if (l.armado !== 'dije') piezas += l.cantidad;
+    if (l.armado === 'base') bases += l.cantidad;
+  }
+  const descuento = descuentoPara(tramos, piezas);
+
+  const porModelo = new Map<number, number | null>();
+  for (const [id, l] of ordenadas) {
+    if (l.armado !== 'dije') {
+      porModelo.set(id, descuento);
+    } else if (descuento && l.cantidad <= bases) {
+      porModelo.set(id, descuento);
+      bases -= l.cantidad;
+    } else {
+      porModelo.set(id, null);
+    }
+  }
+  return { piezas, descuento, porModelo };
 }
 
 /** Aplica un descuento porcentual sin pasar por aritmetica flotante. */
