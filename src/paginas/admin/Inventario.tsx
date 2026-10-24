@@ -6,7 +6,7 @@ import {
   aMonto, binanceDesdeBs, deMonto, formatearBcv, formatearBinance, formatearBs, formatearMonto,
   formatearPorcentaje, porCantidad, rebajaMaximaPct, sumar,
 } from '../../lib/dinero';
-import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
 import { useTextos } from '../../hooks/useTextos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
@@ -320,7 +320,7 @@ export function Inventario() {
         aria-label={`${abierta ? 'Ocultar' : 'Ver'} las ${f.variantes.length} medidas de ${f.cabeza.nombre}`}
         onClick={() => alternar(f.clave)}
       >
-        {f.variantes.length} medidas: {etiquetasDe(f) || 'sin nombre'}
+        {f.variantes.length} medidas: {etiquetasCortas(f, 40) || 'sin nombre'}
       </button>
     );
   }

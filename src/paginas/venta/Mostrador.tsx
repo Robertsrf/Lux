@@ -8,7 +8,7 @@ import {
   rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
 import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
@@ -839,7 +839,7 @@ export function Mostrador() {
   const filtrando = Boolean(texto.trim() || tipo);
 
   return (
-    <div className={carrito.totales.piezas > 0 ? 'pagina mostrador pagina--con-barra' : 'pagina mostrador'}>
+    <div className={carrito.totales.piezas > 0 ? 'pagina mostrador mostrador--venta pagina--con-barra' : 'pagina mostrador mostrador--venta'}>
       <div className="encabezado-pagina">
         <div>
           <h1>Mostrador</h1>
@@ -939,7 +939,7 @@ export function Mostrador() {
             const bs = rangoDe(f.variantes, (v) => v.precio_bs);
             const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
             const desde = bs.min !== bs.max;
-            const etiquetas = etiquetasDe(f);
+            const etiquetas = etiquetasCortas(f);
             const admiteRebaja = m.precio_minimo_bs !== null && m.precio_bs !== null && m.precio_minimo_bs < m.precio_bs;
             return (
               <article key={f.clave} className={agotado || !tasa ? 'tarjeta-modelo tarjeta-modelo--agotada' : 'tarjeta-modelo'}>
@@ -1082,6 +1082,13 @@ export function Mostrador() {
               ),
               deshabilitada: !tasa || puestas >= v.cantidad,
               llevas: puestas,
+              quedan: v.cantidad,
+              // Con el minimo en la clave: dos letras del mismo precio y
+              // distinto minimo no se juntan bajo uno solo.
+              precio: {
+                clave: `${v.precio_bs}|${v.precio_usd}|${v.precio_minimo_bs}`,
+                detalle: admite ? `Mínimo ${formatearBs(v.precio_minimo_bs)}` : 'Precio fijo',
+              },
             };
           })}
           alElegir={(id) => { agregarPorId(id); setFamiliaAbierta(null); }}

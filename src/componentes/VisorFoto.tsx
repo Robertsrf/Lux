@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as EventoPuntero } from 'react';
 import { urlPublicaFoto } from '../lib/fotos';
 import { formatearBcv, formatearBinance, formatearBs } from '../lib/dinero';
-import { nombreConVariante } from '../lib/familias';
+import { cuadroDe, nombreConVariante } from '../lib/familias';
 
 /** Una de las opciones de la pieza. Una pieza suelta tiene una sola. */
 export interface VarianteVisor {
@@ -218,6 +218,7 @@ function Contenido({
   const v = foto.variantes[elegida] ?? foto.variantes[0];
   const url = v ? urlPublicaFoto(v.path ?? v.thumbPath ?? null) : null;
   const varias = foto.variantes.length > 1;
+  const cuadro = cuadroDe(foto.variantes.map((x) => x.etiqueta));
   const llevas = v && accion?.llevas ? accion.llevas(v.id) : 0;
   const clase = 'visor__marco' + (direccion ? ` visor__marco--${direccion}` : '');
 
@@ -234,7 +235,30 @@ function Contenido({
 
         {/* Las variantes son opciones de ESTA pieza: se eligen aqui, sin
             salir a buscar otra tarjeta. */}
-        {varias ? (
+        {varias && cuadro ? (
+          // Un cuadro (las letras en dorado y en plateado): un grupo por
+          // color y una letra por boton, que dice entera su opcion al lector.
+          <div className="visor__grupos">
+            {cuadro.map((g) => (
+              <div key={g.nombre}>
+                <span className="visor__grupo-nombre" aria-hidden="true">{g.nombre}</span>
+                <div className={g.opciones.every((x) => x.corta.length <= 3) ? 'visor__variantes visor__variantes--cortas' : 'visor__variantes'} role="group" aria-label={`Elige la variante: ${g.nombre}`}>
+                  {g.opciones.map(({ indice, corta }) => (
+                    <button
+                      key={foto.variantes[indice]!.id}
+                      type="button"
+                      aria-pressed={indice === elegida}
+                      aria-label={foto.variantes[indice]!.etiqueta ?? corta}
+                      onClick={() => setElegida(indice)}
+                    >
+                      {corta}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : varias ? (
           <div className="visor__variantes" role="group" aria-label="Elige la variante">
             {foto.variantes.map((x, i) => (
               <button key={x.id} type="button" aria-pressed={i === elegida} onClick={() => setElegida(i)}>

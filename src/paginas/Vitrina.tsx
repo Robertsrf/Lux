@@ -9,7 +9,7 @@ import { SiluetaEscote } from '../componentes/SiluetaEscote';
 import { enlacePublico } from '../componentes/CompartirCatalogo';
 import { formatearBcv, formatearBs } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante } from '../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, porPrecio } from '../lib/familias';
 import type { Familia } from '../lib/familias';
 import { ESCOTES, piezasParaEscote } from '../lib/escotes';
 import type { Escote } from '../lib/escotes';
@@ -716,7 +716,7 @@ function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: 
   const varias = variantes.length > 1;
   const mismoPrecio = variantes.every((v) => v.precio_bs === cabeza.precio_bs);
   const nota = varias
-    ? (mismoPrecio ? etiquetasDe(familia) : null)
+    ? (mismoPrecio ? etiquetasCortas(familia, 40) : null)
     : [cabeza.variante, cabeza.variantes_nota].filter(Boolean).join(' · ') || null;
   const ultima = !proxima && variantes.reduce((n, v) => n + v.disponible, 0) === 1;
 
@@ -735,11 +735,11 @@ function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: 
 
         {varias && !mismoPrecio ? (
           <ul className="vitrina__variantes vitrina__aparece vitrina__aparece--tarde">
-            {variantes.map((v) => (
-              <li key={v.id}>
-                <span className="vitrina__variante">{v.variante ?? v.sku}</span>
-                <span className="vitrina__variante-precio">{formatearBs(v.precio_bs)}</span>
-                <span className="vitrina__variante-precio">{formatearBcv(v.precio_usd)}</span>
+            {porPrecio(variantes).map(({ etiqueta, pieza }) => (
+              <li key={pieza.id}>
+                <span className="vitrina__variante">{etiqueta}</span>
+                <span className="vitrina__variante-precio">{formatearBs(pieza.precio_bs)}</span>
+                <span className="vitrina__variante-precio">{formatearBcv(pieza.precio_usd)}</span>
               </li>
             ))}
           </ul>

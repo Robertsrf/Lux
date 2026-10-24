@@ -1204,7 +1204,9 @@ table.tabla tfoot td {
   .pagina { padding-top: var(--e-4); padding-inline: var(--e-3); }
   .fila { grid-template-columns: 1fr; }
   .acciones .boton { flex: 1 1 100%; }
-  .rejilla-venta { grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
+  /* minmax(0, ...) y no 1fr a secas: 1fr deja que una palabra larga de una
+     tarjeta ensanche su columna y encoja la de al lado. */
+  .rejilla-venta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-2); }
   .linea-cobro { grid-template-columns: 48px 1fr; row-gap: var(--e-3); }
   .linea-cobro__foto { width: 48px; height: 48px; }
   .linea-cobro .contador { grid-column: 1 / -1; justify-content: flex-end; }
@@ -1974,6 +1976,11 @@ table.tabla tfoot td {
 .tarjeta-modelo__variantes {
   font-family: var(--fuente-ui); font-size: var(--t-14);
   color: var(--texto-secundario); line-height: 1.3;
+  /* La red, por si una sola etiqueta es larguisima: dos renglones y
+     ya. La lista ya llega corta (`etiquetasCortas`); esto es por si no. */
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
 /* Con precios distintos, la tarjeta ensena el mas bajo y lo dice. */
 .tarjeta-modelo__desde {
@@ -2208,6 +2215,27 @@ table.tabla tfoot td {
 .visor__variantes button[aria-pressed='true'] {
   background: var(--crema); border-color: var(--crema); color: var(--verde-profundo);
 }
+/* Las opciones en cuadro (las letras del dije, en dorado y en plateado):
+   cada grupo con su nombre y una letra por boton. Antes eran 52 pildoras
+   de dos en dos, 1.344 px de visor. */
+/* El margen a los lados es por las flechas del visor, fijas a media altura
+   sobre los bordes: sin el, la primera y la ultima letra de cada fila
+   quedaban debajo y tocarlas pasaba de pieza. 56 px libra la flecha de 48
+   a 16 del borde; en el telefono, 44 la de 44 a 8 (mas abajo). */
+.visor__grupos { display: grid; gap: var(--e-3); margin-top: var(--e-2); padding-inline: 56px; }
+.visor__grupo-nombre {
+  display: block;
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+.visor__grupos .visor__variantes { margin-top: var(--e-1); }
+.visor__variantes--cortas button { min-width: 44px; padding: 0 var(--e-2); }
+/* En el mostrador, el blanco de su cara: 56 px, no 44. `.mostrador--venta`
+   y no `.mostrador`, que tambien lo llevan los catalogos de las clientas
+   como nombre de la rejilla. */
+.mostrador--venta .visor__variantes button { min-height: 56px; }
+.mostrador--venta .visor__variantes--cortas button { min-width: 56px; }
 
 /* Bolivares y dolares BCV del mismo tamano, como en la etiqueta. */
 .visor__precios {
@@ -2258,6 +2286,7 @@ table.tabla tfoot td {
   .visor__flecha { width: 44px; height: 44px; }
   .visor__flecha--antes { left: var(--e-2); }
   .visor__flecha--despues { right: var(--e-2); }
+  .visor__grupos { padding-inline: 44px; }
 }
 
 /* --- La hoja para elegir variante ------------------------------------ */
@@ -2345,6 +2374,68 @@ table.tabla tfoot td {
   background: var(--verde-profundo); color: var(--crema);
   border-radius: var(--radio-pill);
   font-size: var(--t-12); font-weight: 500; font-variant-numeric: tabular-nums;
+}
+
+/* Con muchas opciones, fichas y no renglones. Las 52 letras del dije en
+   renglones de 64 px eran una hoja de 3.700 px; en fichas, el precio se
+   dice una vez (arriba, o sobre su grupo si cada uno tiene el suyo) y cada
+   ficha lleva su nombre y lo que queda. Con una letra por ficha caben
+   cuatro en un telefono de 360 px y seis en la hoja de escritorio. */
+.elegir__grupos { display: grid; gap: var(--e-5); }
+.elegir__grupo { display: grid; gap: var(--e-3); }
+.elegir__grupo-cabeza {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: var(--e-1) var(--e-4);
+  padding: 0 var(--e-1);
+}
+.elegir__grupo-nombre {
+  margin: 0;
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.elegir__precio { display: grid; gap: 2px; padding: 0 var(--e-1); }
+.elegir__grupo-cabeza .elegir__precio { padding: 0; justify-items: end; }
+.elegir__precio-cifras {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--e-1) var(--e-4);
+}
+.elegir__fichas {
+  display: grid; gap: var(--e-2);
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.elegir__fichas--cortas { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+.ficha-variante {
+  position: relative;
+  display: grid; align-content: center; justify-items: center; gap: 2px;
+  min-height: 64px; padding: var(--e-2) var(--e-1);
+  text-align: center; font-family: inherit;
+  background: var(--superficie);
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-1);
+  transition: box-shadow var(--rapido), border-color var(--rapido), transform var(--rapido);
+}
+.ficha-variante:hover:not(:disabled) { border-color: var(--salvia); box-shadow: var(--sombra-2); }
+.ficha-variante:active:not(:disabled) { transform: scale(0.97); }
+/* Sin transparencia: al 45 % "Quedan 3" daba 2,03:1. Se apaga el relleno,
+   no la letra; salvia de texto sobre papel da 5,35:1. En el mostrador sin
+   tasa se apagan las 52 a la vez, y tienen que seguir leyendose. */
+.ficha-variante:disabled {
+  background: transparent; box-shadow: none;
+  border-style: dashed; border-color: var(--linea);
+}
+.ficha-variante:disabled .ficha-variante__nombre { color: var(--texto-secundario); }
+.ficha-variante__nombre {
+  font-family: var(--fuente-display); font-size: var(--t-16); font-weight: 600;
+  line-height: 1.15; color: var(--texto-fuerte);
+  overflow-wrap: anywhere;
+}
+.elegir__fichas--cortas .ficha-variante__nombre { font-size: var(--t-20); }
+/* En minusculas y sin tracking: "QUEDAN 12" en mayusculas no cabe en 68 px. */
+.ficha-variante__quedan {
+  font-family: var(--fuente-ui); font-size: var(--t-12);
+  font-variant-numeric: tabular-nums; color: var(--texto-secundario);
 }
 
 /* --- Tasas: confirmar antes de repriciar todo ------------------------ */

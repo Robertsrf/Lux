@@ -99,6 +99,8 @@ export function ArmarDije({ base, dijes, llevas, alElegir, alCerrar }: {
         ),
         deshabilitada: llevas(v.id) >= v.disponible,
         llevas: llevas(v.id),
+        quedan: v.disponible,
+        precio: { clave: `${v.precio_bs}|${v.precio_usd}` },
       }))}
       alElegir={alElegir}
       alCerrar={alCerrar}

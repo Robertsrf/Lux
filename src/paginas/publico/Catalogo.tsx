@@ -8,7 +8,7 @@ import { armadosParaLaBase, armar, paresVigentes } from '../../lib/armados';
 import type { ParArmado } from '../../lib/armados';
 import { ArmarDije } from '../../componentes/ArmarDije';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
 import { useTasa } from '../../hooks/useTasa';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
@@ -669,7 +669,7 @@ export function Catalogo() {
                 const agotado = f.variantes.every((v) => (seleccion.get(v.id) ?? 0) >= v.disponible);
                 const bs = rangoDe(f.variantes, (v) => v.precio_bs);
                 const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-                const etiquetas = etiquetasDe(f);
+                const etiquetas = etiquetasCortas(f);
                 // Las claves de todas las variantes, sin repetir: "V1 · BG".
                 const claves = [...new Set(f.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ');
                 const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
@@ -781,7 +781,7 @@ export function Catalogo() {
                 const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
                 const bs = rangoDe(f.variantes, (v) => v.precio_bs);
                 const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-                const etiquetas = etiquetasDe(f);
+                const etiquetas = etiquetasCortas(f);
                 const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
                 return (
                   <article key={f.clave} className="tarjeta-modelo tarjeta-modelo--proxima">
@@ -865,6 +865,8 @@ export function Catalogo() {
                   ),
                   deshabilitada: puestas >= v.disponible,
                   llevas: puestas,
+                  quedan: v.disponible,
+                  precio: { clave: `${v.precio_bs}|${v.precio_usd}` },
                 };
               })}
               alElegir={(id) => { agregarPorId(id); setFamiliaAbierta(null); }}

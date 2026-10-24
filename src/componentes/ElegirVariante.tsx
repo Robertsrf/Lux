@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { cuadroDe, MUCHAS_OPCIONES } from '../lib/familias';
 
 export interface OpcionVariante {
   id: number;
@@ -12,6 +13,51 @@ export interface OpcionVariante {
   deshabilitada?: boolean;
   /** Cuantas de esta ya van en la venta o el pedido. */
   llevas?: number;
+  /** Cuantas quedan. Con muchas opciones, es lo unico que dice cada ficha. */
+  quedan?: number;
+  /**
+   * Las opciones con la misma clave cuestan lo mismo, y `detalle` es lo que
+   * dicen todas las de ese precio (en el mostrador, el minimo). Con muchas
+   * opciones la hoja dice el precio una vez y las pone en fichas.
+   */
+  precio?: { clave: string; detalle?: string | null };
+}
+
+interface Grupo {
+  nombre: string | null;
+  opciones: { indice: number; corta: string }[];
+}
+
+/**
+ * Las opciones en fichas, si se puede: mas de MUCHAS_OPCIONES, todas con lo
+ * que queda y su precio, y un solo precio en cada grupo. Si no, null y van
+ * en renglones.
+ */
+function enFichas(opciones: OpcionVariante[]): Grupo[] | null {
+  if (opciones.length <= MUCHAS_OPCIONES) return null;
+  if (opciones.some((o) => o.quedan === undefined || !o.precio)) return null;
+  const grupos: Grupo[] = cuadroDe(opciones.map((o) => o.etiqueta))
+    ?? [{ nombre: null, opciones: opciones.map((o, indice) => ({ indice, corta: o.etiqueta })) }];
+  const unPrecio = grupos.every((g) => new Set(g.opciones.map((x) => opciones[x.indice]!.precio!.clave)).size === 1);
+  return unPrecio ? grupos : null;
+}
+
+function quedanTexto(n: number): string {
+  return n === 1 ? 'Queda 1' : `Quedan ${n}`;
+}
+
+/**
+ * El precio de un grupo de fichas, con lo que dicen todas las de ese precio.
+ * Cada ficha lo nombra con `aria-describedby`: el foco cae en la primera y
+ * el lector de pantalla no pasa por aqui.
+ */
+function PrecioComun({ opcion, id }: { opcion: OpcionVariante; id: string }) {
+  return (
+    <div className="elegir__precio" id={id}>
+      <span className="elegir__precio-cifras">{opcion.precios}</span>
+      {opcion.precio?.detalle ? <span className="opcion-variante__detalle">{opcion.precio.detalle}</span> : null}
+    </div>
+  );
 }
 
 /**
@@ -26,6 +72,14 @@ export interface OpcionVariante {
  * sube desde abajo, al alcance del pulgar, caben todas con su precio y lo
  * que queda. Un toque para abrir, otro para elegir, y la hoja se cierra
  * sola: dos toques, que es lo minimo cuando hay que decidir algo.
+ *
+ * CON MUCHAS, FICHAS
+ * El dije de letra burbuja trae 52 opciones del mismo precio: en
+ * renglones de 64 px era una hoja de 3.700 px para encontrar la "Z". Con
+ * mas de MUCHAS_OPCIONES y un precio por grupo, el precio se dice una vez y
+ * cada opcion es una ficha con su nombre y lo que queda; si son un cuadro
+ * ("A DORADO", "A PLATEADO"...), van partidas en "Dorado" y "Plateado" con
+ * una letra por ficha.
  *
  * En escritorio es la misma hoja, centrada.
  *
@@ -42,6 +96,7 @@ export function ElegirVariante({
   alCerrar: () => void;
 }) {
   const idTitulo = useId();
+  const idPrecio = useId();
   const primera = useRef<HTMLButtonElement>(null);
   const previo = useRef<Element | null>(null);
   // En una referencia, para que el efecto corra UNA vez al abrir: si
@@ -64,7 +119,20 @@ export function ElegirVariante({
     };
   }, []);
 
-  const primeraLibre = opciones.findIndex((o) => !o.deshabilitada);
+  const grupos = enFichas(opciones);
+  // La primera libre en el orden en que se VEN: en fichas partidas por
+  // color, "A PLATEADO" va despues de toda la fila dorada. Si el foco cayera
+  // ahi (porque ya se lleva la unica "A DORADO"), la hoja se desplazaria y
+  // esconderia el titulo, el precio y el grupo dorado entero.
+  const orden = grupos ? grupos.flatMap((g) => g.opciones.map((x) => x.indice)) : opciones.map((_, i) => i);
+  const primeraLibre = orden.find((i) => !opciones[i]!.deshabilitada) ?? -1;
+  // Un solo precio en toda la hoja: se dice una vez, arriba. Si cada grupo
+  // tiene el suyo, va sobre sus fichas.
+  const unoArriba = grupos !== null
+    && new Set(opciones.map((o) => o.precio!.clave)).size === 1;
+  // Una letra por ficha caben cuatro en un telefono de 360 px (tres en uno
+  // de 320); un nombre largo, tres.
+  const cortas = grupos !== null && grupos.every((g) => g.opciones.every((x) => x.corta.length <= 3));
 
   return (
     <div className="elegir-fondo" onClick={alCerrar}>
@@ -88,25 +156,66 @@ export function ElegirVariante({
           </button>
         </div>
 
-        <div className="elegir__opciones">
-          {opciones.map((o, i) => (
-            <button
-              key={o.id}
-              ref={i === primeraLibre ? primera : undefined}
-              type="button"
-              className="opcion-variante"
-              disabled={o.deshabilitada}
-              onClick={() => alElegir(o.id)}
-            >
-              <span className="opcion-variante__nombre">
-                <span className="opcion-variante__etiqueta">{o.etiqueta}</span>
-                {o.detalle ? <span className="opcion-variante__detalle">{o.detalle}</span> : null}
-              </span>
-              <span className="opcion-variante__precios">{o.precios}</span>
-              {o.llevas ? <span className="opcion-variante__llevas" aria-label={`Llevas ${o.llevas}`}>{o.llevas}</span> : null}
-            </button>
-          ))}
-        </div>
+        {grupos ? (
+          <div className="elegir__grupos">
+            {unoArriba ? <PrecioComun opcion={opciones[0]!} id={`${idPrecio}-arriba`} /> : null}
+            {grupos.map((g, n) => {
+              const conPrecio = !unoArriba ? opciones[g.opciones[0]!.indice]! : null;
+              const suPrecio = unoArriba ? `${idPrecio}-arriba` : `${idPrecio}-${n}`;
+              return (
+                <section key={g.nombre ?? n} className="elegir__grupo">
+                  {g.nombre || conPrecio ? (
+                    <div className="elegir__grupo-cabeza">
+                      {g.nombre ? <h3 className="elegir__grupo-nombre">{g.nombre}</h3> : null}
+                      {conPrecio ? <PrecioComun opcion={conPrecio} id={suPrecio} /> : null}
+                    </div>
+                  ) : null}
+                  <div className={cortas ? 'elegir__fichas elegir__fichas--cortas' : 'elegir__fichas'}>
+                    {g.opciones.map(({ indice, corta }) => {
+                      const o = opciones[indice]!;
+                      return (
+                        <button
+                          key={o.id}
+                          ref={indice === primeraLibre ? primera : undefined}
+                          type="button"
+                          className="ficha-variante"
+                          disabled={o.deshabilitada}
+                          onClick={() => alElegir(o.id)}
+                          aria-label={`${o.etiqueta}. ${quedanTexto(o.quedan!)}${o.llevas ? `. Llevas ${o.llevas}` : ''}`}
+                          aria-describedby={suPrecio}
+                        >
+                          <span className="ficha-variante__nombre">{corta}</span>
+                          <span className="ficha-variante__quedan">{quedanTexto(o.quedan!)}</span>
+                          {o.llevas ? <span className="opcion-variante__llevas" aria-hidden="true">{o.llevas}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="elegir__opciones">
+            {opciones.map((o, i) => (
+              <button
+                key={o.id}
+                ref={i === primeraLibre ? primera : undefined}
+                type="button"
+                className="opcion-variante"
+                disabled={o.deshabilitada}
+                onClick={() => alElegir(o.id)}
+              >
+                <span className="opcion-variante__nombre">
+                  <span className="opcion-variante__etiqueta">{o.etiqueta}</span>
+                  {o.detalle ? <span className="opcion-variante__detalle">{o.detalle}</span> : null}
+                </span>
+                <span className="opcion-variante__precios">{o.precios}</span>
+                {o.llevas ? <span className="opcion-variante__llevas" aria-label={`Llevas ${o.llevas}`}>{o.llevas}</span> : null}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

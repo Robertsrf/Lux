@@ -4,7 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
 import { formatearBcv, formatearBs, precioEnBs, totalDeLineas } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
 import { enlaceCatalogoRv, enlaceWhatsApp } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
@@ -442,7 +442,7 @@ export function CatalogoRevendedor() {
               const agotado = f.variantes.every((v) => (seleccion.get(v.id) ?? 0) >= v.disponible);
               const bs = rangoDe(f.variantes, (v) => v.precio_bs);
               const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-              const etiquetas = etiquetasDe(f);
+              const etiquetas = etiquetasCortas(f);
               const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
               /*
                 Como el catálogo de la tienda desde el 14/10/2026: tocar la
@@ -571,6 +571,8 @@ export function CatalogoRevendedor() {
                   ),
                   deshabilitada: puestas >= v.disponible,
                   llevas: puestas,
+                  quedan: v.disponible,
+                  precio: { clave: `${v.precio_bs}|${v.precio_usd}` },
                 };
               })}
               alElegir={(id) => { agregarPorId(id); setFamiliaAbierta(null); }}

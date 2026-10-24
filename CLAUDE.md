@@ -73,7 +73,7 @@ src/
                 medida que se tocó; una segunda acción, "Agrégale un
                 dije", en las bases), MiniaturaTocable (la foto pequeña que
                 se toca para verla en grande), ElegirVariante
-                (la hoja de medidas), ArmarDije (la hoja de "Agrégale un
+                (la hoja de medidas; con muchas, en fichas), ArmarDije (la hoja de "Agrégale un
                 dije", sobre ElegirVariante), VisitasCatalogo (cuánta gente abre el
                 catálogo, en la pantalla Catálogo), TusDatos (el pedido público empieza por
                 la cédula), MoverUbicacion (pasar piezas de una ubicación a
@@ -554,6 +554,16 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   abren debajo; pagina por producto, así una familia nunca se parte entre dos
   páginas. El conteo semanal cuenta cada producto con sus medidas dentro. Al
   tocar la foto de una medida, el visor abre en esa medida.
+  **Muchas opciones no alargan nada** (reportado por el dueño el 22/10/2026:
+  las 52 letras del dije, "A DORADO · A PLATEADO · ...", hacían una tarjeta
+  de 1.316 px y encogían a su vecina de fila). Donde hay poco sitio (la
+  tarjeta, la ficha del PDF, la vitrina, la fila del Inventario) la lista va
+  en corto, `etiquetasCortas` ("A DORADO y 51 más"); con más de
+  `MUCHAS_OPCIONES` (8) la hoja de elegir las pone en fichas con el precio
+  una vez, y si son un cuadro de dos ejes (`cuadroDe`: letra × color, cada
+  combinación una vez) la hoja y el visor las parten en "Dorado" y
+  "Plateado", una letra por ficha. El PDF y la vitrina listan una línea por
+  PRECIO (`porPrecio`), no por medida. Todo en `lib/familias.ts`.
 - **Los dijes y las bases para armar** (pedido del dueño del 21/10/2026: un dije
   de $0,88 salía en $9). Una pieza se marca en su formulario como **dije** o
   como **base** (la cadena o pulsera que se trajo para colgarle uno). La base es

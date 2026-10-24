@@ -6,7 +6,7 @@ import { VisitasCatalogo } from '../componentes/VisitasCatalogo';
 import { Monograma, Wordmark } from '../componentes/Marca';
 import { formatearBcv, formatearBs, formatearFecha } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasDe } from '../lib/familias';
+import { agruparPorFamilia, conFoto, etiquetasCortas, listaCorta, porPrecio } from '../lib/familias';
 import type { Familia } from '../lib/familias';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
@@ -194,9 +194,9 @@ export function CatalogoPdf() {
                   {foto
                     ? <img className="ficha__foto" src={foto} alt={m.nombre} loading="lazy" />
                     : <div className="ficha__foto" />}
-                  <div className="ficha__sku">{varias ? f.variantes.map((v) => v.sku).join(' · ') : m.sku}</div>
+                  <div className="ficha__sku">{varias ? listaCorta(f.variantes.map((v) => v.sku), 40) : m.sku}</div>
                   <div className="ficha__nombre">{m.nombre}</div>
-                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasDe(f)}</div> : null}
+                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasCortas(f, 50)}</div> : null}
                   {!varias && (m.variante || m.variantes_nota) ? (
                     <div className="ficha__variantes">{[m.variante, m.variantes_nota].filter(Boolean).join(' · ')}</div>
                   ) : null}
@@ -259,9 +259,9 @@ export function CatalogoPdf() {
                   {foto
                     ? <img className="ficha__foto" src={foto} alt={m.nombre} loading="lazy" />
                     : <div className="ficha__foto" />}
-                  <div className="ficha__sku">{varias ? f.variantes.map((v) => v.sku).join(' · ') : m.sku}</div>
+                  <div className="ficha__sku">{varias ? listaCorta(f.variantes.map((v) => v.sku), 40) : m.sku}</div>
                   <div className="ficha__nombre">{m.nombre}</div>
-                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasDe(f)}</div> : null}
+                  {varias && mismoPrecio ? <div className="ficha__variantes">{etiquetasCortas(f, 50)}</div> : null}
                   {!varias && (m.variante || m.variantes_nota) ? (
                     <div className="ficha__variantes">{[m.variante, m.variantes_nota].filter(Boolean).join(' · ')}</div>
                   ) : null}
@@ -302,11 +302,11 @@ function PreciosDeFicha({ familia }: { familia: Familia<Pick<ModeloVenta, 'id' |
     return (
       // Cada medida con su precio, los dos del mismo tamano.
       <ul className="ficha__opciones">
-        {familia.variantes.map((v) => (
-          <li key={v.id}>
-            <span className="ficha__opcion">{v.variante ?? v.sku}</span>
-            <span className="ficha__opcion-precio">{formatearBs(v.precio_bs)}</span>
-            <span className="ficha__opcion-precio">{formatearBcv(v.precio_usd)}</span>
+        {porPrecio(familia.variantes).map(({ etiqueta, pieza }) => (
+          <li key={pieza.id}>
+            <span className="ficha__opcion">{etiqueta}</span>
+            <span className="ficha__opcion-precio">{formatearBs(pieza.precio_bs)}</span>
+            <span className="ficha__opcion-precio">{formatearBcv(pieza.precio_usd)}</span>
           </li>
         ))}
       </ul>

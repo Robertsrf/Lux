@@ -57,12 +57,110 @@ export function agruparPorFamilia<T extends ConFamilia>(filas: T[]): Familia<T>[
   return salida;
 }
 
-/** "45 cm · 60 cm". Vacio si ninguna tiene nombre de variante. */
-export function etiquetasDe<T extends ConFamilia>(familia: Familia<T>): string {
+function nombresDe<T extends ConFamilia>(familia: Familia<T>): string[] {
   return familia.variantes
     .map((v) => v.variante?.trim())
-    .filter((v): v is string => !!v)
-    .join(' · ');
+    .filter((v): v is string => !!v);
+}
+
+/**
+ * La lista entera si cabe en `caben` letras; si no, las primeras y cuantas
+ * mas: "Azul · Negra · Roja y 2 más". Si ni la primera cabe, "52 opciones".
+ * Una sola va entera aunque no quepa: la corta el CSS.
+ */
+export function listaCorta(partes: string[], caben: number): string {
+  const entera = partes.join(' · ');
+  if (entera.length <= caben || partes.length === 1) return entera;
+  const conResto = (n: number) => `${partes.slice(0, n).join(' · ')} y ${partes.length - n} más`;
+  let van = 0;
+  while (van + 1 < partes.length && conResto(van + 1).length <= caben) van += 1;
+  return van === 0 ? `${partes.length} opciones` : conResto(van);
+}
+
+/**
+ * Las etiquetas para donde hay poco sitio: la tarjeta, que mide 160 px, la
+ * ficha del PDF, la vitrina. El dije de letra burbuja trae 52 ("A DORADO ·
+ * A PLATEADO · ..."): enteras alargaban su tarjeta a 1.316 px y la de al
+ * lado, estirada a la misma fila, quedaba chiquita en medio del blanco
+ * (lo reporto el dueño el 22/10/2026). Todas salen al tocar la pieza.
+ */
+export function etiquetasCortas<T extends ConFamilia>(familia: Familia<T>, caben = 28): string {
+  return listaCorta(nombresDe(familia), caben);
+}
+
+/**
+ * Las variantes juntas por precio, en el orden en que aparecen, cada grupo
+ * con sus etiquetas en corto y una pieza que da el precio. Con un precio
+ * por medida es lo de siempre, un renglon por medida; con 26 letras
+ * doradas a un precio y 26 plateadas a otro son dos renglones, no 52.
+ */
+export function porPrecio<T extends { variante: string | null; sku: string; precio_bs: number | null }>(
+  variantes: T[], caben = 40,
+): { etiqueta: string; pieza: T }[] {
+  const grupos = new Map<string, T[]>();
+  for (const v of variantes) {
+    const clave = String(v.precio_bs);
+    grupos.set(clave, [...(grupos.get(clave) ?? []), v]);
+  }
+  return [...grupos.values()].map((vs) => ({
+    etiqueta: listaCorta(vs.map((v) => v.variante?.trim() || v.sku), caben),
+    pieza: vs[0]!,
+  }));
+}
+
+/** Desde cuantas opciones dejan de leerse en renglones y van en un cuadro. */
+export const MUCHAS_OPCIONES = 8;
+
+export interface GrupoDeOpciones {
+  /** "DORADO", tal como lo escribio el dueño. */
+  nombre: string;
+  /** Cada opcion con su indice en la lista original y lo que queda sin el grupo: "A". */
+  opciones: { indice: number; corta: string }[];
+}
+
+/**
+ * Parte las opciones en grupos cuando son un cuadro de dos ejes: las letras
+ * del dije son "A DORADO", "A PLATEADO", "B DORADO"... 26 letras por 2
+ * colores. Una por una eran 52 renglones; en un cuadro son "Dorado" con 26
+ * fichas de una letra y "Plateado" con otras 26.
+ *
+ * Solo si de verdad es un cuadro: mas de MUCHAS_OPCIONES, todas con dos o
+ * mas palabras, la ultima palabra (o la primera) con 2 a 4 valores, dos o
+ * mas opciones en cada grupo, cada combinacion una sola vez y al menos la
+ * mitad de las casillas llenas. No hace falta que este completo: las
+ * pantallas que venden solo traen lo que hay libre, y al venderse la
+ * ultima "Q PLATEADO" el cuadro no puede deshacerse en 51 pildoras.
+ * "45 cm · 60 cm" no se parte (un solo "cm"), ni "Talla 7 · Talla 7
+ * Plateado" (no todas dicen el color). Null si no: la pantalla las enseña
+ * una por una, como siempre.
+ */
+export function cuadroDe(etiquetas: (string | null | undefined)[]): GrupoDeOpciones[] | null {
+  if (etiquetas.length <= MUCHAS_OPCIONES) return null;
+  const palabras = etiquetas.map((e) => (e ?? '').trim().split(/\s+/));
+  if (palabras.some((p) => p.length < 2)) return null;
+  for (const lado of ['fin', 'inicio'] as const) {
+    const partes = palabras.map((p) => (lado === 'fin'
+      ? { grupo: p[p.length - 1]!, corta: p.slice(0, -1).join(' ') }
+      : { grupo: p[0]!, corta: p.slice(1).join(' ') }));
+    // Sin mirar mayusculas: "Dorado" y "DORADO" son el mismo color.
+    const clave = (s: string) => s.toLocaleLowerCase('es');
+    const grupos = new Set(partes.map((x) => clave(x.grupo)));
+    const cortas = new Set(partes.map((x) => clave(x.corta)));
+    const pares = new Set(partes.map((x) => `${clave(x.grupo)}\u0000${clave(x.corta)}`));
+    if (grupos.size < 2 || grupos.size > 4 || cortas.size < 2) continue;
+    if (pares.size !== partes.length || partes.length * 2 < grupos.size * cortas.size) continue;
+    const salida = new Map<string, GrupoDeOpciones>();
+    partes.forEach((x, indice) => {
+      const k = clave(x.grupo);
+      const g = salida.get(k) ?? { nombre: x.grupo, opciones: [] };
+      g.opciones.push({ indice, corta: x.corta });
+      salida.set(k, g);
+    });
+    const lista = [...salida.values()];
+    if (lista.some((g) => g.opciones.length < 2)) continue;
+    return lista;
+  }
+  return null;
 }
 
 /** La primera variante que tenga foto, para la tarjeta de la familia. */

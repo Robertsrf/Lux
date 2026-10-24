@@ -230,13 +230,21 @@ más chico porque es para ella. Y el mínimo, "Mínimo Bs 1.215,00", en Jost 12 
 
 **Con variantes, una sola tarjeta.** Las medidas en una línea bajo el nombre
 ("45 cm · 60 cm"); con precios distintos, el más bajo con "desde" encima. Tocarla
-abre la hoja de elegir.
+abre la hoja de elegir. **La línea va en corto, dos renglones como mucho**
+(`etiquetasCortas`: "A DORADO y 51 más"). El 22/10/2026 un dije de 52 letras
+hizo una tarjeta de 1.316 px y dejó chiquita a su vecina de fila: **nada que
+cargue el dueño puede alargar una tarjeta sin tope.**
 
 ### Hoja para elegir variante
 Sube desde abajo, clara (papel), con una fila táctil de 64 px por medida: la
 medida en display 20 px, lo que queda y el mínimo debajo, los precios apilados a
 la derecha. Un toque agrega y cierra. En escritorio, la misma hoja centrada. No
 son fichas en la tarjeta porque tres blancos de 56 px no caben en 160 px.
+
+**Con más de ocho del mismo precio, fichas** de 68 × 64 px: el precio una vez
+arriba y en cada ficha la opción y lo que queda. Si son un cuadro (letra ×
+color), partidas por color con una letra por ficha, también en el visor. De
+3.700 px de hoja a 1.240.
 
 ### Visor de la pieza
 A pantalla completa. Se pasa de pieza con las flechas del teclado, deslizando el
