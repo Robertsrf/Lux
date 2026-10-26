@@ -62,8 +62,19 @@ export function enlaceMapa(mapa: string | null | undefined, direccion: string | 
   // Sin dirección no hay a dónde llegar: la ciudad sola llevaría a la plaza
   // del pueblo, no a la tienda.
   if (!direccion?.trim()) return null;
-  const lugar = [direccion, ciudad].map((x) => x?.trim()).filter(Boolean).join(', ');
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccionConCiudad(direccion, ciudad))}`;
+}
+
+/**
+ * La dirección con su ciudad, sin repetirla: el dueño suele escribir la
+ * dirección completa ("..., Sabana de Mendoza, Estado Trujillo"), y pegarle
+ * la ciudad otra vez la decía dos veces.
+ */
+export function direccionConCiudad(direccion: string | null | undefined, ciudad: string | null | undefined): string {
+  const d = direccion?.trim() ?? '';
+  const c = ciudad?.trim() ?? '';
+  if (!d) return '';
+  return c && !d.toLocaleLowerCase('es').includes(c.toLocaleLowerCase('es')) ? `${d}, ${c}` : d;
 }
 
 /** "@luxbyemory", "luxbyemory" o su enlace → el perfil. Null si no es un usuario de Instagram. */

@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { PagoMovil } from './PagoMovil';
-import { enlaceInstagram, enlaceMapa, enlaceWhatsAppA } from '../lib/enlaces';
+import { direccionConCiudad, enlaceInstagram, enlaceMapa, enlaceWhatsAppA } from '../lib/enlaces';
 import type { useTextos } from '../hooks/useTextos';
 
 /**
@@ -34,7 +34,7 @@ export function LaTienda({ id, textos }: { id?: string; textos: ReturnType<typeo
           <div className="la-tienda__dato">
             <span className="la-tienda__etiqueta">Dónde estamos</span>
             {direccion ? (
-              <p className="la-tienda__texto">{[direccion, textos.ciudad].filter(Boolean).join(', ')}</p>
+              <p className="la-tienda__texto">{direccionConCiudad(direccion, textos.ciudad)}</p>
             ) : null}
             {mapa ? (
               <a className="boton boton--secundario la-tienda__boton" href={mapa} target="_blank" rel="noopener noreferrer">
