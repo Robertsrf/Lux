@@ -5,7 +5,9 @@ type ClaveTexto =
   | 'materiales_largo' | 'materiales_corto' | 'catalogo_intro' | 'catalogo_pie'
   | 'mensaje_whatsapp' | 'ciudad' | 'estado' | 'datos_pago'
   | 'pago_movil_cedula' | 'pago_movil_telefono' | 'pago_movil_banco'
-  | 'whatsapp_tienda' | 'direccion_tienda' | 'horario_tienda';
+  | 'whatsapp_tienda' | 'direccion_tienda' | 'horario_tienda'
+  /* Desde esquema-catalogo-claro.sql: sin el SQL no llegan y su línea no sale. */
+  | 'mapa_tienda' | 'instagram_tienda' | 'pago_movil_titular';
 
 /**
  * Textos de marca. Viven en la base para que el dueno los cambie sin tocar

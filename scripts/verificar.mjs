@@ -749,6 +749,39 @@ async function main() {
   dice(!esA.error, 'grupos_precio dice su escalera', esA.error ? 'ERROR ' + esA.error.code : 'responde');
 
   /*
+    EL CATALOGO CLARO (esquema-catalogo-claro.sql).
+
+    El catalogo le dice a la clienta, sin sesion, cuanto paga para apartar,
+    cuantos dias tiene y cuantos minutos se guardan sus piezas:
+    `reglas_pedido()` da esas tres y ninguna mas. Viven en `configuracion`,
+    junto al margen minimo, que con el minimo de cada pieza despeja el
+    costo: una clave de mas seria una fuga. Por lo mismo `configuracion`
+    sigue cerrada a quien no tiene sesion.
+
+    El tope de pedidos sin pagar es un disparador y `pedido_al_dia` (que
+    ahora tambien suelta un apartado cuyo pago no llego) es interna: ninguna
+    de las dos se llama a mano. La del disparador puede responder "no
+    existe" en vez de "permiso": cualquier rechazo vale.
+  */
+  console.log('\nEL CATALOGO CLARO');
+  const reglasP = await P.rpc('reglas_pedido');
+  dice(!reglasP.error && !!reglasP.data, 'reglas_pedido() abre sin sesion', reglasP.error ? 'ERROR ' + reglasP.error.code : 'responde');
+  const clavesReglas = Object.keys(reglasP.data ?? {}).sort().join(',');
+  dice(clavesReglas === 'apartado_dias,apartado_inicial_pct,reserva_minutos',
+    'reglas_pedido() da solo las tres cifras del pedido', clavesReglas || 'sin claves');
+  const confP = await P.from('configuracion').select('clave').limit(1);
+  dice(!!confP.error || (confP.data?.length ?? 0) === 0, 'configuracion sin sesion, cerrada',
+    confP.error ? 'rechazada ' + confP.error.code : (confP.data?.length ?? 0) + ' filas');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V]]) {
+    const tope = await S.rpc('reserva_tope_sin_pagar');
+    dice(!!tope.error, `reserva_tope_sin_pagar(): ${quien}, no se llama a mano`,
+      tope.error ? 'rechazada ' + (tope.error.code ?? '') : 'RESPONDIO');
+    const alDia = await S.rpc('pedido_al_dia', { p_reserva_id: -1 });
+    dice(alDia.error?.code === '42501', `pedido_al_dia(): ${quien}, cerrada`,
+      alDia.error ? 'rechazada ' + (alDia.error.code ?? '') : 'RESPONDIO');
+  }
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a

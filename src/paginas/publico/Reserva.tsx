@@ -10,6 +10,8 @@ import {
 } from '../../lib/dinero';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
+import { enlaceWhatsAppA, mensajeDePedido, referenciaPedido } from '../../lib/enlaces';
+import { enlaceReserva } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
 import type { ReservaVista } from '../../lib/tipos';
@@ -73,13 +75,21 @@ export function Reserva() {
   // Lo que le falta para llegar al mínimo, mientras no lo ha alcanzado.
   const faltaMinimo = fase === 'esperando_pago' && minimo !== null ? Math.max(0, minimo - pagado) : null;
   const puedePagar = conAbonos && (fase === 'esperando_pago' || fase === 'apartado') && (fase !== 'esperando_pago' || restante !== null);
+  // Un chat con la tienda, para cualquier duda, y el aviso de este pedido.
+  const escribir = enlaceWhatsAppA(textos.whatsapp_tienda, token ? `Hola, te escribo por mi pedido ${referenciaPedido(token)}.` : 'Hola.');
+  const avisar = reserva && token ? enlaceAviso(reserva, token, textos.whatsapp_tienda, tasa) : null;
+  // Ni en uno cerrado ni en uno vencido: "Tu pedido ya nos llegó" debajo de
+  // "El pedido venció" se contradice.
+  const terminado = reserva?.estado === 'cancelada' || reserva?.estado === 'vencida'
+    || fase === 'entregado' || fase === 'cancelado' || fase === 'cerrado' || fase === 'vencido'
+    || (reserva?.estado === 'abierta' && !restante);
 
   return (
     <>
       <header className="barra barra--publica">
         <div className="barra__interior">
           <Wordmark alto={40} />
-          <Link to="/publico" className="sesion__quien">Ver el catálogo</Link>
+          <Link to="/publico" className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
         </div>
       </header>
 
@@ -92,11 +102,31 @@ export function Reserva() {
             <div className="encabezado-pagina">
               <div>
                 <h1>Tu pedido</h1>
-                <p>{reserva.cliente_nombre ? `A nombre de ${reserva.cliente_nombre}.` : 'Guarda este enlace para volver.'}</p>
+                <p>
+                  {token ? <span className="referencia-pedido">{referenciaPedido(token)}</span> : null}
+                  {/* El nombre enmascarado ya termina en punto ("María G."): sin otro. */}
+                  {reserva.cliente_nombre ? ` · A nombre de ${reserva.cliente_nombre.replace(/\.$/, '')}.` : ' · Guarda este enlace para volver.'}
+                </p>
               </div>
             </div>
 
-            <EstadoDelPedido reserva={reserva} restante={restante} falta={falta} tasa={tasa} />
+            <EstadoDelPedido reserva={reserva} restante={restante} falta={falta} tasa={tasa} escribir={escribir} />
+
+            {/* El pedido ya está en el sistema; esto le avisa a la tienda por
+                WhatsApp, con el enlace para que lo busque. Un enlace y no una
+                ventana que se abre sola: tras la espera de apartar, el
+                navegador la bloquea (y más el que abre WhatsApp por dentro).
+                Sin número válido en Textos, no sale. */}
+            {avisar && !terminado ? (
+              <section className="avisar-tienda">
+                <p className="avisar-tienda__texto">
+                  Tu pedido ya nos llegó. Avísanos por WhatsApp y te atendemos más rápido: el mensaje va escrito, solo tocas Enviar.
+                </p>
+                <a className="boton boton--confirmar avisar-tienda__boton" href={avisar} target="_blank" rel="noopener noreferrer">
+                  Avisar a la tienda por WhatsApp
+                </a>
+              </section>
+            ) : null}
 
             <div className="lineas-cobro">
               {/* Una pieza que la tienda quitó del pedido queda en cero: no se
@@ -141,7 +171,7 @@ export function Reserva() {
                     apartarlas {reserva.apartado_dias ?? ''} días y pagar lo demás por partes.
                   </p>
                 ) : null}
-                <DondePagar textos={textos} />
+                <DondePagar textos={textos} escribir={escribir} />
                 <ReportarPago
                   id="rp"
                   falta={falta}
@@ -162,7 +192,7 @@ export function Reserva() {
             ) : null}
 
             {!conAbonos && !reserva.pago_reportado_en && reserva.estado === 'abierta' && restante ? (
-              <PagoDeAntes token={token ?? ''} entrega={reserva.entrega} textos={textos} alTerminar={async () => {
+              <PagoDeAntes token={token ?? ''} entrega={reserva.entrega} textos={textos} escribir={escribir} alTerminar={async () => {
                 setAviso('Listo. La tienda comprueba el pago y te escribe.');
                 await cargar();
               }} />
@@ -195,12 +225,49 @@ export function Reserva() {
   );
 }
 
+/**
+ * El aviso a la tienda: el pedido como lo guardó la base (`ver_reserva`),
+ * nunca como lo dejó el carrito. La referencia, el nombre como lo da la base
+ * (enmascarado si ya era clienta), las piezas, el total, la entrega sin la
+ * dirección de la agencia y el enlace. Sin cédula ni teléfono: ya están en
+ * el sistema, y el texto viaja en la URL.
+ */
+function enlaceAviso(
+  reserva: ReservaVista,
+  token: string,
+  whatsapp: string | undefined,
+  tasa: ReturnType<typeof useTasa>['tasa'],
+): string | null {
+  const lineas = reserva.items
+    .filter((i) => i.cantidad > 0)
+    .map((i) => ({ nombre: nombreConVariante(i.nombre, i.variante), cantidad: i.cantidad }));
+  if (lineas.length === 0) return null;
+  const empresa = reserva.envio_empresa === 'mrw' ? 'MRW' : reserva.envio_empresa === 'domesa' ? 'Domesa' : null;
+  return enlaceWhatsAppA(whatsapp, mensajeDePedido({
+    referencia: referenciaPedido(token),
+    nombre: reserva.cliente_nombre,
+    lineas,
+    totalBs: formatearBs(precioEnBs(reserva.total_usd, tasa)),
+    totalBcv: formatearBcv(reserva.total_usd),
+    entrega: reserva.entrega === 'envio' ? `envío${empresa ? ` por ${empresa}` : ''}` : 'retiro en la tienda',
+    enlace: enlaceReserva(token),
+  }));
+}
+
+/** "escríbenos por WhatsApp", con su enlace si hay número; si no, la frase sola. */
+function EscribenosWhatsApp({ escribir }: { escribir: string | null }) {
+  return escribir
+    ? <a href={escribir} target="_blank" rel="noopener noreferrer">escríbenos por WhatsApp</a>
+    : <>escríbenos por WhatsApp</>;
+}
+
 /** En qué va, en una frase y con su plazo. */
-function EstadoDelPedido({ reserva, restante, falta, tasa }: {
+function EstadoDelPedido({ reserva, restante, falta, tasa, escribir }: {
   reserva: ReservaVista;
   restante: string | null;
   falta: number;
   tasa: ReturnType<typeof useTasa>['tasa'];
+  escribir: string | null;
 }) {
   const fase = reserva.fase;
   const faltaBs = tasa ? bsDeBcv(falta, tasa.tasa_bcv) : null;
@@ -226,7 +293,9 @@ function EstadoDelPedido({ reserva, restante, falta, tasa }: {
   if (fase === 'vencido' || reserva.estado === 'vencida' || (reserva.estado === 'abierta' && !restante)) {
     return (
       <Aviso tono="error" titulo="El pedido venció">
-        Las piezas volvieron a la venta.{(reserva.abonos?.length ?? 0) > 0 ? ' Si pagaste algo, escríbenos por WhatsApp.' : ' Arma el pedido otra vez cuando quieras.'}
+        Las piezas volvieron a la venta.{(reserva.abonos?.length ?? 0) > 0
+          ? <> Si pagaste algo, <EscribenosWhatsApp escribir={escribir} />.</>
+          : ' Arma el pedido otra vez cuando quieras.'}
       </Aviso>
     );
   }
@@ -242,19 +311,21 @@ function EstadoDelPedido({ reserva, restante, falta, tasa }: {
 }
 
 /** A dónde paga: el pago móvil de la tienda, o su texto libre de antes. */
-function DondePagar({ textos }: { textos: ReturnType<typeof useTextos> }) {
+function DondePagar({ textos, escribir }: { textos: ReturnType<typeof useTextos>; escribir: string | null }) {
   return textos.pago_movil_cedula || textos.pago_movil_telefono || textos.pago_movil_banco ? (
     <PagoMovil
       cedula={textos.pago_movil_cedula ?? ''}
       telefono={textos.pago_movil_telefono ?? ''}
       banco={textos.pago_movil_banco ?? ''}
       otros={textos.datos_pago ?? ''}
+      titular={textos.pago_movil_titular ?? ''}
     />
   ) : (
     <section className="panel">
       <span className="panel__titulo">A dónde pagar</span>
       <p className="campo__pista" style={{ marginTop: 'var(--e-3)', whiteSpace: 'pre-line' }}>
-        {textos.datos_pago?.trim() || 'Escríbele a la tienda por WhatsApp y te pasan los datos para pagar.'}
+        {textos.datos_pago?.trim()
+          || <>Para los datos de pago, <EscribenosWhatsApp escribir={escribir} />.</>}
       </p>
     </section>
   );
@@ -264,10 +335,11 @@ function DondePagar({ textos }: { textos: ReturnType<typeof useTextos> }) {
  * El pago de un pedido de antes del apartado: uno solo y sin monto, como
  * era. Se queda para los pedidos que ya estaban abiertos al cambiar.
  */
-function PagoDeAntes({ token, entrega, textos, alTerminar }: {
+function PagoDeAntes({ token, entrega, textos, escribir, alTerminar }: {
   token: string;
   entrega: ReservaVista['entrega'];
   textos: ReturnType<typeof useTextos>;
+  escribir: string | null;
   alTerminar: () => Promise<void>;
 }) {
   const [metodo, setMetodo] = useState<'pago_movil' | 'transferencia' | 'efectivo_bs'>('pago_movil');
@@ -298,7 +370,7 @@ function PagoDeAntes({ token, entrega, textos, alTerminar }: {
   return (
     <>
       <h2 className="seccion-titulo">Ahora el pago</h2>
-      <DondePagar textos={textos} />
+      <DondePagar textos={textos} escribir={escribir} />
       <div className="panel">
         <span className="panel__titulo">Cómo pagaste</span>
         <div className="metodos-pago" style={{ marginTop: 'var(--e-3)' }}>

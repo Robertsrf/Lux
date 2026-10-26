@@ -12,7 +12,7 @@ export type NombreIcono =
   | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
   | 'clientes' | 'agregar' | 'quitar' | 'mover' | 'revendedores' | 'vendedoras' | 'caja'
-  | 'capacitacion';
+  | 'capacitacion' | 'volver';
 
 const TRAZOS: Record<NombreIcono, string> = {
   inventario: 'M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z M3.5 7.5 12 12l8.5-4.5 M12 12v9',
@@ -54,6 +54,8 @@ const TRAZOS: Record<NombreIcono, string> = {
   // Un birrete: la guía que se le manda a quien quiere ser revendedor.
   capacitacion: 'M2.5 9 12 4.5 21.5 9 12 13.5 2.5 9Z M6.5 11v4.5c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3V11 M21.5 9v5.5',
   caja:       'M3.5 13.5h17v6a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-6Z M9.5 17h5 M8 3.5V10 M5.5 7.5 8 10l2.5-2.5 M16 10V3.5 M13.5 6 16 3.5 18.5 6',
+  // Volver: un galón a la izquierda, del catálogo de un tipo al de todo.
+  volver:     'M14.5 5.5 8 12l6.5 6.5',
 };
 
 export function Icono({ nombre, className = 'icono' }: { nombre: NombreIcono; className?: string }) {

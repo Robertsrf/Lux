@@ -163,6 +163,37 @@ export function cuadroDe(etiquetas: (string | null | undefined)[]): GrupoDeOpcio
   return null;
 }
 
+/**
+ * "anillo" → "Anillo": las categorías se cargan como salen ("anillo",
+ * "Collar") y en un título la minúscula se ve descuidada. Solo para
+ * enseñarla: el filtro sigue usando la categoría tal como está en la base.
+ */
+export function nombreDeTipo(categoria: string): string {
+  const c = categoria.trim();
+  return c.charAt(0).toLocaleUpperCase('es') + c.slice(1);
+}
+
+/** Las categorías que se dicen "lo demás": van al final de la vitrina, no en medio. */
+const AL_FINAL = new Set(['otro', 'otros', 'otra', 'otras', 'varios']);
+
+/**
+ * Las familias por categoría, para los estantes del catálogo: cada
+ * categoría con sus productos en el orden en que llegaron, y "Otro" al
+ * final. Una categoría vacía no sale.
+ */
+export function porCategoria<T extends { categoria: string | null }>(familias: Familia<T>[]): { categoria: string; familias: Familia<T>[] }[] {
+  const grupos = new Map<string, Familia<T>[]>();
+  for (const f of familias) {
+    const c = f.cabeza.categoria?.trim() || 'Otro';
+    grupos.set(c, [...(grupos.get(c) ?? []), f]);
+  }
+  const lista = [...grupos.entries()].map(([categoria, fs]) => ({ categoria, familias: fs }));
+  return [
+    ...lista.filter((g) => !AL_FINAL.has(g.categoria.toLowerCase())),
+    ...lista.filter((g) => AL_FINAL.has(g.categoria.toLowerCase())),
+  ];
+}
+
 /** La primera variante que tenga foto, para la tarjeta de la familia. */
 export function conFoto<T extends { foto_path: string | null; foto_thumb_path: string | null }>(variantes: T[]): T | undefined {
   return variantes.find((v) => v.foto_path || v.foto_thumb_path) ?? variantes[0];

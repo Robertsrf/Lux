@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
+import { Aviso, Campo, Cargando, Filtros, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
+import { Icono } from '../../componentes/Iconos';
 import { aMonto, aplicarDescuento, deMonto, descuentosDeCarrito, formatearBcv, formatearBs, formatearEntero, formatearDescuento, porCantidad, precioEnBs, sumar } from '../../lib/dinero';
 import { armadosParaLaBase, armar, paresVigentes } from '../../lib/armados';
 import type { ParArmado } from '../../lib/armados';
 import { ArmarDije } from '../../componentes/ArmarDije';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, nombreConVariante, nombreDeTipo, porCategoria } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
+import { enlaceWhatsAppA } from '../../lib/enlaces';
 import { useTasa } from '../../hooks/useTasa';
+import { decirMinutos, useReglasPedido } from '../../hooks/useReglasPedido';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
+import { AsiPides, ComoPedir, Estante, POR_ESTANTE, TarjetaPieza, TiposConFoto, irA } from '../../componentes/VitrinaPublica';
+import type { PasoPedido, PedidoTarjeta, TipoVitrina } from '../../componentes/VitrinaPublica';
+import { LaTienda } from '../../componentes/LaTienda';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
@@ -28,11 +34,20 @@ const COLUMNAS_PROXIMO = 'id, sku, nombre, categoria, variantes_nota, foto_path,
 const TOPE_PROXIMO = 240;
 
 /**
- * Cuántas filas trae cada vez. Antes eran 400 de una y nada más: la pieza
- * 401 no salía nunca, sin aviso. Ahora se traen de a poco y la página dice
- * cuántas hay y cuántas faltan por ver.
+ * Cuántas filas trae cada vez la lista de un tipo o de una búsqueda. Antes
+ * eran 400 de una y nada más: la pieza 401 no salía nunca, sin aviso. Ahora
+ * se traen de a poco y la página dice cuántas faltan por ver.
  */
 const POR_TANDA = 120;
+
+/**
+ * El inicio trae todo lo que se vende de una vez: los estantes necesitan
+ * cada categoría, y de a 120 ordenadas por tipo las últimas (pulseras,
+ * sets, tobilleras) no salían hasta tocar "Ver más". Son filas livianas
+ * (las fotos se piden al verlas); con más de este tope, cada estante sigue
+ * llevando a su lista completa.
+ */
+const TOPE_INICIO = 1000;
 
 type Orden = 'nombre' | 'menor' | 'mayor';
 
@@ -45,6 +60,15 @@ const claveDe = (items: { modelo_id: number; cantidad: number }[]) =>
  *
  * Lo que se ve aqui sale de v_disponible_publico, que no expone ninguna
  * columna de costo y descuenta lo que ya esta reservado por otra persona.
+ *
+ * DOS VISTAS (rediseño del 24/10/2026)
+ * El inicio es una vitrina: qué es Lux y cómo se pide, los tipos con foto,
+ * un estante por tipo, cómo pedir con las cifras de verdad, lo que viene y
+ * la tienda (dónde está, cuándo abre, cómo se le escribe y a dónde se
+ * paga). Un tipo (`?tipo=Anillos`), una búsqueda o el orden por precio
+ * abren la lista de siempre, con "Ver más". Antes era una sola rejilla de
+ * 23.600 px sin un título, con las categorías plegadas en "Filtrar" y sin
+ * una palabra de la tienda.
  *
  * COMO SE ARMA EL PEDIDO (rehecho el 14/10/2026)
  * Tocar una pieza abre su detalle: la foto grande, sus medidas y su precio.
@@ -65,6 +89,7 @@ export function Catalogo() {
   const navegar = useNavigate();
   const { tasa } = useTasa();
   const textos = useTextos();
+  const reglas = useReglasPedido();
 
   const [modelos, setModelos] = useState<ModeloPublico[]>([]);
   const [total, setTotal] = useState(0);
@@ -78,7 +103,6 @@ export function Catalogo() {
   const [cotizacion, setCotizacion] = useState<(Cotizacion & { clave: string }) | null>(null);
   const [texto, setTexto] = useState('');
   const [categorias, setCategorias] = useState<string[]>([]);
-  const [categoria, setCategoria] = useState<string | null>(null);
   const [orden, setOrden] = useState<Orden>('nombre');
   const [cargando, setCargando] = useState(true);
   const [cargandoMas, setCargandoMas] = useState(false);
@@ -89,6 +113,18 @@ export function Catalogo() {
     // Sin replace: cada cambio deja su huella en el historial.
     setParametros(p === 'pedido' ? { paso: 'pedido' } : {});
   };
+  // El tipo va en la ruta: el botón de atrás del teléfono vuelve del tipo al
+  // inicio, que es lo que la clienta espera.
+  const categoria = parametros.get('tipo');
+  const setCategoria = (c: string | null) => setParametros(c ? { tipo: c } : {});
+  const enLista = Boolean(categoria || texto.trim() || orden !== 'nombre');
+  // De qué consulta son las filas que hay. Mientras no sean de la de ahora
+  // (se escribió una letra y la base no ha respondido), no se dibujan: la
+  // primera letra pintaba la lista con las mil filas del inicio, letra por
+  // letra, en un teléfono de gama baja.
+  const consultaActual = `${categoria ?? ''}|${texto.trim()}|${orden}`;
+  const [cargadoPara, setCargadoPara] = useState<string | null>(null);
+  const turno = useRef(0);
   // Los datos de la clienta viven aqui y no en el formulario: si vuelve a
   // "Seguir viendo" y regresa, lo que ya confirmo sigue confirmado.
   const [datos, setDatos] = useState<EstadoTusDatos>(TUS_DATOS_VACIOS);
@@ -110,8 +146,8 @@ export function Catalogo() {
   // sin el botón de agregar.
   const [proximos, setProximos] = useState<ModeloProximo[]>([]);
   const [totalProximos, setTotalProximos] = useState(0);
+  const [todosProximos, setTodosProximos] = useState(false);
   const visorProximo = useVisorFoto();
-  const seccionProximos = useRef<HTMLElement>(null);
 
   const consulta = useCallback((desde: number) => {
     let q = supabase.from('v_disponible_publico').select(COLUMNAS, { count: 'exact' });
@@ -125,7 +161,9 @@ export function Catalogo() {
     q = orden === 'nombre'
       ? q.order('categoria', { ascending: true }).order('nombre', { ascending: true })
       : q.order('precio_usd', { ascending: orden === 'menor' }).order('nombre', { ascending: true });
-    return q.order('familia', { ascending: true }).order('id', { ascending: true }).range(desde, desde + POR_TANDA - 1);
+    const lista = Boolean(categoria || texto.trim() || orden !== 'nombre');
+    const hasta = lista ? desde + POR_TANDA - 1 : TOPE_INICIO - 1;
+    return q.order('familia', { ascending: true }).order('id', { ascending: true }).range(desde, hasta);
   }, [texto, categoria, orden]);
 
   const recordar = useCallback((filas: ModeloPublico[]) => {
@@ -138,6 +176,10 @@ export function Catalogo() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
+    // Si mientras tanto salió otra consulta, esta respuesta ya es vieja: se
+    // tira. Sin esto, una búsqueda lenta que llegara después de la nueva
+    // pisaba lo que se ve.
+    const mio = ++turno.current;
     const [cat, tr] = await Promise.all([
       consulta(0),
       // La columna es descuento_pct. Aqui decia precio_por_pieza_usd, que no
@@ -146,6 +188,7 @@ export function Catalogo() {
       // recibia su descuento, ni el 5 % a las 6 piezas ni el 15 % a las 20.
       supabase.from('tramos_mayoreo').select('id, min_piezas, descuento_pct, activo').order('min_piezas'),
     ]);
+    if (mio !== turno.current) return;
 
     // Se miran las dos. Antes solo se miraba la del catalogo, asi que la de
     // tramos podia fallar durante semanas sin que nadie lo supiera: la
@@ -156,8 +199,9 @@ export function Catalogo() {
     setTotal(cat.count ?? filas.length);
     recordar(filas);
     setTramos((tr.data as Tramo[] | null) ?? []);
+    setCargadoPara(`${categoria ?? ''}|${texto.trim()}|${orden}`);
     setCargando(false);
-  }, [consulta, recordar]);
+  }, [consulta, recordar, categoria, texto, orden]);
 
   async function cargarMas() {
     setCargandoMas(true);
@@ -181,6 +225,15 @@ export function Catalogo() {
   // Una visita por teléfono y por día: la tienda ve la cuenta en Catálogo.
   // Va aparte de cargar(), que se repite con cada búsqueda.
   useEffect(() => { registrarVisita(); }, []);
+
+  // Al cambiar de tipo o de paso, arriba. Antes "Tu pedido" abría con el
+  // desplazamiento del catálogo: lo primero que se veía era el botón de
+  // apartar apagado y la cédula fuera de la pantalla.
+  useEffect(() => { window.scrollTo(0, 0); }, [categoria, paso]);
+  // "Ver todas" desaparece al tocarlo: el foco pasa al título del tipo, y no
+  // se pierde al principio de la página.
+  const tituloLista = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (categoria) tituloLista.current?.focus({ preventScroll: true }); }, [categoria]);
 
   // Lo próximo se pide una vez y se filtra aquí con la búsqueda y la
   // categoría: son pocas piezas. Su error se mira y a propósito no se
@@ -277,8 +330,22 @@ export function Catalogo() {
   // la de 60 cm son la misma pieza con dos opciones.
   const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
 
+  // Los estantes del inicio y sus cuadros con foto: cada tipo con la foto
+  // de la primera de sus piezas que tenga una.
+  const estantes = useMemo(() => porCategoria(familias), [familias]);
+  const tipos = useMemo<TipoVitrina[]>(() => estantes.map((e) => {
+    const conImagen = e.familias.map((f) => conFoto(f.variantes)).find((p) => p && (p.foto_path || p.foto_thumb_path));
+    return {
+      nombre: e.categoria,
+      cuantas: e.familias.length,
+      foto: conImagen ? fuenteFoto(conImagen.foto_path, conImagen.foto_thumb_path, '(max-width: 640px) 31vw, 180px') : null,
+    };
+  }), [estantes]);
+
   // Lo que ensena el detalle, en el mismo orden que la cuadricula, para
-  // pasar de una pieza a la siguiente sin salir.
+  // pasar de una pieza a la siguiente sin salir. La clave de la tienda
+  // ("V1 · BG") va aquí y no en la tarjeta: para la clienta son letras sin
+  // significado; para la vendedora que mira su teléfono, el estante.
   const fichas = useMemo<FotoAmpliada[]>(() => familias.map((f) => {
     const portada = conFoto(f.variantes);
     return {
@@ -294,7 +361,7 @@ export function Catalogo() {
         bs: v.precio_bs,
         bcv: v.precio_usd,
         quedan: v.disponible,
-        nota: v.variantes_nota,
+        nota: [v.variantes_nota, v.ubicaciones_codigo ? `En tienda: ${v.ubicaciones_codigo}` : null].filter(Boolean).join(' · ') || null,
       })),
     };
   }), [familias, textos.materiales_largo]);
@@ -305,7 +372,6 @@ export function Catalogo() {
     return agruparPorFamilia(proximos.filter((m) => (!categoria || m.categoria === categoria)
       && (!t || [m.nombre, m.categoria, m.variante ?? ''].some((s) => s.toLowerCase().includes(t)))));
   }, [proximos, texto, categoria]);
-  const productosProximos = useMemo(() => new Set(proximos.map((m) => m.familia)).size, [proximos]);
 
   const fichasProximas = useMemo<FotoAmpliada[]>(() => familiasProximas.map((f) => {
     const portada = conFoto(f.variantes);
@@ -326,10 +392,39 @@ export function Catalogo() {
     };
   }), [familiasProximas, textos.materiales_largo]);
 
-  function irAProximos() {
-    const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    seccionProximos.current?.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
-  }
+  // Cómo pedir, con las cifras de la base: las del apartado de
+  // `reglas_pedido()` y los tramos de `tramos_mayoreo`. Sin ellas, los
+  // mismos pasos sin cifras, como decía antes "Tu pedido".
+  const whatsappTienda = enlaceWhatsAppA(textos.whatsapp_tienda, 'Hola, vengo del catálogo de Lux by Emory.');
+  const pasos = useMemo<PasoPedido[]>(() => {
+    const porCantidadTexto = tramos
+      .filter((t) => t.activo)
+      .sort((a, b) => a.min_piezas - b.min_piezas)
+      .map((t) => `${t.min_piezas} piezas, ${formatearDescuento(t.descuento_pct)} menos`)
+      .join(' · ');
+    return [
+      {
+        titulo: 'Elige tus piezas',
+        texto: <>Toca <strong>Agregar</strong> en las que te gusten (o <strong>Elegir</strong>, si tiene medidas): se puede pedir desde una pieza.{porCantidadTexto ? ` Y mientras más llevas, más baja: ${porCantidadTexto}.` : ''}</>,
+      },
+      {
+        titulo: 'Apártalas con tu cédula',
+        texto: reglas
+          ? `Sin pagar todavía: te las guardamos ${decirMinutos(reglas.reserva_minutos)} mientras pagas.`
+          : 'Sin pagar todavía: te las guardamos un rato mientras pagas.',
+      },
+      {
+        titulo: 'Paga por pago móvil',
+        texto: reglas
+          ? `El total, o al menos el ${formatearDescuento(reglas.apartado_inicial_pct)} para apartarlas ${reglas.apartado_dias} días y pagar lo demás por partes. Cada pago lo reportas con su referencia en la página de tu pedido.`
+          : 'El total, o solo una parte para apartarlas unos días y pagar lo demás por partes. Cada pago lo reportas con su referencia en la página de tu pedido.',
+      },
+      {
+        titulo: 'Retíralo o te lo enviamos',
+        texto: 'En la tienda, con tu cédula, o por Domesa o MRW a tu ciudad: el envío se paga al retirarlo en la agencia.',
+      },
+    ];
+  }, [tramos, reglas]);
 
   const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
 
@@ -346,6 +441,11 @@ export function Catalogo() {
 
   function agregarPorId(id: number) {
     cambiar(id, (seleccion.get(id) ?? 0) + 1);
+  }
+
+  function vaciar() {
+    setSeleccion(new Map());
+    setPares([]);
   }
 
   /** "Agrégale un dije", desde una cadena o pulsera para armar. */
@@ -387,6 +487,18 @@ export function Catalogo() {
     if (ficha) visor.abrir(ficha, fichas);
   }
 
+  function verProxima(f: Familia<ModeloProximo>) {
+    const ficha = fichasProximas.find((x) => x.clave === f.clave);
+    if (ficha) visorProximo.abrir(ficha, fichasProximas);
+  }
+
+  /** Del tipo o la búsqueda, de vuelta a la vitrina entera. */
+  function alInicio() {
+    setTexto('');
+    setOrden('nombre');
+    setCategoria(null);
+  }
+
   async function reservar() {
     const quien = datosParaReservar(datos);
     if (!quien) return;
@@ -415,6 +527,16 @@ export function Catalogo() {
     navegar(`/reserva/${data as string}`);
   }
 
+  // Lo que cada tarjeta hace con el pedido: lo mismo en el inicio y en la lista.
+  const pedidoTarjeta = (f: Familia<ModeloPublico>): PedidoTarjeta => ({
+    destino: 'pedido',
+    llevas: (id) => seleccion.get(id) ?? 0,
+    disponible: (id) => conocidos.get(id)?.disponible ?? f.variantes.find((v) => v.id === id)?.disponible ?? 0,
+    alAgregar: agregarPorId,
+    alCambiar: cambiar,
+    alElegir: () => setFamiliaAbierta(f.clave),
+  });
+
   // La hoja de "Agrégale un dije": sale en el catálogo y en "Tu pedido".
   const hojaArmar = armandoBase !== null && dijes !== null ? (
     <ArmarDije
@@ -425,6 +547,23 @@ export function Catalogo() {
       alCerrar={() => setArmandoBase(null)}
     />
   ) : null;
+
+  // La misma cabecera en el catálogo y en "Tu pedido": la marca lleva al
+  // inicio y, si hay número, "Escríbenos" abre el WhatsApp de la tienda.
+  const cabecera = (
+    <header className="barra barra--publica">
+      <div className="barra__interior">
+        <Link to="/publico" className="barra__marca" aria-label="Lux by Emory, ir al inicio del catálogo">
+          <Wordmark alto={40} />
+        </Link>
+        {whatsappTienda ? (
+          <a className="boton boton--secundario barra__contacto" href={whatsappTienda} target="_blank" rel="noopener noreferrer">
+            Escríbenos<span className="visualmente-oculto"> por WhatsApp</span>
+          </a>
+        ) : null}
+      </div>
+    </header>
+  );
 
   /* ------------------------------------------------------------ pedido */
 
@@ -439,312 +578,251 @@ export function Catalogo() {
     const faltaEnvio = entrega === 'envio' && (!agencia.trim() || !direccion.trim());
 
     return (
-      <div className="pagina pagina--angosta mostrador">
-        <div className="encabezado-pagina">
-          <div>
-            <h1>Tu pedido</h1>
-            <p>
-              {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
-              {resumen.descuento ? `, con ${formatearDescuento(resumen.descuento)} de descuento por cantidad` : ''}.
-            </p>
-          </div>
-        </div>
-
-        {error ? <ResumenErrores titulo="No se pudo apartar">{error}</ResumenErrores> : null}
-
-        <div className="lineas-cobro">
-          {elegidos.map(({ id, m, cantidad }) => {
-            const precio = resumen.precioDe.get(id) ?? m?.precio_usd ?? null;
-            const nombre = m ? nombreConVariante(m.nombre, m.variante) : 'Pieza';
-            return (
-              <div className="linea-cobro" key={id}>
-                {m && urlPublicaFoto(m.foto_thumb_path)
-                  ? <img className="linea-cobro__foto" src={urlPublicaFoto(m.foto_thumb_path)!} alt="" />
-                  : <span className="linea-cobro__foto" />}
-                <div>
-                  <div className="linea-cobro__nombre">{nombre}</div>
-                  <div className="linea-cobro__precio">
-                    {precio !== null ? `${formatearBs(precioEnBs(precio, tasa))} c/u · ` : ''}
-                    {m ? `quedan ${m.disponible}` : ''}
-                  </div>
-                  {/* La cadena dice qué dijes lleva puestos, y deja ponerle uno. */}
-                  {m?.armado === 'base' ? (
-                    <>
-                      {armados.some((p) => p.base === id) ? (
-                        <div className="campo__pista">
-                          Con {armados.filter((p) => p.base === id)
-                            .map((p) => nombreConVariante(conocidos.get(p.dije)?.nombre ?? 'un dije', conocidos.get(p.dije)?.variante))
-                            .join(', ')}
-                        </div>
-                      ) : null}
-                      <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void abrirArmar(id)}>
-                        Agrégale un dije
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-                <div className="contador">
-                  <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(id, cantidad - 1)}>&minus;</button>
-                  <span className="contador__valor" aria-live="polite">{cantidad}</span>
-                  <button type="button" aria-label={`Agregar una de ${nombre}`} disabled={!m || cantidad >= m.disponible} onClick={() => cambiar(id, cantidad + 1)}>+</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="total-cobro" aria-busy={resumen.calculando}>
-          <div>
-            <span className="util secundario">Tu total</span>
-            <div className="campo__pista">
-              {resumen.piezas === 1 ? '1 pieza vale' : `${resumen.piezas} piezas valen`} {formatearBs(precioEnBs(resumen.subtotal, tasa))}
-              {resumen.descuento ? `, menos el descuento por cantidad` : ''}
+      <>
+        {cabecera}
+        <div className="pagina pagina--angosta mostrador">
+          <div className="encabezado-pagina">
+            <div>
+              <h1>Tu pedido</h1>
+              <p>
+                {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
+                {resumen.descuento ? `, con ${formatearDescuento(resumen.descuento)} de descuento por cantidad` : ''}.
+                {' '}Tres pasos y quedan apartadas.
+              </p>
             </div>
           </div>
-          <div>
-            <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
-            <div className="total-cobro__cifra">{formatearBcv(resumen.totalUsd)}</div>
+
+          {error ? <ResumenErrores titulo="No se pudo apartar">{error}</ResumenErrores> : null}
+
+          {/* Las partes numeradas: la clienta sabe dónde va y cuánto falta. */}
+          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">1</span> Tus piezas</h2>
+          <div className="lineas-cobro">
+            {elegidos.map(({ id, m, cantidad }) => {
+              const precio = resumen.precioDe.get(id) ?? m?.precio_usd ?? null;
+              const nombre = m ? nombreConVariante(m.nombre, m.variante) : 'Pieza';
+              return (
+                <div className="linea-cobro" key={id}>
+                  {m && urlPublicaFoto(m.foto_thumb_path)
+                    ? <img className="linea-cobro__foto" src={urlPublicaFoto(m.foto_thumb_path)!} alt="" />
+                    : <span className="linea-cobro__foto" />}
+                  <div>
+                    <div className="linea-cobro__nombre">{nombre}</div>
+                    <div className="linea-cobro__precio">
+                      {precio !== null ? `${formatearBs(precioEnBs(precio, tasa))} c/u · ` : ''}
+                      {m ? `quedan ${m.disponible}` : ''}
+                    </div>
+                    {/* La cadena dice qué dijes lleva puestos, y deja ponerle uno. */}
+                    {m?.armado === 'base' ? (
+                      <>
+                        {armados.some((p) => p.base === id) ? (
+                          <div className="campo__pista">
+                            Con {armados.filter((p) => p.base === id)
+                              .map((p) => nombreConVariante(conocidos.get(p.dije)?.nombre ?? 'un dije', conocidos.get(p.dije)?.variante))
+                              .join(', ')}
+                          </div>
+                        ) : null}
+                        <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void abrirArmar(id)}>
+                          Agrégale un dije
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="contador">
+                    <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(id, cantidad - 1)}>&minus;</button>
+                    <span className="contador__valor" aria-live="polite">{cantidad}</span>
+                    <button type="button" aria-label={`Agregar una de ${nombre}`} disabled={!m || cantidad >= m.disponible} onClick={() => cambiar(id, cantidad + 1)}>+</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
 
-        <h2 className="seccion-titulo">Tus datos</h2>
-        <TusDatos valor={datos} alCambiar={setDatos} />
-
-        <h2 className="seccion-titulo">Cómo lo recibes</h2>
-        <div className="panel">
-          <div className="metodos-pago">
-            <button type="button" aria-pressed={entrega === 'tienda'} onClick={() => setEntrega('tienda')}>
-              Retiro en tienda
-            </button>
-            <button type="button" aria-pressed={entrega === 'envio'} onClick={() => setEntrega('envio')}>
-              Envío a mi ciudad
-            </button>
+          <div className="total-cobro" aria-busy={resumen.calculando}>
+            <div>
+              <span className="util secundario">Tu total</span>
+              <div className="campo__pista">
+                {resumen.piezas === 1 ? '1 pieza vale' : `${resumen.piezas} piezas valen`} {formatearBs(precioEnBs(resumen.subtotal, tasa))}
+                {resumen.descuento ? `, menos el descuento por cantidad` : ''}
+              </div>
+            </div>
+            <div>
+              <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
+              <div className="total-cobro__cifra">{formatearBcv(resumen.totalUsd)}</div>
+            </div>
           </div>
 
-          {entrega === 'envio' ? (
-            <>
+          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">2</span> Tus datos</h2>
+          <TusDatos valor={datos} alCambiar={setDatos} />
+
+          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">3</span> Cómo lo recibes</h2>
+          <div className="panel">
+            <div className="metodos-pago">
+              <button type="button" aria-pressed={entrega === 'tienda'} onClick={() => setEntrega('tienda')}>
+                Retiro en tienda
+              </button>
+              <button type="button" aria-pressed={entrega === 'envio'} onClick={() => setEntrega('envio')}>
+                Envío a mi ciudad
+              </button>
+            </div>
+
+            {entrega === 'envio' ? (
+              <>
+                <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
+                  El envío se paga al retirarlo en la agencia, no ahora.
+                </p>
+                <div className="metodos-pago" style={{ marginTop: 'var(--e-4)' }}>
+                  <button type="button" aria-pressed={empresa === 'domesa'} onClick={() => setEmpresa('domesa')}>Domesa</button>
+                  <button type="button" aria-pressed={empresa === 'mrw'} onClick={() => setEmpresa('mrw')}>MRW</button>
+                </div>
+                <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
+                  <Campo etiqueta="Agencia" htmlFor="r-agencia" pista="La sucursal donde lo vas a retirar.">
+                    <input id="r-agencia" value={agencia} onChange={(e) => setAgencia(e.target.value)} required />
+                  </Campo>
+                  <Campo etiqueta="Dirección de la agencia" htmlFor="r-dir">
+                    <input id="r-dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} required />
+                  </Campo>
+                </div>
+              </>
+            ) : (
               <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-                El envío se paga al retirarlo en la agencia, no ahora.
+                Te esperamos en la tienda con tu cédula{textos.direccion_tienda ? `: ${textos.direccion_tienda}` : ''}.
               </p>
-              <div className="metodos-pago" style={{ marginTop: 'var(--e-4)' }}>
-                <button type="button" aria-pressed={empresa === 'domesa'} onClick={() => setEmpresa('domesa')}>Domesa</button>
-                <button type="button" aria-pressed={empresa === 'mrw'} onClick={() => setEmpresa('mrw')}>MRW</button>
-              </div>
-              <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
-                <Campo etiqueta="Agencia" htmlFor="r-agencia" pista="La sucursal donde lo vas a retirar.">
-                  <input id="r-agencia" value={agencia} onChange={(e) => setAgencia(e.target.value)} required />
-                </Campo>
-                <Campo etiqueta="Dirección de la agencia" htmlFor="r-dir">
-                  <input id="r-dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} required />
-                </Campo>
-              </div>
-            </>
-          ) : (
-            <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-              Te esperamos en la tienda con tu cédula.
+            )}
+          </div>
+
+          {/* Antes del botón, lo que pasa al tocarlo, con las cifras de
+              verdad. Antes decía "unos días" y "una parte". */}
+          <div className="panel que-pasa">
+            <span className="panel__titulo">Qué pasa al apartar</span>
+            <p className="prosa">
+              {reglas
+                ? `Tus piezas quedan guardadas a tu nombre ${decirMinutos(reglas.reserva_minutos)}. En la página de tu pedido pagas el total, o al menos el ${formatearDescuento(reglas.apartado_inicial_pct)} para apartarlas ${reglas.apartado_dias} días y pagar lo demás por partes. Si no terminas de pagar a tiempo, lo abonado no se devuelve y las piezas vuelven a la venta.`
+                : 'Tus piezas quedan guardadas a tu nombre mientras pagas. En la página de tu pedido pagas el total, o solo una parte para apartarlas unos días y pagar lo demás por partes; ahí te decimos cuánto y hasta cuándo.'}
+              {whatsappTienda ? ' Ahí mismo nos avisas por WhatsApp con un toque.' : ''}
             </p>
-          )}
-        </div>
+          </div>
 
-        <p className="campo__pista">
-          Al apartar, las piezas quedan tuyas mientras pagas. En la pantalla
-          siguiente pagas completo, o solo una parte para apartarlas unos días
-          y pagar lo demás por partes; ahí te decimos cuánto y hasta cuándo.
-        </p>
-
-        <div className="acciones">
-          <button
-            type="button"
-            className="boton boton--confirmar"
-            disabled={reservando || resumen.piezas === 0 || !datosParaReservar(datos) || faltaEnvio}
-            onClick={() => void reservar()}
-          >
-            {reservando ? 'Apartando' : 'Apartar mis piezas'}
-          </button>
-          <button type="button" className="boton boton--secundario" onClick={() => setPaso('catalogo')}>
-            Seguir viendo
-          </button>
-          <button type="button" className="boton boton--secundario" onClick={() => { setSeleccion(new Map()); setPares([]); setPaso('catalogo'); }}>
+          <div className="acciones">
+            <button
+              type="button"
+              className="boton boton--confirmar"
+              disabled={reservando || resumen.piezas === 0 || !datosParaReservar(datos) || faltaEnvio}
+              onClick={() => void reservar()}
+            >
+              {reservando ? 'Apartando' : 'Apartar mis piezas'}
+            </button>
+            <button type="button" className="boton boton--secundario" onClick={() => setPaso('catalogo')}>
+              Seguir viendo
+            </button>
+          </div>
+          {/* Un boton apagado sin explicacion es una trampa. */}
+          {!datosParaReservar(datos)
+            ? <p className="campo__pista">{queFalta(datos)}</p>
+            : faltaEnvio ? <p className="campo__pista">Falta la agencia y su dirección para el envío.</p> : null}
+          {/* Vaciar pesaba lo mismo que seguir: ahora es un enlace, lejos del botón. */}
+          <button type="button" className="enlace-texto" onClick={() => { vaciar(); setPaso('catalogo'); }}>
             Vaciar el pedido
           </button>
+          {hojaArmar}
         </div>
-        {/* Un boton apagado sin explicacion es una trampa. */}
-        {!datosParaReservar(datos)
-          ? <p className="campo__pista">{queFalta(datos)}</p>
-          : faltaEnvio ? <p className="campo__pista">Falta la agencia y su dirección para el envío.</p> : null}
-        {hojaArmar}
-      </div>
+      </>
     );
   }
 
   /* ---------------------------------------------------------- catalogo */
 
-  const quedanPorVer = Math.max(0, total - modelos.length);
+  const quedanPorVer = enLista ? Math.max(0, total - modelos.length) : 0;
+  const proximasVisibles = todosProximos ? familiasProximas : familiasProximas.slice(0, POR_ESTANTE);
 
   return (
     <>
-      <header className="barra barra--publica">
-        <div className="barra__interior">
-          <Wordmark alto={40} />
-          <span className="sesion__quien">Desde Sabana de Mendoza para toda Venezuela</span>
-        </div>
-      </header>
+      {cabecera}
 
       <div className={resumen.piezas > 0 ? 'pagina mostrador catalogo-publico pagina--con-barra' : 'pagina mostrador catalogo-publico'}>
-        <div className="encabezado-pagina">
-          <div>
-            <h1>Catálogo</h1>
-            <p>Toca una pieza para verla de cerca. Arma tu pedido desde una pieza.</p>
-            {/* Lo que viene va al final, después de lo que se vende; esto
-                avisa que existe sin quitarle la primera pantalla a la mercancía. */}
-            {productosProximos > 0 ? (
-              <button type="button" className="enlace-proximos" onClick={irAProximos}>
-                Próximamente: {productosProximos === 1 ? 'una pieza nueva' : `${formatearEntero(productosProximos)} piezas nuevas`} en camino
-              </button>
-            ) : null}
+        {/* Arriba, o la portada o el título de la lista. El buscador va
+            después, siempre en el mismo sitio: si cambiara de lugar al
+            escribir, el teléfono cerraría el teclado a media palabra. */}
+        {enLista ? (
+          <div className="lista-cabeza">
+            <button type="button" className="volver" onClick={alInicio}>
+              <Icono nombre="volver" className="icono icono--sm" />
+              Todo el catálogo
+            </button>
+            <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
+              {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las piezas')}
+            </h1>
           </div>
-        </div>
+        ) : (
+          <section className="portada-catalogo">
+            <p className="portada-catalogo__de">
+              {textos.ciudad ? `Desde ${textos.ciudad} para toda Venezuela` : 'Para toda Venezuela'}
+            </p>
+            <h1 className="portada-catalogo__titulo">Joyas para usar todos los días</h1>
+            {/* En el teléfono, la versión corta; la larga sale en el detalle de cada pieza. */}
+            {textos.materiales_largo ? (
+              <p className={textos.materiales_corto ? 'portada-catalogo__texto portada-catalogo__texto--largo' : 'portada-catalogo__texto'}>{textos.materiales_largo}</p>
+            ) : null}
+            {textos.materiales_corto ? (
+              <p className={textos.materiales_largo ? 'portada-catalogo__texto portada-catalogo__texto--corto' : 'portada-catalogo__texto'}>{textos.materiales_corto}</p>
+            ) : null}
+            <AsiPides
+              pasos={['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil']}
+              alVerMas={() => irA('como-pedir')}
+            />
+          </section>
+        )}
 
-        {textos.materiales_largo ? (
-          <p className="sello-materiales sello-materiales--catalogo">{textos.materiales_largo}</p>
-        ) : null}
+        <div className="buscador-catalogo">
+          <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
+            <input
+              id="buscar-publico" type="search" value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Cadena, anillo, choker..." autoComplete="off"
+            />
+          </Campo>
+          {/* El tipo y el orden también en el inicio: con más piezas de las
+              que trae, el tipo lleva a todas, y ordenar por precio tiene que
+              poder hacerse sin entrar antes a un tipo. */}
+          {categorias.length > 1 || enLista ? (
+            <Filtros activos={(categoria ? 1 : 0) + (orden !== 'nombre' ? 1 : 0)}>
+            <div className="fila">
+              {categorias.length > 1 ? (
+                <Campo etiqueta="Tipo" htmlFor="tipo-publico">
+                  <select id="tipo-publico" value={categoria ?? ''} onChange={(e) => setCategoria(e.target.value || null)}>
+                    <option value="">Todos los tipos</option>
+                    {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
+                  </select>
+                </Campo>
+              ) : null}
+              <Campo etiqueta="Ordenar" htmlFor="orden-publico">
+                <select id="orden-publico" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
+                  <option value="nombre">Por tipo de pieza</option>
+                  <option value="menor">Precio: menor a mayor</option>
+                  <option value="mayor">Precio: mayor a menor</option>
+                </select>
+              </Campo>
+            </div>
+            </Filtros>
+          ) : null}
+        </div>
 
         {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
-        {/*
-          Plegado en el telefono. Doce categorias dejaban la primera pieza a
-          743 px de una pantalla de 844: la clienta abria el enlace y no veia
-          ni una joya. En una tienda, lo primero que se enseña es la
-          mercancia, no el buscador. El numero en el titulo dice cuantos
-          filtros hay puestos.
-        */}
-        <Filtros activos={[texto, categoria, orden !== 'nombre' ? orden : ''].filter(Boolean).length}>
-          <div className="fila">
-            <Campo etiqueta="Buscar" htmlFor="buscar-publico">
-              <input
-                id="buscar-publico" type="search" value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Cadena, anillo, choker..." autoComplete="off"
-              />
-            </Campo>
-            <Campo etiqueta="Ordenar" htmlFor="orden-publico">
-              <select id="orden-publico" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
-                <option value="nombre">Por tipo de pieza</option>
-                <option value="menor">Precio: menor a mayor</option>
-                <option value="mayor">Precio: mayor a menor</option>
-              </select>
-            </Campo>
-          </div>
-
-          {categorias.length > 1 ? (
-            <div className="filtros-categoria" role="group" aria-label="Filtrar por categoría">
-              <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>
-                Todo
-              </button>
-              {categorias.map((c) => (
-                <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
-                  {c}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </Filtros>
-
-        {cargando ? (
+        {cargando || cargadoPara !== consultaActual ? (
           <Cargando texto="Trayendo el catálogo" />
         ) : modelos.length === 0 ? (
           <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
-            <p>{texto ? 'Prueba con otra palabra.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
+            <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
+            {enLista ? (
+              <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button>
+            ) : null}
           </Vacio>
-        ) : (
+        ) : enLista ? (
           <>
             <div className="rejilla-venta">
-              {familias.map((f) => {
-                const m = f.cabeza;
-                const unica = f.variantes.length === 1;
-                const portada = conFoto(f.variantes) ?? m;
-                const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
-                const puestas = f.variantes.reduce((n, v) => n + (seleccion.get(v.id) ?? 0), 0);
-                const quedan = f.variantes.reduce((n, v) => n + v.disponible, 0);
-                const agotado = f.variantes.every((v) => (seleccion.get(v.id) ?? 0) >= v.disponible);
-                const bs = rangoDe(f.variantes, (v) => v.precio_bs);
-                const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-                const etiquetas = etiquetasCortas(f);
-                // Las claves de todas las variantes, sin repetir: "V1 · BG".
-                const claves = [...new Set(f.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ');
-                const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
-                return (
-                  <article key={f.clave} className="tarjeta-modelo">
-                    <button
-                      type="button"
-                      className="tarjeta-modelo__principal"
-                      onClick={() => verFoto(f)}
-                      aria-label={`Ver de cerca ${nombre}`}
-                    >
-                      {foto
-                        ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
-                        : <span className="tarjeta-modelo__foto" />}
-                      <span className="tarjeta-modelo__cuerpo">
-                        <span className="tarjeta-modelo__nombre">{m.nombre}</span>
-                        {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
-                        {textos.materiales_corto ? (
-                          <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
-                        ) : null}
-                        {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
-                        {/* Los dos precios del mismo tamaño: la clienta piensa en
-                            bolívares o en dólares, y ninguno es la letra chica.
-                            Con variantes de distinto precio, el mas bajo y "desde". */}
-                        {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
-                        <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
-                        <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
-                        <span className="tarjeta-modelo__pie">
-                          <span className="tarjeta-modelo__datos">
-                            <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                              {quedan === 1 ? 'Queda 1' : `Quedan ${quedan}`}
-                            </span>
-                            {/* La clave de la tienda, nunca el nombre completo.
-                                Para la clienta son dos letras sin significado;
-                                para la vendedora, el estante al que ir. */}
-                            {claves ? <span className="tarjeta-modelo__clave">{claves}</span> : null}
-                          </span>
-                        </span>
-                      </span>
-                    </button>
-
-                    {/* La accion, fuera del boton de ver: dos botones hermanos,
-                        no uno dentro del otro. */}
-                    <div className="tarjeta-modelo__accion">
-                      {!unica ? (
-                        <button
-                          type="button"
-                          className="boton boton--secundario tarjeta-modelo__agregar"
-                          onClick={() => setFamiliaAbierta(f.clave)}
-                          aria-haspopup="dialog"
-                          aria-label={`Elegir cuál de ${m.nombre}: ${etiquetas}`}
-                        >
-                          {puestas > 0 ? `Llevas ${puestas} · elegir` : 'Elegir'}
-                        </button>
-                      ) : puestas > 0 ? (
-                        <div className="contador contador--tarjeta">
-                          <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(m.id, puestas - 1)}>&minus;</button>
-                          <span className="contador__valor" aria-live="polite">{puestas}</span>
-                          <button type="button" aria-label={`Agregar otra de ${nombre}`} disabled={agotado} onClick={() => cambiar(m.id, puestas + 1)}>+</button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="boton boton--secundario tarjeta-modelo__agregar"
-                          onClick={() => agregarPorId(m.id)}
-                          disabled={agotado}
-                          aria-label={`Agregar ${nombre} al pedido`}
-                        >
-                          Agregar
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+              {familias.map((f) => (
+                <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+              ))}
             </div>
 
             {/* Lo que falta por ver, dicho: antes la pieza 401 no salia nunca. */}
@@ -759,68 +837,81 @@ export function Catalogo() {
               </div>
             ) : null}
           </>
+        ) : (
+          <>
+            <TiposConFoto tipos={tipos} alElegir={setCategoria} />
+            {estantes.map((e) => (
+              <Estante
+                key={e.categoria}
+                titulo={nombreDeTipo(e.categoria)}
+                cuantas={e.familias.length}
+                alVerTodas={e.familias.length > POR_ESTANTE ? () => setCategoria(e.categoria) : undefined}
+              >
+                {e.familias.slice(0, POR_ESTANTE).map((f) => (
+                  <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+                ))}
+              </Estante>
+            ))}
+            {/* Con más piezas de las que trae el inicio, se dice: cortar sin
+                avisar es lo que dejaba la pieza 401 sin salir nunca. */}
+            {total > modelos.length ? (
+              <p className="paginacion__cuenta">
+                Aquí salen las primeras {formatearEntero(modelos.length)} de {formatearEntero(total)} piezas. Elige un tipo arriba para verlas todas.
+              </p>
+            ) : null}
+          </>
         )}
+
+        {!cargando ? (
+          <ComoPedir
+            id="como-pedir"
+            pasos={pasos}
+            pie={whatsappTienda ? 'Al apartar te sale un botón para avisarnos por WhatsApp.' : undefined}
+          />
+        ) : null}
 
         {/*
           PRÓXIMAMENTE. Lo nuevo de un lote que todavía no llega: foto,
           nombre y precio, y ningún botón de pedir. No dice cuántas vienen
           ni dónde van: eso es de la tienda. Cuando el dueño libera el lote,
-          estas piezas suben a la cuadrícula de arriba con su "Agregar".
+          estas piezas suben a la vitrina con su "Agregar". Un estante de
+          cuatro: antes eran 41 tarjetas, el 27 % de la página.
         */}
         {!cargando && familiasProximas.length > 0 ? (
-          <section className="proximos" ref={seccionProximos} aria-labelledby="titulo-proximos">
-            <h2 className="seccion-titulo" id="titulo-proximos">Próximamente</h2>
+          <section className="proximos" aria-labelledby="titulo-proximos">
+            <div className="estante__cabeza">
+              <h2 className="estante__titulo" id="titulo-proximos">
+                Próximamente <span className="estante__cuantas">{familiasProximas.length}</span>
+              </h2>
+            </div>
             <p className="proximos__nota">
               Vienen en camino. Todavía no se pueden pedir: cuando lleguen, salen arriba con su botón para agregar.
             </p>
             <div className="rejilla-venta">
-              {familiasProximas.map((f) => {
-                const m = f.cabeza;
-                const unica = f.variantes.length === 1;
-                const portada = conFoto(f.variantes) ?? m;
-                const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
-                const bs = rangoDe(f.variantes, (v) => v.precio_bs);
-                const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-                const etiquetas = etiquetasCortas(f);
-                const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
-                return (
-                  <article key={f.clave} className="tarjeta-modelo tarjeta-modelo--proxima">
-                    <button
-                      type="button"
-                      className="tarjeta-modelo__principal"
-                      onClick={() => {
-                        const ficha = fichasProximas.find((x) => x.clave === f.clave);
-                        if (ficha) visorProximo.abrir(ficha, fichasProximas);
-                      }}
-                      aria-label={`Ver de cerca ${nombre}, próximamente`}
-                    >
-                      {foto
-                        ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
-                        : <span className="tarjeta-modelo__foto" />}
-                      <span className="tarjeta-modelo__cuerpo">
-                        <span className="tarjeta-modelo__nombre">{m.nombre}</span>
-                        {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
-                        {textos.materiales_corto ? (
-                          <span className="tarjeta-modelo__material">{textos.materiales_corto}</span>
-                        ) : null}
-                        {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
-                        {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
-                        <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
-                        <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
-                        <span className="tarjeta-modelo__pie">
-                          <span className="etiqueta etiqueta--proxima">Próximamente</span>
-                        </span>
-                      </span>
-                    </button>
-                  </article>
-                );
-              })}
+              {proximasVisibles.map((f) => (
+                <TarjetaPieza key={f.clave} familia={f} alVer={() => verProxima(f)} proxima />
+              ))}
             </div>
-            {totalProximos > proximos.length ? (
+            {/* Abre y cierra: abierto, las 48 alargaban la página 8.000 px y
+                dejaban la tienda al fondo, sin manera de volver a plegarlas. */}
+            {familiasProximas.length > POR_ESTANTE ? (
+              <div className="catalogo__mas">
+                <button type="button" className="boton boton--secundario" aria-expanded={todosProximos} onClick={() => setTodosProximos((x) => !x)}>
+                  {todosProximos ? 'Ver menos' : `Ver las ${formatearEntero(familiasProximas.length)} que vienen`}
+                </button>
+              </div>
+            ) : null}
+            {todosProximos && totalProximos > proximos.length ? (
               <p className="paginacion__cuenta">Y {formatearEntero(totalProximos - proximos.length)} más que vienen en camino.</p>
             ) : null}
           </section>
         ) : null}
+
+        {!cargando ? <LaTienda id="la-tienda" textos={textos} /> : null}
+
+        <footer className="pie-catalogo">
+          {textos.catalogo_pie ?? 'Lux by Emory'}
+        </footer>
 
         <VisorFoto {...visorProximo.props} />
 
@@ -891,7 +982,7 @@ export function Catalogo() {
               </div>
             </div>
             {/* En un teléfono angosto no cabe con el total: ahí vive en "Tu pedido". */}
-            <button type="button" className="boton boton--secundario barra-carrito__vaciar" onClick={() => { setSeleccion(new Map()); setPares([]); }}>
+            <button type="button" className="boton boton--secundario barra-carrito__vaciar" onClick={vaciar}>
               Vaciar
             </button>
             <button type="button" className="boton" onClick={() => setPaso('pedido')}>

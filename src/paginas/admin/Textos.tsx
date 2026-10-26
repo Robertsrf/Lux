@@ -16,9 +16,12 @@ const ETIQUETAS: Record<string, string> = {
   mensaje_whatsapp: 'Mensaje que acompaña el enlace del catálogo',
   ciudad: 'Ciudad de la tienda (rellena las frases del banco)',
   estado: 'Estado (rellena las frases del banco; vacío las oculta)',
-  whatsapp_tienda: 'WhatsApp de la tienda, con el código: 0414 1234567 (ahí llegan las solicitudes de la guía de revendedores)',
-  direccion_tienda: 'Dirección de la tienda (la guía de revendedores la da para retirar las piezas)',
-  horario_tienda: 'Horario de la tienda (el mismo uso)',
+  whatsapp_tienda: 'WhatsApp de la tienda, con el código: 0414 1234567. Sale en el catálogo ("Escríbenos") y en la página del pedido, que le manda aquí el aviso de cada pedido; también llegan aquí las solicitudes de la guía de revendedores',
+  direccion_tienda: 'Dirección de la tienda: sale en el catálogo, con "Cómo llegar", y al elegir retiro en tienda',
+  horario_tienda: 'Horario de la tienda: sale en el catálogo (un renglón por línea)',
+  mapa_tienda: 'Enlace de Google Maps de la tienda (en Maps, "Compartir" y copiar). Vacío, "Cómo llegar" busca la dirección',
+  instagram_tienda: 'Instagram de la tienda: solo el usuario, sin @ (sale en el catálogo)',
+  pago_movil_titular: 'Pago móvil: nombre del titular, como lo enseña el banco (la clienta lo compara antes de pagar)',
 };
 
 /**

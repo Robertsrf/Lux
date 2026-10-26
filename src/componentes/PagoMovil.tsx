@@ -49,7 +49,7 @@ interface DatoPago {
  * alguien los escriba con puntos o guiones), y del banco solo el codigo,
  * que es lo que se busca en la lista de bancos de cada aplicacion.
  */
-export function PagoMovil({ titulo = 'Pago móvil Lux', cedula, telefono, banco, otros = '' }: {
+export function PagoMovil({ titulo = 'Pago móvil Lux', cedula, telefono, banco, otros = '', titular = '' }: {
   /** "Pago móvil Lux", o "Pago móvil de María" en el catálogo de un revendedor. */
   titulo?: string;
   cedula: string;
@@ -57,6 +57,12 @@ export function PagoMovil({ titulo = 'Pago móvil Lux', cedula, telefono, banco,
   banco: string;
   /** El texto libre de antes (una cuenta para transferir, una nota). */
   otros?: string;
+  /**
+   * A nombre de quién llega el pago, como lo enseña el banco antes de
+   * confirmar. No se copia: es para comparar. Una página que copie esta y
+   * cambie el pago móvil no puede cambiar el nombre que da el banco.
+   */
+  titular?: string;
 }) {
   const [copiado, setCopiado] = useState<string | null>(null);
   const [fallo, setFallo] = useState(false);
@@ -88,6 +94,11 @@ export function PagoMovil({ titulo = 'Pago móvil Lux', cedula, telefono, banco,
   return (
     <section className="panel pago-movil">
       <span className="panel__titulo">{titulo}</span>
+      {titular.trim() ? (
+        <p className="campo__pista">
+          Te llega a nombre de <strong>{titular.trim()}</strong>. Fíjate que tu banco diga ese nombre antes de confirmar.
+        </p>
+      ) : null}
       <dl className="pago-movil__datos">
         {datos.map((d) => (
           <div className="pago-movil__fila" key={d.clave}>

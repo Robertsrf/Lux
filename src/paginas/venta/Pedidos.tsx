@@ -16,6 +16,7 @@ import {
 import type { Tasas } from '../../lib/dinero';
 import { nombreConVariante } from '../../lib/familias';
 import { enlaceReserva, enlaceWhatsApp } from '../../lib/revendedor';
+import { referenciaPedido } from '../../lib/enlaces';
 import { useTasa } from '../../hooks/useTasa';
 import { useSesion } from '../../hooks/useSesion';
 import { useFotosGrandes } from '../../hooks/useFotosGrandes';
@@ -951,7 +952,9 @@ function PedidoDeTienda({ cabecera: c, items, abonos, cambios, armados, tasa, es
             <Link className="etiqueta etiqueta--exito" to={`/clientes/${c.cliente_id}`}>Ya es clienta · ver su ficha</Link>
           ) : null}
           <p>
-            {c.origen === 'tienda' ? `Apartado en el mostrador${c.creado_por ? ` por ${c.creado_por}` : ''}` : 'Del catálogo'} ·
+            {/* La referencia es la que la clienta manda por WhatsApp al
+                apartar ("LX-3F9A2C"): con ella se encuentra su pedido aquí. */}
+            {c.origen === 'tienda' ? `Apartado en el mostrador${c.creado_por ? ` por ${c.creado_por}` : ''}` : `Del catálogo · ${referenciaPedido(c.token)}`} ·
             {' '}{c.cliente_telefono ?? 'sin teléfono'}
             {c.cliente_cedula ? ` · C.I. ${c.cliente_cedula}` : ''} ·
             {' '}{formatearFecha(c.creado_en)} ·

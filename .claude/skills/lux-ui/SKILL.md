@@ -221,6 +221,21 @@ Los dos precios del mismo tamaño es decisión del dueño (septiembre de 2026): 
 **Todo "$" dice cuál es**: "$20,00 BCV" o "$14,50 Binance". En una tabla, la moneda va en la cabecera ("Costo · $ Binance") y la celda lleva la cifra sola. Fondo blanco sobre crema, borde suave, radio `--radio-lg` y elevación `--sombra-1`, que sube a `--sombra-3` al tocarla.
 
 Estado de existencia baja (≤2): etiqueta en `--alerta`. Existencia cero: la tarjeta no aparece.
+**En la vitrina en línea, no**: ahí cuántas quedan va neutro, también "Última
+pieza". Con ≤2, 82 de cada 100 tarjetas del catálogo salían en alerta, y con
+"Última pieza" solo, 25 de las 42 del inicio: la alerta ya no avisaba de nada
+(medido el 24/10/2026). El mostrador sigue con ≤2: a la vendedora sí le sirve
+saber que quedan dos.
+
+### La vitrina en línea (catálogo de la tienda y de cada revendedor)
+Una vitrina, no una rejilla: portada verde con "Así pides" en tres pasos, los
+tipos con foto, un estante por tipo (cuatro piezas y "Ver todas"), "Cómo
+pedir" con las cifras de la base, Próximamente como estante y "La tienda" en
+verde. La tarjeta de vitrina no repite el material ni la clave de bodega.
+Componentes en `VitrinaPublica.tsx` y `LaTienda.tsx`; las medidas, en
+DESIGN.md. **"La tienda" nunca va en el catálogo de un revendedor**: su
+clienta le paga a él. Y un mapa es un enlace a Google Maps, nunca un iframe:
+pesa cientos de KB y la CSP lo bloquea.
 
 **En el mostrador, dos líneas más.** El tercer precio, "$14,50 Binance", en
 display serif 16 px `--salvia-texto`: lo que cobra si pagan en dólares. Un paso

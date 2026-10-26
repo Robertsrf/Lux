@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
-import { Aviso, Campo, Cargando, ResumenErrores, Vacio, Filtros } from '../../componentes/Piezas';
-import { formatearBcv, formatearBs, precioEnBs, totalDeLineas } from '../../lib/dinero';
+import { Aviso, Campo, Cargando, Filtros, ResumenErrores, Vacio } from '../../componentes/Piezas';
+import { Icono } from '../../componentes/Iconos';
+import { formatearBcv, formatearBs, formatearDescuento, precioEnBs, totalDeLineas } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
-import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
+import { agruparPorFamilia, conFoto, nombreConVariante, nombreDeTipo, porCategoria } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
-import { enlaceCatalogoRv, enlaceWhatsApp } from '../../lib/revendedor';
+import { enlaceCatalogoRv } from '../../lib/revendedor';
+import { enlaceWhatsAppA } from '../../lib/enlaces';
+import { AsiPides, ComoPedir, Estante, POR_ESTANTE, TarjetaPieza, TiposConFoto, irA } from '../../componentes/VitrinaPublica';
+import type { PasoPedido, PedidoTarjeta, TipoVitrina } from '../../componentes/VitrinaPublica';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
 import { useTemaRv } from '../../hooks/useTemaRv';
@@ -55,12 +59,20 @@ export function CatalogoRevendedor() {
   const [categorias, setCategorias] = useState<string[]>([]);
   const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
   const [texto, setTexto] = useState('');
-  const [categoria, setCategoria] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [parametros, setParametros] = useSearchParams();
   const paso: 'catalogo' | 'apartar' = parametros.get('paso') === 'apartar' ? 'apartar' : 'catalogo';
   const setPaso = (p: 'catalogo' | 'apartar') => setParametros(p === 'apartar' ? { paso: 'apartar' } : {});
+  // El tipo en la ruta, como en el catálogo de la tienda: atrás vuelve al inicio.
+  const categoria = parametros.get('tipo');
+  const setCategoria = (c: string | null) => setParametros(c ? { tipo: c } : {});
+  const enLista = Boolean(categoria || texto.trim());
+  // De qué consulta son las filas que hay: mientras no sean de la de ahora
+  // no se dibujan (la primera letra pintaba las 400 del inicio en la lista).
+  const consultaActual = `${categoria ?? ''}|${texto.trim()}`;
+  const [cargadoPara, setCargadoPara] = useState<string | null>(null);
+  const turno = useRef(0);
   const [datos, setDatos] = useState<EstadoTusDatos>(TUS_DATOS_VACIOS);
   const [apartando, setApartando] = useState(false);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
@@ -123,6 +135,8 @@ export function CatalogoRevendedor() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
+    // Una respuesta que llega después de otra consulta ya es vieja: se tira.
+    const mio = ++turno.current;
     let consulta = supabase
       .rpc('rv_catalogo_publico', { p_usuario: usuario })
       .select(COLUMNAS)
@@ -135,6 +149,7 @@ export function CatalogoRevendedor() {
       consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
     }
     const { data, error: err } = await consulta;
+    if (mio !== turno.current) return;
     if (err) setError(mensajeDeError(err));
     const filas = (data as unknown as ModeloRevendedor[] | null) ?? [];
     setModelos(filas);
@@ -143,6 +158,7 @@ export function CatalogoRevendedor() {
       for (const f of filas) copia.set(f.id, f);
       return copia;
     });
+    setCargadoPara(`${categoria ?? ''}|${texto.trim()}`);
     setCargando(false);
   }, [usuario, texto, categoria]);
 
@@ -162,6 +178,22 @@ export function CatalogoRevendedor() {
   }, [seleccion, porId]);
 
   const familias = useMemo(() => agruparPorFamilia(modelos), [modelos]);
+
+  // Los estantes del inicio y sus cuadros con foto, como en la tienda.
+  const estantes = useMemo(() => porCategoria(familias), [familias]);
+  const tiposConFoto = useMemo<TipoVitrina[]>(() => estantes.map((e) => {
+    const conImagen = e.familias.map((f) => conFoto(f.variantes)).find((p) => p && (p.foto_path || p.foto_thumb_path));
+    return {
+      nombre: e.categoria,
+      cuantas: e.familias.length,
+      foto: conImagen ? fuenteFoto(conImagen.foto_path, conImagen.foto_thumb_path, '(max-width: 640px) 31vw, 180px') : null,
+    };
+  }), [estantes]);
+
+  // Al cambiar de tipo o de paso, arriba: "Tu apartado" no abre a media página.
+  useEffect(() => { window.scrollTo(0, 0); }, [categoria, paso]);
+  const tituloLista = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (categoria) tituloLista.current?.focus({ preventScroll: true }); }, [categoria]);
 
   const fichas = useMemo<FotoAmpliada[]>(() => familias.map((f) => {
     const portada = conFoto(f.variantes);
@@ -280,6 +312,8 @@ export function CatalogoRevendedor() {
   }
 
   const logo = urlPublicaFoto(perfil.logo_path);
+  // SU WhatsApp, nunca el de la tienda: su clienta le escribe y le paga a él.
+  const escribirle = enlaceWhatsAppA(perfil.telefono, `Hola ${primerNombre}, vi tu catálogo: ${enlaceCatalogoRv(perfil.usuario)}`);
   const cabecera = (
     <header className="barra barra--publica">
       <div className="barra__interior">
@@ -290,19 +324,52 @@ export function CatalogoRevendedor() {
             <span className="rv-marca__de">Joyas Lux by Emory</span>
           </div>
         </div>
-        {perfil.telefono ? (
-          <a
-            className="boton boton--secundario boton--pequeno"
-            href={enlaceWhatsApp(perfil.telefono, `Hola ${primerNombre}, vi tu catálogo: ${enlaceCatalogoRv(perfil.usuario)}`)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Escribir a {primerNombre}
+        {escribirle ? (
+          <a className="boton boton--secundario barra__contacto" href={escribirle} target="_blank" rel="noopener noreferrer">
+            Escribir a {primerNombre}<span className="visualmente-oculto"> por WhatsApp</span>
           </a>
         ) : null}
       </div>
     </header>
   );
+
+  // Cómo pedir con SUS reglas: sus horas para pagarle, su apartado y sus
+  // días. Las cifras salen de su perfil; sin ellas, la frase sin cifra.
+  const pasos: PasoPedido[] = [
+    {
+      titulo: 'Elige tus piezas',
+      texto: <>Toca <strong>Agregar</strong> en las que te gusten (o <strong>Elegir</strong>, si tiene medidas): se puede pedir desde una pieza.</>,
+    },
+    {
+      titulo: 'Apártalas con tu cédula',
+      texto: `Sin pagar todavía: te las guardamos ${perfil.horas_pago ? `${perfil.horas_pago} horas` : 'unas horas'} mientras le pagas a ${primerNombre}.`,
+    },
+    {
+      titulo: `Págale a ${primerNombre} por pago móvil`,
+      texto: perfil.dias_credito
+        ? `El total, o al menos el ${perfil.inicial_pct ? formatearDescuento(perfil.inicial_pct) : 'mínimo'} y tienes ${perfil.dias_credito} días para pagarle lo demás. Sus datos salen al apartar, y ahí le avisas que pagaste.`
+        : 'El total. Sus datos salen al apartar, y ahí le avisas que pagaste.',
+    },
+    {
+      titulo: `${primerNombre} te lo entrega`,
+      texto: 'Cuando confirme tu pago, te escribe y cuadran la entrega.',
+    },
+  ];
+
+  // Lo que cada tarjeta hace con el apartado.
+  const pedidoTarjeta = (f: Familia<ModeloRevendedor>): PedidoTarjeta => ({
+    destino: 'apartado',
+    llevas: (id) => seleccion.get(id) ?? 0,
+    disponible: (id) => porId.get(id)?.disponible ?? f.variantes.find((v) => v.id === id)?.disponible ?? 0,
+    alAgregar: agregarPorId,
+    alCambiar: cambiar,
+    alElegir: () => setFamiliaAbierta(f.clave),
+  });
+
+  function alInicio() {
+    setTexto('');
+    setCategoria(null);
+  }
 
   /* ------------------------------------------------------------ apartar */
 
@@ -391,136 +458,116 @@ export function CatalogoRevendedor() {
   return (
     <>
       {cabecera}
-      <div className="pagina mostrador">
-        <div className="encabezado-pagina">
-          <div>
-            <h1>Catálogo</h1>
-            <p>
-              Agrega las piezas que te gusten y apártalas; toca una para verla de cerca.
-              {perfil.dias_credito ? ` Puedes pagarlas por partes en ${perfil.dias_credito} días.` : ''}
-            </p>
+      {/* `pagina--con-barra` con la barra del apartado, como en la tienda:
+          sin él, la barra tapaba la última fila en el teléfono. */}
+      <div className={resumen.piezas > 0 ? 'pagina mostrador catalogo-publico pagina--con-barra' : 'pagina mostrador catalogo-publico'}>
+        {/* La portada o el título de la lista; el buscador después, siempre
+            en el mismo sitio, para que escribir no cierre el teclado. */}
+        {enLista ? (
+          <div className="lista-cabeza">
+            <button type="button" className="volver" onClick={alInicio}>
+              <Icono nombre="volver" className="icono icono--sm" />
+              Todo el catálogo
+            </button>
+            <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>{categoria ? nombreDeTipo(categoria) : `Buscaste “${texto.trim()}”`}</h1>
           </div>
-        </div>
+        ) : (
+          <section className="portada-catalogo">
+            <p className="portada-catalogo__de">Joyas Lux by Emory · con {primerNombre}</p>
+            <h1 className="portada-catalogo__titulo">Joyas para usar todos los días</h1>
+            {/* En el teléfono, la versión corta; la larga sale en el detalle de cada pieza. */}
+            {textos.materiales_largo ? (
+              <p className={textos.materiales_corto ? 'portada-catalogo__texto portada-catalogo__texto--largo' : 'portada-catalogo__texto'}>{textos.materiales_largo}</p>
+            ) : null}
+            {textos.materiales_corto ? (
+              <p className={textos.materiales_largo ? 'portada-catalogo__texto portada-catalogo__texto--corto' : 'portada-catalogo__texto'}>{textos.materiales_corto}</p>
+            ) : null}
+            <AsiPides
+              pasos={['Elige tus piezas', 'Apártalas con tu cédula', `Págale a ${primerNombre}`]}
+              alVerMas={() => irA('como-pedir')}
+            />
+          </section>
+        )}
 
-        {textos.materiales_largo ? <p className="sello-materiales">{textos.materiales_largo}</p> : null}
-
-        {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
-
-        <Filtros activos={[texto, categoria].filter(Boolean).length}>
-          <Campo etiqueta="Buscar" htmlFor="buscar-rv">
+        <div className="buscador-catalogo">
+          <Campo etiqueta="Buscar una pieza" htmlFor="buscar-rv">
             <input
               id="buscar-rv" type="search" value={texto}
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Cadena, anillo, choker..." autoComplete="off"
             />
           </Campo>
+          {/* El tipo también en el inicio: con más de las que trae, lleva a todas. */}
           {categorias.length > 1 ? (
-            <div className="filtros-categoria" role="group" aria-label="Filtrar por categoría">
-              <button type="button" aria-pressed={categoria === null} onClick={() => setCategoria(null)}>Todo</button>
-              {categorias.map((c) => (
-                <button key={c} type="button" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>{c}</button>
-              ))}
-            </div>
+            <Filtros activos={categoria ? 1 : 0}>
+              <Campo etiqueta="Tipo" htmlFor="tipo-rv">
+                <select id="tipo-rv" value={categoria ?? ''} onChange={(e) => setCategoria(e.target.value || null)}>
+                  <option value="">Todos los tipos</option>
+                  {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
+                </select>
+              </Campo>
+            </Filtros>
           ) : null}
-        </Filtros>
+        </div>
 
-        {cargando ? (
+        {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
+
+        {cargando || cargadoPara !== consultaActual ? (
           <Cargando texto="Trayendo el catálogo" />
         ) : modelos.length === 0 ? (
           <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
-            <p>{texto ? 'Prueba con otra palabra.' : `Vuelve pronto, o escríbele a ${primerNombre}.`}</p>
+            <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : `Vuelve pronto, o escríbele a ${primerNombre}.`}</p>
+            {enLista ? <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button> : null}
           </Vacio>
+        ) : !enLista ? (
+          <>
+            <TiposConFoto tipos={tiposConFoto} alElegir={setCategoria} />
+            {estantes.map((e) => (
+              <Estante
+                key={e.categoria}
+                titulo={nombreDeTipo(e.categoria)}
+                cuantas={e.familias.length}
+                alVerTodas={e.familias.length > POR_ESTANTE ? () => setCategoria(e.categoria) : undefined}
+              >
+                {e.familias.slice(0, POR_ESTANTE).map((f) => (
+                  <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+                ))}
+              </Estante>
+            ))}
+          </>
         ) : (
           <div className="rejilla-venta">
-            {familias.map((f) => {
-              const m = f.cabeza;
-              const unica = f.variantes.length === 1;
-              const portada = conFoto(f.variantes) ?? m;
-              const foto = fuenteFoto(portada.foto_path, portada.foto_thumb_path, '(max-width: 640px) 45vw, 200px');
-              const puestas = f.variantes.reduce((n, v) => n + (seleccion.get(v.id) ?? 0), 0);
-              const quedan = f.variantes.reduce((n, v) => n + v.disponible, 0);
-              const agotado = f.variantes.every((v) => (seleccion.get(v.id) ?? 0) >= v.disponible);
-              const bs = rangoDe(f.variantes, (v) => v.precio_bs);
-              const bcv = rangoDe(f.variantes, (v) => v.precio_usd);
-              const etiquetas = etiquetasCortas(f);
-              const nombre = unica ? nombreConVariante(m.nombre, m.variante) : m.nombre;
-              /*
-                Como el catálogo de la tienda desde el 14/10/2026: tocar la
-                pieza abre su detalle, y "Agregar" va en su propio botón. Antes
-                la tarjeta entera era un botón con la lupa DENTRO (un botón en
-                otro, que el lector de pantalla no sabe anunciar) y un toque
-                agregaba y dos abrían el detalle.
-              */
-              return (
-                <article key={f.clave} className="tarjeta-modelo">
-                  <button
-                    type="button"
-                    className="tarjeta-modelo__principal"
-                    onClick={() => verFoto(f)}
-                    aria-label={`Ver de cerca ${nombre}`}
-                  >
-                    {foto
-                      ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
-                      : <span className="tarjeta-modelo__foto" />}
-                    <span className="tarjeta-modelo__cuerpo">
-                      <span className="tarjeta-modelo__nombre">{m.nombre}</span>
-                      {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}
-                      {textos.materiales_corto ? <span className="tarjeta-modelo__material">{textos.materiales_corto}</span> : null}
-                      {unica && m.variantes_nota ? <span className="celda-nota">{m.variantes_nota}</span> : null}
-                      {bs.min !== bs.max ? <span className="tarjeta-modelo__desde">desde</span> : null}
-                      <span className="tarjeta-modelo__precio">{formatearBs(bs.min)}</span>
-                      <span className="tarjeta-modelo__precio">{formatearBcv(bcv.min)}</span>
-                      <span className="tarjeta-modelo__pie">
-                        <span className="tarjeta-modelo__datos">
-                          <span className={quedan <= 2 ? 'tarjeta-modelo__existencia tarjeta-modelo__existencia--baja' : 'tarjeta-modelo__existencia'}>
-                            {quedan === 1 ? 'Queda 1' : `Quedan ${quedan}`}
-                          </span>
-                        </span>
-                      </span>
-                    </span>
-                  </button>
-
-                  <div className="tarjeta-modelo__accion">
-                    {!unica ? (
-                      <button
-                        type="button"
-                        className="boton boton--secundario tarjeta-modelo__agregar"
-                        onClick={() => setFamiliaAbierta(f.clave)}
-                        aria-haspopup="dialog"
-                        aria-label={`Elegir cuál de ${m.nombre}: ${etiquetas}`}
-                      >
-                        {puestas > 0 ? `Llevas ${puestas} · elegir` : 'Elegir'}
-                      </button>
-                    ) : puestas > 0 ? (
-                      <div className="contador contador--tarjeta">
-                        <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(m.id, puestas - 1)}>&minus;</button>
-                        <span className="contador__valor" aria-live="polite">{puestas}</span>
-                        <button type="button" aria-label={`Agregar otra de ${nombre}`} disabled={agotado} onClick={() => cambiar(m.id, puestas + 1)}>+</button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="boton boton--secundario tarjeta-modelo__agregar"
-                        onClick={() => agregarPorId(m.id)}
-                        disabled={agotado}
-                        aria-label={`Agregar ${nombre} al apartado`}
-                      >
-                        Agregar
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+            {familias.map((f) => (
+              <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+            ))}
           </div>
         )}
-
         {/* Antes cortaba en 400 sin decirlo: la pieza 401 no salía nunca. */}
         {!cargando && modelos.length >= LIMITE ? (
           <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
             Se ven las primeras {LIMITE} piezas. Busca por nombre o elige una categoría para ver las demás.
           </p>
         ) : null}
+
+        {!cargando ? <ComoPedir id="como-pedir" pasos={pasos} /> : null}
+
+        {/* Su contacto, al final. El de él, nunca el de la tienda: ni su
+            dirección, ni su WhatsApp, ni su pago móvil. */}
+        {!cargando && escribirle ? (
+          <section className="la-tienda" aria-label={`Escríbele a ${primerNombre}`}>
+            <div className="la-tienda__tarjeta">
+              <div className="la-tienda__dato">
+                <span className="la-tienda__etiqueta">{perfil.catalogo_nombre}</span>
+                <p className="la-tienda__texto">¿Dudas con una pieza o con tu pedido? Escríbele a {primerNombre}.</p>
+                <a className="boton la-tienda__boton" href={escribirle} target="_blank" rel="noopener noreferrer">
+                  Escribir a {primerNombre}
+                </a>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <footer className="pie-catalogo">{perfil.catalogo_nombre} · Joyas Lux by Emory</footer>
 
         <VisorFoto
           {...visor.props}

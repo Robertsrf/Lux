@@ -59,11 +59,16 @@ src/
                 escotes.ts (qué joya va con cada escote, para la vitrina),
                 vendedoras.ts (llama a la función de servidor de las cuentas),
                 visitas.ts (el catálogo público cuenta su visita),
-                armados.ts (qué dije va en qué base, en los dos catálogos)
+                armados.ts (qué dije va en qué base, en los dos catálogos),
+                enlaces.ts (WhatsApp, Maps e Instagram estrictos: sin un
+                dato válido no hay enlace; la referencia "LX-3F9A2C" y el
+                aviso de un pedido por WhatsApp)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
                 useTemaRv (viste la página con la paleta de un revendedor),
+                useReglasPedido (el mínimo del apartado, sus días y los
+                minutos de un pedido, de `reglas_pedido()`; null sin el #61),
                 useFotosGrandes (la foto grande de piezas que solo traen su
                 miniatura: pedidos, compras de una clienta)
   componentes/  Disposicion (las secciones de la tienda), Armazon (la barra
@@ -87,7 +92,11 @@ src/
                 catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
                 Filigrana (las líneas de oro de la vitrina que se dibujan),
                 SiluetaEscote (el busto de cada escote, a línea),
-                BuscadorCliente, RutaProtegida
+                BuscadorCliente, RutaProtegida,
+                VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
+                estante y "Cómo pedir": de los dos catálogos en línea),
+                LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
+                Instagram y "Cómo pagar"; SOLO en el de la tienda)
   paginas/
     admin/      Inventario (un producto por fila; sus medidas se abren
                 debajo; "Próximamente" lo que no ha llegado),
@@ -105,7 +114,10 @@ src/
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
                 con sus medidas dentro y los conteos anteriores)
-    publico/    Catalogo (con "Próximamente" al final), Reserva,
+    publico/    Catalogo (el inicio: portada, tipos con foto, un estante
+                por tipo, "Cómo pedir", Próximamente y la tienda; `?tipo=`,
+                una búsqueda o el orden por precio abren la lista),
+                Reserva (con "Avisar a la tienda por WhatsApp"),
                 GuiaRevendedor (/guia-revendedor, la guía
                 para quien quiere ser revendedor) con GuiaRevendedorPiezas
                 (calculadora, recorrido, manual, preguntas, solicitud)
@@ -226,6 +238,10 @@ paga a Lux y lo que cobra a su clienta) · `apartado_abonos` (lo que su clienta
 le paga a ÉL; lo que ella reporta es un aviso hasta que él lo confirma).
 `reservas` y `reserva_items` guardan el precio congelado de cada pieza y ya no
 se escriben con ninguna sesión: solo por sus funciones.
+`reservas.apartado_pct` es el % mínimo con que se confirmó un apartado,
+congelado por `pedido_al_dia` (desde `esquema-catalogo-claro.sql`): si lo
+pagado sin anular baja de ahí, el pedido se suelta; si el dueño cambia el
+40 %, los que ya estaban no se sueltan solos.
 `apartados`, sus líneas y sus abonos no se borran, como las ventas.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
 `ventas.extra_bs` y `ventas.extra_nota` son lo que se sumó al cobro fuera del
@@ -338,6 +354,36 @@ enseña nada que no enseñe un pedido que se podría apartar. Ojo: hasta el #60
 líneas de "1" de una pieza que tiene 1 pasaban y llegaban al tramo (revisión de
 seguridad del 21/10/2026). Desde `esquema-dijes.sql` lo mira sumado por pieza,
 con el mismo tope de 300 líneas.
+
+Del catálogo claro (`esquema-catalogo-claro.sql`, revisión de seguridad del
+24/10/2026):
+- `reglas_pedido()`, sin sesión: `apartado_inicial_pct`, `apartado_dias` y
+  `reserva_minutos`, nada más (`configuracion` sigue cerrada a `anon`: ahí
+  está el margen mínimo). `verificar` vigila las tres claves.
+- **El tope de pedidos sin pagar**: el disparador `reservas_tope_sin_pagar`
+  no deja más de `pedidos_sin_pagar_max` (2, en `configuracion`; 0 sin tope)
+  pedidos del catálogo esperando el pago con la misma cédula o el mismo
+  teléfono (sus diez últimos dígitos). Esperan el pago los abiertos y
+  también los apartados cuyo dinero COMPROBADO no llega al mínimo: un 40 %
+  reportado e inventado no saca un pedido de la cuenta. Un disparador y no
+  otra copia de `crear_reserva`, para no tener dos versiones de doscientas
+  líneas. Toma un candado de dos llaves por cédula y por teléfono, aparte del
+  de las piezas. Antes, cualquiera sin sesión podía apartar lo libre de todo
+  el catálogo una hora, cada hora. **No frena** a quien inventa otra cédula y
+  otro teléfono en cada pedido: eso pediría una puerta con servidor.
+- **Un pago que no llegó suelta las piezas**: `pedido_al_dia`, además de
+  confirmar, devuelve a "abierta" un pedido confirmado cuyo pagado sin
+  anular baja de su `apartado_pct`, **con `reserva_minutos` desde ahora** para
+  completar el pago (si no, vence y las piezas vuelven a la venta). Sin esa
+  hora moría en el acto: un apartado del mostrador nace con su plazo ya
+  pasado, y ni se podía cargar el pago corregido. Antes del #61, si la
+  tienda decía "no llegó", el pedido seguía apartado 15 días. Un pedido de
+  antes del apartado (reportó por el `reportar_pago` viejo antes de su
+  primer abono) vuelve a "reportado", como estaba.
+- **`reportar_pago` solo para los pedidos de antes**: con un pedido con
+  precio congelado responde "se paga por partes". Antes, con "efectivo al
+  retirar" y sin referencia, cualquiera dejaba un pedido nuevo confirmado y
+  sin plazo: apartado para siempre sin pagar nada.
 
 `admin_desactivar_modelo` no retira una pieza que un pedido tiene apartada.
 
@@ -612,6 +658,47 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   quedado con el doble toque y la lupa dentro del botón), trae hasta 400 y
   lo dice si llega al tope, y recuerda las piezas elegidas aunque la
   clienta busque otra cosa, como el de la tienda.
+- **El catálogo se entiende y dice dónde está la tienda** (pedido del dueño
+  del 24/10/2026: "no luce atractivo o entendible para quedarse más tiempo o
+  saber cómo ordenar"; diseño en
+  `docs/superpowers/specs/2026-10-24-catalogo-claro-design.md`). Medido antes
+  en un teléfono de 360 px: el 62 % de la pantalla se iba antes de la primera
+  foto, las categorías vivían plegadas en "Filtrar", "Ver más" dejaba tipos
+  enteros fuera y la página no decía dónde estaba la tienda ni cómo se pedía
+  hasta dar la cédula.
+  - **El inicio** es una vitrina: una portada (de dónde es, los materiales y
+    "Así pides" en tres pasos), los tipos con foto, **un estante por tipo**
+    (cuatro piezas y "Ver todas"; trae todo lo que se vende de una vez, hasta
+    1.000 filas), "Cómo pedir" con las cifras de la base (`reglas_pedido()`
+    y los tramos; sin ellas, los pasos sin cifras), Próximamente como estante
+    y **"La tienda"**. Un tipo (`?tipo=`, en la ruta: atrás vuelve al inicio),
+    una búsqueda o el orden por precio abren la lista de siempre, con "Ver
+    más". El buscador está siempre en el mismo sitio, para que el teléfono no
+    cierre el teclado al cambiar de vista.
+  - **La tarjeta de vitrina** (`TarjetaPieza`, de los dos catálogos) ya no
+    repite el material ni la clave de bodega (la clave pasa al detalle:
+    "En tienda: V1 · BG"). Cuántas quedan va en tono neutro, también
+    "Última pieza": "Quedan 2" en alerta salía en 82 de cada 100 tarjetas,
+    y "Última pieza" en 25 de las 42 del inicio. Una alerta en todas no
+    avisa de nada.
+  - **"La tienda"** sale de Textos: dirección con "Cómo llegar" (un enlace a
+    Google Maps, `mapa_tienda` o la búsqueda de la dirección; nunca un mapa
+    incrustado, que pesa y que la CSP bloquea), horario, WhatsApp, Instagram
+    y "Cómo pagar" plegado (el pago móvil con su titular, para cotejarlo en
+    el banco). Lo vacío no sale; sin nada, no sale la sección. **Nunca en el
+    catálogo de un revendedor**: ahí el contacto es el suyo.
+  - **El pedido llega también a WhatsApp, con un toque de la clienta**: la
+    página del pedido lleva "Avisar a la tienda por WhatsApp", un enlace
+    `wa.me` al `whatsapp_tienda` con la referencia ("LX-3F9A2C", sacada del
+    token; Pedidos la enseña), el nombre como lo da la base, hasta diez
+    piezas, el total del sistema, la entrega y el enlace del pedido. Nunca
+    cédula, teléfono ni dirección. Es un aviso: la tienda se fía del sistema,
+    no de la cifra del mensaje. Un enlace y no una ventana que se abre sola
+    (el navegador la bloquea después de la espera de apartar). Sin número
+    válido no hay botón. El aviso automático (la API de WhatsApp Business) se
+    dejó fuera: pide un servidor y se paga por mensaje.
+  - "Tu pedido" vuelve arriba al entrar, conserva la cabecera, numera sus
+    tres partes y dice "Qué pasa al apartar" con las cifras antes del botón.
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -685,6 +772,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     Bs 1.000; si abona Bs 400 faltan $6, que a tasa 110 son Bs 660. Un abono en
     dólares se pasa a bolívares a la tasa Binance del día. Tolerancia: medio
     centavo de dólar BCV, o un centavo de dólar si paga en dólares.
+  - **Un pago que no llegó suelta las piezas** (desde el #61). Si al anular
+    o corregir un abono lo pagado baja del mínimo con que se apartó, el
+    pedido vuelve a esperar el pago, con la hora de siempre para cargar el
+    pago bueno; si no llega, vence y las piezas vuelven a la venta. Y una
+    clienta no puede tener más de `pedidos_sin_pagar_max` pedidos del
+    catálogo esperando el pago (con dinero comprobado, ya no espera).
   - **Los abonos se corrigen, no se borran.** La tienda corrige (`editar_abono`)
     o dice que no llegó (`anular_abono`) un abono SIN verificar mientras su
     pedido siga abierto; verificado o cerrado, solo el administrador. La
@@ -913,7 +1006,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 229 comprobaciones con las dos sesiones (234 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 236 comprobaciones con las dos sesiones (241 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
