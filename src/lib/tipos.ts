@@ -811,7 +811,8 @@ export interface Diagnostico {
   meses_rotacion: number;
   volumen_mes: number;
   /** 'ventas' cuando ya hay un mes cumplido; 'estimado' antes de eso. */
-  volumen_origen: 'ventas' | 'estimado';
+  /** 'meta' desde esquema-precio-esencial.sql: manda la meta de piezas de Costos. */
+  volumen_origen: 'ventas' | 'estimado' | 'meta';
   costo_operativo_pieza_usd: number;
   piezas_danadas_mes: number;
   merma_pct: number;

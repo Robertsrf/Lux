@@ -29,6 +29,15 @@
    Y si aun asi un texto no cabe, la pantalla reduce su letra hasta que
    entra entero: la variable --escala la pone Vitrina.tsx midiendo lo que
    se dibujo, en cada caja `.vitrina__ajustable`.
+
+   EL ESCENARIO Y EL RIEL (27/10/2026)
+   El QR flotaba en la esquina, encima de la escena, y con tres piezas de
+   un escote la ultima pasaba por debajo del codigo (lo reporto el dueño).
+   Ahora la pantalla tiene dos partes que no se pisan: el escenario, donde
+   pasan las escenas y que recorta lo que se salga, y el riel, a la
+   derecha, con la marca, el codigo y como se escanea. Lo que depende del
+   ancho se mide contra --v-ancho, el ancho que de verdad le queda al
+   escenario, no contra la pantalla entera.
    ===================================================================== */
 
 .vitrina {
@@ -55,12 +64,24 @@
      es una vitrina, no un menu. */
   --v-curva: cubic-bezier(0.77, 0, 0.175, 1);
   --v-entra: var(--salida);
+  /* El riel del QR y el ancho que le queda al escenario. */
+  --v-riel: clamp(240px, 22vw, 440px);
+  --v-ancho: 100vw;
 
   position: fixed; inset: 0;
   background: var(--verde-profundo);
   color: var(--crema);
   overflow: hidden;
 }
+.vitrina--con-qr { --v-ancho: calc(100vw - var(--v-riel)); }
+
+/* El escenario: lo que se salga de una escena se recorta aqui, nunca pasa
+   por debajo del riel. */
+.vitrina__escenario {
+  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
+  overflow: hidden;
+}
+.vitrina--con-qr .vitrina__escenario { right: var(--v-riel); }
 
 /* El logotipo flota arriba y se va con los controles: no le quita alto a
    la escena. */
@@ -95,8 +116,10 @@
 .vitrina__escena--entra.vitrina__escena--proxima   { animation: vitrina-telon 1.1s var(--v-curva) both; }
 .vitrina__escena--entra.vitrina__escena--coleccion { animation: vitrina-barrido 1.1s var(--v-curva) both; }
 .vitrina__escena--entra.vitrina__escena--detalle   { animation: vitrina-acerca 1.2s var(--v-entra) both; }
-.vitrina__escena--entra.vitrina__escena--trio,
+.vitrina__escena--entra.vitrina__escena--regalo    { animation: vitrina-barrido 1.1s var(--v-curva) both; }
+.vitrina__escena--entra.vitrina__escena--conjunto,
 .vitrina__escena--entra.vitrina__escena--frase,
+.vitrina__escena--entra.vitrina__escena--guia,
 .vitrina__escena--entra.vitrina__escena--escote    { animation: vitrina-funde 900ms var(--v-entra) both; }
 
 /* Lo que entra despues de la escena: el texto, en tres tiempos. */
@@ -169,8 +192,13 @@
 .vitrina__arco .filigrana--arco { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* En vh y no en porcentaje: en una columna que se ajusta a lo que lleva,
-   un ancho en porcentaje se resuelve en cero y el arco no se veia. */
-.vitrina__arco--estelar { height: 80vh; width: 60vh; }
+   un ancho en porcentaje se resuelve en cero y el arco no se veia. Y con
+   tope por el ancho del escenario: con el riel, a lo alto entero dejaba a
+   la ficha sin sitio. */
+.vitrina__arco--estelar {
+  --h: min(78vh, calc(var(--v-ancho) * 0.5));
+  height: var(--h); width: calc(var(--h) * 0.75);
+}
 /* El arco se dibuja cuando el telon ya va por la mitad. */
 .vitrina__arco--estelar .trazo { --retraso: 0.5s; }
 /* La foto estelar se acerca despacio, toda la escena. */
@@ -188,6 +216,20 @@
 .vitrina__escena--entra .vitrina__arco--estelar .vitrina__arco-foto::after {
   animation: vitrina-destello 1.8s var(--v-curva) 1.5s both;
 }
+/* Y cuando la luz termina de pasar, un brillo de gema en el borde del
+   arco: una estrella de cuatro puntas que se enciende y se apaga una vez.
+   Es lo que el ojo asocia con una joya, y lo que se ve de reojo. */
+.vitrina__brillo {
+  position: absolute; z-index: 1;
+  top: 9%; right: 4%;
+  width: 12%; height: auto;
+  fill: var(--oro-arena);
+  opacity: 0;
+  pointer-events: none;
+}
+.vitrina__escena--entra .vitrina__brillo { animation: vitrina-brillo 1.4s var(--v-entra) 3.1s both; }
+.vitrina__brillo--2 { top: auto; bottom: 18%; right: auto; left: 6%; width: 8%; }
+.vitrina__escena--entra .vitrina__brillo--2 { animation-delay: 3.6s; }
 .vitrina__sinfoto {
   display: grid; place-items: center;
   width: 100%; height: 100%;
@@ -323,23 +365,62 @@
   text-align: center;
 }
 
-.vitrina__trio {
+/* Un conjunto: el rotulo de la escena, el titular, las piezas en fila, cada
+   una con donde se lleva, y abajo lo que cuesta todo junto. */
+.vitrina__conjunto {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
 }
+.vitrina__conjunto .vitrina__titular { margin-bottom: calc(var(--v-aire) * var(--escala)); }
 .vitrina__teselas {
+  /* --t es el ancho de cada pieza: el alto de la pantalla, con tope por el
+     ancho del escenario para que tres quepan con el riel puesto. */
+  --t: min(28vh, calc(var(--v-ancho) * 0.2));
   list-style: none; margin: 0; padding: 0;
   display: flex; justify-content: center; align-items: flex-start;
-  gap: 4vw;
+  gap: 3vw;
 }
 .vitrina__tesela {
   display: grid; justify-items: center; text-align: center;
-  width: calc(30vh * var(--escala, 1));
+  width: calc(var(--t) * var(--escala, 1));
 }
 .vitrina__escena--entra .vitrina__tesela {
   animation: vitrina-sube 1s var(--v-entra) both;
   animation-delay: calc(var(--base, 0.6s) + var(--n, 0) * 0.2s);
 }
-.vitrina__arco--tesela { height: calc(40vh * var(--escala, 1)); width: calc(30vh * var(--escala, 1)); margin-bottom: 1.4vh; }
+.vitrina__arco--tesela { height: calc(var(--t) * 4 / 3 * var(--escala, 1)); width: calc(var(--t) * var(--escala, 1)); margin-bottom: 1.4vh; }
+/* Por que esta ahi: "Para el cuello", "Y para completar". Oro sobre verde,
+   5,38:1 medido, en la etiqueta de la casa. */
+.vitrina__tesela-rotulo {
+  margin: 0 0 1vh;
+  font-family: var(--fuente-ui);
+  font-size: calc(var(--v-categoria) * 1.05 * var(--escala, 1));
+  font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+/* Todo junto: "Las 3 · Bs 4.200,00 · $42,00 BCV", los dos precios del mismo
+   cuerpo, como en cada pieza. */
+.vitrina__total {
+  margin: calc(var(--v-aire) * 1.2 * var(--escala)) 0 0;
+  padding-top: calc(var(--v-aire) * 0.8 * var(--escala));
+  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+  gap: 0.6vh 2.4vw;
+}
+.vitrina__total-que {
+  font-family: var(--fuente-ui);
+  font-size: calc(var(--v-categoria) * 1.3 * var(--escala));
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--crema);
+}
+.vitrina__total-cifra {
+  font-family: var(--fuente-display);
+  font-size: calc(var(--v-tesela-precio) * 1.25 * var(--escala));
+  font-weight: 600; line-height: 1;
+  color: var(--oro-arena);
+  font-variant-numeric: tabular-nums;
+}
 .vitrina__arco--tesela .trazo { --retraso: calc(var(--base, 0.6s) + var(--n, 0) * 0.2s + 0.3s); }
 .vitrina__tesela-nombre {
   margin: 0;
@@ -367,41 +448,47 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Una coleccion: la palabra grande y cuatro piezas ----------------- */
+/* --- Una coleccion (y "Para regalar"): la palabra arriba, cuatro piezas - */
+/* La palabra iba al lado, en la mitad del ancho, y "Collares" no cabia:
+   arriba tiene el ancho entero. Debajo, las cuatro en fila. */
 
 .vitrina__coleccion {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: 4vw;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  justify-items: center; align-content: center;
+  gap: 3vh;
   min-height: 0;
+  text-align: center;
 }
-.vitrina__coleccion-titulo { align-self: center; }
+.vitrina__coleccion-titulo { max-height: 34vh; }
 .vitrina__palabra {
   margin: 0;
   font-family: var(--fuente-display);
-  font-size: calc(var(--v-palabra) * var(--escala));
+  font-size: calc(min(var(--v-palabra), calc(var(--v-ancho) * 0.085)) * var(--escala));
   font-weight: 600;
   line-height: 0.95;
   letter-spacing: -0.01em;
   color: var(--crema);
-  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .vitrina__escena--entra .vitrina__palabra { animation: vitrina-palabra 1.2s var(--v-entra) 0.3s both; }
 
 .vitrina__mosaico {
+  /* El ancho de cada baldosa: cuatro en fila en lo que deja el escenario. */
+  --b: min(26vh, calc((var(--v-ancho) - 20vw) / 4));
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(2, auto);
-  justify-content: center; align-content: center;
-  gap: 3vh 2.4vw;
+  display: grid; grid-template-columns: repeat(4, auto);
+  justify-content: center; align-content: start;
+  gap: 2.4vw;
 }
-.vitrina__baldosa { width: 28vh; display: grid; align-content: start; gap: 0.6vh; }
+.vitrina__baldosa { width: var(--b); display: grid; align-content: start; gap: 0.6vh; text-align: left; }
 .vitrina__escena--entra .vitrina__baldosa {
   animation: vitrina-revela 1s var(--v-curva) both;
   animation-delay: calc(0.7s + var(--n, 0) * 0.22s);
 }
 .vitrina__baldosa-foto {
-  width: 28vh; height: 25vh;
+  width: var(--b); height: calc(var(--b) * 0.92);
   overflow: hidden;
   border-radius: var(--radio-lg);
   background: var(--crema);
@@ -497,21 +584,29 @@
 
 .vitrina__escote {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   align-items: center;
-  gap: 4vw;
+  gap: 3vw;
   min-height: 0;
 }
 /* Un arco cuadrado: el dibujo es 4:3 y el cuarto que sobra arriba es la
-   boveda del arco. La silueta sale del borde de abajo, como un busto. */
+   boveda del arco. La silueta sale del borde de abajo, como un busto.
+   Cuadrado por el padding y no por aspect-ratio (el navegador de un
+   televisor viejo no lo conoce): un padding en porcentaje se mide contra
+   el ancho de la columna, igual que el ancho de la caja. Y con tope por la
+   columna: a lo alto entero no cabia junto a las piezas. */
 .vitrina__escote-dibujo {
   justify-self: center;
-  width: 66vh; height: 66vh;
-  padding-top: 16.5vh;
-  display: flex; align-items: flex-end; justify-content: center;
+  position: relative;
+  width: min(58vh, 100%); height: 0;
+  padding-bottom: min(58vh, 100%);
   border-radius: 50% 50% var(--radio-lg) var(--radio-lg) / 42% 42% var(--radio-lg) var(--radio-lg);
   background: color-mix(in srgb, var(--tinta) 60%, var(--verde-profundo));
   overflow: hidden;
+}
+.vitrina__escote-silueta {
+  position: absolute; left: 0; right: 0; bottom: 0; top: 25%;
+  display: flex; align-items: flex-end; justify-content: center;
 }
 .silueta { display: block; width: 100%; height: auto; max-height: 100%; overflow: visible; }
 .silueta .trazo { stroke: var(--crema); stroke-width: 2.2; }
@@ -541,12 +636,136 @@
   line-height: 1.35;
   color: color-mix(in srgb, var(--crema) 88%, transparent);
 }
-.vitrina__teselas--escote { justify-content: flex-start; gap: 2.4vw; --base: 2.6s; }
-/* Se leen de lejos: un paso por debajo de las de "para combinar", no dos. */
-.vitrina__teselas--escote .vitrina__tesela { width: calc(25vh * var(--escala, 1)); }
-.vitrina__teselas--escote .vitrina__arco--tesela { height: calc(32vh * var(--escala, 1)); width: calc(24vh * var(--escala, 1)); }
+/* Tres piezas en la columna del texto: un paso por debajo de las del
+   conjunto, no dos, y con tope por el ancho que deja el dibujo. */
+.vitrina__teselas--escote {
+  --t: min(21vh, calc(var(--v-ancho) * 0.15));
+  justify-content: flex-start; gap: 1.8vw; --base: 2.6s;
+}
 .vitrina__teselas--escote .vitrina__tesela-nombre { font-size: calc(var(--v-tesela-nombre) * 0.95 * var(--escala, 1)); }
 .vitrina__teselas--escote .vitrina__tesela-precio { font-size: calc(var(--v-tesela-precio) * 0.92 * var(--escala, 1)); }
+/* El rótulo puede ir en uno o dos renglones ("O este", "Le va este
+   collar"): todos reservan dos, así las tres piezas quedan a la misma altura. */
+.vitrina__teselas--escote .vitrina__tesela-rotulo {
+  font-size: calc(var(--v-categoria) * 0.95 * var(--escala, 1));
+  min-height: 2.7em; line-height: 1.35;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+
+/* --- Así de fácil: cómo se compra, en tres pasos ---------------------- */
+/* Para quien entra por primera vez o nunca ha pedido por un teléfono.
+   Uno debajo del otro y grandes: se leen de lejos y en orden. El número en
+   un círculo de oro con el verde encima, como "Así pides" del catálogo. */
+.vitrina__guia {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+}
+.vitrina__titular--guia {
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: calc(var(--v-titular) * 1.35 * var(--escala));
+}
+.vitrina__guia-pasos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: calc(var(--v-aire) * 1.3 * var(--escala));
+  text-align: left;
+  max-width: min(64vw, calc(var(--v-ancho) * 0.82));
+}
+.vitrina__guia-paso {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 2vw; align-items: center;
+}
+.vitrina__escena--entra .vitrina__guia-paso {
+  animation: vitrina-aparece 900ms var(--v-entra) both;
+  animation-delay: calc(0.9s + var(--n, 0) * 0.45s);
+}
+.vitrina__guia-numero {
+  grid-row: 1 / span 2;
+  display: inline-grid; place-items: center;
+  width: calc(8vh * var(--escala)); height: calc(8vh * var(--escala));
+  border-radius: var(--radio-pill);
+  background: var(--oro-arena); color: var(--verde-profundo);
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: calc(var(--v-titular) * 0.95 * var(--escala));
+}
+.vitrina__guia-titulo {
+  font-family: var(--fuente-prosa); font-weight: 500;
+  font-size: calc(var(--v-titular) * 0.95 * var(--escala));
+  line-height: 1.15; color: var(--crema);
+}
+.vitrina__guia-texto {
+  font-family: var(--fuente-prosa);
+  font-size: calc(var(--v-nota) * 1.05 * var(--escala));
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--crema) 84%, transparent);
+}
+
+/* --- El riel: la marca, el código y cómo se escanea ------------------- */
+/* A la derecha, todo el alto. Un tono más hondo que el escenario y un
+   filete de oro: es el estuche, no otra escena. Dentro del margen de
+   seguridad por arriba, por abajo y por la derecha (los televisores
+   recortan los bordes). Crema sobre este fondo pasa de 9:1. */
+.vitrina__riel {
+  position: absolute; z-index: 3; top: 0; right: 0; bottom: 0;
+  width: var(--v-riel);
+  padding: var(--v-seguro-y) var(--v-seguro-x) var(--v-seguro-y) 2vw;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2.2vh;
+  background: color-mix(in srgb, var(--tinta) 55%, var(--verde-profundo));
+  border-left: 1px solid color-mix(in srgb, var(--oro-arena) 45%, transparent);
+  text-align: center;
+}
+.vitrina__riel .wordmark { height: clamp(28px, 5.4vh, 64px) !important; }
+.vitrina__riel-divisor { width: 70%; }
+.vitrina__riel-titulo {
+  margin: 0;
+  font-family: var(--fuente-prosa); font-weight: 500;
+  font-size: clamp(16px, min(3.4vh, 1.8vw), 42px);
+  line-height: 1.2; color: var(--crema);
+  text-wrap: balance;
+}
+/* Modulos verde profundo sobre crema: un lector de QR necesita oscuro
+   sobre claro. Tan grande como deje el riel: mientras mas grande, de mas
+   lejos lo lee un telefono. */
+.vitrina__riel-qr {
+  display: block; flex: none;
+  width: min(100%, 32vh); height: auto;
+  padding: 0.8vh;
+  color: var(--verde-profundo);
+  background: var(--crema);
+  border-radius: var(--radio-md);
+}
+.vitrina__riel-pasos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1vh;
+  text-align: left;
+}
+.vitrina__riel-pasos li {
+  display: flex; align-items: center; gap: 0.9vw;
+  font-family: var(--fuente-ui);
+  font-size: clamp(13px, min(2.5vh, 1.35vw), 30px);
+  color: var(--crema);
+}
+.vitrina__riel-pasos span {
+  display: inline-grid; place-items: center; flex: none;
+  width: 1.7em; height: 1.7em;
+  border-radius: var(--radio-pill);
+  background: var(--oro-arena); color: var(--verde-profundo);
+  font-family: var(--fuente-display); font-weight: 600; font-size: 0.85em;
+}
+/* El mensaje que rota: cambia cada siete segundos, fundiéndose. */
+.vitrina__riel-mensaje {
+  margin: 0; padding-top: 2vh;
+  border-top: 1px solid color-mix(in srgb, var(--oro-arena) 35%, transparent);
+  min-height: 7vh;
+  font-family: var(--fuente-prosa);
+  font-size: clamp(14px, min(2.8vh, 1.5vw), 34px);
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--crema) 86%, transparent);
+  text-wrap: balance;
+  animation: vitrina-aparece 900ms var(--v-entra) both;
+}
 
 /* --- La clave de ubicacion: para la vendedora, no para la clienta ----- */
 /* "V1 · BG" en la esquina de arriba, dentro del margen de seguridad. Crema
@@ -629,44 +848,13 @@
 .vitrina--limpia:focus-within .vitrina__marca { opacity: 1; transform: none; pointer-events: auto; }
 .vitrina--limpia { cursor: none; }
 
-/* --- El QR del catalogo en linea -------------------------------------- */
-/* Abajo a la derecha, dentro del margen de seguridad. Cada escena le deja
-   su sitio, asi el ajuste de letra lo cuenta y ningun precio queda debajo
-   del codigo. Modulos verde profundo sobre crema: un lector de QR
-   necesita oscuro sobre claro. */
-
-.vitrina { --v-qr: clamp(96px, 18vh, 240px); }
-.vitrina__qr {
-  position: absolute; z-index: 4;
-  right: var(--v-seguro-x); bottom: var(--v-seguro-y);
-  display: grid; justify-items: center; gap: 1vh;
-  width: var(--v-qr);
-}
-.vitrina__qr-codigo {
-  display: block; width: 100%; height: auto; aspect-ratio: 1;
-  padding: 0.6vh;
-  color: var(--verde-profundo);
-  background: var(--crema);
-  border-radius: var(--radio-md);
-}
-.vitrina__qr-texto {
-  margin: 0;
-  font-family: var(--fuente-ui);
-  font-size: clamp(11px, 1.6vh, 20px);
-  text-transform: uppercase; letter-spacing: var(--tracking);
-  text-align: center; line-height: 1.3;
-  color: color-mix(in srgb, var(--crema) 82%, transparent);
-}
-/* Con una clase y no con :has(): el navegador de un televisor viejo no lo
-   conoce, y sin la reserva el codigo tapaba el final de la ficha. */
-.vitrina--con-qr .vitrina__ficha,
-.vitrina--con-qr .vitrina__detalle-texto { padding-bottom: calc(var(--v-qr) + 5vh); }
-.vitrina--con-qr .vitrina__escena--trio,
-.vitrina--con-qr .vitrina__escena--coleccion,
-.vitrina--con-qr .vitrina__escena--escote { padding-right: calc(var(--v-seguro-x) + var(--v-qr) + 2vw); }
-.vitrina--con-qr .filigrana--id { display: none; }
-/* Con el arco a la derecha, el codigo caia sobre su esquina de abajo. */
-.vitrina--con-qr .vitrina__pieza--der { padding-right: calc(var(--v-qr) + 2vw); }
+/* Con el riel, el borde derecho del escenario ya no es el de la pantalla:
+   no hace falta el margen de seguridad de ese lado (el riel lo lleva). La
+   marca vive en el riel, y "Así de fácil" nombra el código de la derecha
+   en vez de "llévatela hoy". */
+.vitrina--con-qr .vitrina__escena { padding-right: 3vw; }
+.vitrina--con-qr .vitrina__marca { display: none; }
+.vitrina__guia-paso--sin-riel { display: none; }
 
 /* Sin conexion la primera vez: en verde y sin botones, que es lo que se ve
    desde la tienda mientras se reintenta sola. */
@@ -742,6 +930,11 @@
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
+@keyframes vitrina-brillo {
+  0%   { opacity: 0; transform: scale(0.2) rotate(-30deg); }
+  45%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: scale(0.4) rotate(20deg); }
+}
 
 /* --- Pantalla vertical (un telefono): todo en una columna ------------- */
 /* Por orientacion y no por ancho: un televisor que el navegador dibuja
@@ -777,25 +970,27 @@
     gap: 3vh;
   }
   .vitrina__pieza--der .vitrina__arco { order: 0; }
-  .vitrina__arco--estelar { height: 42vh; width: 31.5vh; }
-  .vitrina__teselas { gap: 3vw; }
-  .vitrina__tesela { width: 27vw; }
-  .vitrina__arco--tesela { height: 36vw; width: 27vw; }
-  .vitrina__teselas--escote .vitrina__tesela { width: 24vw; }
-  .vitrina__teselas--escote .vitrina__arco--tesela { height: 32vw; width: 24vw; }
-  .vitrina__baldosa, .vitrina__baldosa-foto { width: 40vw; }
-  .vitrina__baldosa-foto { height: 36vw; }
+  .vitrina__arco--estelar { --h: 42vh; }
+  .vitrina__teselas { gap: 3vw; --t: 27vw; }
+  .vitrina__teselas--escote { --t: 24vw; }
+  .vitrina__mosaico { --b: 40vw; grid-template-columns: repeat(2, auto); gap: 3vw; }
   .vitrina__detalle-foto { width: 100%; height: 40vh; }
-  .vitrina__escote-dibujo { width: 40vh; height: 40vh; padding-top: 10vh; }
+  .vitrina__escote-dibujo { width: 40vh; padding-bottom: 40vh; }
   .vitrina__divisor { width: 60vw; }
   .vitrina__variantes li { gap: 3vw; }
+  .vitrina__guia-pasos { max-width: 90vw; }
   .vitrina__controles { justify-content: center; }
-  /* En un telefono el QR no sirve: ya se esta en un telefono. */
-  .vitrina__qr { display: none; }
-  .vitrina.vitrina--con-qr .vitrina__ficha,
-  .vitrina.vitrina--con-qr .vitrina__detalle-texto { padding-bottom: 0; }
+  /* En un telefono el QR no sirve: ya se esta en un telefono. Sin riel,
+     el escenario es la pantalla entera y la marca flota arriba. */
+  .vitrina.vitrina--con-qr { --v-ancho: 100vw; }
+  .vitrina__riel { display: none; }
+  .vitrina.vitrina--con-qr .vitrina__escenario { right: 0; }
   .vitrina.vitrina--con-qr .vitrina__escena { padding-right: var(--v-seguro-x); }
-  .vitrina.vitrina--con-qr .vitrina__pieza--der { padding-right: 2vw; }
+  /* Sin riel en pantalla, la marca vuelve a flotar y la guía no habla de
+     un código que no se ve. */
+  .vitrina.vitrina--con-qr .vitrina__marca { display: flex; }
+  .vitrina__guia-paso--con-riel { display: none; }
+  .vitrina .vitrina__guia-paso--sin-riel { display: grid; }
 }
 
 /* --- Menos movimiento ------------------------------------------------- */
@@ -815,8 +1010,11 @@
   .vitrina__escena--entra .vitrina__baldosa,
   .vitrina__escena--entra .vitrina__palabra,
   .vitrina__escena--entra .vitrina__palabra-frase,
+  .vitrina__escena--entra .vitrina__guia-paso,
   .vitrina__escena--entra .silueta__gema,
+  .vitrina__riel-mensaje,
   .filigrana__punto { animation: vitrina-funde 500ms ease both; animation-delay: 0s; }
+  .vitrina__brillo { display: none; }
   .vitrina__escena--entra .vitrina__arco--estelar img,
   .vitrina__escena--entra .vitrina__detalle-foto img { animation: none; }
   .vitrina__escena--entra .vitrina__detalle-foto img { transform: scale(1.3); }

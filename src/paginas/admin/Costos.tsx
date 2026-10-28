@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
 import { Progreso } from '../../componentes/Progreso';
@@ -23,6 +24,15 @@ const TIENDA: Dato[] = [
   { clave: 'dias_abiertos_mes', etiqueta: 'Días que abres al mes', paso: '1',
     pista: 'Con esto la meta se dice por día, que es como se trabaja.' },
 ];
+
+/*
+  Entre cuántas piezas se reparten el alquiler, los sueldos y los servicios
+  en el precio (esquema-precio-esencial.sql, decisión del dueño del
+  28/10/2026). En 0, las que de verdad vende. La pista dice cuántas son.
+*/
+const REPARTO: Dato = {
+  clave: 'piezas_mes_meta', etiqueta: 'Piezas que esperas vender al mes', paso: '1',
+};
 
 const META: Dato = {
   clave: 'ganancia_mensual_objetivo_usd', etiqueta: 'Ganancia que quieres al mes · $ BCV', paso: '1',
@@ -61,9 +71,9 @@ const VENDEDORA: Dato[] = [
 ];
 
 /* Casi nunca se tocan. Viven plegadas. */
+// "Recuperar los exhibidores en (meses)" se quitó con esquema-precio-esencial.sql:
+// los exhibidores ya no van en el precio, se pagan con la ganancia.
 const AJUSTES: Dato[] = [
-  { clave: 'capex_amortizar_meses', etiqueta: 'Recuperar los exhibidores en (meses)', paso: '1',
-    pista: 'Los exhibidores que vinieron en los lotes se reparten en tantos meses de gastos. 0 si no quieres repartirlos.' },
   { clave: 'piezas_danadas_mes', etiqueta: 'Piezas dañadas al mes', paso: '1',
     pista: 'Las que salen defectuosas o se pierden. Si no se daña nada, 0: no encarece nada.' },
   { clave: 'meses_servicio', etiqueta: 'Lavado y abrillantado (meses)', paso: '1',
@@ -77,7 +87,7 @@ const ESTIMADO: Dato[] = [
   { clave: 'meses_rotacion_objetivo', etiqueta: 'Venderlas en (meses)', paso: '1' },
 ];
 
-const TODOS = [...GASTOS, ...TIENDA, META, ...VENDEDORA, MARGEN, MARGEN_GRUPO, ...AJUSTES, ...ESTIMADO];
+const TODOS = [...GASTOS, REPARTO, ...TIENDA, META, ...VENDEDORA, MARGEN, MARGEN_GRUPO, ...AJUSTES, ...ESTIMADO];
 
 /** Una cifra guardada, como se escribe aquí: coma decimal ("12,5"). */
 function aCampo(n: number): string {
@@ -109,6 +119,8 @@ export function Costos() {
   const [guardado, setGuardado] = useState<Record<string, number>>({});
   const [plan, setPlan] = useState<PlanVentas | null>(null);
   const [dx, setDx] = useState<Diagnostico | null>(null);
+  // Las piezas al mes de verdad, para decirlas junto a la meta.
+  const [reales, setReales] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,14 +128,18 @@ export function Costos() {
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    const [cfg, p, d] = await Promise.all([
+    const [cfg, p, d, vol] = await Promise.all([
       supabase.from('configuracion').select('clave, valor'),
       supabase.from('v_plan_ventas').select('*').maybeSingle(),
       supabase.from('v_diagnostico').select('*').maybeSingle(),
+      supabase.from('v_volumen').select('piezas_mes_reales').maybeSingle(),
     ]);
-    // Tres consultas, tres errores mirados.
+    // Cuatro consultas, cuatro errores mirados. La de las piezas de verdad
+    // falla a propósito sin esquema-precio-esencial.sql (la columna no
+    // existe): entonces la pista no dice el número, y nada más.
     const fallo = cfg.error ?? p.error ?? d.error;
     setError(fallo ? mensajeDeError(fallo) : null);
+    setReales(vol.error ? null : Number((vol.data as { piezas_mes_reales: number } | null)?.piezas_mes_reales ?? 0) || null);
     const mapa: Record<string, number> = {};
     for (const f of (cfg.data as { clave: string; valor: number }[] | null) ?? []) mapa[f.clave] = Number(f.valor);
     setGuardado(mapa);
@@ -157,6 +173,9 @@ export function Costos() {
     setGuardando(true);
     setError(null);
     for (const c of TODOS) {
+      // Una clave que la base no tiene no se "guarda": el update no tocaría
+      // ninguna fila y diría que salió bien (la meta, antes del #63).
+      if (!(c.clave in guardado)) continue;
       if (num(c.clave) === (guardado[c.clave] ?? 0)) continue;
       const { error: err } = await supabase.from('configuracion').update({ valor: num(c.clave) }).eq('clave', c.clave);
       if (err) { setError(mensajeDeError(err)); setGuardando(false); return; }
@@ -353,9 +372,19 @@ export function Costos() {
       <div className="tarjeta">
         <p className="campo__pista" style={{ marginBottom: 'var(--e-4)' }}>
           En dólares BCV: lo que pagas aquí en bolívares, dividido entre la tasa del BCV.
-          Los muebles y los exhibidores se suman solos desde Inversiones y Lotes.
+          Los muebles y los exhibidores no van aquí: son inversión del local y se pagan con
+          la ganancia; <Link to="/admin/inversiones">Inversiones</Link> lleva la cuenta de cuánto ha vuelto.
         </p>
         <div className="fila">{GASTOS.map(campo)}</div>
+        {/* Solo si la base ya tiene la clave (esquema-precio-esencial.sql). */}
+        {REPARTO.clave in guardado ? (
+          <div className="fila">
+            {campo({
+              ...REPARTO,
+              pista: `Con este número se reparten el alquiler, los sueldos y los servicios en el precio de cada pieza. En 0, se usan las que de verdad vendes${reales ? `: hoy unas ${formatearEntero(reales)} al mes` : ''}.`,
+            })}
+          </div>
+        ) : null}
         <div className="fila">{TIENDA.map(campo)}</div>
       </div>
 
@@ -405,7 +434,7 @@ export function Costos() {
             <p className="prosa" style={{ marginBottom: 'var(--e-4)' }}>
               Para ganar {formatearBcv(dx.ganancia_objetivo_mes_usd, 0)} al mes vendiendo{' '}
               {formatearEntero(dx.volumen_mes)} piezas{' '}
-              ({dx.volumen_origen === 'ventas' ? 'tu promedio real' : 'lo que estima el sistema'}),
+              ({dx.volumen_origen === 'ventas' ? 'tu promedio real' : dx.volumen_origen === 'meta' ? 'tu meta' : 'lo que estima el sistema'}),
               cada precio tiene que dejar un margen de <strong style={{ display: 'inline' }}>{formatearPorcentaje(sugerido)}</strong>.
             </p>
             <div className="rejilla rejilla--3">
@@ -455,7 +484,7 @@ export function Costos() {
         <summary className="ayuda__titulo">Ajustes que casi nunca se tocan</summary>
         <div className="ayuda__cuerpo">
           <div className="fila">{AJUSTES.map(campo)}</div>
-          {dx?.volumen_origen !== 'ventas' ? (
+          {dx?.volumen_origen !== 'ventas' && dx?.volumen_origen !== 'meta' ? (
             <>
               <p className="campo__pista" style={{ margin: 'var(--e-4) 0' }}>
                 Estos dos solo cuentan mientras no haya un mes de ventas: con ellos el sistema

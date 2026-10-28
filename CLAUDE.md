@@ -56,7 +56,10 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 src/
   lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts,
                 revendedor.ts (su sesión, sus enlaces, las paletas),
-                escotes.ts (qué joya va con cada escote, para la vitrina),
+                escotes.ts (qué collar va con cada escote, por su largo, y
+                cuándo los aretes completan o lo reemplazan; para la vitrina),
+                combinar.ts (qué va con qué: la parte del cuerpo y el tono
+                de cada pieza, y `armarConjunto` para la vitrina),
                 vendedoras.ts (llama a la función de servidor de las cuentas),
                 visitas.ts (el catálogo público cuenta su visita),
                 armados.ts (qué dije va en qué base, en los dos catálogos),
@@ -70,7 +73,9 @@ src/
                 useReglasPedido (el mínimo del apartado, sus días y los
                 minutos de un pedido, de `reglas_pedido()`; null sin el #61),
                 useFotosGrandes (la foto grande de piezas que solo traen su
-                miniatura: pedidos, compras de una clienta)
+                miniatura: pedidos, compras de una clienta),
+                useLetraGrande ("Letra grande" del catálogo y del pedido:
+                sube la escala un paso, se recuerda en el teléfono)
   componentes/  Disposicion (las secciones de la tienda), Armazon (la barra
                 lateral y la de abajo, de la tienda y del revendedor), Piezas
                 (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
@@ -96,14 +101,16 @@ src/
                 VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
                 estante y "Cómo pedir": de los dos catálogos en línea),
                 LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
-                Instagram y "Cómo pagar"; SOLO en el de la tienda)
+                Instagram y "Cómo pagar"; SOLO en el de la tienda),
+                LetraGrande (el botón "Letra grande" de la cabecera del
+                catálogo y del pedido)
   paginas/
     admin/      Inventario (un producto por fila; sus medidas se abren
                 debajo; "Próximamente" lo que no ha llegado),
                 FormularioModelo, Lotes ("Todavía no ha llegado"),
                 LoteEnCamino (/admin/lotes/:id: lo que viene en un lote,
-                la reposición y "Revisar y liberar"; liberado, lo que
-                llegó), Grupos, Tramos,
+                la reposición, "Eliminar" lo nuevo que se cargó mal y
+                "Revisar y liberar"; liberado, lo que llegó), Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
                 Caja (lo que entra y lo que sale, día por día y mes por mes),
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
@@ -114,8 +121,9 @@ src/
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
                 con sus medidas dentro y los conteos anteriores)
-    publico/    Catalogo (el inicio: portada, tipos con foto, un estante
-                por tipo, "Cómo pedir", Próximamente y la tienda; `?tipo=`,
+    publico/    Catalogo (el inicio: portada con por dónde empezar, tipos
+                con foto y "Todas las joyas", un estante por tipo, "Cómo
+                pedir", Próximamente y la tienda; `?tipo=`, `?ver=todas`,
                 una búsqueda o el orden por precio abren la lista),
                 Reserva (con "Avisar a la tienda por WhatsApp"),
                 GuiaRevendedor (/guia-revendedor, la guía
@@ -128,7 +136,9 @@ src/
                 InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
                 ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
                                            (con SU código, no con Supabase)
-    Vitrina (con su escena "Próximamente")  (sin sesión, como el catálogo)
+    Vitrina (el escenario y el riel del QR; escenas: pieza, conjunto,
+    colección, para regalar, de cerca, frase, escote, así de fácil y
+    próximamente)                          (sin sesión, como el catálogo)
     Clientes (la ficha: cada compra con su foto y, para el
     administrador, "Devolver"), Tasas, CatalogoPdf (con "Próximamente"
     en su página al final), Entrar,
@@ -313,7 +323,18 @@ pedido sin entregar, de las dos caras), `quitar_de_venta` (una pieza fuera
 de una venta por verificar, de las dos caras), `admin_devolver_pieza` (la
 nota de crédito de una pieza ya entregada), `admin_guardar_por_llegar` (la
 reposición: cuántas más de una pieza que ya se vende vienen en un lote en
-camino) y `admin_liberar_lote` (lo que llegó, a la existencia).
+camino), `admin_liberar_lote` (lo que llegó, a la existencia) y
+`admin_eliminar_de_lote` (borra un producto que se cargó mal en un lote que
+todavía no llega, con todas sus medidas y lo que se esperaba; nada de un lote
+que ya llegó, y si tiene historia no borra nada y lo dice).
+
+`admin_reasignar_grupos` ("Poner cada una en su grupo", desde
+`esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
+vez, y el costo de cada pieza con `costo_bcv_con(costo, es_dije, brecha,
+merma, tienda)`: la fórmula sola, revocada a todos, que también llaman
+`costo_total_bcv` y `costo_bcv_pieza` con las cifras de hoy. Una función que
+costee muchas piezas de una vez hace lo mismo: las cifras comunes una vez,
+nunca `costo_bcv_pieza` por fila dentro de otra búsqueda (ver Trampas).
 
 `admin_guardar_modelo` (y `guardar_variantes_de`) guardan la cantidad con
 `guardar_cantidades_de`, por dentro: a `existencias` si el lote de la pieza
@@ -506,7 +527,7 @@ contestaban "cuántas piezas para no perder" con tres números.
 
 | Función | Da | La leen |
 |---|---|---|
-| `gastos_fijos_partidas()` | Los gastos fijos del mes, partida por partida, en $ BCV | `gastos_fijos_mes_bcv()`, Reportes, Inversiones |
+| `gastos_fijos_partidas()` | Los gastos fijos del mes, partida por partida, en $ BCV: alquiler, sueldos, servicios y otros. Sin muebles ni exhibidores desde `esquema-precio-esencial.sql`: se pagan con la ganancia | `gastos_fijos_mes_bcv()`, Reportes, Inversiones |
 | `plan_ventas()` | Lo que deja cada pieza y cuántas hay que vender | Costos, Reportes, Inversiones, `meta_vendedora()` |
 
 Las dos están revocadas a todo el mundo. Las vistas del administrador las llaman
@@ -530,10 +551,28 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cifra sola y **solo** va en celdas de tabla cuya cabecera dice la moneda
   ("Costo · $ Binance"). El viejo `formatearUsd`, que imprimía "$" pelado, no existe.
 - **Gasto fijo y gasto variable no se mezclan.** Fijo: se paga vendas o no
-  (alquiler, sueldos, servicios, la parte del mes de muebles y exhibidores). Variable:
+  (alquiler, sueldos, servicios, otros). Variable:
   se paga por pieza (mercancía y empaque). Lo que deja cada pieza = precio − mercancía
   − empaque; piezas para no perder = gastos fijos ÷ eso. El empaque nunca va entre los
   gastos del mes.
+- **El precio lleva lo esencial: la mercancía y la operación** (decisión del dueño
+  del 28/10/2026, en `esquema-precio-esencial.sql`: "no quiero sumarle tanto a la
+  pieza sino lo esencial para tener buenos precios"). Mercancía con su flete a la
+  brecha, merma, empaque, el alquiler, los sueldos y los servicios del mes, y el
+  margen. **Los muebles y los exhibidores no van en el precio**: son inversión del
+  local, se pagan con la ganancia, e Inversiones (`v_recuperacion`) lleva la cuenta
+  de cuánto ha vuelto con lo que sobra tras la operación. Antes se sumaban a los
+  gastos del mes, cada mes y para siempre (ver Trampas).
+- **Lo de tienda se reparte entre la META de piezas al mes del dueño**
+  (`piezas_mes_meta`, que escribe en Costos), y sin meta (0) entre lo que de
+  verdad se vende: desde un mes después de la primera venta, las ventas reales;
+  antes, el estimado de Costos o, sin él, lo que hay en la tienda entre los meses
+  de rotación. `volumen_mensual_estimado()` decide (meta o `volumen_real()`), y
+  `v_volumen` dice de dónde sale ('meta', 'ventas', 'estimado') con las de verdad
+  al final. **Nunca entre las piezas que hay en la tienda como regla**: el alquiler
+  del mes lo pagan las que salen ese mes; con 55 ventas y ~275 piezas en la tienda,
+  repartirlo entre las de la tienda cubre $64 de $320. Por eso lo de tienda pasó de
+  ~$3 a $6,13 el 26/10/2026 (al mes de la primera venta) sin sumar nada dos veces.
 - **La ganancia de verdad es la del mes.** Lo que dejaron las ventas del mes contra
   los gastos del mes entero (`v_cobertura_mes`). Las columnas `ganancia_usd` de
   `v_ventas_por_dia` y compañía restan el alquiler repartido con las piezas que se
@@ -699,6 +738,18 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     dejó fuera: pide un servidor y se paga por mensaje.
   - "Tu pedido" vuelve arriba al entrar, conserva la cabecera, numera sus
     tres partes y dice "Qué pasa al apartar" con las cifras antes del botón.
+  - **Para todos** (pedido del dueño del 27/10/2026: "no hay una sección
+    para ver todo" y "piensa que eres una persona mayor o que maneja poco la
+    tecnología: guiable desde que entra"). **"Todas las joyas"** (`?ver=todas`,
+    en la ruta), juntas y sin separar: un botón en la portada (con "O elige
+    por tipo"), el primer cuadro de los tipos y una tarjeta al final de los
+    estantes. En la lista, "Ver" y "Ordenar" a la vista, no plegados (en
+    pantallas anchas, los tipos en fichas). Tras la primera pieza, un aviso
+    que dice dónde quedó y cómo se sigue ("toca «Ver mi pedido»"). La ayuda
+    por WhatsApp en la portada, para quien no quiere pedir solo. Y **"Letra
+    grande"** en la cabecera del catálogo y del pedido (`useLetraGrande`): la
+    escala sube un paso en `<html>`, se recuerda en el teléfono y se quita al
+    salir de esas páginas. El catálogo de los revendedores no lo tiene todavía.
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -882,6 +933,30 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   lectura falla, se queda la de antes. El ajuste de letra mide con `offsetTop` y no
   con `scrollHeight`: Chrome cuenta en scrollHeight lo desplazado por una
   animación de entrada y encogía la letra sin que nada se saliera.
+  **Desde el 27/10/2026** (el dueño: "el QR se superpone a las prendas", "para
+  cierto tipo de cuello salen aretes" y "que sea irresistible y que la
+  entienda cualquiera"; diseño e investigación en
+  `docs/superpowers/specs/2026-10-27-vitrina-y-catalogo-para-todos-design.md`):
+  - **El QR vive en su riel**, a la derecha y a todo el alto, con la marca, cómo
+    se escanea en tres pasos y un mensaje que rota. Las escenas se dibujan en
+    el escenario de al lado, que recorta lo que se salga: ya no hay escena que
+    pase por debajo del código. Lo que depende del ancho se mide contra
+    `--v-ancho`, lo que de verdad le queda al escenario.
+  - **"Para combinar" es un conjunto**: `armarConjunto` (`lib/combinar.ts`), una
+    pieza por parte del cuerpo (cuello, orejas, muñeca, mano), del mismo tono
+    si el nombre lo dice, cada una diciendo dónde va, y lo que cuesta todo
+    junto (la suma de las etiquetas con `sumarCifras`; no promete descuento).
+  - **Un escote es una pregunta de collar** (`lib/escotes.ts`): collares del
+    largo que le va (la medida, la nota "Largo: 45 cm" o la forma); aretes de
+    complemento ("Y para completar") o, si no hay collar que le vaya, en su
+    lugar y dicho ("Estos aretes combinan", con el consejo de aretes de ese
+    escote), sin cadena en el dibujo. Medido: ningún collar de la tienda dice
+    su largo en la medida. Una "y" suelta en el nombre es la conjunción, no
+    la forma: solo "en forma de Y", "en Y" o "Y-Necklace" dicen collar en Y.
+  - **Dos escenas nuevas**: "Para regalar" (el cuarto más barato, "desde")
+    y "Así de fácil" (cómo se compra, en tres pasos, para cualquiera). Y un
+    brillo de gema en la pieza estelar. "Últimas piezas" no entró: 93 de 128
+    productos tienen una sola pieza.
 - **El conteo de inventario** (rehecho en la auditoría del 14/10/2026). Se
   cuenta lo FÍSICO, las piezas apartadas también, a ciegas (la pantalla no dice
   cuánto espera el sistema mientras se cuenta), y solo se guarda lo que se
@@ -925,7 +1000,11 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   contado. Desde ahí es inventario como cualquier otro, y la rotación cuenta
   sus días desde que se liberó. El dinero del lote no cambia: ya se pagó.
   Una medida nueva de un producto que ya se vende: se crea en su ficha con
-  cantidad 0 y se suma en el lote como reposición.
+  cantidad 0 y se suma en el lote como reposición. **Lo nuevo que se cargó
+  mal se borra** ("Eliminar", desde el 27/10/2026, `admin_eliminar_de_lote`):
+  el producto entero con sus medidas y lo que se esperaba, mientras el lote
+  no llegue. No pierde historia: nunca tuvo existencia. Lo que ya llegó no se
+  borra; se retira desde su ficha.
 - **Cada pantalla dice la misma existencia.** Lo que se puede vender es lo
   LIBRE (`v_venta_ubicacion.cantidad`, `v_disponible_publico.disponible`): el
   mostrador, el catálogo, el del revendedor, la vitrina y el catálogo PDF, que
@@ -1006,7 +1085,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 236 comprobaciones con las dos sesiones (241 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 244 comprobaciones con las dos sesiones (249 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
@@ -1117,6 +1196,29 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   línea congela `es_dije` y toda cuenta que CUENTA piezas (o resta empaque por
   pieza) la filtra; las que SUMAN dinero, no. Visto antes de construir, en la
   revisión del diseño de los dijes (21/10/2026).
+- **Una función cara dentro de una subconsulta se repite por cada fila que
+  compara.** "Poner cada una en su grupo" calculaba el costo de cada pieza
+  (que suma todas las ventas de la historia para lo de tienda) dentro de la
+  búsqueda de su grupo; Postgres metió el cálculo en la subconsulta y lo
+  repitió por cada grupo de la escalera. Con 302 piezas y 40 grupos, 162 s
+  en PGlite; la base corta a los 8 s y el botón decía "tardó mucho" sin
+  mover nada, peor mientras más grupos cargaba el dueño. Arreglado en
+  `esquema-lote-y-grupos.sql` (83 ms, el mismo resultado): las cifras
+  comunes una vez y el costo en un `with ... as materialized`. Reportado
+  por el dueño el 27/10/2026.
+- **Una amortización sin fin cobra lo que ya se pagó.** Los gastos del mes
+  sumaban los exhibidores de todos los lotes y los muebles de Inversiones,
+  cada uno entre sus meses, pero cada mes y para siempre: un exhibidor de 24
+  meses se seguía cobrando el mes 25, y el lote en camino desde el día que se
+  registraba. Nadie lo veía porque la cifra era chica y subía despacio con
+  cada lote. Visto en el diagnóstico de lo de tienda del 27/10/2026; el dueño
+  decidió sacarlos del precio (`esquema-precio-esencial.sql`).
+- **Ordenar por categoría no es elegir por categoría.** La guía de escotes
+  tomaba las tres primeras piezas que encajaban, y como llegaban en orden
+  alfabético, "arete" iba antes que "cadena" y "collar": en cuello alto,
+  barco y camisa salían tres aretes donde el dibujo pintaba una cadena
+  (reportado por el dueño el 27/10/2026). Cuando una regla elige "las
+  primeras N", se mira qué orden traen.
 - **Lo que mide el total tiene que ser lo que cobra la base.** El carrito
   público multiplicaba el subtotal por el tramo, sin el piso de cada pieza:
   $88,35 en la barra y $91,35 en el pedido (probado en PGlite). Si una regla

@@ -28,6 +28,15 @@ interface Reposicion {
   cantidad: string;
 }
 
+/** Una pieza nueva de este lote que se cargó sin decir cuántas vienen. */
+interface NuevaSinCantidad {
+  id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  familia: number;
+}
+
 /** "Falta 1", "Faltan 3". */
 const faltan = (n: number) => (n === 1 ? 'Falta 1' : `Faltan ${formatearEntero(n)}`);
 
@@ -63,7 +72,7 @@ export function LoteEnCamino() {
 
   const [lote, setLote] = useState<Lote | null>(null);
   const [lineas, setLineas] = useState<LineaPorLlegar[]>([]);
-  const [sinCantidad, setSinCantidad] = useState<{ id: number; sku: string; nombre: string; variante: string | null }[]>([]);
+  const [sinCantidad, setSinCantidad] = useState<NuevaSinCantidad[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
@@ -78,6 +87,7 @@ export function LoteEnCamino() {
   const [reposicion, setReposicion] = useState<Reposicion | null>(null);
   const [errorRepo, setErrorRepo] = useState<string | null>(null);
   const [guardandoRepo, setGuardandoRepo] = useState(false);
+  const [eliminando, setEliminando] = useState<number | null>(null);
 
   const recargar = useCallback(async () => {
     setCargando(true);
@@ -89,7 +99,7 @@ export function LoteEnCamino() {
         .eq('lote_id', loteId)
         .order('nombre', { ascending: true }).order('variante', { ascending: true, nullsFirst: true }).order('ubicacion', { ascending: true }),
       // Las nuevas que se cargaron sin decir cuántas vienen.
-      supabase.from('v_catalogo_admin').select('id, sku, nombre, variante')
+      supabase.from('v_catalogo_admin').select('id, sku, nombre, variante, familia')
         .eq('lote_id', loteId).eq('proximamente', true).eq('por_llegar', 0)
         .order('nombre', { ascending: true }),
     ]);
@@ -98,7 +108,7 @@ export function LoteEnCamino() {
     setError(fallo ? mensajeDeError(fallo) : null);
     setLote((l.data as Lote | null) ?? null);
     setLineas((p.data as LineaPorLlegar[] | null) ?? []);
-    setSinCantidad((s.data as { id: number; sku: string; nombre: string; variante: string | null }[] | null) ?? []);
+    setSinCantidad((s.data as NuevaSinCantidad[] | null) ?? []);
     setCargando(false);
   }, [loteId]);
 
@@ -250,6 +260,38 @@ export function LoteEnCamino() {
     void anotarReposicion(0, { pieza: { id: x.modelo_id, sku: x.sku, nombre: x.nombre, variante: x.variante }, ubicacionId: x.ubicacion_id, cantidad: '0' });
   }
 
+  /**
+   * Borra un producto nuevo que se cargó mal (pedido del dueño del
+   * 27/10/2026: "se pueden editar pero no eliminar"). Se borra entero, con
+   * todas sus medidas de este lote: no se ha vendido ni contado nunca, así
+   * que no pierde historia. Lo que ya llegó no se borra aquí: se retira desde
+   * su ficha (`admin_eliminar_de_lote`, esquema-lote-y-grupos.sql).
+   */
+  async function eliminar(modeloId: number, nombre: string, sku: string, medidas: number) {
+    const cuales = medidas > 1 ? ` con sus ${medidas} medidas` : '';
+    // Se borra el producto entero: si solo sobra una medida, eso se quita
+    // desde su ficha (la tabla de variantes), y se dice antes de borrar.
+    const soloUna = medidas > 1 ? '\n\nSi solo sobra una medida, no la elimines aquí: ábrela con Editar y quítala de la tabla de medidas.' : '';
+    if (!window.confirm(
+      `¿Eliminar "${nombre}"${cuales} de este lote?\n\nSe borra del sistema: deja de salir en Próximamente y ${medidas > 1 ? 'sus códigos quedan libres' : `el código ${sku} queda libre`} para cargarlo bien. Esto no se deshace.${soloUna}`,
+    )) return;
+    setEliminando(modeloId);
+    setError(null);
+    setExito(null);
+    const { data, error: err } = await supabase.rpc('admin_eliminar_de_lote', { p_modelo_id: modeloId });
+    setEliminando(null);
+    if (err) {
+      // Sin el #62 la base no tiene la función: se dice qué falta, no un error técnico.
+      setError(err.code === 'PGRST202'
+        ? 'Para eliminar falta correr en Supabase el archivo esquema-lote-y-grupos.sql. Mientras tanto, puedes retirarla desde el Inventario.'
+        : mensajeDeError(err));
+      return;
+    }
+    const r = data as { nombre: string; medidas: number };
+    setExito(`Eliminado: ${r.nombre}${r.medidas > 1 ? `, con sus ${r.medidas} medidas` : ''}. Ya no viene en este lote.`);
+    await recargar();
+  }
+
   function verFoto(x: LineaPorLlegar) {
     visor.abrir({
       clave: x.familia,
@@ -272,6 +314,16 @@ export function LoteEnCamino() {
   }
 
   const liberado = !lote.en_camino && lote.liberado_en !== null;
+
+  /**
+   * Cuántas medidas del producto están nuevas en este lote: se borran juntas.
+   * También las que se cargaron sin cantidad, que no tienen línea de lo que
+   * viene: sin ellas, el aviso decía una y se borraban todas.
+   */
+  const medidasDe = (familia: number) => new Set([
+    ...lineas.filter((l) => l.familia === familia && l.es_nueva).map((l) => l.modelo_id),
+    ...sinCantidad.filter((m) => m.familia === familia).map((m) => m.id),
+  ]).size;
 
   /** Una línea de lo que viene. */
   function fila(x: LineaPorLlegar) {
@@ -337,7 +389,17 @@ export function LoteEnCamino() {
           <span className="conteo-dif">llegan {x.cantidad}</span>
           <div className="grupo-botones">
             {x.es_nueva ? (
-              <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${x.modelo_id}?lote=${loteId}`}>Editar</Link>
+              <>
+                <Link className="boton boton--secundario boton--pequeno" to={`/admin/modelos/${x.modelo_id}?lote=${loteId}`}>Editar</Link>
+                <button
+                  type="button"
+                  className="boton boton--peligro boton--pequeno"
+                  disabled={eliminando !== null}
+                  onClick={() => void eliminar(x.modelo_id, x.nombre, x.sku, medidasDe(x.familia))}
+                >
+                  {eliminando === x.modelo_id ? 'Eliminando' : 'Eliminar'}
+                </button>
+              </>
             ) : (
               <>
                 <button
@@ -489,17 +551,25 @@ export function LoteEnCamino() {
             <Aviso tono="alerta" titulo={sinCantidad.length === 1 ? 'Una pieza nueva sin cantidad' : `${sinCantidad.length} piezas nuevas sin cantidad`}>
               <p>
                 Están cargadas en este lote, pero no dicen cuántas vienen. Ábrelas y pon la
-                cantidad; si no, al liberar quedan en el inventario sin piezas.
+                cantidad; si no, al liberar quedan en el inventario sin piezas. Si alguna
+                sobra, elimínala.
               </p>
-              <p className="campo__pista">
-                {sinCantidad.slice(0, 6).map((m, i) => (
-                  <span key={m.id}>
-                    {i > 0 ? ' · ' : ''}
+              <ul className="lote-viene__sin-cantidad">
+                {sinCantidad.slice(0, 6).map((m) => (
+                  <li key={m.id}>
                     <Link to={`/admin/modelos/${m.id}?lote=${lote.id}`}>{nombreConVariante(m.nombre, m.variante)}</Link>
-                  </span>
+                    <button
+                      type="button"
+                      className="boton boton--peligro boton--pequeno"
+                      disabled={eliminando !== null}
+                      onClick={() => void eliminar(m.id, m.nombre, m.sku, medidasDe(m.familia))}
+                    >
+                      {eliminando === m.id ? 'Eliminando' : 'Eliminar'}
+                    </button>
+                  </li>
                 ))}
-                {sinCantidad.length > 6 ? ` y ${sinCantidad.length - 6} más` : ''}
-              </p>
+              </ul>
+              {sinCantidad.length > 6 ? <p className="campo__pista">Y {sinCantidad.length - 6} más.</p> : null}
             </Aviso>
           ) : null}
         </>

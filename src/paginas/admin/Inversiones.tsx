@@ -11,6 +11,7 @@ const CATEGORIAS = ['mobiliario', 'exhibidor', 'equipo', 'local', 'otro'];
 /** Cada inversión en la moneda en que se pagó. */
 const enSuMoneda = (i: Inversion) => (i.moneda === 'real' ? formatearBinance(i.monto_usd) : formatearBcv(i.monto_usd));
 
+
 /**
  * Lo invertido y cuánto ha vuelto.
  *
@@ -39,8 +40,6 @@ export function Inversiones() {
   const [categoria, setCategoria] = useState('mobiliario');
   const [monto, setMonto] = useState('');
   const [moneda, setMoneda] = useState<'bcv' | 'real'>('bcv');
-  const [amortiza, setAmortiza] = useState(false);
-  const [meses, setMeses] = useState('24');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +71,8 @@ export function Inversiones() {
       categoria,
       monto_usd: cifra,
       moneda,
-      amortizar_meses: amortiza ? Number(meses) : null,
+      // Ninguna entra al precio (esquema-precio-esencial.sql): se pagan con la ganancia.
+      amortizar_meses: null,
     });
     if (err) setError(mensajeDeError(err));
     else { setNombre(''); setMonto(''); await cargar(); }
@@ -171,18 +171,13 @@ export function Inversiones() {
         </div>
       ) : null}
 
-      <Ayuda titulo="Solo seguirla o meterla al precio">
+      <Ayuda titulo="Cómo se paga una inversión">
         <p>
-          Cada inversión se puede llevar de dos maneras, y la diferencia es grande.
-        </p>
-        <p>
-          <strong>Solo seguirla.</strong> No toca los precios. Se recupera de lo que sobra de las
-          ventas, y la barra de arriba te dice cuánto va. Es lo sensato para lo que se compra una vez.
-        </p>
-        <p>
-          <strong>Meterla al precio.</strong> Se reparte en los gastos de los meses que digas, así
-          que sube el precio sugerido de todo y las piezas que necesitas vender. Se paga sola, pero
-          te hace más caro mientras dure.
+          <strong>Con la ganancia, no con el precio.</strong> Un mueble, un exhibidor o un equipo
+          es inversión del local: no se le suma a cada joya. Se recupera de lo que sobra de las
+          ventas después de pagar la mercancía, el alquiler, los sueldos y los servicios, y la barra
+          de arriba te dice cuánto va. Así el precio lleva solo lo esencial. Si la barra no avanza,
+          no es señal de subir precios: es señal de vender más o de revisar gastos.
         </p>
         <p>
           <strong>Dónde la pagaste importa.</strong> Si la compraste aquí en bolívares es un dólar
@@ -214,29 +209,9 @@ export function Inversiones() {
           </Campo>
         </div>
 
-        <div className="panel">
-          <span className="panel__titulo">Cómo se paga</span>
-          <div className="metodos-pago">
-            <button type="button" aria-pressed={!amortiza} onClick={() => setAmortiza(false)}>
-              Solo seguirla
-            </button>
-            <button type="button" aria-pressed={amortiza} onClick={() => setAmortiza(true)}>
-              Meterla al precio
-            </button>
-          </div>
-          <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-            {amortiza
-              ? 'Se reparte en los gastos de los meses que digas. Sube el precio sugerido y las piezas que necesitas vender, pero se paga sola.'
-              : 'No toca los precios. Se recupera de lo que sobra de las ventas y la ves subir en la barra de arriba.'}
-          </p>
-          {amortiza ? (
-            <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
-              <Campo etiqueta="En cuántos meses" htmlFor="i-meses">
-                <input id="i-meses" type="number" min="1" step="1" value={meses} onChange={(e) => setMeses(e.target.value)} />
-              </Campo>
-            </div>
-          ) : null}
-        </div>
+        <p className="campo__pista">
+          No toca los precios: se paga con lo que sobra de las ventas, y la ves subir en la barra de arriba.
+        </p>
 
         <div className="acciones">
           <button type="submit" className="boton">Agregar</button>
@@ -267,11 +242,9 @@ export function Inversiones() {
                       propósito, así que la etiqueta va en la cifra y no en la
                       cabecera. */}
                   <td className="num">{enSuMoneda(i)}</td>
-                  <td>
-                    {i.amortizar_meses
-                      ? <span className="etiqueta etiqueta--alerta">En el precio · {i.amortizar_meses} meses</span>
-                      : <span className="etiqueta">Se sigue aparte</span>}
-                  </td>
+                  {/* Desde esquema-precio-esencial.sql ninguna entra al precio,
+                      tampoco las que se cargaron "al precio" antes. */}
+                  <td><span className="etiqueta">Con la ganancia</span></td>
                   <td>{formatearFecha(i.fecha)}</td>
                   <td>
                     <button type="button" className="boton boton--peligro boton--pequeno" onClick={() => void borrar(i)}>

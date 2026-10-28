@@ -83,7 +83,13 @@ const DIBUJOS: Record<ClaveEscote, Dibujo> = {
   },
 };
 
-export function SiluetaEscote({ clave, descripcion }: { clave: ClaveEscote; descripcion: string }) {
+/**
+ * `conJoya` en falso dibuja solo el cuerpo y la prenda: cuando lo que le va
+ * a ese escote son unos aretes (no hay collar en la tienda que le vaya), el
+ * dibujo no pinta una cadena que no está. El busto no tiene orejas: los
+ * aretes los enseñan sus fotos.
+ */
+export function SiluetaEscote({ clave, descripcion, conJoya = true }: { clave: ClaveEscote; descripcion: string; conJoya?: boolean }) {
   const d = DIBUJOS[clave];
   return (
     <svg className="silueta" viewBox="0 0 400 300" role="img" aria-label={descripcion}>
@@ -91,10 +97,10 @@ export function SiluetaEscote({ clave, descripcion }: { clave: ClaveEscote; desc
         {CUERPO.map((p) => <path key={p} className="trazo silueta__cuerpo" pathLength={1} d={p} />)}
         {d.claviculas ? <path className="trazo silueta__claviculas" pathLength={1} d={CLAVICULAS} /> : null}
         {d.prenda.map((p) => <path key={p} className="trazo silueta__prenda" pathLength={1} d={p} />)}
-        {d.joya.map((p) => <path key={p} className="trazo silueta__joya" pathLength={1} d={p} />)}
+        {conJoya ? d.joya.map((p) => <path key={p} className="trazo silueta__joya" pathLength={1} d={p} />) : null}
       </g>
       {d.botones?.map(([x, y]) => <circle key={`${x}-${y}`} className="silueta__boton" cx={x} cy={y} r={3} />)}
-      {d.gemas.map(([x, y, r]) => <circle key={`${x}-${y}`} className="silueta__gema" cx={x} cy={y} r={r} />)}
+      {conJoya ? d.gemas.map(([x, y, r]) => <circle key={`${x}-${y}`} className="silueta__gema" cx={x} cy={y} r={r} />) : null}
     </svg>
   );
 }

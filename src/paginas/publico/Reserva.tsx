@@ -14,6 +14,7 @@ import { enlaceWhatsAppA, mensajeDePedido, referenciaPedido } from '../../lib/en
 import { enlaceReserva } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
+import { BotonLetraGrande } from '../../componentes/LetraGrande';
 import type { ReservaVista } from '../../lib/tipos';
 
 /**
@@ -89,7 +90,10 @@ export function Reserva() {
       <header className="barra barra--publica">
         <div className="barra__interior">
           <Wordmark alto={40} />
-          <Link to="/publico" className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
+          <div className="barra__publica-acciones">
+            <BotonLetraGrande />
+            <Link to="/publico" className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
+          </div>
         </div>
       </header>
 

@@ -131,6 +131,19 @@ Ojo con la sutileza: los exhibidores **sí** pagan flete y lo pagan igual que
 cualquier otro bulto (regla 4). Lo que nunca ocurre es que esa parte se le cargue
 a las joyas. Reparto parejo entre bultos, destinos distintos.
 
+Y **no van en el precio de ninguna joya** (desde `esquema-precio-esencial.sql`,
+decisión del dueño del 28/10/2026): ni los exhibidores ni los muebles de
+Inversiones. Son inversión del local y se pagan con la ganancia; la pantalla
+Inversiones (`v_recuperacion`) mide cuánto ha vuelto con lo que sobra después de
+la mercancía, el alquiler, los sueldos y los servicios. El precio lleva lo
+esencial: mercancía con flete a la brecha, merma, empaque, la operación del mes
+y el margen. Antes se sumaban a los gastos del mes, cada mes y para siempre.
+
+Lo de tienda se reparte entre la meta de piezas al mes que el dueño escribe en
+Costos (`piezas_mes_meta`); sin meta, entre lo que de verdad se vende. Nunca
+entre las piezas que hay en la tienda como regla: el alquiler del mes lo pagan
+las que salen ese mes.
+
 ### 11b. Cada cifra, en un solo sitio; cada "$", con su nombre
 
 Escrita el 23/09/2026, después de la auditoría que encontró tres versiones de

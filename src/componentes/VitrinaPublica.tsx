@@ -152,14 +152,36 @@ export interface TipoVitrina {
  * Las categorías a la vista, con foto. Antes vivían plegadas dentro de
  * "Filtrar": la clienta no sabía que había tobilleras o sets hasta abrirlo
  * (o hasta tocar "Ver más"). En el teléfono, tres por fila.
+ *
+ * `todas` pone primero "Todas las joyas", con las fotos de cuatro tipos:
+ * para quien quiere verlo todo de una vez, sin separar (pedido del dueño
+ * del 27/10/2026).
  */
-export function TiposConFoto({ tipos, alElegir }: { tipos: TipoVitrina[]; alElegir: (tipo: string) => void }) {
+export function TiposConFoto({ tipos, alElegir, id: idSeccion, todas }: {
+  tipos: TipoVitrina[];
+  alElegir: (tipo: string) => void;
+  id?: string;
+  todas?: { cuantas: number; alVer: () => void };
+}) {
   const id = useId();
   if (tipos.length < 2) return null;
   return (
-    <section className="tipos" aria-labelledby={id}>
+    <section className="tipos" id={idSeccion} aria-labelledby={id}>
       <h2 className="seccion-titulo" id={id}>Elige por tipo</h2>
       <ul className="tipos__lista">
+        {todas ? (
+          <li>
+            <button type="button" className="tipo tipo--todas" onClick={todas.alVer}>
+              <span className="tipo__foto tipo__mosaico" aria-hidden="true">
+                {tipos.slice(0, 4).map((t) => (t.foto
+                  ? <img key={t.nombre} {...t.foto} alt="" loading="lazy" />
+                  : <span key={t.nombre} />))}
+              </span>
+              <span className="tipo__nombre">Todas las joyas</span>
+              <span className="tipo__cuantas">{todas.cuantas === 1 ? '1 pieza' : `${todas.cuantas} piezas`}</span>
+            </button>
+          </li>
+        ) : null}
         {tipos.map((t) => (
           <li key={t.nombre}>
             <button type="button" className="tipo" onClick={() => alElegir(t.nombre)}>

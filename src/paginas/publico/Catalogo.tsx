@@ -23,6 +23,7 @@ import { LaTienda } from '../../componentes/LaTienda';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
+import { BotonLetraGrande } from '../../componentes/LetraGrande';
 import { registrarVisita } from '../../lib/visitas';
 import type { Cotizacion, ModeloProximo, ModeloPublico, Tramo } from '../../lib/tipos';
 
@@ -50,6 +51,9 @@ const POR_TANDA = 120;
 const TOPE_INICIO = 1000;
 
 type Orden = 'nombre' | 'menor' | 'mayor';
+
+/** Lo que dura el aviso de la primera pieza agregada: lo bastante para leerlo con calma. */
+const AVISO_AGREGADA_MS = 7000;
 
 /** La misma selección, siempre escrita igual: para saber si una cotización es de esta. */
 const claveDe = (items: { modelo_id: number; cantidad: number }[]) =>
@@ -117,12 +121,19 @@ export function Catalogo() {
   // inicio, que es lo que la clienta espera.
   const categoria = parametros.get('tipo');
   const setCategoria = (c: string | null) => setParametros(c ? { tipo: c } : {});
-  const enLista = Boolean(categoria || texto.trim() || orden !== 'nombre');
+  // "Todas las joyas", juntas y sin separar por tipo (pedido del dueño del
+  // 27/10/2026: "no hay una sección para ver todo"). También en la ruta.
+  const verTodas = !categoria && parametros.get('ver') === 'todas';
+  const irATodas = () => setParametros({ ver: 'todas' });
+  const enLista = Boolean(categoria || verTodas || texto.trim() || orden !== 'nombre');
+  // La primera pieza que agrega: se le dice dónde quedó y cómo sigue.
+  const [recienAgregada, setRecienAgregada] = useState(false);
+  const yaSeDijo = useRef(false);
   // De qué consulta son las filas que hay. Mientras no sean de la de ahora
   // (se escribió una letra y la base no ha respondido), no se dibujan: la
   // primera letra pintaba la lista con las mil filas del inicio, letra por
   // letra, en un teléfono de gama baja.
-  const consultaActual = `${categoria ?? ''}|${texto.trim()}|${orden}`;
+  const consultaActual = `${categoria ?? (verTodas ? '*' : '')}|${texto.trim()}|${orden}`;
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
   const turno = useRef(0);
   // Los datos de la clienta viven aqui y no en el formulario: si vuelve a
@@ -161,10 +172,9 @@ export function Catalogo() {
     q = orden === 'nombre'
       ? q.order('categoria', { ascending: true }).order('nombre', { ascending: true })
       : q.order('precio_usd', { ascending: orden === 'menor' }).order('nombre', { ascending: true });
-    const lista = Boolean(categoria || texto.trim() || orden !== 'nombre');
-    const hasta = lista ? desde + POR_TANDA - 1 : TOPE_INICIO - 1;
+    const hasta = enLista ? desde + POR_TANDA - 1 : TOPE_INICIO - 1;
     return q.order('familia', { ascending: true }).order('id', { ascending: true }).range(desde, hasta);
-  }, [texto, categoria, orden]);
+  }, [texto, categoria, orden, enLista]);
 
   const recordar = useCallback((filas: ModeloPublico[]) => {
     setConocidos((prev) => {
@@ -199,9 +209,9 @@ export function Catalogo() {
     setTotal(cat.count ?? filas.length);
     recordar(filas);
     setTramos((tr.data as Tramo[] | null) ?? []);
-    setCargadoPara(`${categoria ?? ''}|${texto.trim()}|${orden}`);
+    setCargadoPara(consultaActual);
     setCargando(false);
-  }, [consulta, recordar, categoria, texto, orden]);
+  }, [consulta, recordar, consultaActual]);
 
   async function cargarMas() {
     setCargandoMas(true);
@@ -229,11 +239,18 @@ export function Catalogo() {
   // Al cambiar de tipo o de paso, arriba. Antes "Tu pedido" abría con el
   // desplazamiento del catálogo: lo primero que se veía era el botón de
   // apartar apagado y la cédula fuera de la pantalla.
-  useEffect(() => { window.scrollTo(0, 0); }, [categoria, paso]);
+  useEffect(() => { window.scrollTo(0, 0); }, [categoria, verTodas, paso]);
   // "Ver todas" desaparece al tocarlo: el foco pasa al título del tipo, y no
   // se pierde al principio de la página.
   const tituloLista = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { if (categoria) tituloLista.current?.focus({ preventScroll: true }); }, [categoria]);
+  useEffect(() => { if (categoria || verTodas) tituloLista.current?.focus({ preventScroll: true }); }, [categoria, verTodas]);
+
+  // El aviso de la primera pieza se va solo; no tapa nada mientras está.
+  useEffect(() => {
+    if (!recienAgregada) return;
+    const id = window.setTimeout(() => setRecienAgregada(false), AVISO_AGREGADA_MS);
+    return () => window.clearTimeout(id);
+  }, [recienAgregada]);
 
   // Lo próximo se pide una vez y se filtra aquí con la búsqueda y la
   // categoría: son pocas piezas. Su error se mira y a propósito no se
@@ -441,6 +458,9 @@ export function Catalogo() {
 
   function agregarPorId(id: number) {
     cambiar(id, (seleccion.get(id) ?? 0) + 1);
+    // La primera vez se dice dónde quedó y cómo se sigue: quien pide por
+    // primera vez no sabe que la barra de abajo es su pedido.
+    if (!yaSeDijo.current) { yaSeDijo.current = true; setRecienAgregada(true); }
   }
 
   function vaciar() {
@@ -549,18 +569,22 @@ export function Catalogo() {
   ) : null;
 
   // La misma cabecera en el catálogo y en "Tu pedido": la marca lleva al
-  // inicio y, si hay número, "Escríbenos" abre el WhatsApp de la tienda.
+  // inicio, "Letra grande" agranda todo y, si hay número, "Escríbenos" abre
+  // el WhatsApp de la tienda.
   const cabecera = (
     <header className="barra barra--publica">
       <div className="barra__interior">
         <Link to="/publico" className="barra__marca" aria-label="Lux by Emory, ir al inicio del catálogo">
           <Wordmark alto={40} />
         </Link>
-        {whatsappTienda ? (
-          <a className="boton boton--secundario barra__contacto" href={whatsappTienda} target="_blank" rel="noopener noreferrer">
-            Escríbenos<span className="visualmente-oculto"> por WhatsApp</span>
-          </a>
-        ) : null}
+        <div className="barra__publica-acciones">
+          <BotonLetraGrande />
+          {whatsappTienda ? (
+            <a className="boton boton--secundario barra__contacto" href={whatsappTienda} target="_blank" rel="noopener noreferrer">
+              Escríbenos<span className="visualmente-oculto"> por WhatsApp</span>
+            </a>
+          ) : null}
+        </div>
       </div>
     </header>
   );
@@ -732,6 +756,20 @@ export function Catalogo() {
   /* ---------------------------------------------------------- catalogo */
 
   const quedanPorVer = enLista ? Math.max(0, total - modelos.length) : 0;
+  // El orden, el mismo en la lista (a la vista) y en el inicio (plegado).
+  const campoOrden = (
+    <Campo etiqueta="Ordenar" htmlFor="orden-publico">
+      <select id="orden-publico" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
+        <option value="nombre">Por tipo</option>
+        <option value="menor">Más baratas primero</option>
+        <option value="mayor">Más caras primero</option>
+      </select>
+    </Campo>
+  );
+  // Cuántas joyas hay, contadas como tarjetas (un producto con medidas es
+  // una): lo que se va a ver al tocar "Ver todas". Si el inicio no las trajo
+  // todas, las filas, que es lo que se sabe.
+  const cuantasJoyas = total > modelos.length ? total : familias.length;
   const proximasVisibles = todosProximos ? familiasProximas : familiasProximas.slice(0, POR_ESTANTE);
 
   return (
@@ -746,11 +784,25 @@ export function Catalogo() {
           <div className="lista-cabeza">
             <button type="button" className="volver" onClick={alInicio}>
               <Icono nombre="volver" className="icono icono--sm" />
-              Todo el catálogo
+              Volver al inicio
             </button>
             <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
-              {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las piezas')}
+              {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las joyas')}
             </h1>
+            {/* Los tipos a la vista, para pasar de uno a otro sin volver al
+                inicio ni abrir nada: un toque. Se envuelven, no se deslizan.
+                Solo en pantallas anchas: en el teléfono eran cuatro renglones
+                antes de la primera joya, y ahí va la lista "Ver" de abajo. */}
+            {categorias.length > 1 && !texto.trim() ? (
+              <nav className="tipos-fila" aria-label="Ver otro tipo de joya">
+                <button type="button" className="tipos-fila__tipo" aria-pressed={!categoria} onClick={irATodas}>Todas</button>
+                {categorias.map((c) => (
+                  <button key={c} type="button" className="tipos-fila__tipo" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
+                    {nombreDeTipo(c)}
+                  </button>
+                ))}
+              </nav>
+            ) : null}
           </div>
         ) : (
           <section className="portada-catalogo">
@@ -769,6 +821,25 @@ export function Catalogo() {
               pasos={['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil']}
               alVerMas={() => irA('como-pedir')}
             />
+            {/* Por dónde empezar, dicho con un botón: quien entra por
+                primera vez no sabe que hay que bajar. */}
+            <div className="portada-catalogo__empezar">
+              <button type="button" className="boton portada-catalogo__boton" onClick={irATodas}>
+                Ver todas las joyas
+              </button>
+              <button type="button" className="asi-pides__mas" onClick={() => irA('tipos')}>
+                O elige por tipo
+              </button>
+            </div>
+            {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace
+                falta: se le atiende por WhatsApp. */}
+            {whatsappTienda ? (
+              <p className="portada-catalogo__ayuda">
+                ¿Prefieres que te ayudemos?{' '}
+                <a href={whatsappTienda} target="_blank" rel="noopener noreferrer">Escríbenos por WhatsApp</a>
+                {' '}y te ayudamos a pedir.
+              </p>
+            ) : null}
           </section>
         )}
 
@@ -780,27 +851,43 @@ export function Catalogo() {
               placeholder="Cadena, anillo, choker..." autoComplete="off"
             />
           </Campo>
-          {/* El tipo y el orden también en el inicio: con más piezas de las
+          {/* En la lista, qué se ve y en qué orden, a la vista y no plegado:
+              quien no sabe que "Filtrar" se abre, no lo abre. Lado a lado en
+              el teléfono. El tipo, en la lista de opciones solo en el
+              teléfono (en pantallas anchas están las fichas de arriba). */}
+          {enLista ? (
+            <div className="lista-controles">
+              {categorias.length > 1 && !texto.trim() ? (
+                <div className="lista-controles__tipo">
+                  <Campo etiqueta="Ver" htmlFor="ver-publico">
+                    <select
+                      id="ver-publico"
+                      value={categoria ?? ''}
+                      onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
+                    >
+                      <option value="">Todas las joyas</option>
+                      {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
+                    </select>
+                  </Campo>
+                </div>
+              ) : null}
+              {campoOrden}
+            </div>
+          ) : null}
+          {/* En el inicio, el tipo y el orden plegados: con más piezas de las
               que trae, el tipo lleva a todas, y ordenar por precio tiene que
               poder hacerse sin entrar antes a un tipo. */}
-          {categorias.length > 1 || enLista ? (
-            <Filtros activos={(categoria ? 1 : 0) + (orden !== 'nombre' ? 1 : 0)}>
+          {categorias.length > 1 && !enLista ? (
+            <Filtros activos={orden !== 'nombre' ? 1 : 0}>
             <div className="fila">
-              {categorias.length > 1 ? (
-                <Campo etiqueta="Tipo" htmlFor="tipo-publico">
-                  <select id="tipo-publico" value={categoria ?? ''} onChange={(e) => setCategoria(e.target.value || null)}>
-                    <option value="">Todos los tipos</option>
-                    {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
-                  </select>
-                </Campo>
-              ) : null}
-              <Campo etiqueta="Ordenar" htmlFor="orden-publico">
-                <select id="orden-publico" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
-                  <option value="nombre">Por tipo de pieza</option>
-                  <option value="menor">Precio: menor a mayor</option>
-                  <option value="mayor">Precio: mayor a menor</option>
+              <Campo etiqueta="Tipo" htmlFor="tipo-publico">
+                <select id="tipo-publico" value="" onChange={(e) => (e.target.value === '*' ? irATodas() : setCategoria(e.target.value || null))}>
+                  <option value="">Elige un tipo</option>
+                  <option value="*">Todas las joyas</option>
+                  {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
                 </select>
               </Campo>
+              {campoOrden}
             </div>
             </Filtros>
           ) : null}
@@ -839,7 +926,7 @@ export function Catalogo() {
           </>
         ) : (
           <>
-            <TiposConFoto tipos={tipos} alElegir={setCategoria} />
+            <TiposConFoto id="tipos" tipos={tipos} alElegir={setCategoria} todas={{ cuantas: cuantasJoyas, alVer: irATodas }} />
             {estantes.map((e) => (
               <Estante
                 key={e.categoria}
@@ -859,6 +946,13 @@ export function Catalogo() {
                 Aquí salen las primeras {formatearEntero(modelos.length)} de {formatearEntero(total)} piezas. Elige un tipo arriba para verlas todas.
               </p>
             ) : null}
+            {/* Al final de los estantes, lo mismo que arriba: todas juntas. */}
+            <div className="ver-todas">
+              <p className="ver-todas__texto">¿Prefieres verlas todas juntas, sin separar por tipo?</p>
+              <button type="button" className="boton ver-todas__boton" onClick={irATodas}>
+                Ver todas las joyas · {formatearEntero(cuantasJoyas)}
+              </button>
+            </div>
           </>
         )}
 
@@ -966,6 +1060,14 @@ export function Catalogo() {
           );
         })()}
 
+        {/* La primera pieza: dónde quedó y cómo se sigue. Encima de la barra,
+            se va sola y no tapa ningún botón. */}
+        {recienAgregada && resumen.piezas > 0 ? (
+          <p className="aviso-agregado" role="status">
+            <strong>Listo, está en tu pedido.</strong> Sigue eligiendo; cuando termines, toca «Ver mi pedido» aquí abajo.
+          </p>
+        ) : null}
+
         {resumen.piezas > 0 ? (
           <div className="barra-carrito">
             <div className="barra-carrito__resumen">
@@ -986,7 +1088,7 @@ export function Catalogo() {
               Vaciar
             </button>
             <button type="button" className="boton" onClick={() => setPaso('pedido')}>
-              Ver pedido
+              Ver mi pedido
             </button>
           </div>
         ) : null}

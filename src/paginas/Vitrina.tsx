@@ -7,12 +7,14 @@ import { CodigoQr } from '../componentes/CodigoQr';
 import { FiligranaArco, FiligranaDivisor, FiligranaMarco } from '../componentes/Filigrana';
 import { SiluetaEscote } from '../componentes/SiluetaEscote';
 import { enlacePublico } from '../componentes/CompartirCatalogo';
-import { formatearBcv, formatearBs } from '../lib/dinero';
+import { formatearBcv, formatearBs, sumarCifras } from '../lib/dinero';
 import { urlPublicaFoto } from '../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, porPrecio } from '../lib/familias';
 import type { Familia } from '../lib/familias';
 import { ESCOTES, piezasParaEscote } from '../lib/escotes';
-import type { Escote } from '../lib/escotes';
+import type { Escote, PiezasDeEscote } from '../lib/escotes';
+import { armarConjunto, zonasDe } from '../lib/combinar';
+import type { Zona } from '../lib/combinar';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
 import type { Frase, ModeloPublico } from '../lib/tipos';
@@ -46,19 +48,23 @@ const REINTENTOS_MS = [15_000, 30_000, 60_000, 120_000, 300_000];
 const CLAVE_QR = 'lux-vitrina-qr';
 /** Lo que dura la salida de una escena mientras entra la siguiente. */
 const SALIDA_MS = 900;
+/** Cada cuánto cambia el mensaje del riel. */
+const MENSAJE_MS = 7000;
 
 /*
   LAS ESCENAS
 
-  La vitrina ya no es una pieza tras otra: es un guion de seis tipos de
-  escena, cada uno con su forma de presentar y su entrada.
+  La vitrina ya no es una pieza tras otra: es un guion de escenas, cada una
+  con su forma de presentar y su entrada.
 
     pieza      una pieza estelar, en un arco de vitrina que se dibuja
-    trio       tres piezas de categorías distintas, para combinar
+    conjunto   un conjunto de verdad (cuello, orejas, muñeca, mano), con el total
     coleccion  una categoría entera: la palabra grande y cuatro piezas
+    regalo     las piezas de menor precio: "Para regalar", desde cuánto
     detalle    la foto de cerca, con los materiales
     frase      una frase de la marca, palabra por palabra
-    escote     qué joya va con un escote, dibujado, y las piezas que le van
+    escote     qué collar va con un escote, dibujado, y las piezas que le van
+    guia       cómo se compra, en tres pasos, para quien nunca ha pedido
     proxima    una pieza de un lote que todavía no llega: "Próximamente"
 
   El patrón se repite hasta que han salido todas las piezas (y todas las
@@ -66,27 +72,59 @@ const SALIDA_MS = 900;
   factor: la guía de escotes se lee más despacio que una frase.
 
   Lo próximo (pedido del dueño del 20/10/2026) sale en su propia escena y
-  nunca en las demás: un trío o una colección son lo que se puede llevar
+  nunca en las demás: un conjunto o una colección son lo que se puede llevar
   hoy. No lleva la clave de ubicación, porque no está en la tienda.
+
+  LO QUE CAMBIÓ EL 27/10/2026 (el dueño: "el QR se superpone a las prendas",
+  "para cierto tipo de cuello salen aretes" y "que sea increíble y que
+  cualquiera la entienda"):
+   - El QR ya no flota sobre la escena: vive en su riel, a la derecha, con
+     la marca, cómo se escanea en tres pasos y un mensaje que rota. La
+     escena se dibuja en lo que queda y no puede pasar por debajo.
+   - "Para combinar" eran las tres piezas que tocaban en la cola. Ahora es
+     un conjunto (`armarConjunto`, lib/combinar.ts), con lo que cuesta todo.
+   - Los escotes enseñan collares del largo que les va; los aretes, para
+     completar o, si no hay collar que le vaya, en su lugar y dicho
+     (lib/escotes.ts).
+   - Dos escenas nuevas que venden: "Para regalar" y "Así de fácil".
+   - "Últimas piezas" se pensó y no entró: 93 de 128 productos tienen una
+     sola pieza (medido el 27/10/2026). Una escena que dice "queda una" de
+     casi todo no avisa de nada.
+
+  Lo que se probó de afuera (pantallas de tienda): una idea por escena,
+  pocas palabras y grandes, la pieza como protagonista, movimiento que
+  atrae la mirada de reojo y una sola llamada a la acción clara (el QR,
+  con instrucciones). Las fuentes, en
+  docs/superpowers/specs/2026-10-27-vitrina-y-catalogo-para-todos-design.md.
 */
-type TipoEscena = 'pieza' | 'trio' | 'coleccion' | 'detalle' | 'frase' | 'escote' | 'proxima';
+type TipoEscena = 'pieza' | 'conjunto' | 'coleccion' | 'regalo' | 'detalle' | 'frase' | 'escote' | 'guia' | 'proxima';
 
 type Escena =
   | { tipo: 'pieza'; clave: string; familia: FamiliaVitrina; lado: 'izq' | 'der' }
-  | { tipo: 'trio'; clave: string; piezas: PiezaVitrina[] }
+  | { tipo: 'conjunto'; clave: string; piezas: PiezaVitrina[] }
   | { tipo: 'coleccion'; clave: string; categoria: string; cuantas: number; piezas: PiezaVitrina[] }
+  | { tipo: 'regalo'; clave: string; piezas: PiezaVitrina[] }
   | { tipo: 'detalle'; clave: string; familia: FamiliaVitrina }
   | { tipo: 'frase'; clave: string; frase: Frase }
-  | { tipo: 'escote'; clave: string; escote: Escote; piezas: PiezaVitrina[] }
+  | { tipo: 'escote'; clave: string; escote: Escote; piezas: PiezasDeEscote<PiezaVitrina> }
+  | { tipo: 'guia'; clave: string }
   | { tipo: 'proxima'; clave: string; familia: FamiliaVitrina; lado: 'izq' | 'der' };
 
 const PATRON: TipoEscena[] = [
-  'pieza', 'pieza', 'trio', 'proxima', 'frase', 'pieza', 'escote', 'coleccion',
-  'pieza', 'detalle', 'proxima', 'frase', 'trio', 'pieza', 'escote', 'frase',
+  'pieza', 'pieza', 'conjunto', 'proxima', 'frase', 'pieza', 'escote', 'coleccion',
+  'pieza', 'regalo', 'detalle', 'pieza', 'guia', 'proxima', 'pieza', 'conjunto', 'escote', 'frase',
 ];
 
 const FACTOR: Record<TipoEscena, number> = {
-  pieza: 1, detalle: 1.1, frase: 0.85, trio: 1.35, coleccion: 1.4, escote: 1.7, proxima: 1.1,
+  pieza: 1, detalle: 1.1, frase: 0.85, conjunto: 1.4, coleccion: 1.4, regalo: 1.4, escote: 1.7, guia: 1.6, proxima: 1.1,
+};
+
+/** Para cuántas piezas hay que tener antes de que "Para regalar" diga algo: con menos, todo es "lo más barato". */
+const MINIMO_REGALO = 8;
+
+/** Lo que se dice sobre cada pieza de un conjunto: dónde va. */
+const DONDE: Partial<Record<Zona, string>> = {
+  cuello: 'Para el cuello', orejas: 'Para las orejas', muneca: 'Para la muñeca', mano: 'Para la mano',
 };
 
 /** "anillo" → "Anillos". Lo que no está aquí sale con mayúscula, tal cual. */
@@ -103,7 +141,8 @@ const fotoDe = (p: PiezaVitrina | undefined) => (p ? urlPublicaFoto(p.foto_path 
 function fotosDe(e: Escena): (string | null)[] {
   switch (e.tipo) {
     case 'pieza': case 'detalle': case 'proxima': return [fotoDe(conFoto(e.familia.variantes))];
-    case 'trio': case 'coleccion': case 'escote': return e.piezas.map(fotoDe);
+    case 'conjunto': case 'coleccion': case 'regalo': return e.piezas.map(fotoDe);
+    case 'escote': return [...e.piezas.collares, ...e.piezas.aretes].map(fotoDe);
     default: return [];
   }
 }
@@ -156,12 +195,22 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
     porCategoria.set(c, [...(porCategoria.get(c) ?? []), f]);
   }
   const colecciones = [...porCategoria].filter(([, fs]) => fs.length >= 3);
-  const escotes = ESCOTES.filter((e) => piezasParaEscote(e, piezas).length > 0);
+  const escotes = ESCOTES.filter((e) => piezasParaEscote(e, piezas) !== null);
+  // Para regalar: el cuarto más barato del catálogo (de 4 a 12 productos),
+  // de menor a mayor. Sale si hay de dónde elegir.
+  const baratas = familias.length < MINIMO_REGALO ? [] : [...familias]
+    .map((f) => ({ f, precio: Math.min(...f.variantes.map((v) => v.precio_usd ?? Infinity)) }))
+    .filter((x) => Number.isFinite(x.precio))
+    .sort((a, b) => a.precio - b.precio)
+    .slice(0, Math.min(12, Math.max(4, Math.floor(familias.length / 4))))
+    .map((x) => x.f);
 
   let nFrase = 0;
   let nEscote = 0;
   let nColeccion = 0;
   let nProxima = 0;
+  let nConjunto = 0;
+  let nRegalo = 0;
   let lado = 0;
   for (let paso = 0; (siguiente < familias.length || nProxima < proximas.length || paso < PATRON.length) && paso < 4000; paso++) {
     const tipo = PATRON[paso % PATRON.length]!;
@@ -180,12 +229,24 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
           salida.push({ tipo: 'detalle', clave: `d${paso}-${f.clave}`, familia: f });
         }
         break;
-      case 'trio':
-        if (familias.length < 3) { pieza(); break; }
-        {
-          const tres = [tomar(), tomar(), tomar()].map(portada);
-          salida.push({ tipo: 'trio', clave: `t${paso}-${tres.map((p) => p.id).join('.')}`, piezas: tres });
-        }
+      case 'conjunto': {
+        // Cada vez empieza en otro sitio de la cola: así no sale siempre el mismo.
+        const piezasConjunto = armarConjunto(familias, nConjunto * 5 + 1, 3, portada);
+        nConjunto++;
+        if (piezasConjunto.length < 2) { pieza(); break; }
+        salida.push({ tipo: 'conjunto', clave: `t${paso}-${piezasConjunto.map((p) => p.id).join('.')}`, piezas: piezasConjunto });
+        break;
+      }
+      case 'regalo': {
+        if (baratas.length < 4) { pieza(); break; }
+        const desde = (nRegalo * 4) % baratas.length;
+        const cuatro = Array.from({ length: 4 }, (_, k) => portada(baratas[(desde + k) % baratas.length]!));
+        nRegalo++;
+        salida.push({ tipo: 'regalo', clave: `r${paso}-${cuatro.map((p) => p.id).join('.')}`, piezas: cuatro });
+        break;
+      }
+      case 'guia':
+        salida.push({ tipo: 'guia', clave: `g${paso}` });
         break;
       case 'coleccion': {
         if (colecciones.length === 0) break;
@@ -199,9 +260,10 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
       case 'escote': {
         if (escotes.length === 0) break;
         const escote = escotes[nEscote % escotes.length]!;
-        const de = piezasParaEscote(escote, piezas, Math.floor(nEscote / escotes.length) * 3);
-        salida.push({ tipo: 'escote', clave: `e${paso}-${escote.clave}`, escote, piezas: de });
+        const de = piezasParaEscote(escote, piezas, Math.floor(nEscote / escotes.length));
         nEscote++;
+        if (!de) break;
+        salida.push({ tipo: 'escote', clave: `e${paso}-${escote.clave}`, escote, piezas: de });
         break;
       }
       case 'frase':
@@ -261,6 +323,8 @@ export function Vitrina() {
   const [conQr, setConQr] = useState(leerQr);
   // La escena que se va, mientras entra la nueva: se funde encima.
   const [saliente, setSaliente] = useState<Escena | null>(null);
+  // El mensaje del riel que se está leyendo.
+  const [nMensaje, setNMensaje] = useState(0);
 
   const temporizadorOcultar = useRef<number | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
@@ -482,6 +546,20 @@ export function Vitrina() {
 
   const enlace = useMemo(() => enlacePublico(), []);
 
+  // Lo que el riel le dice a quien mira, uno tras otro. Frases de la tienda,
+  // no cifras: los materiales salen de Textos, como en el catálogo.
+  const mensajes = useMemo(() => [
+    'Todo lo que ves está aquí, en la tienda.',
+    'Pídesela a la vendedora: te la enseña de cerca.',
+    ...(textos.materiales_corto?.trim() ? [textos.materiales_corto.trim()] : []),
+    'Enviamos a toda Venezuela.',
+  ], [textos.materiales_corto]);
+  useEffect(() => {
+    if (!conQr) return;
+    const id = window.setInterval(() => setNMensaje((n) => n + 1), MENSAJE_MS);
+    return () => window.clearInterval(id);
+  }, [conQr]);
+
   // La clave de ubicación ("V1 · BG") solo cuando hay una pieza en pantalla.
   const claves = actual && (actual.tipo === 'pieza' || actual.tipo === 'detalle')
     ? [...new Set(actual.familia.variantes.flatMap((v) => (v.ubicaciones_codigo ?? '').split(' · ')).filter(Boolean))].join(' · ')
@@ -569,48 +647,67 @@ export function Vitrina() {
       onMouseMove={mostrarControles}
       onTouchStart={mostrarControles}
     >
+      {/* Sin el riel, la marca flota arriba y se va con los controles. Con
+          el riel, vive en él y esta se esconde (vitrina.css); en vertical,
+          donde el riel no sale, vuelve a flotar. */}
       <div className="vitrina__marca">
         <Wordmark alto={48} tono="crema" />
       </div>
 
-      {enPantalla.map((e) => {
-        const entra = e.clave === actual.clave;
-        const estilo = { '--dur': `${entra ? duracion : segundos}s` } as CSSProperties;
-        return (
+      {/* El escenario: donde pasan las escenas. Con el riel ocupa lo que
+          queda a su izquierda, y nada de la escena puede pasar por debajo
+          del código (antes flotaba encima y tapaba las piezas). */}
+      <div className="vitrina__escenario">
+        {enPantalla.map((e) => {
+          const entra = e.clave === actual.clave;
+          const estilo = { '--dur': `${entra ? duracion : segundos}s` } as CSSProperties;
+          return (
+            <div
+              key={e.clave}
+              className={`vitrina__escena vitrina__escena--${e.tipo} ${entra ? 'vitrina__escena--entra' : 'vitrina__escena--sale'}`}
+              style={estilo}
+              aria-hidden={entra ? undefined : true}
+            >
+              <EscenaVitrina escena={e} materiales={materiales} materialesCortos={materialesCortos} conQr={conQr} />
+            </div>
+          );
+        })}
+
+        {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
+            sabe leerlo desde su puesto; la clienta ve una referencia y sigue
+            de largo. */}
+        {claves ? <p className="vitrina__clave">{claves}</p> : null}
+
+        {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
+        <div className="vitrina__progreso" aria-hidden="true">
           <div
-            key={e.clave}
-            className={`vitrina__escena vitrina__escena--${e.tipo} ${entra ? 'vitrina__escena--entra' : 'vitrina__escena--sale'}`}
-            style={estilo}
-            aria-hidden={entra ? undefined : true}
-          >
-            <EscenaVitrina escena={e} materiales={materiales} materialesCortos={materialesCortos} />
-          </div>
-        );
-      })}
-
-      {/* El catalogo en el telefono de quien mira. Fuera de la escena y
-          dentro del margen de seguridad: no se va con los controles,
-          porque es para la clienta. */}
-      {conQr ? (
-        <div className="vitrina__qr">
-          <CodigoQr className="vitrina__qr-codigo" texto={enlace} etiqueta="Código QR del catálogo en línea" />
-          <p className="vitrina__qr-texto">Pide desde tu teléfono</p>
+            className="vitrina__progreso-barra"
+            key={`${indice}-${duracion}-${pausado}`}
+            style={{ animationDuration: `${duracion}s`, animationPlayState: pausado ? 'paused' : 'running' }}
+          />
         </div>
-      ) : null}
-
-      {/* Donde esta la pieza, en clave de tienda: "V1 · BG". La vendedora
-          sabe leerlo desde su puesto; la clienta ve una referencia y sigue
-          de largo. */}
-      {claves ? <p className="vitrina__clave">{claves}</p> : null}
-
-      {/* Avanza sola: la barra dice cuanto falta para la siguiente. */}
-      <div className="vitrina__progreso" aria-hidden="true">
-        <div
-          className="vitrina__progreso-barra"
-          key={`${indice}-${duracion}-${pausado}`}
-          style={{ animationDuration: `${duracion}s`, animationPlayState: pausado ? 'paused' : 'running' }}
-        />
       </div>
+
+      {/* EL RIEL: el catálogo en el teléfono de quien mira. Es la única
+          llamada a hacer algo de la pantalla, y dice cómo se hace, paso a
+          paso: no todo el mundo sabe que la cámara lee un QR. No se va con
+          los controles, porque es para la clienta. */}
+      {conQr ? (
+        <aside className="vitrina__riel" aria-label="El catálogo en tu teléfono">
+          <Wordmark alto={48} tono="crema" />
+          <FiligranaDivisor className="vitrina__riel-divisor" />
+          <p className="vitrina__riel-titulo">Míralo todo en tu teléfono</p>
+          <CodigoQr className="vitrina__riel-qr" texto={enlace} etiqueta="Código QR del catálogo en línea" />
+          <ol className="vitrina__riel-pasos">
+            <li><span aria-hidden="true">1</span>Abre la cámara</li>
+            <li><span aria-hidden="true">2</span>Apunta al código</li>
+            <li><span aria-hidden="true">3</span>Toca el enlace</li>
+          </ol>
+          <p className="vitrina__riel-mensaje" key={nMensaje % mensajes.length}>
+            {mensajes[nMensaje % mensajes.length]}
+          </p>
+        </aside>
+      ) : null}
 
       <div className="vitrina__controles">
         <div className="vitrina__grupo">
@@ -663,18 +760,21 @@ export function Vitrina() {
 
 /* ------------------------------------------------------------ escenas */
 
-function EscenaVitrina({ escena, materiales, materialesCortos }: {
+function EscenaVitrina({ escena, materiales, materialesCortos, conQr }: {
   escena: Escena;
   materiales: string | null;
   materialesCortos: string | null;
+  conQr: boolean;
 }) {
   switch (escena.tipo) {
     case 'pieza': return <EscenaPieza familia={escena.familia} lado={escena.lado} materiales={materialesCortos} />;
-    case 'trio': return <EscenaTrio piezas={escena.piezas} />;
-    case 'coleccion': return <EscenaColeccion categoria={escena.categoria} cuantas={escena.cuantas} piezas={escena.piezas} />;
+    case 'conjunto': return <EscenaConjunto piezas={escena.piezas} />;
+    case 'coleccion': return <EscenaColeccion titulo={tituloCategoria(escena.categoria)} nota={`${escena.cuantas} para elegir en la vitrina`} piezas={escena.piezas} />;
+    case 'regalo': return <EscenaRegalo piezas={escena.piezas} />;
     case 'detalle': return <EscenaDetalle familia={escena.familia} materiales={materiales} />;
     case 'frase': return <EscenaFrase frase={escena.frase} />;
     case 'escote': return <EscenaEscote escote={escena.escote} piezas={escena.piezas} />;
+    case 'guia': return <EscenaGuia conQr={conQr} />;
     case 'proxima': return <EscenaPieza familia={escena.familia} lado={escena.lado} materiales={materialesCortos} proxima />;
   }
 }
@@ -689,8 +789,15 @@ function Precios({ pieza, clase = 'vitrina__precio' }: { pieza: PiezaVitrina; cl
   );
 }
 
-/** La foto en su arco de vitrina, con el arco de oro que se dibuja. */
-function Arco({ pieza, nombre, clase = '' }: { pieza: PiezaVitrina | undefined; nombre: string; clase?: string }) {
+/** Una estrella de cuatro puntas: el brillo de una gema. */
+const BRILLO = 'M12 0C12.9 7.6 16.4 11.1 24 12C16.4 12.9 12.9 16.4 12 24C11.1 16.4 7.6 12.9 0 12C7.6 11.1 11.1 7.6 12 0Z';
+
+/**
+ * La foto en su arco de vitrina, con el arco de oro que se dibuja. La
+ * estelar lleva además dos brillos que se encienden una vez, cuando la luz
+ * termina de pasar por la pieza.
+ */
+function Arco({ pieza, nombre, clase = '', brillo = false }: { pieza: PiezaVitrina | undefined; nombre: string; clase?: string; brillo?: boolean }) {
   const url = fotoDe(pieza);
   return (
     <div className={`vitrina__arco ${clase}`}>
@@ -698,6 +805,12 @@ function Arco({ pieza, nombre, clase = '' }: { pieza: PiezaVitrina | undefined; 
         {url ? <img src={url} alt={nombre} /> : <div className="vitrina__sinfoto"><Monograma tamano={120} /></div>}
       </div>
       <FiligranaArco />
+      {brillo ? (
+        <>
+          <svg className="vitrina__brillo" viewBox="0 0 24 24" aria-hidden="true"><path d={BRILLO} /></svg>
+          <svg className="vitrina__brillo vitrina__brillo--2" viewBox="0 0 24 24" aria-hidden="true"><path d={BRILLO} /></svg>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -722,7 +835,7 @@ function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: 
 
   return (
     <div className={`vitrina__pieza vitrina__pieza--${lado}`}>
-      <Arco pieza={conFoto(variantes)} nombre={cabeza.nombre} clase="vitrina__arco--estelar" />
+      <Arco pieza={conFoto(variantes)} nombre={cabeza.nombre} clase="vitrina__arco--estelar" brillo />
 
       <div className="vitrina__ficha vitrina__ajustable">
         {proxima ? (
@@ -755,11 +868,15 @@ function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: 
   );
 }
 
-/** Una pieza pequeña: su arco, su nombre con la medida que se enseña y sus dos precios. */
-function Tesela({ pieza, n }: { pieza: PiezaVitrina; n: number }) {
+/**
+ * Una pieza pequeña: su arco, su nombre con la medida que se enseña y sus
+ * dos precios. `rotulo` va encima, en oro: dónde se lleva o por qué está ahí.
+ */
+function Tesela({ pieza, n, rotulo }: { pieza: PiezaVitrina; n: number; rotulo?: string }) {
   const nombre = nombreConVariante(pieza.nombre, pieza.variante);
   return (
     <li className="vitrina__tesela" style={{ '--n': n } as CSSProperties}>
+      {rotulo ? <p className="vitrina__tesela-rotulo">{rotulo}</p> : null}
       <Arco pieza={pieza} nombre={nombre} clase="vitrina__arco--tesela" />
       <p className="vitrina__tesela-nombre">{pieza.nombre}</p>
       {pieza.variante ? <p className="vitrina__tesela-medida">{pieza.variante}</p> : null}
@@ -768,27 +885,91 @@ function Tesela({ pieza, n }: { pieza: PiezaVitrina; n: number }) {
   );
 }
 
-function EscenaTrio({ piezas }: { piezas: PiezaVitrina[] }) {
+/**
+ * Un conjunto: una pieza para cada parte del cuerpo, dicho encima de cada
+ * una, y lo que cuesta todo junto. La suma es de los precios de etiqueta,
+ * que es lo que dice cada pieza: no promete un descuento.
+ */
+function EscenaConjunto({ piezas }: { piezas: PiezaVitrina[] }) {
+  const todoBs = piezas.every((p) => p.precio_bs !== null) ? sumarCifras(piezas.map((p) => p.precio_bs)) : null;
+  const todoBcv = piezas.every((p) => p.precio_usd !== null) ? sumarCifras(piezas.map((p) => p.precio_usd)) : null;
   return (
-    <div className="vitrina__trio vitrina__ajustable">
-      <h2 className="vitrina__titular vitrina__aparece">Para combinar</h2>
-      <FiligranaDivisor className="vitrina__divisor vitrina__divisor--centro" retraso={0.3} />
-      <ul className="vitrina__teselas">
-        {piezas.map((p, n) => <Tesela key={p.id} pieza={p} n={n} />)}
+    <div className="vitrina__conjunto vitrina__ajustable">
+      <p className="vitrina__categoria vitrina__aparece">Para combinar</p>
+      <h2 className="vitrina__titular vitrina__aparece">Arma tu conjunto</h2>
+      <ul className="vitrina__teselas vitrina__teselas--conjunto">
+        {piezas.map((p, n) => {
+          const zona = zonasDe(p).find((z) => DONDE[z]);
+          return <Tesela key={p.id} pieza={p} n={n} rotulo={zona ? DONDE[zona] : undefined} />;
+        })}
       </ul>
+      {todoBs !== null && todoBcv !== null ? (
+        <p className="vitrina__total vitrina__aparece vitrina__aparece--ultimo">
+          <span className="vitrina__total-que">{piezas.length === 2 ? 'Las dos' : `Las ${piezas.length}`}</span>
+          <span className="vitrina__total-cifra">{formatearBs(todoBs)}</span>
+          <span className="vitrina__total-cifra">{formatearBcv(todoBcv)}</span>
+        </p>
+      ) : null}
     </div>
   );
 }
 
-function EscenaColeccion({ categoria, cuantas, piezas }: { categoria: string; cuantas: number; piezas: PiezaVitrina[] }) {
+/** Las de menor precio, para regalar: la palabra grande y desde cuánto. */
+function EscenaRegalo({ piezas }: { piezas: PiezaVitrina[] }) {
+  const menor = piezas.reduce<PiezaVitrina | null>((m, p) => (m === null || (p.precio_usd ?? Infinity) < (m.precio_usd ?? Infinity) ? p : m), null);
+  return (
+    <EscenaColeccion
+      titulo="Para regalar"
+      nota={menor && menor.precio_bs !== null ? `Desde ${formatearBs(menor.precio_bs)} · ${formatearBcv(menor.precio_usd)}` : 'Un detalle que se recuerda'}
+      piezas={piezas}
+    />
+  );
+}
+
+/**
+ * Cómo se compra, en tres pasos y en grande: para quien entra por primera
+ * vez, o nunca ha pedido por un teléfono. El tercero dice el QR solo si
+ * está en pantalla.
+ */
+function EscenaGuia({ conQr }: { conQr: boolean }) {
+  // El tercer paso nombra el código solo si se ve: en vertical el riel no
+  // sale aunque el QR esté puesto, y ahí vale el de sin código (vitrina.css).
+  const pasos: { titulo: string; texto: string; clase?: string }[] = [
+    { titulo: 'Elige la que te guste', texto: 'Todo lo que ves está aquí, en la tienda.' },
+    { titulo: 'Pídesela a la vendedora', texto: 'Te la enseña para que la veas de cerca.' },
+    ...(conQr ? [{ titulo: 'O pídela desde tu teléfono', texto: 'Con el código de la derecha ves todo y la apartas.', clase: 'vitrina__guia-paso--con-riel' }] : []),
+    { titulo: 'Llévatela hoy', texto: 'O te la enviamos a tu ciudad.', clase: conQr ? 'vitrina__guia-paso--sin-riel' : undefined },
+  ];
+  return (
+    <div className="vitrina__guia vitrina__ajustable">
+      <p className="vitrina__categoria vitrina__aparece">Comprar en Lux</p>
+      <h2 className="vitrina__titular vitrina__titular--guia vitrina__aparece">Así de fácil</h2>
+      <FiligranaDivisor className="vitrina__divisor vitrina__divisor--centro" retraso={0.4} />
+      <ol className="vitrina__guia-pasos">
+        {pasos.map(({ titulo, texto, clase }, n) => (
+          <li key={titulo} className={['vitrina__guia-paso', clase].filter(Boolean).join(' ')} style={{ '--n': Math.min(n, 2) } as CSSProperties}>
+            <span className="vitrina__guia-numero" aria-hidden="true">{Math.min(n, 2) + 1}</span>
+            <span className="vitrina__guia-titulo">{titulo}</span>
+            <span className="vitrina__guia-texto">{texto}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * Una colección (o "Para regalar"): la palabra grande arriba y cuatro piezas
+ * en fila debajo. Antes la palabra iba al lado y en la mitad del ancho
+ * "Collares" no cabía; arriba tiene todo el ancho.
+ */
+function EscenaColeccion({ titulo, nota, piezas }: { titulo: string; nota: string; piezas: PiezaVitrina[] }) {
   return (
     <div className="vitrina__coleccion">
       <div className="vitrina__coleccion-titulo vitrina__ajustable">
-        <h2 className="vitrina__palabra">{tituloCategoria(categoria)}</h2>
-        <FiligranaDivisor className="vitrina__divisor" retraso={0.6} />
-        <p className="vitrina__nota vitrina__aparece vitrina__aparece--tarde">
-          {cuantas} para elegir en la vitrina
-        </p>
+        <h2 className="vitrina__palabra">{titulo}</h2>
+        <FiligranaDivisor className="vitrina__divisor vitrina__divisor--centro" retraso={0.6} />
+        <p className="vitrina__nota vitrina__aparece vitrina__aparece--tarde">{nota}</p>
       </div>
       <ul className="vitrina__mosaico">
         {piezas.map((p, n) => {
@@ -859,25 +1040,43 @@ function EscenaFrase({ frase }: { frase: Frase }) {
 
 /**
  * Qué joya va con un escote: la silueta se dibuja (el cuerpo, el borde de
- * la prenda y, en oro, la joya) y al lado las piezas de la tienda que le
- * van, en la medida que le va.
+ * la prenda y, en oro, el collar) y al lado las piezas de la tienda que le
+ * van, del largo que le va. Los aretes salen dichos: "Y para completar" al
+ * lado de un collar, o "Estos aretes combinan" en su lugar cuando no hay
+ * collar que le vaya; entonces el dibujo no pinta una cadena que no está.
  */
-function EscenaEscote({ escote, piezas }: { escote: Escote; piezas: PiezaVitrina[] }) {
+function EscenaEscote({ escote, piezas }: { escote: Escote; piezas: PiezasDeEscote<PiezaVitrina> }) {
+  const soloAretes = piezas.modo === 'aretes';
   return (
     <div className="vitrina__escote">
       <div className="vitrina__escote-dibujo">
-        <SiluetaEscote clave={escote.clave} descripcion={`${escote.titulo}: ${escote.joya}`} />
+        <div className="vitrina__escote-silueta">
+          <SiluetaEscote
+            clave={escote.clave}
+            conJoya={!soloAretes}
+            descripcion={soloAretes ? escote.titulo : `${escote.titulo}: ${escote.joya}`}
+          />
+        </div>
       </div>
       <div className="vitrina__escote-texto vitrina__ajustable">
         <p className="vitrina__categoria vitrina__aparece">Qué joya va con tu escote</p>
         <h2 className="vitrina__titular vitrina__titular--escote vitrina__aparece">{escote.titulo}</h2>
-        <p className="vitrina__consejo vitrina__aparece vitrina__aparece--tarde">{escote.consejo}</p>
+        <p className="vitrina__consejo vitrina__aparece vitrina__aparece--tarde">
+          {soloAretes ? escote.consejoAretes : escote.consejo}
+        </p>
         <FiligranaDivisor className="vitrina__divisor" retraso={1.6} />
-        {piezas.length > 0 ? (
-          <ul className="vitrina__teselas vitrina__teselas--escote">
-            {piezas.map((p, n) => <Tesela key={p.id} pieza={p} n={n} />)}
-          </ul>
-        ) : null}
+        <ul className="vitrina__teselas vitrina__teselas--escote">
+          {/* Cada una dice por qué está: todas con su rótulo, así quedan alineadas. */}
+          {piezas.collares.map((p, n) => <Tesela key={p.id} pieza={p} n={n} rotulo={n === 0 ? 'Le va este collar' : 'O este'} />)}
+          {piezas.aretes.map((p, n) => (
+            <Tesela
+              key={p.id}
+              pieza={p}
+              n={piezas.collares.length + n}
+              rotulo={soloAretes ? (n === 0 ? 'Estos aretes combinan' : 'O estos') : 'Y para completar'}
+            />
+          ))}
+        </ul>
       </div>
     </div>
   );

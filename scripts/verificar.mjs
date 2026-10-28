@@ -782,6 +782,29 @@ async function main() {
   }
 
   /*
+    BORRAR DE UN LOTE Y REACOMODAR (esquema-lote-y-grupos.sql). La fórmula
+    del costo sola (`costo_bcv_con`) no la ejecuta nadie: es el costo, y la
+    llaman las funciones de definidor. Borrar de un lote en camino y poner
+    cada pieza en su grupo son del dueño. Reacomodar no se corre aquí con
+    el dueño: movería sus precios.
+  */
+  console.log('\nBORRAR DE UN LOTE Y REACOMODAR');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.rpc('costo_bcv_con', { p_costo_puesto_usd: 1, p_es_dije: false, p_brecha: 1, p_merma: 1, p_tienda: 1 });
+    dice(error?.code === '42501', `costo_bcv_con(): ${quien}, cerrada`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+  }
+  const elV = await V.rpc('admin_eliminar_de_lote', { p_modelo_id: -1 });
+  dice(!!elV.error && /administrador/i.test(elV.error.message), 'admin_eliminar_de_lote(): ella no borra', elV.error ? 'rechazada' : 'RESPONDIO');
+  const elP = await P.rpc('admin_eliminar_de_lote', { p_modelo_id: -1 });
+  dice(elP.error?.code === '42501', 'admin_eliminar_de_lote() sin sesion, rechazada', elP.error ? 'rechazada ' + elP.error.code : 'RESPONDIO');
+  const elA = await A.rpc('admin_eliminar_de_lote', { p_modelo_id: -1 });
+  dice(!!elA.error && /ya no existe/i.test(elA.error.message), 'admin_eliminar_de_lote(): el dueno si (pieza -1)', elA.error ? elA.error.message : 'RESPONDIO');
+  const reV = await V.rpc('admin_reasignar_grupos');
+  dice(!!reV.error && /administrador/i.test(reV.error.message), 'admin_reasignar_grupos(): ella no reacomoda', reV.error ? 'rechazada' : 'RESPONDIO');
+  const reP = await P.rpc('admin_reasignar_grupos');
+  dice(reP.error?.code === '42501', 'admin_reasignar_grupos() sin sesion, rechazada', reP.error ? 'rechazada ' + reP.error.code : 'RESPONDIO');
+
+  /*
     LAS VENDEDORAS DEL LOCAL (esquema-vendedoras.sql y la función de
     servidor `vendedoras`). La vista es del dueño; la función crea cuentas
     con la llave maestra, así que tiene que decirle que no a todos menos a
