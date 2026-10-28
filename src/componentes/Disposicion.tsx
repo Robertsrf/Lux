@@ -15,6 +15,10 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   // Lo que entra y lo que sale de la tienda. Se toca a diario, al anotar
   // cada gasto: va junto a lo del dia y no al fondo con las cuentas.
   { a: '/admin/caja',       texto: 'Caja',       icono: 'caja' },
+  // Él también cierra el día y cuenta, y en Conteo revisa lo que no cuadró:
+  // sin estas dos solo llegaba escribiendo la dirección.
+  { a: '/venta/cierre',     texto: 'Cierre',     icono: 'cierre' },
+  { a: '/venta/conteo',     texto: 'Conteo',     icono: 'conteo' },
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
   { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/vendedoras', texto: 'Vendedoras', icono: 'vendedoras' },

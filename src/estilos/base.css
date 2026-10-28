@@ -3099,6 +3099,9 @@ table.tabla tfoot td {
 .conteo-resultados button:hover { border-color: var(--salvia); background: var(--verde-suave); }
 
 .conteo__anteriores { margin-top: var(--e-6); }
+.conteo__ayuda { margin: 0 0 var(--e-3); font-size: var(--t-14); color: var(--texto); }
+/* Al llegar desde el aviso de arriba, el conteo no queda pegado al borde. */
+.conteo-historial > li { scroll-margin-top: var(--e-5); }
 .conteo-historial { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
 .conteo-historial__fila {
   width: 100%; display: grid; gap: 2px; text-align: left;

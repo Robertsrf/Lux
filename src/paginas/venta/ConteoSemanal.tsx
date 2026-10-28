@@ -88,6 +88,16 @@ const sinAcentos = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g,
 
 type Vista = 'faltan' | 'contadas' | 'todas';
 
+/** Un conteo de cualquier ubicación, para llevar al administrador hasta él. */
+interface ConteoAviso {
+  id: number;
+  ubicacion_id: number;
+  ubicacion: string | null;
+  creado_en: string;
+  lineas_por_revisar: number;
+  lineas_ajustadas: number;
+}
+
 /** Qué pasó con lo que no cuadró, dicho como lo dice la tienda. */
 const ESTADO_AJUSTE: Record<AjusteConteo, string> = {
   pendiente: 'Por revisar',
@@ -117,8 +127,13 @@ export function ConteoSemanal() {
   const [anteriores, setAnteriores] = useState<ConteoAnterior[]>([]);
   const [detalleDe, setDetalleDe] = useState<number | null>(null);
   const [lineas, setLineas] = useState<LineaConteo[]>([]);
-  // Los conteos de cualquier ubicación con diferencias por revisar.
-  const [porRevisar, setPorRevisar] = useState<{ id: number; ubicacion_id: number; ubicacion: string | null; lineas_por_revisar: number }[]>([]);
+  // Los conteos de cualquier ubicación con diferencias por revisar, y los
+  // últimos que cambiaron el inventario (para deshacerlos sin buscarlos).
+  const [porRevisar, setPorRevisar] = useState<ConteoAviso[]>([]);
+  const [ajustados, setAjustados] = useState<ConteoAviso[]>([]);
+  // El conteo que el administrador eligió arriba: se abre cuando su
+  // ubicación termina de cargar.
+  const abrirAlCargar = useRef<number | null>(null);
   // Lo que el administrador está haciendo con un conteo, y lo que salió.
   const [resolviendo, setResolviendo] = useState(false);
   const [resultado, setResultado] = useState<{ tono: 'exito' | 'alerta' | 'error'; texto: string } | null>(null);
@@ -167,20 +182,30 @@ export function ConteoSemanal() {
     // administrador); sin él, como antes. Sin la vista (la base de antes de
     // esquema-conteo-y-cotizar.sql) el historial no sale y el conteo
     // funciona igual.
-    let r = await pedir(`${columnas}, lineas_por_revisar, lineas_ajustadas`);
+    const conRevision = `${columnas}, lineas_por_revisar, lineas_ajustadas`;
+    let r = await pedir(conRevision);
     // Si la base ya tiene el #64, el conteo no toca el inventario y la
     // pantalla lo dice; sin él, todavía lo ajusta y no se puede decir eso.
-    setConAutorizacion(!r.error);
+    const nueva = !r.error;
+    setConAutorizacion(nueva);
     if (r.error) r = await pedir(columnas);
-    setAnteriores((r.data as unknown as ConteoAnterior[] | null) ?? []);
-    // Los de las otras ubicaciones que esperan revisión, para decirlo arriba.
-    const p = await supabase
-      .from('v_conteos')
-      .select('id, ubicacion_id, ubicacion, lineas_por_revisar')
-      .gt('lineas_por_revisar', 0)
-      .order('creado_en', { ascending: false })
-      .limit(20);
-    setPorRevisar(p.error ? [] : ((p.data as { id: number; ubicacion_id: number; ubicacion: string | null; lineas_por_revisar: number }[] | null) ?? []));
+    let lista = (r.data as unknown as ConteoAnterior[] | null) ?? [];
+    // El que se eligió arriba entra aunque sea más viejo que los seis últimos.
+    const elegido = abrirAlCargar.current;
+    if (nueva && elegido !== null && !lista.some((c) => c.id === elegido)) {
+      const uno = await supabase.from('v_conteos').select(conRevision).eq('id', elegido).eq('ubicacion_id', u).maybeSingle();
+      if (uno.data) lista = [...lista, uno.data as unknown as ConteoAnterior];
+    }
+    setAnteriores(lista);
+    // De todas las ubicaciones: los que esperan revisión y los últimos que
+    // ajustaron el inventario, para decirlo arriba.
+    const deTodas = 'id, ubicacion_id, ubicacion, creado_en, lineas_por_revisar, lineas_ajustadas';
+    const [p, a] = await Promise.all([
+      supabase.from('v_conteos').select(deTodas).gt('lineas_por_revisar', 0).order('creado_en', { ascending: false }).limit(20),
+      supabase.from('v_conteos').select(deTodas).gt('lineas_ajustadas', 0).order('creado_en', { ascending: false }).limit(4),
+    ]);
+    setPorRevisar(p.error ? [] : ((p.data as ConteoAviso[] | null) ?? []));
+    setAjustados(a.error ? [] : ((a.data as ConteoAviso[] | null) ?? []));
   }, []);
 
   /**
@@ -435,6 +460,27 @@ export function ConteoSemanal() {
     setLineas((r.data as unknown as LineaConteo[] | null) ?? []);
   }, []);
 
+  // Abre el conteo que se eligió arriba en cuanto llega a la lista, y baja hasta él.
+  useEffect(() => {
+    const id = abrirAlCargar.current;
+    if (id === null) return;
+    abrirAlCargar.current = null;
+    if (!anteriores.some((c) => c.id === id)) return;
+    setResultado(null);
+    setDetalleDe(id);
+    setLineas([]);
+    void traerLineas(id);
+    const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(`conteo-${id}`)?.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });
+  }, [anteriores, traerLineas]);
+
+  /** Lleva al administrador al conteo elegido: su ubicación, con el conteo abierto. */
+  function irAConteo(c: ConteoAviso) {
+    abrirAlCargar.current = c.id;
+    if (c.ubicacion_id !== ubicacionId) setUbicacionId(c.ubicacion_id);
+    else void traerAnteriores(c.ubicacion_id);
+  }
+
   async function verDetalle(id: number) {
     setResultado(null);
     if (detalleDe === id) { setDetalleDe(null); return; }
@@ -654,16 +700,36 @@ export function ConteoSemanal() {
       {/* Para el administrador: los conteos que esperan su revisión, de cualquier ubicación. */}
       {esAdmin && porRevisar.length > 0 && !recontar ? (
         <Aviso tono="alerta" titulo={porRevisar.length === 1 ? 'Un conteo espera tu revisión' : `${porRevisar.length} conteos esperan tu revisión`}>
-          <p>Lo que no cuadró no cambió el inventario. Ábrelo abajo, en los conteos anteriores, y decide pieza por pieza.</p>
+          <p>Lo que no cuadró no cambió el inventario. Tócalo para abrirlo y decide pieza por pieza.</p>
           <div className="acciones acciones--sueltas">
             {porRevisar.map((x) => (
               <button
                 key={x.id}
                 type="button"
                 className="boton boton--secundario boton--pequeno"
-                onClick={() => { setUbicacionId(x.ubicacion_id); setDetalleDe(null); }}
+                onClick={() => irAConteo(x)}
               >
-                {x.ubicacion ?? 'Ubicación'} · {x.lineas_por_revisar} por revisar
+                {x.ubicacion ?? 'Ubicación'} · {formatearFechaHora(x.creado_en)} · {x.lineas_por_revisar} por revisar
+              </button>
+            ))}
+          </div>
+        </Aviso>
+      ) : null}
+      {/* Para el administrador: los últimos conteos que cambiaron el
+          inventario, a un toque de "Deshacer". Antes había que elegir la
+          ubicación, bajar al final de la lista y abrir el conteo. */}
+      {esAdmin && ajustados.length > 0 && !recontar ? (
+        <Aviso titulo="¿Un conteo dejó mal el inventario?">
+          <p>Ábrelo y toca «Deshacer el ajuste de este conteo»: lo que quitó vuelve al inventario y el conteo se queda en el historial como lo que se contó.</p>
+          <div className="acciones acciones--sueltas">
+            {ajustados.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                className="boton boton--secundario boton--pequeno"
+                onClick={() => irAConteo(x)}
+              >
+                {x.ubicacion ?? 'Ubicación'} · {formatearFechaHora(x.creado_en)} · ajustó {x.lineas_ajustadas}
               </button>
             ))}
           </div>
@@ -833,9 +899,12 @@ export function ConteoSemanal() {
       {anteriores.length > 0 && !recontar ? (
         <section className="conteo__anteriores" aria-labelledby="conteos-anteriores">
           <h2 className="seccion-titulo" id="conteos-anteriores">Conteos anteriores de {ubicacion?.nombre}</h2>
+          {esAdmin && conAutorizacion ? (
+            <p className="conteo__ayuda">Toca un conteo para ver qué no cuadró, ajustarlo o deshacer lo que cambió.</p>
+          ) : null}
           <ul className="conteo-historial">
             {anteriores.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} id={`conteo-${c.id}`}>
                 <button
                   type="button"
                   className="conteo-historial__fila"
@@ -852,6 +921,9 @@ export function ConteoSemanal() {
                   </span>
                   {c.lineas_por_revisar ? (
                     <span className="etiqueta etiqueta--alerta">{c.lineas_por_revisar} por revisar</span>
+                  ) : null}
+                  {c.lineas_ajustadas ? (
+                    <span className="etiqueta">Ajustó {c.lineas_ajustadas}</span>
                   ) : null}
                 </button>
                 {detalleDe === c.id ? (

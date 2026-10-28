@@ -773,7 +773,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   de las dos caras): el primer abono la vuelve una venta por partes y la caja
   cuenta lo que de verdad llegó, no el total que se anotó. Anular una venta ya
   verificada sigue siendo del administrador. **El administrador también vende**: Mostrador y Pedidos están en
-  su menú.
+  su menú, y también cierra y cuenta: Cierre y Conteo (desde el 28/10/2026;
+  antes solo llegaba escribiendo la dirección).
 - **Lo de fuera del catálogo** (pedido del dueño del 02/10/2026). Al cobrar, las
   dos caras pueden sumar algo que no está cargado (el dije de una cadena):
   "Sumar algo fuera del catálogo", cuántos bolívares y qué es, y la pantalla dice
@@ -985,8 +986,11 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cuadra queda "Por revisar" y el administrador, en la misma pantalla, lo
   ajusta o lo deja como está, pieza por pieza o todo el conteo, y puede
   deshacer lo que un conteo ajustó (lo que se hizo con el conteo de antes del
-  cambio). Un aviso arriba le dice qué conteos esperan su revisión. Nunca deja
-  una pieza por debajo de lo que apartan los pedidos.
+  cambio). Arriba, dos avisos lo llevan con un toque al conteo ya abierto, de
+  cualquier ubicación: los que esperan su revisión y los cuatro últimos que
+  ajustaron el inventario, para deshacerlos (antes "Deshacer" vivía al final
+  de la lista de piezas, dentro de la fila del conteo, y el dueño no lo
+  encontró). Nunca deja una pieza por debajo de lo que apartan los pedidos.
   **El cierre del día también es a ciegas** (desde el 15/10/2026): antes decía
   "Espera 38" junto al campo. La cifra del sistema sale al guardar, y es la
   que esperaba AL CONTAR (`contada − diferencia`), no la existencia de ahora.
