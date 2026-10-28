@@ -120,7 +120,9 @@ src/
                 Tablero, Cierre, Guia,
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
-                con sus medidas dentro y los conteos anteriores)
+                con sus medidas dentro y los conteos anteriores; no cambia el
+                inventario: lo que no cuadra lo ajusta, lo deja o lo deshace
+                el administrador ahí mismo)
     publico/    Catalogo (el inicio: portada con por dónde empezar, tipos
                 con foto y "Todas las joyas", un estante por tipo, "Cómo
                 pedir", Próximamente y la tienda; `?tipo=`, `?ver=todas`,
@@ -358,6 +360,16 @@ línea con `contada` y `vista` (la existencia FÍSICA que la pantalla vio al
 empezar). Si al guardar ya no es esa (se vendió o se movió mientras se
 contaba), esa línea no se toca y vuelve en `cambiaron` para contarla otra
 vez; las demás se guardan. Toma el mismo candado por pieza que la venta.
+**Desde `esquema-conteo-autorizado.sql` no escribe el inventario**: anota, y
+lo que no cuadra queda `conteo_detalle.ajuste = 'pendiente'` (y `por_revisar`
+en la respuesta). Lo decide el dueño con `admin_resolver_conteo(conteo,
+líneas, aplicar, nota)`: aplicar suma la DIFERENCIA a la existencia de hoy
+(lo vendido después del conteo sigue vendido), nunca por debajo de cero ni
+del total que apartan los pedidos (esas líneas vuelven en `rechazadas` con su
+porqué); no aplicar la deja 'descartado'. `admin_deshacer_conteo(conteo,
+nota)` vuelve atrás lo que un conteo ajustó ('aplicado' → 'revertido'), por
+la misma diferencia. Las líneas de antes que no cuadraban quedaron
+'aplicado': las ajustó la función vieja, y así se pueden deshacer.
 `registrar_conteo_semanal`, la de antes, ya no escribe: rechaza con un aviso
 de recargar (borraba lo apartado; ver Trampas).
 
@@ -964,6 +976,17 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   que no cuadra, cuántas faltan o sobran y si una pieza de un pedido no
   aparece. Lo contado vive en el teléfono (`lux-conteo-v2-<ubicación>`) hasta
   guardarlo. Los conteos anteriores salen en la misma pantalla.
+  **El conteo no cambia el inventario; lo ajusta el dueño** (pedido del dueño
+  del 28/10/2026: "el conteo debe servir para hacer un chequeo e inventario y
+  ver dónde están las piezas hasta que coincidan con el inventario; no pueden
+  descontar del inventario las piezas a menos que autorice el admin"). Se
+  dejaban en 0 las piezas de los pedidos ("ya no son del local"), el conteo
+  ponía la existencia en 0 y el pedido no se podía entregar. Ahora lo que no
+  cuadra queda "Por revisar" y el administrador, en la misma pantalla, lo
+  ajusta o lo deja como está, pieza por pieza o todo el conteo, y puede
+  deshacer lo que un conteo ajustó (lo que se hizo con el conteo de antes del
+  cambio). Un aviso arriba le dice qué conteos esperan su revisión. Nunca deja
+  una pieza por debajo de lo que apartan los pedidos.
   **El cierre del día también es a ciegas** (desde el 15/10/2026): antes decía
   "Espera 38" junto al campo. La cifra del sistema sale al guardar, y es la
   que esperaba AL CONTAR (`contada − diferencia`), no la existencia de ahora.
@@ -1085,7 +1108,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 244 comprobaciones con las dos sesiones (249 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 250 comprobaciones con las dos sesiones (255 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run build         # tsc --noEmit + vite build
 ```
 
@@ -1166,6 +1189,12 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   Encontrado en la auditoría del 14/10/2026 y reproducido en PGlite (7 piezas
   antes, 5 después). Cuando una columna cambia de significado, se buscan TODAS
   las pantallas que la leen, no solo la que motivó el cambio.
+  **Y volvió por la mano de quien cuenta** (28/10/2026): con la pantalla bien,
+  la vendedora dejaba en 0 las piezas de los pedidos, y el conteo, que
+  escribía la existencia, las borraba igual; el pedido ya no se podía
+  entregar. Una regla que depende de que la persona cuente "bien" no es una
+  regla: desde `esquema-conteo-autorizado.sql` el conteo no escribe, y el
+  ajuste lo autoriza el dueño, nunca por debajo de lo apartado.
 - **`manualChunks` con un paquete arrastra sus dependencias.** Al nombrar
   `recharts`, React entró en ese trozo; la entrada necesitaba React y precargaba
   los 392 KB de gráficos en todas las pantallas, el catálogo público incluido.

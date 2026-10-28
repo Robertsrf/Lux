@@ -582,6 +582,19 @@ async function main() {
   const viejo = await V.rpc('registrar_conteo_semanal', { p_ubicacion_id: -1, p_detalle: [], p_notas: null });
   dice(!!viejo.error && /qued/i.test(viejo.error.message), 'el conteo viejo ya no escribe',
     viejo.error ? 'avisa que recargue' : 'RESPONDIO');
+  // Desde esquema-conteo-autorizado.sql el conteo no ajusta el inventario:
+  // lo ajusta o lo deshace el dueño, y nadie más.
+  for (const [fn, args] of [
+    ['admin_resolver_conteo', { p_conteo_id: -1, p_lineas: null, p_aplicar: true, p_nota: null }],
+    ['admin_deshacer_conteo', { p_conteo_id: -1, p_nota: null }],
+  ]) {
+    const v = await V.rpc(fn, args);
+    dice(!!v.error && /administrador/i.test(v.error.message), `${fn}(): ella no ajusta el inventario`, v.error ? 'rechazada' : 'RESPONDIO');
+    const p = await P.rpc(fn, args);
+    dice(p.error?.code === '42501', `${fn}() sin sesion, rechazada`, p.error ? 'rechazada ' + p.error.code : 'RESPONDIO');
+    const a = await A.rpc(fn, args);
+    dice(!!a.error && /no existe/i.test(a.error.message), `${fn}(): el dueno si (conteo -1)`, a.error ? a.error.message : 'RESPONDIO');
+  }
   const histV = await V.from('v_conteos').select('id, quien, piezas_faltaron').limit(1);
   dice(!histV.error, 'v_conteos, los conteos anteriores', histV.error ? 'ERROR ' + histV.error.code : 'responde');
   const histP = await P.from('v_conteos').select('id').limit(1);

@@ -8,7 +8,8 @@ import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { formatearEntero, formatearFechaHora } from '../../lib/dinero';
 import { useUbicaciones } from '../../hooks/useCatalogos';
-import type { ConteoAnterior, LineaConteo, PiezaConteo, ResultadoConteo } from '../../lib/tipos';
+import { useSesion } from '../../hooks/useSesion';
+import type { AjusteConteo, ConteoAnterior, LineaConteo, PiezaConteo, ResultadoAjuste, ResultadoConteo } from '../../lib/tipos';
 
 /*
   CONTEO DE INVENTARIO
@@ -34,6 +35,14 @@ import type { ConteoAnterior, LineaConteo, PiezaConteo, ResultadoConteo } from '
     vuelve a donde iba.
   - LO FÍSICO. Se cuentan todas las piezas que están, las de los pedidos
     también. Lo apartado sigue siendo del pedido.
+  - EL CONTEO NO CAMBIA EL INVENTARIO (desde el 28/10/2026, lo pidió el
+    dueño). Se dejaban en 0 las piezas de los pedidos ("ya no son del
+    local"), el conteo ponía la existencia en 0 y después el pedido no se
+    podía entregar. Ahora el conteo anota lo contado contra lo que había y
+    lo que no cuadra queda "Por revisar"; el administrador ajusta el
+    inventario o lo deja como está (`admin_resolver_conteo`, nunca por
+    debajo de lo que apartan los pedidos), y puede deshacer lo que ajustó un
+    conteo (`admin_deshacer_conteo`). esquema-conteo-autorizado.sql.
 */
 
 const POR_TANDA = 1000;
@@ -79,6 +88,14 @@ const sinAcentos = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g,
 
 type Vista = 'faltan' | 'contadas' | 'todas';
 
+/** Qué pasó con lo que no cuadró, dicho como lo dice la tienda. */
+const ESTADO_AJUSTE: Record<AjusteConteo, string> = {
+  pendiente: 'Por revisar',
+  aplicado: 'Inventario ajustado',
+  descartado: 'Se dejó como estaba',
+  revertido: 'Ajuste deshecho',
+};
+
 export function ConteoSemanal() {
   const { ubicaciones } = useUbicaciones();
   const [ubicacionId, setUbicacionId] = useState<number | null>(null);
@@ -100,6 +117,14 @@ export function ConteoSemanal() {
   const [anteriores, setAnteriores] = useState<ConteoAnterior[]>([]);
   const [detalleDe, setDetalleDe] = useState<number | null>(null);
   const [lineas, setLineas] = useState<LineaConteo[]>([]);
+  // Los conteos de cualquier ubicación con diferencias por revisar.
+  const [porRevisar, setPorRevisar] = useState<{ id: number; ubicacion_id: number; ubicacion: string | null; lineas_por_revisar: number }[]>([]);
+  // Lo que el administrador está haciendo con un conteo, y lo que salió.
+  const [resolviendo, setResolviendo] = useState(false);
+  const [resultado, setResultado] = useState<{ tono: 'exito' | 'alerta' | 'error'; texto: string } | null>(null);
+  // La base tiene esquema-conteo-autorizado.sql: guardar no ajusta el inventario.
+  const [conAutorizacion, setConAutorizacion] = useState(false);
+  const { esAdmin } = useSesion();
   const entradas = useRef(new Map<number, HTMLInputElement>());
   const visor = useVisorFoto();
   const tituloRevisar = useRef<HTMLHeadingElement>(null);
@@ -131,15 +156,31 @@ export function ConteoSemanal() {
   }, []);
 
   const traerAnteriores = useCallback(async (u: number) => {
-    const { data } = await supabase
+    const columnas = 'id, creado_en, ubicacion, quien, lineas, lineas_distintas, piezas_faltaron, piezas_sobraron, notas';
+    const pedir = (cols: string) => supabase
       .from('v_conteos')
-      .select('id, creado_en, ubicacion, quien, lineas, lineas_distintas, piezas_faltaron, piezas_sobraron, notas')
+      .select(cols)
       .eq('ubicacion_id', u)
       .order('creado_en', { ascending: false })
       .limit(6);
-    // Sin la vista (la base de antes de esquema-conteo-y-cotizar.sql) el
-    // historial no sale y el conteo funciona igual.
-    setAnteriores((data as ConteoAnterior[] | null) ?? []);
+    // Con lo de esquema-conteo-autorizado.sql (lo que espera al
+    // administrador); sin él, como antes. Sin la vista (la base de antes de
+    // esquema-conteo-y-cotizar.sql) el historial no sale y el conteo
+    // funciona igual.
+    let r = await pedir(`${columnas}, lineas_por_revisar, lineas_ajustadas`);
+    // Si la base ya tiene el #64, el conteo no toca el inventario y la
+    // pantalla lo dice; sin él, todavía lo ajusta y no se puede decir eso.
+    setConAutorizacion(!r.error);
+    if (r.error) r = await pedir(columnas);
+    setAnteriores((r.data as unknown as ConteoAnterior[] | null) ?? []);
+    // Los de las otras ubicaciones que esperan revisión, para decirlo arriba.
+    const p = await supabase
+      .from('v_conteos')
+      .select('id, ubicacion_id, ubicacion, lineas_por_revisar')
+      .gt('lineas_por_revisar', 0)
+      .order('creado_en', { ascending: false })
+      .limit(20);
+    setPorRevisar(p.error ? [] : ((p.data as { id: number; ubicacion_id: number; ubicacion: string | null; lineas_por_revisar: number }[] | null) ?? []));
   }, []);
 
   /**
@@ -342,9 +383,16 @@ export function ConteoSemanal() {
     const r = data as ResultadoConteo;
     const nombreUbicacion = ubicaciones.find((u) => u.id === ubicacionId)?.nombre ?? 'esta ubicación';
     setNotas('');
+    // Con el #64 el conteo no toca el inventario: lo que no cuadra espera al
+    // administrador. Sin él, la base de antes todavía lo ajustaba sola.
+    const sinTocar = r.por_revisar !== undefined;
     setExito(r.aplicadas > 0
       ? `Conteo de ${nombreUbicacion} guardado: ${formatearEntero(r.aplicadas)} pieza${r.aplicadas === 1 ? '' : 's'} contada${r.aplicadas === 1 ? '' : 's'}`
-        + (r.con_diferencia > 0 ? `, ${formatearEntero(r.con_diferencia)} con la existencia corregida a lo que contaste.` : ', todas cuadraron.')
+        + (r.con_diferencia === 0
+          ? ', todas cuadraron.'
+          : sinTocar
+            ? `. ${formatearEntero(r.con_diferencia)} no cuadra${r.con_diferencia === 1 ? '' : 'n'}: el inventario no cambia hasta que el administrador lo revise${esAdmin ? ' (abajo, en los conteos anteriores)' : ''}.`
+            : `, ${formatearEntero(r.con_diferencia)} con la existencia corregida a lo que contaste.`)
       : null);
     setCambiaron(r.cambiaron);
 
@@ -373,17 +421,90 @@ export function ConteoSemanal() {
     await cargar(ubicacionId, { nuevo: true });
   }
 
-  async function verDetalle(id: number) {
-    if (detalleDe === id) { setDetalleDe(null); return; }
-    setDetalleDe(id);
-    setLineas([]);
-    const { data } = await supabase
+  const traerLineas = useCallback(async (id: number) => {
+    const columnas = 'conteo_id, modelo_id, sku, nombre, variante, cantidad_esperada, cantidad_contada, diferencia';
+    const pedir = (cols: string) => supabase
       .from('v_conteo_detalle')
-      .select('conteo_id, modelo_id, sku, nombre, variante, cantidad_esperada, cantidad_contada, diferencia')
+      .select(cols)
       .eq('conteo_id', id)
       .neq('diferencia', 0)
       .order('nombre');
-    setLineas((data as LineaConteo[] | null) ?? []);
+    // Con el estado de cada línea (el #64); sin él, como antes.
+    let r = await pedir(`${columnas}, detalle_id, ajuste, ajuste_quien, ajuste_en, ajuste_nota, apartadas`);
+    if (r.error) r = await pedir(columnas);
+    setLineas((r.data as unknown as LineaConteo[] | null) ?? []);
+  }, []);
+
+  async function verDetalle(id: number) {
+    setResultado(null);
+    if (detalleDe === id) { setDetalleDe(null); return; }
+    setDetalleDe(id);
+    setLineas([]);
+    await traerLineas(id);
+  }
+
+  /** Lo que salió de ajustar, dejar o deshacer, dicho en una línea; y lo que no se pudo, con su porqué. */
+  function decirResultado(r: ResultadoAjuste, hecho: string) {
+    const no = r.rechazadas.map((x) => `${x.nombre}: ${x.motivo}`).join(' ');
+    setResultado(r.rechazadas.length > 0
+      ? { tono: 'alerta', texto: `${hecho}${hecho ? ' ' : ''}No se pudo con ${r.rechazadas.length === 1 ? 'una' : r.rechazadas.length}: ${no}` }
+      : { tono: 'exito', texto: hecho });
+  }
+
+  /**
+   * El administrador decide qué hacer con lo que no cuadró: ajustar el
+   * inventario a lo contado (por la diferencia, nunca por debajo de lo que
+   * apartan los pedidos) o dejarlo como está. Sin líneas, todas las del conteo.
+   */
+  async function resolver(conteoId: number, aplicar: boolean, lineasIds: number[] | null) {
+    if (aplicar && !window.confirm(lineasIds
+      ? '¿Ajustar el inventario a lo que se contó en esta pieza?'
+      : '¿Ajustar el inventario a lo que se contó en todas las piezas por revisar de este conteo?')) return;
+    setResolviendo(true);
+    setResultado(null);
+    const { data, error: err } = await supabase.rpc('admin_resolver_conteo', {
+      p_conteo_id: conteoId,
+      p_lineas: lineasIds,
+      p_aplicar: aplicar,
+      p_nota: null,
+    });
+    setResolviendo(false);
+    if (err) {
+      setResultado({ tono: 'error', texto: err.code === 'PGRST202' ? 'Para revisar los conteos falta correr en Supabase esquema-conteo-autorizado.sql.' : mensajeDeError(err) });
+      return;
+    }
+    const r = data as ResultadoAjuste;
+    decirResultado(r, aplicar
+      ? (r.aplicadas ? `Inventario ajustado en ${r.aplicadas} pieza${r.aplicadas === 1 ? '' : 's'}.` : '')
+      : `Se dejó como estaba: ${r.dejadas ?? 0} pieza${r.dejadas === 1 ? '' : 's'}.`);
+    await traerLineas(conteoId);
+    if (ubicacionId !== null) void traerAnteriores(ubicacionId);
+  }
+
+  /** Devuelve al inventario lo que un conteo ajustó: el conteo se queda como registro. */
+  async function deshacer(c: ConteoAnterior) {
+    if (!window.confirm(
+      `¿Deshacer lo que el conteo del ${formatearFechaHora(c.creado_en)} cambió en el inventario?\n\nLo que quitó vuelve y lo que sumó se quita. El conteo se queda en el historial como lo que se contó.`,
+    )) return;
+    setResolviendo(true);
+    setResultado(null);
+    const { data, error: err } = await supabase.rpc('admin_deshacer_conteo', { p_conteo_id: c.id, p_nota: null });
+    setResolviendo(false);
+    if (err) {
+      setResultado({ tono: 'error', texto: err.code === 'PGRST202' ? 'Para deshacer un conteo falta correr en Supabase esquema-conteo-autorizado.sql.' : mensajeDeError(err) });
+      return;
+    }
+    const r = data as ResultadoAjuste;
+    const piezas = r.piezas ?? 0;
+    decirResultado(r, r.deshechas
+      ? `Deshecho: ${piezas >= 0 ? `volvieron ${formatearEntero(piezas)}` : `se quitaron ${formatearEntero(-piezas)}`} pieza${Math.abs(piezas) === 1 ? '' : 's'} al inventario.`
+      : 'No había nada que deshacer.');
+    await traerLineas(c.id);
+    if (ubicacionId !== null) {
+      void traerAnteriores(ubicacionId);
+      // La lista para contar cambió con el inventario: se vuelve a leer.
+      if (contado.size === 0) void cargar(ubicacionId, { nuevo: true });
+    }
   }
 
   const ubicacion = ubicaciones.find((u) => u.id === ubicacionId);
@@ -418,7 +539,9 @@ export function ConteoSemanal() {
               {cuentas.sobran > 0 ? ` · sobran ${formatearEntero(cuentas.sobran)}` : ''}
             </h2>
             <p className="campo__pista">
-              Si dudas de alguna, cuéntala otra vez antes de guardar: al guardar, la existencia queda en lo que contaste.
+              {conAutorizacion
+                ? 'Si dudas de alguna, cuéntala otra vez antes de guardar. Guardar no cambia el inventario: lo que no cuadre queda para que el administrador lo revise y decida.'
+                : 'Si dudas de alguna, cuéntala otra vez antes de guardar: al guardar, la existencia queda en lo que contaste.'}
             </p>
             <ul className="conteo-lista">
               {cuentas.distintas.map((p) => {
@@ -444,7 +567,7 @@ export function ConteoSemanal() {
                       </span>
                       {p.apartadas > 0 && n < p.apartadas ? (
                         <span className="conteo-fila__aviso">
-                          {p.apartadas} {p.apartadas === 1 ? 'es' : 'son'} de un pedido: si no aparece{p.apartadas === 1 ? '' : 'n'}, avisa antes de entregarlo.
+                          {p.apartadas} {p.apartadas === 1 ? 'es' : 'son'} de un pedido: búscala{p.apartadas === 1 ? '' : 's'} donde guardan los pedidos y cuéntala{p.apartadas === 1 ? '' : 's'} también.
                         </span>
                       ) : null}
                     </div>
@@ -522,12 +645,30 @@ export function ConteoSemanal() {
           <p>
             {recontar
               ? 'Estas piezas se vendieron o se movieron mientras contabas. Cuéntalas de nuevo, como están ahora.'
-              : 'Cuenta todas las piezas que hay en la ubicación, las apartadas también. Al final revisas lo que no cuadra antes de guardar.'}
+              : `Cuenta todas las piezas que hay en la ubicación, también las de los pedidos y las apartadas aunque estén guardadas aparte. Al final revisas lo que no cuadra.${conAutorizacion ? ' El conteo no cambia el inventario: lo ajusta el administrador.' : ''}`}
           </p>
         </div>
       </div>
 
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
+      {/* Para el administrador: los conteos que esperan su revisión, de cualquier ubicación. */}
+      {esAdmin && porRevisar.length > 0 && !recontar ? (
+        <Aviso tono="alerta" titulo={porRevisar.length === 1 ? 'Un conteo espera tu revisión' : `${porRevisar.length} conteos esperan tu revisión`}>
+          <p>Lo que no cuadró no cambió el inventario. Ábrelo abajo, en los conteos anteriores, y decide pieza por pieza.</p>
+          <div className="acciones acciones--sueltas">
+            {porRevisar.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                className="boton boton--secundario boton--pequeno"
+                onClick={() => { setUbicacionId(x.ubicacion_id); setDetalleDe(null); }}
+              >
+                {x.ubicacion ?? 'Ubicación'} · {x.lineas_por_revisar} por revisar
+              </button>
+            ))}
+          </div>
+        </Aviso>
+      ) : null}
       {cambiaron.length > 0 && recontar ? (
         <Aviso tono="alerta" titulo={`${cambiaron.length} ${cambiaron.length === 1 ? 'pieza cambió' : 'piezas cambiaron'} mientras contabas`}>
           {cambiaron.map((c) => `${c.nombre} (tenía ${c.vista}, ahora ${c.ahora})`).join(' · ')}. No se guardaron: cuéntalas otra vez.
@@ -709,19 +850,64 @@ export function ConteoSemanal() {
                       ? ' · todo cuadró'
                       : ` · ${c.piezas_faltaron ? `faltaron ${c.piezas_faltaron}` : ''}${c.piezas_faltaron && c.piezas_sobraron ? ', ' : ''}${c.piezas_sobraron ? `sobraron ${c.piezas_sobraron}` : ''}`}
                   </span>
+                  {c.lineas_por_revisar ? (
+                    <span className="etiqueta etiqueta--alerta">{c.lineas_por_revisar} por revisar</span>
+                  ) : null}
                 </button>
                 {detalleDe === c.id ? (
-                  <ul className="conteo-historial__detalle">
-                    {c.notas ? <li className="conteo-historial__nota">{c.notas}</li> : null}
-                    {lineas.map((l) => (
-                      <li key={l.modelo_id}>
-                        {nombreConVariante(l.nombre, l.variante)} · tenía {l.cantidad_esperada}, se contaron {l.cantidad_contada}
-                        <strong className={l.diferencia < 0 ? 'conteo-dif conteo-dif--falta' : 'conteo-dif'}>
-                          {l.diferencia > 0 ? ` +${l.diferencia}` : ` ${l.diferencia}`}
-                        </strong>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="conteo-historial__abierto">
+                    {resultado ? <Aviso tono={resultado.tono}>{resultado.texto}</Aviso> : null}
+                    {/* El administrador decide; la vendedora ve lo mismo y sabe que espera. */}
+                    {esAdmin && (c.lineas_por_revisar ?? 0) > 0 ? (
+                      <div className="acciones acciones--sueltas">
+                        <button type="button" className="boton boton--confirmar boton--pequeno" disabled={resolviendo} onClick={() => void resolver(c.id, true, null)}>
+                          Ajustar el inventario en todas
+                        </button>
+                        <button type="button" className="boton boton--secundario boton--pequeno" disabled={resolviendo} onClick={() => void resolver(c.id, false, null)}>
+                          Dejar todas como están
+                        </button>
+                      </div>
+                    ) : null}
+                    {esAdmin && (c.lineas_ajustadas ?? 0) > 0 ? (
+                      <div className="acciones acciones--sueltas">
+                        <button type="button" className="boton boton--peligro boton--pequeno" disabled={resolviendo} onClick={() => void deshacer(c)}>
+                          Deshacer el ajuste de este conteo
+                        </button>
+                      </div>
+                    ) : null}
+                    <ul className="conteo-historial__detalle">
+                      {c.notas ? <li className="conteo-historial__nota">{c.notas}</li> : null}
+                      {lineas.map((l) => {
+                        const id = l.detalle_id;
+                        return (
+                        <li key={id ?? l.modelo_id}>
+                          <span>
+                            {nombreConVariante(l.nombre, l.variante)} · tenía {l.cantidad_esperada}, se contaron {l.cantidad_contada}
+                            <strong className={l.diferencia < 0 ? 'conteo-dif conteo-dif--falta' : 'conteo-dif'}>
+                              {l.diferencia > 0 ? ` +${l.diferencia}` : ` ${l.diferencia}`}
+                            </strong>
+                          </span>
+                          {l.ajuste ? <span className="conteo-historial__estado">{ESTADO_AJUSTE[l.ajuste]}{l.ajuste_quien ? ` · ${l.ajuste_quien}` : ''}</span> : null}
+                          {l.ajuste === 'pendiente' && l.diferencia < 0 && (l.apartadas ?? 0) > 0 ? (
+                            <span className="conteo-fila__aviso">
+                              {l.apartadas} {l.apartadas === 1 ? 'está apartada' : 'están apartadas'} por pedidos: búscala{l.apartadas === 1 ? '' : 's'} donde guardan los pedidos antes de ajustar.
+                            </span>
+                          ) : null}
+                          {esAdmin && l.ajuste === 'pendiente' && id !== undefined ? (
+                            <span className="grupo-botones">
+                              <button type="button" className="boton boton--secundario boton--pequeno" disabled={resolviendo} onClick={() => void resolver(c.id, true, [id])}>
+                                Ajustar
+                              </button>
+                              <button type="button" className="boton boton--secundario boton--pequeno" disabled={resolviendo} onClick={() => void resolver(c.id, false, [id])}>
+                                Dejar como está
+                              </button>
+                            </span>
+                          ) : null}
+                        </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 ) : null}
               </li>
             ))}

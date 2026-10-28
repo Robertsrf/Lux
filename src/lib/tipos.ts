@@ -238,6 +238,24 @@ export interface ResultadoConteo {
   contadas: number;
   /** Las que se vendieron o se movieron mientras se contaba: van de nuevo. */
   cambiaron: { modelo_id: number; nombre: string; vista: number; ahora: number; contada: number }[];
+  /**
+   * Desde esquema-conteo-autorizado.sql: las que no cuadraron y esperan al
+   * administrador. El inventario no cambió. Sin el #64 no viene: el conteo
+   * de antes ajustaba solo.
+   */
+  por_revisar?: number;
+}
+
+/** Qué pasó con la diferencia de una línea de conteo (esquema-conteo-autorizado.sql). */
+export type AjusteConteo = 'pendiente' | 'aplicado' | 'descartado' | 'revertido';
+
+/** Lo que devuelven `admin_resolver_conteo` y `admin_deshacer_conteo`. */
+export interface ResultadoAjuste {
+  aplicadas?: number;
+  dejadas?: number;
+  deshechas?: number;
+  piezas?: number;
+  rechazadas: { id: number; nombre: string; motivo: string }[];
 }
 
 /**
@@ -265,6 +283,9 @@ export interface ConteoAnterior {
   piezas_faltaron: number;
   piezas_sobraron: number;
   notas: string | null;
+  /** Desde el #64: las que esperan al administrador y las que ajustaron el inventario. */
+  lineas_por_revisar?: number;
+  lineas_ajustadas?: number;
 }
 
 /** Una línea de un conteo anterior, de `v_conteo_detalle`. */
@@ -277,6 +298,14 @@ export interface LineaConteo {
   cantidad_esperada: number;
   cantidad_contada: number;
   diferencia: number;
+  /** Desde el #64. */
+  detalle_id?: number;
+  ajuste?: AjusteConteo | null;
+  ajuste_quien?: string | null;
+  ajuste_en?: string | null;
+  ajuste_nota?: string | null;
+  /** Cuántas apartan hoy los pedidos: hay que buscarlas antes de ajustar. */
+  apartadas?: number;
 }
 
 /* ------------------------------------------------------------ Fase 2 */

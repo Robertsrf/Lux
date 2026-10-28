@@ -3123,6 +3123,17 @@ table.tabla tfoot td {
   font-size: var(--t-14); color: var(--texto);
 }
 .conteo-historial__nota { font-family: var(--fuente-prosa); color: var(--texto-fuerte); }
+/* Desde esquema-conteo-autorizado.sql: el conteo abierto lleva lo que el
+   administrador puede hacer, y cada línea su estado y sus dos botones. */
+.conteo-historial__abierto { display: grid; gap: var(--e-2); margin-top: var(--e-2); }
+.conteo-historial__abierto .acciones--sueltas { margin: 0; }
+.conteo-historial__detalle > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-3); }
+.conteo-historial__estado {
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--texto-secundario);
+}
+.conteo-historial__fila .etiqueta { justify-self: start; }
 
 /* En un teléfono angosto el contador baja a su propio renglón: tres
    botones de 56 px y un nombre no caben juntos en 320 px. */
