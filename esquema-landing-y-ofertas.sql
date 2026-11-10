@@ -67,6 +67,17 @@
 --      venta lo usa; al entregar un pedido la venta copia sus líneas tal
 --      cual y el código queda usado; anular la venta lo devuelve.
 --      `venta_items.motivo_rebaja` acepta 'oferta'.
+--  §5. QUITAR Y DEVOLVER UNA PIEZA DE UN CÓDIGO. Un código es un conjunto:
+--      si se quita una de sus piezas de un pedido o de una venta por
+--      verificar (`quitar_de_pedido`, `quitar_de_venta`), las otras vuelven
+--      a lo que costaban sin él y el código se rompe (`roto_en`); la
+--      respuesta dice `codigo_roto`. Si se devuelve una ya entregada
+--      (`admin_devolver_pieza`), la nota de crédito cobra, en `extra_bs`,
+--      lo que las otras se ahorraron (nunca más que lo que vale la pieza).
+--  §6. REPORTES Y RESPALDO. `v_ofertas_mes` (por mes y origen: emitidos,
+--      usados, vendido y rebajado en $ BCV) y `v_seleccion_admin` (la
+--      Selección de la casa para el panel), solo del administrador;
+--      `admin_respaldo` gana las tablas nuevas.
 --
 -- LAS FIRMAS
 -- Lo de §1 a §3 es nuevo: el navegador de hoy no lee nada de eso, y el
@@ -135,6 +146,13 @@
 -- 11. select count(*) from venta_items where oferta_codigo_id is not null;
 --     -> 0, hasta la primera venta con código. Con un código de dos
 --     piezas de $10 y $8 al 5 %, el total sale 17,10 (9,50 + 7,60).
+-- 12. Quitar la pieza de $6 de un pedido o de una venta por verificar con un
+--     código de tres piezas al 10 % (collar $10, aretes $8, pulsera $6): las
+--     otras dos vuelven a $10 y $8, y la respuesta trae `codigo_roto`.
+--     Devolver la de $6 ya entregada: nota de crédito en −540 Bs con
+--     `extra_bs` 180 (total −360).
+-- 13. select mes, origen, emitidos, usados from v_ofertas_mes;  (como
+--     administrador; en el SQL Editor sale vacía, no hay sesión).
 --
 -- Reejecutable: correrlo otra vez no vuelve a sembrar si ya hay secciones,
 -- ni pisa lo que el dueño cambió en el panel o en Textos, ni las cifras
@@ -3995,6 +4013,787 @@ begin
   perform soltar_codigos_de_venta(p_venta_id);
 end;
 $fn$;
+
+
+-- ---------------------------------------------------------------------
+-- §5. QUITAR Y DEVOLVER UNA PIEZA DE UN CÓDIGO
+-- Un código de oferta es un conjunto: sus piezas valen ese precio JUNTAS.
+-- Si una se quita del pedido o de la venta por verificar, o se devuelve
+-- ya entregada, las demás dejan de tenerlo y el código no vuelve a servir
+-- (`roto_en`; su estado efectivo es 'usado').
+--  - `quitar_de_pedido` y `quitar_de_venta` (las de esquema-devoluciones.sql
+--    y esquema-quitar-por-verificar.sql, misma firma y las mismas reglas):
+--    las otras líneas del código vuelven a lo que costaban sin él (lo que
+--    dejó congelado cada línea al apartar o vender), y el total y lo que
+--    falta se recalculan como hoy. Es la excepción a "las demás piezas
+--    conservan su precio congelado": ahí el precio bajó por el conjunto.
+--    La respuesta gana `codigo_roto`: null si no se rompió nada, o
+--      {codigo, piezas, total_antes, total_despues, moneda}
+--    con `piezas` las unidades que perdieron la oferta, los totales en
+--    $ BCV en un pedido (`moneda` 'usd') y en Bs en una venta ('bs').
+--  - `admin_devolver_pieza`: la nota de crédito lleva la pieza en negativo
+--    y, en `extra_bs`/`extra_nota`, lo que las demás se ahorraron (nunca
+--    más de lo que vale la pieza); `p_monto` queda topado al total de la
+--    nota. Las líneas de la nota copian el código de la línea devuelta, así
+--    los reportes la compensan.
+-- ---------------------------------------------------------------------
+
+create or replace function quitar_de_pedido(
+  p_reserva_id bigint,
+  p_modelo_id  bigint,
+  p_cantidad   int,
+  p_motivo     text,
+  p_devolver   boolean default null,
+  p_metodo     text    default null,
+  p_monto      numeric default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  r            reservas%rowtype;
+  v_fase       text;
+  v_tiene      int;
+  v_quedan     int;
+  v_falta      int;
+  v_linea      record;
+  v_toma       int;
+  v_total_ant  numeric(12,4);
+  v_total      numeric(12,4);
+  v_pagado     numeric;
+  v_verif      numeric;
+  v_sobra      numeric;
+  v_tasa       tasas%rowtype;
+  v_metodo     metodo_pago;
+  m            record;
+  v_nombre     text;
+  v_dinero     text;
+  v_dev_bs     numeric(14,2);
+  v_codigo     bigint;
+  v_codigo_txt text;
+  v_revertidas int := 0;
+  v_codigo_roto jsonb;
+begin
+  if not es_personal() then
+    raise exception 'Hay que iniciar sesión.';
+  end if;
+  if nullif(btrim(coalesce(p_motivo, '')), '') is null then
+    raise exception 'Escribe por qué se quita: queda en la historia del pedido.';
+  end if;
+  if coalesce(p_cantidad, 0) <= 0 then
+    raise exception 'Di cuántas piezas se quitan.';
+  end if;
+
+  select * into r from reservas where id = p_reserva_id for update;
+  if not found then
+    raise exception 'Ese pedido no existe.';
+  end if;
+  v_fase := fase_pedido(r.id);
+  if v_fase = 'entregado' then
+    raise exception 'Ese pedido ya se entregó: la pieza se devuelve desde la ficha de la clienta.';
+  end if;
+  if v_fase not in ('esperando_pago', 'reportado', 'apartado', 'pagado') then
+    raise exception 'Ese pedido está cerrado o vencido: sus piezas ya están libres.';
+  end if;
+  if not pedido_con_precio(r.id) then
+    raise exception 'Es un pedido de antes del apartado, sin precio por pieza: cancélalo y haz uno nuevo con lo que sí quiere.';
+  end if;
+
+  perform pg_advisory_xact_lock(p_modelo_id);
+
+  select coalesce(sum(cantidad), 0) into v_tiene
+    from reserva_items where reserva_id = r.id and modelo_id = p_modelo_id;
+  if v_tiene < p_cantidad then
+    raise exception 'El pedido tiene % de esa pieza y quieres quitar %.', v_tiene, p_cantidad;
+  end if;
+  select coalesce(sum(cantidad), 0) - p_cantidad into v_quedan from reserva_items where reserva_id = r.id;
+  if v_quedan <= 0 then
+    raise exception 'Esa es la última pieza del pedido: para quitarlas todas, cancela el pedido.';
+  end if;
+
+  select m2.nombre || coalesce(' · ' || m2.variante, '') into v_nombre from modelos m2 where m2.id = p_modelo_id;
+  v_total_ant := r.total_usd;
+
+  -- Se baja la línea (la última primero). Cero es "quitada".
+  v_falta := p_cantidad;
+  for v_linea in
+    select id, cantidad, oferta_codigo_id from reserva_items
+     where reserva_id = r.id and modelo_id = p_modelo_id and cantidad > 0
+     order by id desc
+  loop
+    exit when v_falta = 0;
+    v_toma := least(v_falta, v_linea.cantidad);
+    update reserva_items set cantidad = cantidad - v_toma where id = v_linea.id;
+    v_codigo := coalesce(v_codigo, v_linea.oferta_codigo_id);
+    v_falta := v_falta - v_toma;
+  end loop;
+
+  -- Si la pieza era de un código de oferta, el código se rompe: las demás
+  -- piezas de ese código vuelven a lo que costarían sin él (lo que dejó
+  -- congelado cada línea) y el código no vuelve a servir. Uno que ya
+  -- estaba roto no se toca: sus líneas ya volvieron.
+  if v_codigo is not null then
+    select c.codigo into v_codigo_txt from ofertas_codigos c
+     where c.id = v_codigo and c.roto_en is null;
+    if found then
+      select coalesce(sum(cantidad), 0) into v_revertidas
+        from reserva_items
+       where reserva_id = r.id and oferta_codigo_id = v_codigo and cantidad > 0
+         and precio_sin_oferta_usd is not null;
+      update reserva_items
+         set precio_usd    = precio_sin_oferta_usd,
+             motivo_rebaja = motivo_sin_oferta
+       where reserva_id = r.id and oferta_codigo_id = v_codigo and cantidad > 0
+         and precio_sin_oferta_usd is not null;
+      update ofertas_codigos set roto_en = now() where id = v_codigo;
+    end if;
+  end if;
+
+  -- El pedido con lo que queda, a sus precios congelados.
+  select round(coalesce(sum(precio_usd * cantidad), 0), 4) into v_total from reserva_items where reserva_id = r.id;
+  update reservas
+     set total_usd    = v_total,
+         subtotal_usd = (select round(coalesce(sum(coalesce(precio_lista_usd, precio_usd) * cantidad), 0), 4)
+                           from reserva_items where reserva_id = r.id),
+         piezas       = (select coalesce(sum(cantidad), 0) from reserva_items where reserva_id = r.id)
+   where id = r.id;
+
+  -- Lo pagado contra el total nuevo.
+  select coalesce(sum(monto_bcv), 0),
+         coalesce(sum(monto_bcv) filter (where verificado_en is not null), 0)
+    into v_pagado, v_verif
+    from abonos where reserva_id = r.id and anulado_en is null;
+
+  if v_pagado > v_total + 0.005 and v_pagado > v_verif + 0.005 then
+    raise exception 'Hay pagos sin revisar y con ellos pasa del total nuevo: márcalos como que llegaron o que no llegaron antes de quitar la pieza.';
+  end if;
+
+  v_sobra := round(v_verif - v_total, 4);
+  if v_sobra > 0.005 then
+    if not es_admin() then
+      raise exception 'Con esa pieza fuera, lo pagado pasa del total en $% BCV. Lo hace el administrador, que decide si se le devuelve.',
+        to_char(v_sobra, 'FM999G990D00');
+    end if;
+    if p_devolver is null then
+      raise exception 'Sobran $% BCV de lo pagado: di si se le devuelven o se quedan a su favor.', to_char(v_sobra, 'FM999G990D00');
+    end if;
+    if p_devolver then
+      if coalesce(p_monto, 0) <= 0 then
+        raise exception 'Escribe cuánto se le devuelve.';
+      end if;
+      begin
+        v_metodo := nullif(btrim(coalesce(p_metodo, '')), '')::metodo_pago;
+      exception when others then
+        raise exception 'Esa forma de pago no existe.';
+      end;
+      if v_metodo is null then raise exception 'Falta cómo se le devuelve.'; end if;
+      select * into v_tasa from tasas where vigente limit 1;
+      select * into m from montos_de_abono(v_metodo, p_monto, v_tasa.tasa_venta, v_tasa.tasa_bcv);
+      if m.bcv > v_sobra + margen_de_abono(v_metodo, v_tasa.tasa_venta, v_tasa.tasa_bcv) then
+        raise exception 'Se le devolvería más de lo que sobra: sobran $% BCV, hoy Bs %.',
+          to_char(v_sobra, 'FM999G990D00'), to_char(round(v_sobra * v_tasa.tasa_bcv, 2), 'FM999G999G990D00');
+      end if;
+      perform admin_anotar_caja('salida', (now() at time zone 'America/Caracas')::date, 'devolucion',
+                                'Devolución del pedido #' || r.id || ' · ' ||
+                                btrim(coalesce(r.cliente_nombre, '') || ' ' || coalesce(r.cliente_apellido, '')) ||
+                                ' · quitó ' || v_nombre,
+                                v_metodo::text, p_monto, null);
+      v_dinero := 'devuelto';
+      v_dev_bs := m.bs;
+    else
+      v_dinero := 'a_favor';
+    end if;
+  end if;
+
+  insert into pedido_cambios (reserva_id, modelo_id, antes, despues, total_antes, total_despues,
+                              dinero, devuelto_bs, devuelto_metodo, motivo, cambiado_por)
+  values (r.id, p_modelo_id, v_tiene, v_tiene - p_cantidad, v_total_ant, v_total,
+          v_dinero, v_dev_bs,
+          case when v_dinero = 'devuelto' then v_metodo end,
+          btrim(p_motivo), auth.uid());
+
+  perform pedido_al_dia(r.id);
+
+  if v_codigo_txt is not null then
+    v_codigo_roto := jsonb_build_object('codigo', v_codigo_txt, 'piezas', v_revertidas,
+                                        'total_antes', v_total_ant, 'total_despues', v_total,
+                                        'moneda', 'usd');
+  end if;
+
+  return jsonb_build_object(
+    'total_usd', v_total,
+    'falta_bcv', falta_pedido_bcv(r.id),
+    'sobraba_bcv', greatest(v_sobra, 0),
+    'dinero', v_dinero,
+    'codigo_roto', v_codigo_roto);
+end;
+$fn$;
+
+revoke all on function quitar_de_pedido(bigint, bigint, int, text, boolean, text, numeric) from public, anon;
+grant execute on function quitar_de_pedido(bigint, bigint, int, text, boolean, text, numeric) to authenticated;
+
+create or replace function quitar_de_venta(
+  p_venta_id  bigint,
+  p_modelo_id bigint,
+  p_cantidad  int,
+  p_motivo    text,
+  p_devolver  boolean default null,
+  p_metodo    text    default null,
+  p_monto     numeric default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v           ventas%rowtype;
+  v_tiene     int;
+  v_quedan    int;
+  v_falta     int;
+  v_toma      int;
+  v_linea     record;
+  v_total_bs  numeric(14,2);
+  v_total_bcv numeric;
+  v_pagado    numeric;
+  v_verif     numeric;
+  v_sobra     numeric := 0;
+  v_tasa      tasas%rowtype;
+  v_metodo    metodo_pago;
+  m           record;
+  v_nombre    text;
+  v_dinero    text;
+  v_dev_bs    numeric(14,2);
+  v_codigo    bigint;
+  v_codigo_txt text;
+  v_revertidas int := 0;
+  v_codigo_roto jsonb;
+begin
+  if not es_personal() then
+    raise exception 'Hay que iniciar sesión.';
+  end if;
+  if nullif(btrim(coalesce(p_motivo, '')), '') is null then
+    raise exception 'Escribe por qué se quita: queda en la historia de la venta.';
+  end if;
+  -- La pantalla corta en 200; la base no se fía de la pantalla.
+  if length(btrim(p_motivo)) > 300 then
+    raise exception 'El motivo es muy largo: dilo en menos de 300 letras.';
+  end if;
+  if coalesce(p_cantidad, 0) <= 0 then
+    raise exception 'Di cuántas piezas se quitan.';
+  end if;
+
+  select * into v from ventas where id = p_venta_id for update;
+  if not found then raise exception 'Esa venta no existe.'; end if;
+  if v.devolucion_de is not null then raise exception 'Eso es una nota de crédito, no una venta.'; end if;
+  if v.anulada then raise exception 'Esa venta está anulada: sus piezas ya volvieron.'; end if;
+  if not v.por_verificar then
+    raise exception 'Esa venta ya se verificó: la pieza se devuelve desde la ficha de la clienta.';
+  end if;
+  if exists (select 1 from reservas where venta_id = v.id)
+     or exists (select 1 from apartados where venta_id = v.id) then
+    raise exception 'Esa venta salió de un pedido: lo que se le quita lo decide el administrador.';
+  end if;
+
+  -- El mismo candado por pieza que la venta y el conteo.
+  perform pg_advisory_xact_lock(p_modelo_id);
+
+  select coalesce(sum(cantidad), 0) into v_tiene
+    from venta_items where venta_id = v.id and modelo_id = p_modelo_id;
+  if v_tiene < p_cantidad then
+    raise exception 'La venta tiene % de esa pieza y quieres quitar %.', v_tiene, p_cantidad;
+  end if;
+  select coalesce(sum(cantidad), 0) - p_cantidad into v_quedan from venta_items where venta_id = v.id;
+  if v_quedan <= 0 then
+    raise exception 'Esa es la última pieza de la venta: para quitarlas todas, anula la venta.';
+  end if;
+
+  select m2.nombre || coalesce(' · ' || m2.variante, '') into v_nombre from modelos m2 where m2.id = p_modelo_id;
+
+  -- Se bajan las líneas (la última primero) y cada pieza vuelve a su sitio.
+  v_falta := p_cantidad;
+  for v_linea in
+    select id, ubicacion_id, cantidad, oferta_codigo_id from venta_items
+     where venta_id = v.id and modelo_id = p_modelo_id and cantidad > 0
+     order by id desc
+  loop
+    exit when v_falta = 0;
+    v_toma := least(v_falta, v_linea.cantidad);
+    update venta_items set cantidad = cantidad - v_toma where id = v_linea.id;
+    v_codigo := coalesce(v_codigo, v_linea.oferta_codigo_id);
+    insert into existencias (modelo_id, ubicacion_id, cantidad)
+    values (p_modelo_id, v_linea.ubicacion_id, v_toma)
+    on conflict (modelo_id, ubicacion_id)
+    do update set cantidad = existencias.cantidad + excluded.cantidad, actualizado_en = now();
+    v_falta := v_falta - v_toma;
+  end loop;
+
+  -- Si la pieza era de un código de oferta, el código se rompe: las demás
+  -- piezas de ese código vuelven a lo que costarían sin él (sus bolívares
+  -- y sus dólares sin el código, congelados en cada línea) y el código no
+  -- vuelve a servir. Uno que ya estaba roto no se toca.
+  if v_codigo is not null then
+    select c.codigo into v_codigo_txt from ofertas_codigos c
+     where c.id = v_codigo and c.roto_en is null;
+    if found then
+      select coalesce(sum(cantidad), 0) into v_revertidas
+        from venta_items
+       where venta_id = v.id and oferta_codigo_id = v_codigo and cantidad > 0
+         and precio_sin_oferta_bs is not null;
+      update venta_items
+         set precio_unitario_usd = precio_sin_oferta_usd,
+             precio_unitario_bs  = precio_sin_oferta_bs,
+             motivo_rebaja       = motivo_sin_oferta
+       where venta_id = v.id and oferta_codigo_id = v_codigo and cantidad > 0
+         and precio_sin_oferta_bs is not null;
+      update ofertas_codigos set roto_en = now() where id = v_codigo;
+    end if;
+  end if;
+
+  -- El total con lo que queda, como lo calcula registrar_venta: cada línea a
+  -- sus bolívares congelados, más lo de fuera del catálogo.
+  select coalesce(sum(precio_unitario_bs * cantidad), 0) + coalesce(v.extra_bs, 0)
+    into v_total_bs
+    from venta_items where venta_id = v.id;
+  update ventas
+     set total_bs  = v_total_bs,
+         total_usd = round(v_total_bs / v.tasa_venta_usada, 4)
+   where id = v.id;
+  v_total_bcv := v_total_bs / nullif(v.tasa_bcv_usada, 0);
+
+  -- Lo pagado contra el total nuevo (solo una venta por partes tiene abonos).
+  select coalesce(sum(monto_bcv), 0),
+         coalesce(sum(monto_bcv) filter (where verificado_en is not null), 0)
+    into v_pagado, v_verif
+    from abonos where venta_id = v.id and anulado_en is null;
+
+  if v_pagado > v_total_bcv + 0.005 and v_pagado > v_verif + 0.005 then
+    raise exception 'Hay pagos sin revisar y con ellos pasa del total nuevo: márcalos como que llegaron o que no llegaron antes de quitar la pieza.';
+  end if;
+
+  v_sobra := round(v_verif - v_total_bcv, 4);
+  if v_sobra > 0.005 then
+    if not es_admin() then
+      raise exception 'Con esa pieza fuera, lo pagado pasa del total en $% BCV. Lo hace el administrador, que decide si se le devuelve.',
+        to_char(v_sobra, 'FM999G990D00');
+    end if;
+    if p_devolver is null then
+      raise exception 'Sobran $% BCV de lo pagado: di si se le devuelven o se quedan.', to_char(v_sobra, 'FM999G990D00');
+    end if;
+    if p_devolver then
+      if coalesce(p_monto, 0) <= 0 then
+        raise exception 'Escribe cuánto se le devuelve.';
+      end if;
+      begin
+        v_metodo := nullif(btrim(coalesce(p_metodo, '')), '')::metodo_pago;
+      exception when others then
+        raise exception 'Esa forma de pago no existe.';
+      end;
+      if v_metodo is null then raise exception 'Falta cómo se le devuelve.'; end if;
+      select * into v_tasa from tasas where vigente limit 1;
+      select * into m from montos_de_abono(v_metodo, p_monto, v_tasa.tasa_venta, v_tasa.tasa_bcv);
+      if m.bcv > v_sobra + margen_de_abono(v_metodo, v_tasa.tasa_venta, v_tasa.tasa_bcv) then
+        raise exception 'Se le devolvería más de lo que sobra: sobran $% BCV, hoy Bs %.',
+          to_char(v_sobra, 'FM999G990D00'), to_char(round(v_sobra * v_tasa.tasa_bcv, 2), 'FM999G999G990D00');
+      end if;
+      perform admin_anotar_caja('salida', (now() at time zone 'America/Caracas')::date, 'devolucion',
+                                'Devolución de la venta #' || v.id ||
+                                coalesce(' · ' || nullif(btrim(v.cliente_nombre), ''), '') ||
+                                ' · quitó ' || v_nombre,
+                                v_metodo::text, p_monto, null);
+      v_dinero := 'devuelto';
+      v_dev_bs := m.bs;
+    else
+      v_dinero := 'se_queda';
+    end if;
+  end if;
+
+  insert into venta_cambios (venta_id, modelo_id, antes, despues, total_antes_bs, total_despues_bs,
+                             dinero, devuelto_bs, devuelto_metodo, motivo, cambiado_por)
+  values (v.id, p_modelo_id, v_tiene, v_tiene - p_cantidad, v.total_bs, v_total_bs,
+          v_dinero, v_dev_bs,
+          case when v_dinero = 'devuelto' then v_metodo end,
+          btrim(p_motivo), auth.uid());
+
+  if v_codigo_txt is not null then
+    v_codigo_roto := jsonb_build_object('codigo', v_codigo_txt, 'piezas', v_revertidas,
+                                        'total_antes', v.total_bs, 'total_despues', v_total_bs,
+                                        'moneda', 'bs');
+  end if;
+
+  return jsonb_build_object(
+    'total_bs', v_total_bs,
+    'total_bcv', round(v_total_bcv, 4),
+    'falta_bcv', falta_bcv_de(v.id),
+    'sobraba_bcv', greatest(v_sobra, 0),
+    'dinero', v_dinero,
+    'codigo_roto', v_codigo_roto);
+end;
+$fn$;
+
+revoke all on function quitar_de_venta(bigint, bigint, int, text, boolean, text, numeric) from public, anon;
+grant execute on function quitar_de_venta(bigint, bigint, int, text, boolean, text, numeric) to authenticated;
+
+create or replace function admin_devolver_pieza(
+  p_venta_id     bigint,
+  p_modelo_id    bigint,
+  p_cantidad     int,
+  p_ubicacion_id bigint,
+  p_devolver     boolean,
+  p_metodo       text    default null,
+  p_monto        numeric default null,
+  p_motivo       text    default null
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v          ventas%rowtype;
+  v_linea    record;
+  v_puede    int;
+  v_falta    int;
+  v_toma     int;
+  v_destino  bigint;
+  v_nota     bigint;
+  v_total_bs numeric(14,2) := 0;
+  v_valor    numeric(12,4) := 0;
+  v_metodo   metodo_pago;
+  v_tasa     tasas%rowtype;
+  m          record;
+  v_nombre   text;
+  v_codigo   bigint;
+  v_codigo_txt text;
+  v_extra_bs numeric(14,2) := 0;
+  v_extra_nota text;
+begin
+  if not es_admin() then
+    raise exception 'Solo el administrador devuelve piezas de una venta.';
+  end if;
+  if nullif(btrim(coalesce(p_motivo, '')), '') is null then
+    raise exception 'Escribe por qué la devuelve: queda en la nota de crédito.';
+  end if;
+  if coalesce(p_cantidad, 0) <= 0 then
+    raise exception 'Di cuántas piezas devuelve.';
+  end if;
+  if p_devolver is null then
+    raise exception 'Di si se le devuelve el dinero o no.';
+  end if;
+
+  select * into v from ventas where id = p_venta_id for update;
+  if not found then raise exception 'Esa venta no existe.'; end if;
+  if v.anulada then raise exception 'Esa venta está anulada: sus piezas ya volvieron.'; end if;
+  if v.devolucion_de is not null then raise exception 'Eso es una nota de crédito, no una venta.'; end if;
+  if v.por_verificar then
+    raise exception 'Esa venta está por verificar: verifícala o anúlala en Pedidos antes de devolver una pieza.';
+  end if;
+
+  perform pg_advisory_xact_lock(p_modelo_id);
+
+  -- Cuántas de esa pieza se pueden devolver todavía.
+  select coalesce(sum(i.cantidad - coalesce(d.devueltas, 0)), 0) into v_puede
+    from venta_items i
+    left join lateral (
+      select -sum(r.cantidad) as devueltas
+        from venta_items r join ventas rv on rv.id = r.venta_id and not rv.anulada
+       where r.devuelve_item_id = i.id
+    ) d on true
+   where i.venta_id = v.id and i.modelo_id = p_modelo_id and i.cantidad > 0;
+  if v_puede < p_cantidad then
+    raise exception 'De esa pieza se pueden devolver % y pides %.', v_puede, p_cantidad;
+  end if;
+
+  select m2.nombre || coalesce(' · ' || m2.variante, '') into v_nombre from modelos m2 where m2.id = p_modelo_id;
+
+  -- A dónde vuelve: la que él diga, o de donde salió.
+  if p_ubicacion_id is not null then
+    if not exists (select 1 from ubicaciones where id = p_ubicacion_id and activo) then
+      raise exception 'Esa ubicación no existe o está desactivada.';
+    end if;
+    v_destino := p_ubicacion_id;
+  else
+    select ubicacion_id into v_destino from venta_items
+     where venta_id = v.id and modelo_id = p_modelo_id order by id limit 1;
+  end if;
+
+  -- La nota de crédito: con las tasas de la venta original, para que lo
+  -- que reste sea exactamente lo que esa pieza sumó.
+  insert into ventas (usuario_id, tipo, metodo, tasa_venta_usada, tasa_bcv_usada,
+                      cliente_id, cliente_nombre, cliente_telefono, notas,
+                      por_verificar, pago_parcial, revendedor_id, devolucion_de)
+  values (auth.uid(), v.tipo,
+          coalesce(nullif(btrim(coalesce(p_metodo, '')), '')::metodo_pago, v.metodo),
+          v.tasa_venta_usada, v.tasa_bcv_usada,
+          v.cliente_id, v.cliente_nombre, v.cliente_telefono,
+          'Devolución de la venta #' || v.id || ': ' || btrim(p_motivo),
+          false, false, v.revendedor_id, v.id)
+  returning id into v_nota;
+
+  v_falta := p_cantidad;
+  for v_linea in
+    select i.*, i.cantidad - coalesce(d.devueltas, 0) as libre
+      from venta_items i
+      left join lateral (
+        select -sum(r.cantidad) as devueltas
+          from venta_items r join ventas rv on rv.id = r.venta_id and not rv.anulada
+         where r.devuelve_item_id = i.id
+      ) d on true
+     where i.venta_id = v.id and i.modelo_id = p_modelo_id and i.cantidad > 0
+     order by i.id
+  loop
+    exit when v_falta = 0;
+    continue when v_linea.libre <= 0;
+    v_toma := least(v_falta, v_linea.libre);
+    insert into venta_items (venta_id, modelo_id, ubicacion_id, cantidad,
+                             precio_unitario_usd, precio_unitario_bs, precio_lista_usd,
+                             costo_puesto_usd_snap, costo_operativo_usd_snap, motivo_rebaja,
+                             devuelve_item_id,
+                             oferta_codigo_id, precio_sin_oferta_usd, precio_sin_oferta_bs, motivo_sin_oferta)
+    values (v_nota, p_modelo_id, v_destino, -v_toma,
+            v_linea.precio_unitario_usd, v_linea.precio_unitario_bs, v_linea.precio_lista_usd,
+            v_linea.costo_puesto_usd_snap, v_linea.costo_operativo_usd_snap, v_linea.motivo_rebaja,
+            v_linea.id,
+            v_linea.oferta_codigo_id, v_linea.precio_sin_oferta_usd, v_linea.precio_sin_oferta_bs,
+            v_linea.motivo_sin_oferta);
+    v_codigo := coalesce(v_codigo, v_linea.oferta_codigo_id);
+    v_total_bs := v_total_bs - v_linea.precio_unitario_bs * v_toma;
+    v_valor    := v_valor + v_linea.precio_unitario_usd * v_toma;
+    v_falta    := v_falta - v_toma;
+  end loop;
+
+  -- Si la pieza era de un código de oferta, las demás de ese código ya
+  -- no lo tienen: la nota de crédito cobra, en "fuera del catálogo", lo
+  -- que esas piezas se ahorraron (la etiqueta sin el código menos lo que
+  -- pagaron, de lo que les queda sin devolver), nunca más de lo que vale
+  -- la pieza devuelta. El código se rompe y no vuelve a servir; uno que
+  -- ya estaba roto (otra devolución antes) no cobra otra vez.
+  if v_codigo is not null then
+    select c.codigo into v_codigo_txt from ofertas_codigos c
+     where c.id = v_codigo and c.roto_en is null;
+    if found then
+      select coalesce(sum(greatest(i.precio_sin_oferta_bs - i.precio_unitario_bs, 0)
+                          * (i.cantidad - coalesce(d.devueltas, 0))), 0)
+        into v_extra_bs
+        from venta_items i
+        left join lateral (
+          select -sum(r.cantidad) as devueltas
+            from venta_items r join ventas rv on rv.id = r.venta_id and not rv.anulada
+           where r.devuelve_item_id = i.id
+        ) d on true
+       where i.venta_id = v.id and i.oferta_codigo_id = v_codigo and i.cantidad > 0
+         and i.precio_sin_oferta_bs is not null;
+      v_extra_bs := greatest(least(round(v_extra_bs, 2), -v_total_bs), 0);
+      if v_extra_bs > 0 then
+        v_extra_nota := 'Descuento del código ' || v_codigo_txt || ' que pierden las otras piezas';
+      end if;
+      update ofertas_codigos set roto_en = now() where id = v_codigo;
+      v_total_bs := v_total_bs + v_extra_bs;
+      v_valor    := greatest(v_valor - round(v_extra_bs / nullif(v.tasa_bcv_usada, 0), 4), 0);
+    end if;
+  end if;
+
+  update ventas
+     set total_bs   = v_total_bs,
+         total_usd  = round(v_total_bs / v.tasa_venta_usada, 4),
+         extra_bs   = v_extra_bs,
+         extra_nota = v_extra_nota
+   where id = v_nota;
+
+  -- La pieza vuelve.
+  insert into existencias (modelo_id, ubicacion_id, cantidad)
+  values (p_modelo_id, v_destino, p_cantidad)
+  on conflict (modelo_id, ubicacion_id)
+  do update set cantidad = existencias.cantidad + excluded.cantidad, actualizado_en = now();
+
+  -- El dinero, por la caja. Nunca más de lo que valía la pieza.
+  if p_devolver then
+    if coalesce(p_monto, 0) <= 0 then
+      raise exception 'Escribe cuánto se le devuelve.';
+    end if;
+    begin
+      v_metodo := nullif(btrim(coalesce(p_metodo, '')), '')::metodo_pago;
+    exception when others then
+      raise exception 'Esa forma de pago no existe.';
+    end;
+    if v_metodo is null then raise exception 'Falta cómo se le devuelve.'; end if;
+    select * into v_tasa from tasas where vigente limit 1;
+    select * into m from montos_de_abono(v_metodo, p_monto, v_tasa.tasa_venta, v_tasa.tasa_bcv);
+    if m.bcv > v_valor + margen_de_abono(v_metodo, v_tasa.tasa_venta, v_tasa.tasa_bcv) then
+      raise exception 'Se le devolvería más de lo que valía: $% BCV, hoy Bs %.',
+        to_char(v_valor, 'FM999G990D00'), to_char(round(v_valor * v_tasa.tasa_bcv, 2), 'FM999G999G990D00');
+    end if;
+    perform admin_anotar_caja('salida', (now() at time zone 'America/Caracas')::date, 'devolucion',
+                              'Devolución de la venta #' || v.id || ' · ' ||
+                              coalesce(v.cliente_nombre, 'sin nombre') || ' · ' || v_nombre,
+                              v_metodo::text, p_monto, null);
+  end if;
+
+  return v_nota;
+end;
+$fn$;
+
+revoke all on function admin_devolver_pieza(bigint, bigint, int, bigint, boolean, text, numeric, text) from public, anon;
+grant execute on function admin_devolver_pieza(bigint, bigint, int, bigint, boolean, text, numeric, text) to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- §6. REPORTES Y RESPALDO
+-- ---------------------------------------------------------------------
+
+-- Lo que dieron las ofertas, por mes y por origen (el mes de Venezuela):
+--  - emitidos: códigos dados ese mes;
+--  - usados: códigos con una venta (no anulada) ese mes, rotos o no;
+--  - vendido_bcv: lo vendido con código, en $ BCV (a la tasa de cada
+--    venta; una devolución resta);
+--  - rebajado_bcv: lo que rebajaron los códigos, en $ BCV: la etiqueta
+--    sin el código menos lo cobrado, menos lo que una devolución cobró
+--    de más al romper el código.
+-- Solo el administrador (`where es_admin()`).
+create or replace view v_ofertas_mes
+with (security_invoker = off) as
+with emitidos as (
+  select date_trunc('month', c.emitido_en at time zone 'America/Caracas')::date as mes,
+         c.origen, count(*) as n
+    from ofertas_codigos c
+   group by 1, 2
+), usados as (
+  select date_trunc('month', v.fecha at time zone 'America/Caracas')::date as mes,
+         c.origen, count(*) as n
+    from ofertas_codigos c
+    join ventas v on v.id = c.venta_id and not v.anulada
+   group by 1, 2
+), lineas as (
+  select date_trunc('month', v.fecha at time zone 'America/Caracas')::date as mes,
+         c.origen,
+         sum(i.precio_unitario_bs * i.cantidad / v.tasa_bcv_usada) as vendido,
+         sum((i.precio_sin_oferta_bs - i.precio_unitario_bs) * i.cantidad / v.tasa_bcv_usada) as rebajado
+    from venta_items i
+    join ventas v on v.id = i.venta_id and not v.anulada
+    join ofertas_codigos c on c.id = i.oferta_codigo_id
+   where i.precio_sin_oferta_bs is not null
+   group by 1, 2
+), cobrado_de_mas as (
+  select date_trunc('month', v.fecha at time zone 'America/Caracas')::date as mes,
+         c.origen, sum(v.extra_bs / v.tasa_bcv_usada) as extra
+    from ventas v
+    join ofertas_codigos c on v.extra_nota like 'Descuento del código ' || c.codigo || ' %'
+   where v.devolucion_de is not null and not v.anulada and v.extra_bs > 0
+   group by 1, 2
+), llaves as (
+  select mes, origen from emitidos
+  union select mes, origen from usados
+  union select mes, origen from lineas
+  union select mes, origen from cobrado_de_mas
+)
+select k.mes,
+       k.origen,
+       coalesce(e.n, 0)::bigint                                          as emitidos,
+       coalesce(u.n, 0)::bigint                                          as usados,
+       round(coalesce(l.vendido, 0), 2)                                  as vendido_bcv,
+       round(coalesce(l.rebajado, 0) - coalesce(x.extra, 0), 2)          as rebajado_bcv
+  from llaves k
+  left join emitidos e on e.mes = k.mes and e.origen = k.origen
+  left join usados   u on u.mes = k.mes and u.origen = k.origen
+  left join lineas   l on l.mes = k.mes and l.origen = k.origen
+  left join cobrado_de_mas x on x.mes = k.mes and x.origen = k.origen
+ where es_admin()
+ order by k.mes desc, k.origen;
+
+revoke all on v_ofertas_mes from public, anon, authenticated;
+grant select on v_ofertas_mes to authenticated;
+
+
+-- La Selección de la casa, para el panel: una fila por pieza de
+-- `seleccion_de_hoy()` (la lista entera, no solo las 24 que se enseñan
+-- hoy) más las que el dueño sacó a mano. `motivo`: 'auto' (entró por los
+-- días sin venderse), 'meter' (la metió él) o 'sacar' (la sacó él).
+-- `dias_sin_venta` cuenta desde su última venta (sin anuladas ni
+-- devoluciones) o, sin venta, desde que llegó su lote o se creó.
+-- `se_ensena_hoy`: está entre las que sale hoy en la landing. `foto` es la
+-- ruta del bucket. Sin costo ni piso. Una vista no presta su permiso para
+-- ejecutar funciones: la envoltura es de definidor y mira `es_admin()`.
+create or replace function seleccion_admin()
+returns table (modelo_id bigint, sku text, nombre text, variante text, categoria text,
+               foto text, motivo text, dias_sin_venta integer, se_ensena_hoy boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  with hoy as (select s as id from seleccion_de_hoy() s),
+       ens as (select s as id from seleccion_ensenada() s),
+       ids as (select id from hoy
+               union
+               select sm.modelo_id from seleccion_manual sm where sm.accion = 'sacar')
+  select m.id, m.sku, m.nombre, m.variante, m.categoria::text,
+         m.foto_thumb_path,
+         case coalesce(sm.accion, '') when 'sacar' then 'sacar' when 'meter' then 'meter' else 'auto' end,
+         ((now() at time zone 'America/Caracas')::date
+            - (coalesce(u.ultima, l.liberado_en,
+                        (l.fecha_llegada::timestamp at time zone 'America/Caracas'),
+                        m.creado_en) at time zone 'America/Caracas')::date)::integer,
+         m.id in (select e.id from ens e)
+    from ids
+    join modelos m on m.id = ids.id and m.activo
+    left join lotes l on l.id = m.lote_id
+    left join seleccion_manual sm on sm.modelo_id = m.id
+    left join (select i.modelo_id, max(v.fecha) as ultima
+                 from venta_items i
+                 join ventas v on v.id = i.venta_id
+                where not v.anulada and v.devolucion_de is null and i.cantidad > 0
+                group by i.modelo_id) u on u.modelo_id = m.id
+   where es_admin()
+   order by m.id;
+$fn$;
+
+revoke all on function seleccion_admin() from public, anon, authenticated;
+grant execute on function seleccion_admin() to authenticated;
+
+create or replace view v_seleccion_admin
+with (security_invoker = off) as
+select s.modelo_id, s.sku, s.nombre, s.variante, s.categoria, s.foto,
+       s.motivo, s.dias_sin_venta, s.se_ensena_hoy
+  from seleccion_admin() s
+ where es_admin();
+
+revoke all on v_seleccion_admin from public, anon, authenticated;
+grant select on v_seleccion_admin to authenticated;
+
+
+-- El respaldo gana las tablas del #65 (las de la landing, las miradas, las
+-- ofertas de la casa, la selección, los combos y los códigos con sus
+-- piezas). Las líneas de venta y de pedido ya traen las columnas nuevas.
+create or replace function admin_respaldo(p_tabla text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_filas jsonb;
+begin
+  if not es_admin() then
+    raise exception 'Solo un administrador puede sacar un respaldo.';
+  end if;
+  if p_tabla not in ('modelos', 'lotes', 'venta_items',
+                     'abonos', 'abono_cambios', 'caja_movimientos',
+                     'revendedores', 'revendedor_precios', 'revendedor_clientes',
+                     'apartados', 'apartado_items', 'apartado_abonos',
+                     'por_llegar', 'reserva_armados',
+                     'landing_secciones', 'catalogo_miradas',
+                     'ofertas_casa', 'oferta_casa_items', 'seleccion_manual',
+                     'combos_rearmados', 'combos_semana', 'combo_semana_items',
+                     'ofertas_codigos', 'ofertas_codigo_items') then
+    raise exception 'Esa tabla no esta en la lista del respaldo: %', p_tabla;
+  end if;
+  execute format('select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from %I t', p_tabla)
+     into v_filas;
+  return v_filas;
+end;
+$fn$;
+
+revoke all on function admin_respaldo(text) from public, anon;
+grant execute on function admin_respaldo(text) to authenticated;
 
 
 notify pgrst, 'reload schema';
