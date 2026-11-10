@@ -1334,12 +1334,20 @@ $fn$;
 --   anulado    lo anuló la tienda;
 --   usado      lo usó una venta, o su pedido ya se entregó, o se quitó o
 --              devolvió una de sus piezas (`roto_en`: no vuelve a servir);
---   tomado     lo tiene un pedido que todavía aparta sus piezas;
+--   tomado     lo tiene un pedido que todavía puede llegar a entregarse;
 --   vencido    pasó su fecha sin usarse (o su pedido se soltó y ya pasó);
 --   emitido    sirve.
--- Un tomado cuyo pedido se canceló, venció o se archivó vuelve a servir si
--- no ha vencido. Si el pedido sigue vivo lo dice `fase_pedido`, la misma
--- que usa Pedidos: esperando el pago, reportado, apartado o pagado.
+-- Un tomado se suelta SOLO cuando su pedido ya no puede llegar a entregarse
+-- (la fase la dice `fase_pedido`, la misma que usa Pedidos):
+--   - cancelado o cerrado (archivado): terminales;
+--   - vencido y SIN un solo abono sin anular: nada lo puede revivir (lo
+--     revive un abono que se verifica o se corrige, y no hay ninguno; uno
+--     nuevo lo rechazan todos los caminos que cargan pagos).
+-- Un pedido vencido CON dinero retiene el código hasta que alguien lo
+-- archive o lo cancele (Pedidos los lista "para archivar"): verificarle
+-- ese abono lo pone otra vez en "pagado" y entregable, y el código ya no
+-- podría ser de otro pedido. Entregado: el código es de su venta.
+-- Si no, el código vuelve a servir (si no ha vencido).
 create or replace function estado_codigo(p_id bigint)
 returns text
 language sql
@@ -1353,12 +1361,18 @@ as $fn$
            when c.estado = 'usado' then 'usado'
            when c.estado = 'tomado' and f.fase = 'entregado' then 'usado'
            when c.estado = 'tomado'
-                and f.fase in ('esperando_pago', 'reportado', 'apartado', 'pagado') then 'tomado'
+                and f.fase is not null
+                and f.fase not in ('cancelado', 'cerrado')
+                and not (f.fase = 'vencido' and not f.con_dinero) then 'tomado'
            when c.vence_en <= now() then 'vencido'
            else 'emitido'
          end
     from ofertas_codigos c
-    left join lateral (select fase_pedido(c.reserva_id) as fase) f on true
+    left join lateral (
+      select fase_pedido(c.reserva_id) as fase,
+             exists (select 1 from abonos a
+                      where a.reserva_id = c.reserva_id and a.anulado_en is null) as con_dinero
+    ) f on true
    where c.id = p_id;
 $fn$;
 
@@ -2907,6 +2921,40 @@ revoke all on function gastar_codigos(jsonb, bigint, bigint)                    
 revoke all on function soltar_codigos_de_venta(bigint)                                           from public, anon, authenticated;
 
 
+-- LO QUE SE DICE DE CADA CÓDIGO SEGÚN QUIÉN PREGUNTA
+-- Quien no tiene sesión de la tienda no puede averiguar qué códigos
+-- existen: distinguir "no existe" de "ya se usó" o "venció" le diría
+-- cuáles son verdaderos. Para él, no_existe, vencido, usado y anulado son
+-- un solo motivo, 'no_vale'; y el porcentaje solo sale cuando el código
+-- aplica. faltan_piezas, comparte_pieza y pieza_no_disponible se quedan
+-- (ya dijo un código que sirve). La tienda (`es_personal()`) ve el
+-- detalle de siempre.
+create or replace function codigos_para_quien(p_codigos jsonb)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select case
+    when es_personal() then coalesce(p_codigos, '[]'::jsonb)
+    else coalesce((
+      select jsonb_agg(
+               jsonb_build_object(
+                 'codigo', e.value->>'codigo',
+                 'aplica', (e.value->>'aplica')::boolean,
+                 'motivo', case when e.value->>'motivo' in ('no_existe', 'vencido', 'usado', 'anulado')
+                                then 'no_vale' else e.value->>'motivo' end,
+                 'pct',    case when (e.value->>'aplica')::boolean then e.value->'pct' end)
+               order by e.ord)
+        from jsonb_array_elements(coalesce(p_codigos, '[]'::jsonb)) with ordinality as e(value, ord)
+    ), '[]'::jsonb)
+  end;
+$fn$;
+
+revoke all on function codigos_para_quien(jsonb) from public, anon, authenticated;
+
+
 -- EL TOTAL DEL CARRITO DEL CATÁLOGO
 -- La de esquema-dijes.sql con `p_codigos` al final: la misma regla que
 -- `crear_reserva`, así lo que dice la barra es lo que el pedido congela.
@@ -2941,7 +2989,7 @@ begin
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     return jsonb_build_object('piezas', 0, 'descuento_pct', 0, 'subtotal_usd', 0,
                               'total_usd', 0, 'lineas', '[]'::jsonb, 'sin_precio', '[]'::jsonb,
-                              'codigos', oferta_de_lineas('[]'::jsonb, p_codigos)->'codigos');
+                              'codigos', codigos_para_quien(oferta_de_lineas('[]'::jsonb, p_codigos)->'codigos'));
   end if;
   -- Un tope técnico, no de negocio: que nadie la use para recorrer el
   -- catálogo entero de un golpe.
@@ -3012,7 +3060,7 @@ begin
     'total_usd',     round(v_total, 4),
     'lineas',        v_lineas,
     'sin_precio',    v_sin,
-    'codigos',       v_oferta->'codigos');
+    'codigos',       codigos_para_quien(v_oferta->'codigos'));
 end;
 $fn$;
 
@@ -3835,6 +3883,7 @@ declare
   v_cliente  bigint;
   v_lineas   jsonb;
   v_venta    bigint;
+  v_suyos    bigint[];
 begin
   if not es_personal() then
     raise exception 'Hay que iniciar sesión.';
@@ -3881,6 +3930,16 @@ begin
     perform pg_advisory_xact_lock(v_modelo);
   end loop;
 
+  -- Los códigos que de verdad siguen siendo de ESTE pedido: ligados a él
+  -- (`reserva_id`) y todavía tomados por él, o rotos (sus líneas ya
+  -- volvieron a su precio). Se mira ANTES de cerrarlo, que lo suelta. Un
+  -- pedido que reviviera cuando otro ya usa su código no se lleva la
+  -- oferta: sus líneas se cobran sin ella y el código sigue con el otro.
+  select coalesce(array_agg(c.id), '{}') into v_suyos
+    from ofertas_codigos c
+   where c.reserva_id = r.id
+     and (estado_codigo(c.id) = 'tomado' or c.roto_en is not null);
+
   -- Se suelta: desde aquí sus piezas cuentan como libres y se toman.
   update reservas set cerrada_en = now(), cerrada_por = auth.uid() where id = r.id;
 
@@ -3896,13 +3955,18 @@ begin
 
   select jsonb_agg(jsonb_build_object(
            'modelo_id', ri.modelo_id, 'cantidad', ri.cantidad,
-           'precio_usd', ri.precio_usd, 'precio_lista_usd', ri.precio_lista_usd,
-           'motivo', ri.motivo_rebaja,
-           'oferta_codigo_id', ri.oferta_codigo_id,
-           'precio_sin_oferta_usd', ri.precio_sin_oferta_usd,
-           'motivo_sin_oferta', ri.motivo_sin_oferta) order by ri.id)
+           'precio_usd', case when s.suyo then ri.precio_usd
+                              else coalesce(ri.precio_sin_oferta_usd, ri.precio_usd) end,
+           'precio_lista_usd', ri.precio_lista_usd,
+           'motivo', case when s.suyo then ri.motivo_rebaja else ri.motivo_sin_oferta end,
+           'oferta_codigo_id', case when s.suyo then ri.oferta_codigo_id end,
+           'precio_sin_oferta_usd', case when s.suyo then ri.precio_sin_oferta_usd end,
+           'motivo_sin_oferta', case when s.suyo then ri.motivo_sin_oferta end) order by ri.id)
     into v_lineas
-    from reserva_items ri where ri.reserva_id = r.id;
+    from reserva_items ri
+    cross join lateral (select ri.oferta_codigo_id is null
+                               or ri.oferta_codigo_id = any (v_suyos) as suyo) s
+   where ri.reserva_id = r.id;
 
   v_venta := vender_congelado(
     'detal', v_metodo, v_lineas, v_cliente,
