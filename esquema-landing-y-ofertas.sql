@@ -51,19 +51,50 @@
 --      ve los códigos en `v_ofertas`. Ninguna oferta baja una pieza de su
 --      piso, y nada de lo que reciben la clienta o la vendedora trae
 --      costo, piso ni margen. Cobrar con el código es la §4.
+--  §4. EL CÓDIGO EN EL COBRO. `cotizar_pedido`, `crear_reserva`,
+--      `registrar_venta` y `apartar_en_tienda` reciben los códigos al
+--      final (`p_codigos`). Una regla, `oferta_de_lineas`, dice qué
+--      código vale para qué piezas (en el orden en que llegan; cada pieza
+--      en un solo código; todas sus piezas en el pedido y libres; el
+--      código sin usar, sin vencer y sin anular), y `partes_de_linea`
+--      pone el precio: en las piezas del código manda el MAYOR entre el
+--      tramo y la oferta (nunca los dos sumados), el precio a mano se
+--      ignora, y si la línea pide más unidades de las que cubre el código
+--      se parte en dos. Cada línea guarda su código y lo que costaría sin
+--      él (`oferta_codigo_id`, `precio_sin_oferta_usd`,
+--      `motivo_sin_oferta`; en la venta también `precio_sin_oferta_bs`).
+--      Un pedido toma el código y lo suelta si se cancela o vence; una
+--      venta lo usa; al entregar un pedido la venta copia sus líneas tal
+--      cual y el código queda usado; anular la venta lo devuelve.
+--      `venta_items.motivo_rebaja` acepta 'oferta'.
 --
 -- LAS FIRMAS
--- Todo es nuevo: ninguna función que el navegador ya llama cambia. El
--- navegador de hoy no lee nada de esto, y el nuevo funciona sin este
--- archivo (sin `v_landing` dibuja el inicio de siempre).
--- Dos cosas de antes cambian por dentro, sin cambiar lo que dan:
---  - `piso_margen_de` (la misma firma y la misma cuenta) llama ahora a
---    `piso_margen_con`, la cuenta sola, para que las ofertas costeen
---    muchas piezas con las cifras comunes calculadas una vez (como
---    `costo_bcv_con` en el #62). Da lo mismo pieza por pieza.
+-- Lo de §1 a §3 es nuevo: el navegador de hoy no lee nada de eso, y el
+-- nuevo funciona sin este archivo (sin `v_landing` dibuja el inicio de
+-- siempre). En la §4, cuatro funciones que el navegador YA llama ganan
+-- `p_codigos text[] default null` AL FINAL; se borra la firma vieja y se
+-- crea la nueva con sus permisos de siempre (como `crear_reserva` con
+-- `p_armados` en esquema-dijes.sql). El navegador de hoy no manda
+-- códigos, y sin ellos dan lo mismo que antes (`cotizar_pedido` suma a
+-- cada línea `oferta_codigo` y `precio_sin_oferta_usd` en null, y
+-- `codigos: []`):
+--    cotizar_pedido(jsonb, text[])
+--    crear_reserva(jsonb, text, text, text, text, text, text, text, text, jsonb, text[])
+--    registrar_venta(text, text, jsonb, bigint, text, text, text, bigint, text, text,
+--                    boolean, text, numeric, text, text[])
+--    apartar_en_tienda(jsonb, jsonb, bigint, text, text, text, text, boolean, text[])
+-- Cambian por dentro, con la misma firma y lo mismo sin códigos:
+--  - `piso_margen_de` (la misma cuenta) llama ahora a `piso_margen_con`,
+--    la cuenta sola, para que las ofertas costeen muchas piezas con las
+--    cifras comunes calculadas una vez (como `costo_bcv_con` en el #62).
+--    Da lo mismo pieza por pieza.
 --  - `configuracion.valor` deja de ser obligatorio solo para las diez
 --    claves de las ofertas (lo dice una restricción); las demás siguen
 --    sin poder quedar vacías.
+--  - `vender_congelado` y `entregar_pedido`: la venta de un pedido copia
+--    el código de cada línea, y el código queda usado.
+--  - `anular_venta_por_verificar` y `admin_anular_venta`: devuelven los
+--    códigos de la venta.
 --
 -- QUÉ DEBERÍA DAR, DESPUÉS DE CORRERLO
 --  1. select tipo, titulo from v_landing;
@@ -94,6 +125,16 @@
 --  7. select count(*) from ofertas_codigos;                    -> 0
 --  8. select id, piso_margen_de(id) from modelos order by id;
 --     -> lo mismo que antes de correrlo (apúntalo antes para comparar).
+--  9. select p.oid::regprocedure from pg_proc p
+--      where p.proname in ('cotizar_pedido', 'crear_reserva',
+--                          'registrar_venta', 'apartar_en_tienda');
+--     -> 4 filas, cada una terminada en `text[]` (una sola firma de cada).
+-- 10. select cotizar_pedido('[{"modelo_id": <una pieza con existencia>,
+--                           "cantidad": 1}]'::jsonb) -> 'codigos';  -> []
+--     y su total, el mismo que daba antes de correrlo.
+-- 11. select count(*) from venta_items where oferta_codigo_id is not null;
+--     -> 0, hasta la primera venta con código. Con un código de dos
+--     piezas de $10 y $8 al 5 %, el total sale 17,10 (9,50 + 7,60).
 --
 -- Reejecutable: correrlo otra vez no vuelve a sembrar si ya hay secciones,
 -- ni pisa lo que el dueño cambió en el panel o en Textos, ni las cifras
@@ -2270,8 +2311,11 @@ grant execute on function admin_rearmar_combos(jsonb) to authenticated;
 
 
 -- Anular un código (un error de precio, un abuso). Solo uno que todavía
--- sirve: uno usado, tomado por un pedido vivo o vencido no cambia (0). Un
--- código que no existe es un error, para que el panel lo diga.
+-- sirve: uno usado o vencido no cambia (0). Uno tomado por un pedido que
+-- sigue vivo es un error que lo dice: ese pedido ya congeló sus precios
+-- con el descuento, y anularlo no se los quitaría; primero se cancela el
+-- pedido o se le quitan las piezas. Un código que no existe es un error,
+-- para que el panel lo diga.
 create or replace function admin_anular_codigo(p_codigo text, p_motivo text)
 returns integer
 language plpgsql
@@ -2280,7 +2324,8 @@ security definer
 set search_path = public
 as $fn$
 declare
-  v_id bigint;
+  v_id     bigint;
+  v_estado text;
 begin
   if not es_admin() then
     raise exception 'Solo un administrador anula un código.';
@@ -2289,7 +2334,12 @@ begin
   if v_id is null then
     raise exception 'Ese código no existe: revisa las letras.';
   end if;
-  if estado_codigo(v_id) <> 'emitido' then
+  v_estado := estado_codigo(v_id);
+  if v_estado = 'tomado' then
+    raise exception 'Ese código está en un pedido abierto (#%): cancélalo o quítale sus piezas para anularlo.',
+      (select c.reserva_id from ofertas_codigos c where c.id = v_id);
+  end if;
+  if v_estado <> 'emitido' then
     return 0;
   end if;
   update ofertas_codigos
@@ -2475,6 +2525,1476 @@ select o.id, o.codigo, o.origen, o.ref_id, o.pct, o.estado, o.emitido_en, o.venc
 
 revoke all on v_ofertas from public, anon, authenticated;
 grant select on v_ofertas to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- §4. EL CÓDIGO EN EL COBRO
+-- Un código se usa en cuatro sitios: el total del carrito del catálogo
+-- (`cotizar_pedido`), el pedido del catálogo (`crear_reserva`), la venta
+-- del mostrador (`registrar_venta`) y el apartado del mostrador
+-- (`apartar_en_tienda`). Las cuatro ganan `p_codigos text[] default null`
+-- AL FINAL (regla 3: se borra la firma vieja y se crea la nueva con sus
+-- permisos de siempre, como `crear_reserva` con `p_armados`); sin códigos
+-- dan lo mismo que antes.
+--
+-- La regla, en un sitio:
+--  - `oferta_de_lineas` dice qué código vale para qué piezas: los códigos
+--    en el orden en que llegan; uno vale si sirve (ni usado, ni tomado por
+--    otro pedido, ni vencido, ni anulado), si todas sus piezas están
+--    libres, si todas están en el pedido con al menos sus unidades y si
+--    ninguna la tomó ya un código anterior. Si no, dice por qué.
+--  - `partes_de_linea` pone el precio de una línea: en las unidades que
+--    cubre el código manda el MAYOR entre el tramo y la oferta (nunca los
+--    dos sumados), el precio a mano se ignora, y si gana la oferta el
+--    motivo es 'oferta'. Si la línea pide más unidades de las que cubre
+--    el código, se parte: las cubiertas con oferta, las demás como
+--    siempre. Cada parte cubierta guarda su código y lo que costaría con
+--    solo el tramo (`precio_sin_oferta_usd`, `motivo_sin_oferta`): lo que
+--    necesita quitar o devolver una pieza de un código (la §5).
+-- Un pedido TOMA el código (`tomado`, con el pedido); si el pedido se
+-- cancela o vence sin entregarse, vuelve a servir solo (`estado_codigo`).
+-- Una venta lo USA (`usado`, con la venta). Al entregar un pedido, la
+-- venta copia las líneas del pedido tal cual (con su código) y el código
+-- pasa a usado con esa venta. Anular la venta lo devuelve.
+-- ---------------------------------------------------------------------
+
+-- LAS COLUMNAS
+-- Al final de las dos tablas de líneas. En las líneas sin código, nulas.
+alter table reserva_items add column if not exists oferta_codigo_id      bigint references ofertas_codigos(id);
+alter table reserva_items add column if not exists precio_sin_oferta_usd numeric(12,4);
+alter table reserva_items add column if not exists motivo_sin_oferta     text;
+
+alter table venta_items add column if not exists oferta_codigo_id      bigint references ofertas_codigos(id);
+alter table venta_items add column if not exists precio_sin_oferta_usd numeric(12,4);
+alter table venta_items add column if not exists precio_sin_oferta_bs  numeric(14,2);
+alter table venta_items add column if not exists motivo_sin_oferta     text;
+
+create index if not exists reserva_items_oferta_idx on reserva_items (oferta_codigo_id) where oferta_codigo_id is not null;
+create index if not exists venta_items_oferta_idx   on venta_items (oferta_codigo_id)   where oferta_codigo_id is not null;
+
+comment on column reserva_items.oferta_codigo_id is
+  'El código de oferta que puso el precio de esta línea. Null: sin código.';
+comment on column reserva_items.precio_sin_oferta_usd is
+  'Lo que la línea costaría con solo el tramo, sin el código (solo en las líneas con código).';
+comment on column reserva_items.motivo_sin_oferta is
+  'El motivo de rebaja que la línea tendría sin el código: tramo o null.';
+comment on column venta_items.oferta_codigo_id is
+  'El código de oferta que puso el precio de esta línea. Null: sin código.';
+comment on column venta_items.precio_sin_oferta_usd is
+  'Lo que la línea costaría con solo el tramo, sin el código (solo en las líneas con código).';
+comment on column venta_items.precio_sin_oferta_bs is
+  'precio_sin_oferta_usd en bolívares, a la tasa BCV de la venta.';
+comment on column venta_items.motivo_sin_oferta is
+  'El motivo de rebaja que la línea tendría sin el código: tramo o null.';
+
+-- El motivo que tendría sin el código sale de `precio_de_linea` con solo
+-- el tramo: 'tramo' o nada (el precio a mano no cuenta en una línea con
+-- código). Se aceptan los de siempre por si la §5 los necesita.
+alter table reserva_items drop constraint if exists reserva_items_motivo_sin_oferta_valido;
+alter table reserva_items add constraint reserva_items_motivo_sin_oferta_valido
+  check (motivo_sin_oferta is null or motivo_sin_oferta in ('regateo', 'tramo', 'revendedor'));
+alter table venta_items drop constraint if exists venta_items_motivo_sin_oferta_valido;
+alter table venta_items add constraint venta_items_motivo_sin_oferta_valido
+  check (motivo_sin_oferta is null or motivo_sin_oferta in ('regateo', 'tramo', 'revendedor'));
+
+-- Por qué salió más barata una línea: los tres de antes y 'oferta'.
+-- `v_rebajas` ya lista toda línea por debajo de su etiqueta con su
+-- motivo, así que cuenta las de oferta sin cambiar.
+alter table venta_items drop constraint if exists venta_items_motivo_rebaja_check;
+alter table venta_items add constraint venta_items_motivo_rebaja_check
+  check (motivo_rebaja is null or motivo_rebaja in ('regateo', 'tramo', 'revendedor', 'oferta'));
+
+
+-- LA REGLA: QUÉ CÓDIGO VALE PARA QUÉ PIEZAS
+-- Devuelve {por_modelo: {"<modelo_id>": {pct, unidades, codigo_id,
+-- codigo}}, codigos: [{codigo, aplica, motivo, pct}]}. `por_modelo` lleva
+-- solo las piezas de los códigos que valen (una pieza, un código);
+-- `codigos`, uno por código recibido (el mismo dos veces cuenta una), en
+-- su orden, con el motivo si no vale: no_existe, usado, vencido, anulado,
+-- pieza_no_disponible, faltan_piezas o comparte_pieza.
+--   - Lo que pide el pedido se suma por pieza: la misma pieza en dos
+--     líneas (o dos ubicaciones) es una.
+--   - "Libre" es lo de siempre: lo que hay menos lo que apartan los
+--     pedidos. Con `p_reserva_id` (quien re-cuenta un pedido que ya
+--     existe), un código tomado por ESE pedido vale, y lo que él aparta
+--     cuenta como libre para él.
+--   - Ninguna cifra de costo, piso ni margen: `cotizar_pedido` le da
+--     `codigos` a cualquiera.
+-- Un tope técnico de códigos por llamada, no de negocio: nadie junta
+-- veinte en un pedido, y sin tope se podrían probar miles de una vez.
+-- En una función para que lo lean igual la regla y `tomar_codigos`.
+create or replace function codigos_por_cobro_max()
+returns integer
+language sql
+immutable
+set search_path = public
+as $fn$
+  select 20;
+$fn$;
+
+create or replace function oferta_de_lineas(p_items jsonb, p_codigos text[], p_reserva_id bigint default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_pide    jsonb    := '{}'::jsonb;
+  v_tomadas bigint[] := '{}';
+  v_vistos  bigint[] := '{}';
+  v_por     jsonb    := '{}'::jsonb;
+  v_lista   jsonb    := '[]'::jsonb;
+  v_vivo    boolean  := false;
+  v_txt     text;
+  v_cod     text;
+  v_c       ofertas_codigos%rowtype;
+  v_estado  text;
+  v_motivo  text;
+begin
+  if p_codigos is null or cardinality(p_codigos) = 0 then
+    return jsonb_build_object('por_modelo', '{}'::jsonb, 'codigos', '[]'::jsonb);
+  end if;
+  if cardinality(p_codigos) > codigos_por_cobro_max() then
+    raise exception 'Demasiados códigos en un solo pedido.';
+  end if;
+
+  if p_items is not null and jsonb_typeof(p_items) = 'array' then
+    select coalesce(jsonb_object_agg(q.modelo, q.cant), '{}'::jsonb)
+      into v_pide
+      from (select (x->>'modelo_id')::bigint as modelo,
+                   sum(greatest(coalesce((x->>'cantidad')::int, 0), 0))::int as cant
+              from jsonb_array_elements(p_items) x
+             where x->>'modelo_id' is not null
+             group by 1) q;
+  end if;
+
+  if p_reserva_id is not null then
+    v_vivo := coalesce(fase_pedido(p_reserva_id) in ('esperando_pago', 'reportado', 'apartado', 'pagado'), false);
+  end if;
+
+  foreach v_txt in array p_codigos
+  loop
+    v_cod := normalizar_codigo(v_txt);
+    v_c   := null;
+    if v_cod is not null then
+      select * into v_c from ofertas_codigos c where c.codigo = v_cod;
+    end if;
+
+    if v_c.id is null then
+      v_lista := v_lista || jsonb_build_array(jsonb_build_object(
+        'codigo', coalesce(v_cod, left(nullif(btrim(coalesce(v_txt, '')), ''), 40)),
+        'aplica', false, 'motivo', 'no_existe', 'pct', null));
+      continue;
+    end if;
+    continue when v_c.id = any (v_vistos);
+    v_vistos := v_vistos || v_c.id;
+
+    v_estado := estado_codigo(v_c.id);
+    if v_estado = 'tomado' and v_vivo and v_c.reserva_id = p_reserva_id then
+      v_estado := 'emitido';
+    end if;
+    v_motivo := case v_estado when 'emitido' then null when 'tomado' then 'usado' else v_estado end;
+
+    if v_motivo is null then
+      select case
+               when count(*) = 0                    then 'faltan_piezas'
+               when bool_or(not x.disponible)       then 'pieza_no_disponible'
+               when bool_or(coalesce((v_pide->>i.modelo_id::text)::int, 0) < i.cantidad)
+                                                    then 'faltan_piezas'
+               when bool_or(i.modelo_id = any (v_tomadas)) then 'comparte_pieza'
+             end
+        into v_motivo
+        from ofertas_codigo_items i
+        join modelos m on m.id = i.modelo_id
+        left join grupos_precio g on g.id = m.grupo_precio_id
+        cross join lateral (
+          select m.activo
+                 and coalesce(m.precio_override_usd, g.precio_usd) is not null
+                 and coalesce((select sum(e.cantidad) from existencias e where e.modelo_id = m.id), 0)
+                     - apartadas_de(m.id)
+                     + case when v_vivo
+                            then coalesce((select sum(ri.cantidad) from reserva_items ri
+                                            where ri.reserva_id = p_reserva_id and ri.modelo_id = m.id), 0)
+                            else 0 end
+                     >= i.cantidad as disponible) x
+       where i.codigo_id = v_c.id;
+    end if;
+
+    if v_motivo is null then
+      select v_por || coalesce(jsonb_object_agg(i.modelo_id::text, jsonb_build_object(
+                                 'pct', v_c.pct, 'unidades', i.cantidad,
+                                 'codigo_id', v_c.id, 'codigo', v_c.codigo)), '{}'::jsonb),
+             v_tomadas || coalesce(array_agg(i.modelo_id), '{}')
+        into v_por, v_tomadas
+        from ofertas_codigo_items i
+       where i.codigo_id = v_c.id;
+    end if;
+
+    v_lista := v_lista || jsonb_build_array(jsonb_build_object(
+      'codigo', v_c.codigo, 'aplica', v_motivo is null, 'motivo', v_motivo, 'pct', v_c.pct));
+  end loop;
+
+  return jsonb_build_object('por_modelo', v_por, 'codigos', v_lista);
+end;
+$fn$;
+
+-- EL PRECIO DE UNA LÍNEA, CON SU CÓDIGO
+-- Una línea (pieza, cuántas, el precio a mano si lo hay, el tramo que le
+-- toca) en una o dos partes. `p_oferta` es lo de su pieza en `por_modelo`
+-- (null sin código) y `p_ya`, cuántas unidades del código cubrieron ya
+-- otras líneas de la misma pieza.
+--   orden 1: las unidades que cubre el código, con el mayor entre el tramo
+--            y la oferta, sin precio a mano; 'oferta' si la oferta la dejó
+--            más barata que el tramo solo.
+--            Lleva su código y lo que costaría con solo el tramo.
+--   orden 2: las demás, exactamente como sin código (`precio_de_linea`
+--            con el tramo y el precio a mano).
+-- Los errores de `precio_de_linea` (pieza retirada, sin precio, por
+-- debajo del mínimo) salen tal cual.
+create or replace function partes_de_linea(
+  p_modelo_id bigint,
+  p_cantidad  integer,
+  p_pedido    numeric,
+  p_tramo     numeric,
+  p_oferta    jsonb,
+  p_ya        integer,
+  p_tasa_bcv  numeric
+)
+returns table (orden integer, cantidad integer, nombre text, precio_lista numeric, precio_usd numeric,
+               motivo text, costo numeric, oferta_codigo_id bigint, oferta_codigo text,
+               precio_sin_oferta_usd numeric, motivo_sin_oferta text)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_pct   numeric := 0;
+  v_cubre integer := 0;
+  v_tramo numeric := coalesce(p_tramo, 0);
+  p       record;
+  s       record;
+begin
+  if p_oferta is not null then
+    v_pct   := coalesce((p_oferta->>'pct')::numeric, 0);
+    v_cubre := greatest(least(coalesce(p_cantidad, 0),
+                              coalesce((p_oferta->>'unidades')::int, 0) - coalesce(p_ya, 0)), 0);
+  end if;
+
+  if v_cubre > 0 then
+    select * into s from precio_de_linea(p_modelo_id, null, v_tramo, p_tasa_bcv);
+    select * into p from precio_de_linea(p_modelo_id, null, greatest(v_tramo, v_pct), p_tasa_bcv);
+    orden                 := 1;
+    cantidad              := v_cubre;
+    nombre                := p.nombre;
+    precio_lista          := p.precio_lista;
+    precio_usd            := p.precio_usd;
+    -- Ganó la oferta si dejó la pieza más barata que el tramo solo (con
+    -- los dos en el piso, o empatados, el motivo sigue siendo el tramo).
+    motivo                := case when p.motivo is not null and p.precio_usd < s.precio_usd then 'oferta' else p.motivo end;
+    costo                 := p.costo;
+    oferta_codigo_id      := (p_oferta->>'codigo_id')::bigint;
+    oferta_codigo         := p_oferta->>'codigo';
+    precio_sin_oferta_usd := s.precio_usd;
+    motivo_sin_oferta     := s.motivo;
+    return next;
+  end if;
+
+  if coalesce(p_cantidad, 0) > v_cubre then
+    select * into p from precio_de_linea(p_modelo_id, p_pedido, p_tramo, p_tasa_bcv);
+    orden                 := 2;
+    cantidad              := p_cantidad - v_cubre;
+    nombre                := p.nombre;
+    precio_lista          := p.precio_lista;
+    precio_usd            := p.precio_usd;
+    motivo                := p.motivo;
+    costo                 := p.costo;
+    oferta_codigo_id      := null;
+    oferta_codigo         := null;
+    precio_sin_oferta_usd := null;
+    motivo_sin_oferta     := null;
+    return next;
+  end if;
+end;
+$fn$;
+
+-- Los códigos de un cobro que escribe (pedido, venta, apartado): primero
+-- se bloquean, para que dos cobros a la vez no gasten el mismo, y después
+-- se mira cuáles valen. Se llama DESPUÉS de los candados de las piezas y
+-- antes de tocar la existencia o crear el pedido.
+create or replace function tomar_codigos(p_items jsonb, p_codigos text[])
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+begin
+  if p_codigos is not null and cardinality(p_codigos) between 1 and codigos_por_cobro_max() then
+    perform 1
+       from ofertas_codigos c
+      where c.codigo = any (array(select normalizar_codigo(x) from unnest(p_codigos) x))
+      order by c.id
+        for update;
+  end if;
+  return oferta_de_lineas(p_items, p_codigos);
+end;
+$fn$;
+
+-- Los códigos que valieron: un pedido los toma (`p_venta_id` null), una
+-- venta los usa.
+create or replace function gastar_codigos(p_oferta jsonb, p_reserva_id bigint, p_venta_id bigint)
+returns void
+language sql
+volatile
+security definer
+set search_path = public
+as $fn$
+  update ofertas_codigos c
+     set estado     = case when p_venta_id is not null then 'usado' else 'tomado' end,
+         reserva_id = p_reserva_id,
+         venta_id   = p_venta_id,
+         usado_en   = now()
+   where c.id in (select (e.value->>'codigo_id')::bigint
+                    from jsonb_each(coalesce(p_oferta->'por_modelo', '{}'::jsonb)) e);
+$fn$;
+
+-- Una venta anulada devuelve sus códigos: vuelven a `emitido` y
+-- `estado_codigo` dice si sirven o ya vencieron (vencido, no usado: la
+-- venta que los usó ya no cuenta). Uno roto (se quitó o se devolvió una
+-- de sus piezas, la §5) no vuelve.
+create or replace function soltar_codigos_de_venta(p_venta_id bigint)
+returns void
+language sql
+volatile
+security definer
+set search_path = public
+as $fn$
+  update ofertas_codigos c
+     set estado     = 'emitido',
+         venta_id   = null,
+         reserva_id = null,
+         usado_en   = null
+   where c.venta_id = p_venta_id
+     and c.estado = 'usado'
+     and c.roto_en is null;
+$fn$;
+
+revoke all on function codigos_por_cobro_max()                                                   from public, anon, authenticated;
+revoke all on function oferta_de_lineas(jsonb, text[], bigint)                                  from public, anon, authenticated;
+revoke all on function partes_de_linea(bigint, integer, numeric, numeric, jsonb, integer, numeric) from public, anon, authenticated;
+revoke all on function tomar_codigos(jsonb, text[])                                              from public, anon, authenticated;
+revoke all on function gastar_codigos(jsonb, bigint, bigint)                                     from public, anon, authenticated;
+revoke all on function soltar_codigos_de_venta(bigint)                                           from public, anon, authenticated;
+
+
+-- EL TOTAL DEL CARRITO DEL CATÁLOGO
+-- La de esquema-dijes.sql con `p_codigos` al final: la misma regla que
+-- `crear_reserva`, así lo que dice la barra es lo que el pedido congela.
+-- Cada línea dice además su código (`oferta_codigo`, o null) y lo que
+-- costaría sin él (`precio_sin_oferta_usd`, o null), y `codigos` dice de
+-- cada código si vale y, si no, por qué.
+drop function if exists cotizar_pedido(jsonb);
+
+create or replace function cotizar_pedido(p_items jsonb, p_codigos text[] default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_item      jsonb;
+  v_modelo    bigint;
+  v_cantidad  int;
+  v_piezas    int := 0;
+  v_desc      numeric(5,2);
+  v_tramo     jsonb;
+  v_oferta    jsonb;
+  v_cubiertas jsonb := '{}'::jsonb;
+  v_partes    jsonb;
+  v_parte     jsonb;
+  v_subtotal  numeric := 0;
+  v_total     numeric := 0;
+  v_lineas    jsonb := '[]'::jsonb;
+  v_sin       jsonb := '[]'::jsonb;
+begin
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    return jsonb_build_object('piezas', 0, 'descuento_pct', 0, 'subtotal_usd', 0,
+                              'total_usd', 0, 'lineas', '[]'::jsonb, 'sin_precio', '[]'::jsonb,
+                              'codigos', oferta_de_lineas('[]'::jsonb, p_codigos)->'codigos');
+  end if;
+  -- Un tope técnico, no de negocio: que nadie la use para recorrer el
+  -- catálogo entero de un golpe.
+  if jsonb_array_length(p_items) > 300 then
+    raise exception 'Demasiadas piezas distintas en un solo pedido.';
+  end if;
+
+  -- El tramo, línea por línea (`tramo_de_carrito`), como `crear_reserva`.
+  v_tramo  := tramo_de_carrito(p_items);
+  v_piezas := (v_tramo->>'piezas')::int;
+  v_desc   := (v_tramo->>'descuento_pct')::numeric;
+
+  -- El tope: lo mismo que pediría `crear_reserva`, sumado por pieza (una
+  -- pieza repetida en la lista no se cuela dos veces).
+  if exists (
+    select 1
+      from (select (x->>'modelo_id')::bigint as modelo, sum(greatest(coalesce((x->>'cantidad')::int, 0), 0)) as pide
+              from jsonb_array_elements(p_items) x
+             group by 1) q
+     where q.pide > coalesce((select sum(e.cantidad) from existencias e where e.modelo_id = q.modelo), 0)
+                    - apartadas_de(q.modelo)
+  ) then
+    raise exception 'Una de las piezas ya no tiene esa cantidad disponible.';
+  end if;
+
+  -- Los códigos: la misma regla que el pedido.
+  v_oferta := oferta_de_lineas(p_items, p_codigos);
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_modelo   := (v_item->>'modelo_id')::bigint;
+    v_cantidad := coalesce((v_item->>'cantidad')::int, 0);
+    continue when v_modelo is null or v_cantidad <= 0;
+
+    begin
+      select coalesce(jsonb_agg(to_jsonb(x) order by x.orden), '[]'::jsonb)
+        into v_partes
+        from partes_de_linea(v_modelo, v_cantidad, null,
+                             coalesce((v_tramo->'por_modelo'->>v_modelo::text)::numeric, 0),
+                             v_oferta->'por_modelo'->(v_modelo::text),
+                             coalesce((v_cubiertas->>v_modelo::text)::int, 0), null) x;
+    exception when others then
+      v_sin := v_sin || to_jsonb(v_modelo);
+      continue;
+    end;
+
+    for v_parte in select e from jsonb_array_elements(v_partes) e
+    loop
+      v_lineas := v_lineas || jsonb_build_array(jsonb_build_object(
+        'modelo_id', v_modelo, 'cantidad', (v_parte->>'cantidad')::int,
+        'precio_usd', v_parte->'precio_usd', 'precio_lista_usd', v_parte->'precio_lista',
+        'motivo', v_parte->>'motivo',
+        'oferta_codigo', v_parte->>'oferta_codigo',
+        'precio_sin_oferta_usd', v_parte->'precio_sin_oferta_usd'));
+      v_subtotal := v_subtotal + (v_parte->>'precio_lista')::numeric * (v_parte->>'cantidad')::int;
+      v_total    := v_total + (v_parte->>'precio_usd')::numeric * (v_parte->>'cantidad')::int;
+      if v_parte->>'oferta_codigo_id' is not null then
+        v_cubiertas := v_cubiertas || jsonb_build_object(v_modelo::text,
+          coalesce((v_cubiertas->>v_modelo::text)::int, 0) + (v_parte->>'cantidad')::int);
+      end if;
+    end loop;
+  end loop;
+
+  return jsonb_build_object(
+    'piezas',        v_piezas,
+    'descuento_pct', v_desc,
+    'subtotal_usd',  round(v_subtotal, 4),
+    'total_usd',     round(v_total, 4),
+    'lineas',        v_lineas,
+    'sin_precio',    v_sin,
+    'codigos',       v_oferta->'codigos');
+end;
+$fn$;
+
+revoke all on function cotizar_pedido(jsonb, text[]) from public;
+grant execute on function cotizar_pedido(jsonb, text[]) to anon, authenticated;
+
+
+-- EL PEDIDO DEL CATÁLOGO
+-- La de esquema-dijes.sql con `p_codigos` al final. Todo lo de antes
+-- sigue: los mensajes de la clienta, lo libre sumado por pieza, el tope
+-- de 300 líneas, el tramo línea por línea, qué dije va en qué base y,
+-- por el disparador `reservas_tope_sin_pagar`, el tope de pedidos sin
+-- pagar. Los códigos que valen quedan tomados por este pedido; los que
+-- no, se ignoran (el pedido se crea sin ese descuento, como lo dijo la
+-- barra).
+drop function if exists crear_reserva(jsonb, text, text, text, text, text, text, text, text, jsonb);
+
+create or replace function crear_reserva(
+  p_items            jsonb,
+  p_cliente_nombre   text,
+  p_cliente_apellido text,
+  p_cliente_cedula   text,
+  p_cliente_telefono text,
+  p_entrega          text   default 'tienda',
+  p_envio_empresa    text   default null,
+  p_envio_agencia    text   default null,
+  p_envio_direccion  text   default null,
+  p_armados          jsonb  default null,
+  p_codigos          text[] default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_modelo     bigint;
+  v_item       jsonb;
+  v_cantidad   int;
+  v_disponible int;
+  v_nombre     text;
+  v_precio     numeric(12,4);
+  v_piezas     int := 0;
+  v_previas    int := 0;
+  v_subtotal   numeric(12,4) := 0;
+  v_desc       numeric(5,2);
+  v_tramo      jsonb;
+  v_oferta     jsonb;
+  v_cubiertas  jsonb := '{}'::jsonb;
+  v_partes     jsonb;
+  v_parte      jsonb;
+  v_total      numeric(12,4) := 0;
+  v_minutos    numeric(12,4);
+  v_id         bigint;
+  v_token      uuid;
+  v_entrega    forma_entrega;
+  v_empresa    empresa_envio;
+  v_cliente    clientes%rowtype;
+  v_cliente_id bigint;
+  v_maestro    boolean := false;
+  v_lineas     jsonb := '[]'::jsonb;
+  v_nom        text := nullif(trim(p_cliente_nombre), '');
+  v_ape        text := nullif(trim(p_cliente_apellido), '');
+  v_ced        text := nullif(trim(p_cliente_cedula), '');
+  v_tel        text := nullif(trim(p_cliente_telefono), '');
+  v_agencia    text := nullif(trim(p_envio_agencia), '');
+  v_direccion  text := nullif(trim(p_envio_direccion), '');
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'No elegiste ninguna pieza.';
+  end if;
+
+  if v_ced is null then raise exception 'Falta tu cedula.'; end if;
+  if length(regexp_replace(v_ced, '[^0-9]', '', 'g')) < 6 then
+    raise exception 'Esa cedula esta incompleta.';
+  end if;
+
+  select * into v_cliente
+    from clientes
+   where cedula_digitos = regexp_replace(v_ced, '[^0-9]', '', 'g');
+  if found then
+    v_cliente_id := v_cliente.id;
+    if v_nom is null then
+      v_nom := nullif(btrim(v_cliente.nombre), '');
+      v_maestro := v_nom is not null;
+    end if;
+    if v_ape is null and nullif(btrim(coalesce(v_cliente.apellido, '')), '') is not null then
+      v_ape := btrim(v_cliente.apellido);
+      v_maestro := true;
+    end if;
+    if v_tel is null and length(regexp_replace(coalesce(v_cliente.telefono, ''), '[^0-9]', '', 'g')) >= 10 then
+      v_tel := btrim(v_cliente.telefono);
+      v_maestro := true;
+    end if;
+  end if;
+
+  if v_nom is null then raise exception 'Falta tu nombre.'; end if;
+  if v_ape is null then raise exception 'Falta tu apellido.'; end if;
+  if v_tel is null then raise exception 'Falta tu numero de telefono.'; end if;
+  if length(regexp_replace(v_tel, '[^0-9]', '', 'g')) < 10 then
+    raise exception 'Ese telefono esta incompleto. Escribelo con el codigo, por ejemplo 0412 1234567.';
+  end if;
+
+  begin
+    v_entrega := coalesce(nullif(trim(p_entrega), ''), 'tienda')::forma_entrega;
+  exception when others then
+    raise exception 'La forma de entrega tiene que ser tienda o envio.';
+  end;
+
+  if v_entrega = 'envio' then
+    begin
+      v_empresa := nullif(trim(p_envio_empresa), '')::empresa_envio;
+    exception when others then
+      raise exception 'La empresa de envio tiene que ser Domesa o MRW.';
+    end;
+    if v_empresa is null then raise exception 'Dinos por cual empresa lo enviamos: Domesa o MRW.'; end if;
+    if v_agencia is null then raise exception 'Falta a que agencia lo enviamos.'; end if;
+    if v_direccion is null then raise exception 'Falta la direccion de la agencia.'; end if;
+  else
+    v_empresa   := null;
+    v_agencia   := null;
+    v_direccion := null;
+  end if;
+
+  -- El tope técnico de `cotizar_pedido`, no de negocio.
+  if jsonb_typeof(p_items) = 'array' and jsonb_array_length(p_items) > 300 then
+    raise exception 'Demasiadas piezas distintas en un solo pedido.';
+  end if;
+
+  perform limpiar_reservas();
+
+  for v_modelo in
+    select distinct (x->>'modelo_id')::bigint from jsonb_array_elements(p_items) x order by 1
+  loop
+    perform pg_advisory_xact_lock(v_modelo);
+  end loop;
+
+  -- El tramo, línea por línea (`tramo_de_carrito`): los dijes no cuentan y
+  -- solo lo reciben los que van con una base.
+  v_tramo   := tramo_de_carrito(p_items);
+  v_previas := (v_tramo->>'piezas')::int;
+  v_desc    := (v_tramo->>'descuento_pct')::numeric;
+
+  -- Los códigos, bloqueados, con la regla de `cotizar_pedido`.
+  v_oferta := tomar_codigos(p_items, p_codigos);
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_modelo   := (v_item->>'modelo_id')::bigint;
+    v_cantidad := (v_item->>'cantidad')::int;
+
+    if v_cantidad is null or v_cantidad <= 0 then
+      raise exception 'La cantidad de cada pieza tiene que ser mayor que cero.';
+    end if;
+
+    -- Con los mensajes de la clienta, antes de pedir el precio.
+    select m.nombre || coalesce(' · ' || m.variante, ''),
+           coalesce(m.precio_override_usd, g.precio_usd)
+      into v_nombre, v_precio
+      from modelos m
+      left join grupos_precio g on g.id = m.grupo_precio_id
+     where m.id = v_modelo and m.activo;
+    if not found then
+      raise exception 'Una de las piezas que elegiste ya no esta disponible.';
+    end if;
+    if v_precio is null then
+      raise exception 'La pieza "%" todavia no tiene precio. Escribenos y te cotizamos.', v_nombre;
+    end if;
+
+    select coalesce((select sum(e.cantidad) from existencias e where e.modelo_id = v_modelo), 0)
+         - apartadas_de(v_modelo)
+      into v_disponible;
+
+    if v_cantidad > v_disponible then
+      raise exception 'De "%" quedan % disponibles y pediste %.', v_nombre, greatest(v_disponible, 0), v_cantidad;
+    end if;
+
+    select coalesce(jsonb_agg(to_jsonb(x) order by x.orden), '[]'::jsonb)
+      into v_partes
+      from partes_de_linea(v_modelo, v_cantidad, null,
+                           coalesce((v_tramo->'por_modelo'->>v_modelo::text)::numeric, 0),
+                           v_oferta->'por_modelo'->(v_modelo::text),
+                           coalesce((v_cubiertas->>v_modelo::text)::int, 0), null) x;
+
+    for v_parte in select e from jsonb_array_elements(v_partes) e
+    loop
+      v_lineas := v_lineas || jsonb_build_array(jsonb_build_object(
+        'modelo_id', v_modelo, 'cantidad', (v_parte->>'cantidad')::int,
+        'precio_usd', v_parte->'precio_usd', 'precio_lista_usd', v_parte->'precio_lista',
+        'motivo', v_parte->>'motivo',
+        'oferta_codigo_id', v_parte->'oferta_codigo_id',
+        'precio_sin_oferta_usd', v_parte->'precio_sin_oferta_usd',
+        'motivo_sin_oferta', v_parte->>'motivo_sin_oferta'));
+      v_subtotal := v_subtotal + ((v_parte->>'precio_lista')::numeric * (v_parte->>'cantidad')::int);
+      v_total    := v_total + ((v_parte->>'precio_usd')::numeric * (v_parte->>'cantidad')::int);
+      if v_parte->>'oferta_codigo_id' is not null then
+        v_cubiertas := v_cubiertas || jsonb_build_object(v_modelo::text,
+          coalesce((v_cubiertas->>v_modelo::text)::int, 0) + (v_parte->>'cantidad')::int);
+      end if;
+    end loop;
+
+    v_piezas := v_piezas + v_cantidad;
+  end loop;
+
+  -- Lo libre, sumado por pieza: la misma pieza en varias líneas no se
+  -- cuela dos veces, ni llega así a un tramo (como `cotizar_pedido`).
+  if exists (
+    select 1
+      from (select (x->>'modelo_id')::bigint as modelo, sum(greatest(coalesce((x->>'cantidad')::int, 0), 0)) as pide
+              from jsonb_array_elements(p_items) x
+             group by 1) q
+     where q.pide > coalesce((select sum(e.cantidad) from existencias e where e.modelo_id = q.modelo), 0)
+                    - apartadas_de(q.modelo)
+  ) then
+    raise exception 'De una de las piezas que elegiste no quedan tantas disponibles.';
+  end if;
+
+  v_total := round(v_total, 4);
+
+  select valor into v_minutos from configuracion where clave = 'reserva_minutos';
+
+  insert into reservas (cliente_nombre, cliente_apellido, cliente_cedula, cliente_telefono,
+                        entrega, envio_empresa, envio_agencia, envio_direccion,
+                        piezas, subtotal_usd, descuento_pct, total_usd, expira_en,
+                        cliente_id, datos_del_maestro, origen)
+  values (v_nom, v_ape, v_ced, v_tel,
+          v_entrega, v_empresa, v_agencia, v_direccion,
+          v_piezas, round(v_subtotal, 4), v_desc, v_total,
+          now() + (coalesce(v_minutos, 60) || ' minutes')::interval,
+          v_cliente_id, v_maestro, 'catalogo')
+  returning id, token into v_id, v_token;
+
+  insert into reserva_items (reserva_id, modelo_id, cantidad, precio_usd, precio_lista_usd, motivo_rebaja,
+                             oferta_codigo_id, precio_sin_oferta_usd, motivo_sin_oferta)
+  select v_id, (x->>'modelo_id')::bigint, (x->>'cantidad')::int,
+         (x->>'precio_usd')::numeric, (x->>'precio_lista_usd')::numeric, x->>'motivo',
+         (x->>'oferta_codigo_id')::bigint, (x->>'precio_sin_oferta_usd')::numeric, x->>'motivo_sin_oferta'
+    from jsonb_array_elements(v_lineas) with ordinality as e(x, n)
+   order by e.n;
+
+  -- Qué dije va en qué base, si el navegador lo dice y cuadra.
+  perform guardar_armados(v_id, p_armados);
+
+  -- Los códigos que valieron quedan tomados por este pedido.
+  perform gastar_codigos(v_oferta, v_id, null);
+
+  return v_token;
+end;
+$fn$;
+
+revoke all on function crear_reserva(jsonb, text, text, text, text, text, text, text, text, jsonb, text[]) from public;
+grant execute on function crear_reserva(jsonb, text, text, text, text, text, text, text, text, jsonb, text[]) to anon, authenticated;
+
+
+-- LA VENTA DEL MOSTRADOR
+-- La de esquema-dijes.sql con `p_codigos` al final. Todo lo de antes
+-- sigue (el tramo línea por línea, el regateo y su mínimo, lo apartado
+-- que no se vende, lo de fuera del catálogo, los candados por pieza). En
+-- las unidades que cubre un código manda el mayor entre el tramo y la
+-- oferta, y el precio a mano de esa línea se ignora (como con el tramo);
+-- las demás unidades de la línea, como siempre. La existencia baja una
+-- vez por línea; la línea partida son dos filas de la misma ubicación.
+-- Los códigos que valen quedan usados por esta venta; los que no (uno
+-- vencido, uno ya usado), se ignoran y la venta sale a su precio.
+drop function if exists registrar_venta(text, text, jsonb, bigint, text, text, text, bigint, text, text, boolean, text, numeric, text);
+
+create or replace function registrar_venta(
+  p_tipo             text,
+  p_metodo           text,
+  p_items            jsonb,
+  p_kit_id           bigint default null,   -- se ignora, ver esquema-tramos-en-mostrador.sql
+  p_cliente_nombre   text default null,
+  p_cliente_telefono text default null,
+  p_notas            text default null,
+  p_cliente_id       bigint default null,
+  p_cliente_cedula   text default null,
+  p_cliente_apellido text default null,
+  p_por_verificar    boolean default false,
+  p_pago_referencia  text default null,
+  p_extra_bs         numeric default null,
+  p_extra_nota       text default null,
+  p_codigos          text[] default null
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_venta_id     bigint;
+  v_cliente_id   bigint;
+  v_cliente_nom  text;
+  v_cliente_tel  text;
+  v_tasa         tasas%rowtype;
+  v_item         jsonb;
+  v_modelo_id    bigint;
+  v_ubicacion_id bigint;
+  v_cantidad     int;
+  v_disponible   int;
+  v_libre        int;
+  v_apartadas    int;
+  v_pedido       numeric(12,4);
+  v_precio_bs    numeric(14,2);
+  v_operativo    numeric(12,4);
+  v_ubi_nombre   text;
+  v_nombre       text;
+  v_piezas       int := 0;
+  v_desc         numeric(5,2) := 0;
+  v_tramo        jsonb;
+  v_oferta       jsonb;
+  v_cubiertas    jsonb := '{}'::jsonb;
+  v_partes       jsonb;
+  v_parte        jsonb;
+  v_total_bs     numeric(14,2) := 0;
+  v_extra_bs     numeric(14,2);
+  v_extra_nota   text;
+begin
+  if auth.uid() is null then
+    raise exception 'Hay que iniciar sesion para registrar una venta.';
+  end if;
+  if not exists (select 1 from perfiles where id = auth.uid() and activo) then
+    raise exception 'Tu usuario no tiene un perfil activo.';
+  end if;
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'La venta no tiene piezas.';
+  end if;
+
+  -- Lo de fuera del catálogo, a céntimos, como todo bolívar de `ventas`.
+  v_extra_bs   := round(coalesce(p_extra_bs, 0), 2);
+  v_extra_nota := nullif(btrim(coalesce(p_extra_nota, '')), '');
+  if v_extra_bs < 0 then
+    raise exception 'Lo que sumas fuera del catálogo no puede ser negativo. Para rebajar, cambia el precio de la pieza.';
+  end if;
+  if v_extra_bs > 0 and v_extra_nota is null then
+    raise exception 'Di qué es lo que sumas fuera del catálogo, por ejemplo "dije para la cadena".';
+  end if;
+  if length(v_extra_nota) > 120 then
+    raise exception 'Lo que escribiste de lo que sumas es muy largo: con unas palabras basta.';
+  end if;
+  if v_extra_bs = 0 then
+    v_extra_nota := null;
+  end if;
+
+  select * into v_tasa from tasas where vigente limit 1;
+  if not found then
+    raise exception 'No hay tasa vigente. Fijala en la pantalla de Tasas antes de cobrar.';
+  end if;
+
+  v_cliente_id := resolver_cliente(p_cliente_id, p_cliente_cedula,
+                                   p_cliente_nombre, p_cliente_apellido, p_cliente_telefono);
+
+  v_cliente_nom := nullif(btrim(coalesce(p_cliente_nombre, '')), '');
+  v_cliente_tel := nullif(btrim(coalesce(p_cliente_telefono, '')), '');
+  if v_cliente_id is not null then
+    select coalesce(v_cliente_nom, c.nombre_completo), coalesce(v_cliente_tel, c.telefono)
+      into v_cliente_nom, v_cliente_tel
+      from clientes c where c.id = v_cliente_id;
+  end if;
+
+  v_operativo := coalesce(costo_operativo_por_pieza(), 0);
+
+  -- El tramo sale de las piezas del catálogo, línea por línea: lo de fuera
+  -- no es una pieza, los dijes no cuentan y solo lo reciben los que van
+  -- con una base (`tramo_de_carrito`, la misma de los pedidos).
+  v_tramo  := tramo_de_carrito(p_items);
+  v_piezas := (v_tramo->>'piezas')::int;
+
+  -- El candado de cada modelo, en orden: el mismo que toman los pedidos.
+  for v_modelo_id in
+    select distinct (x->>'modelo_id')::bigint from jsonb_array_elements(p_items) x order by 1
+  loop
+    perform pg_advisory_xact_lock(v_modelo_id);
+  end loop;
+
+  -- Los códigos, bloqueados y mirados antes de tocar la existencia: una
+  -- pieza del código tiene que estar libre, y esta venta todavía no la
+  -- ha tomado.
+  v_oferta := tomar_codigos(p_items, p_codigos);
+
+  insert into ventas (usuario_id, tipo, metodo, tasa_venta_usada, tasa_bcv_usada,
+                      kit_id, cliente_id, cliente_nombre, cliente_telefono, notas,
+                      por_verificar, pago_referencia, extra_bs, extra_nota)
+  values (auth.uid(), p_tipo::tipo_venta, p_metodo::metodo_pago,
+          v_tasa.tasa_venta, v_tasa.tasa_bcv,
+          p_kit_id, v_cliente_id, v_cliente_nom, v_cliente_tel, p_notas,
+          coalesce(p_por_verificar, false), nullif(btrim(coalesce(p_pago_referencia, '')), ''),
+          v_extra_bs, v_extra_nota)
+  returning id into v_venta_id;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_modelo_id    := (v_item->>'modelo_id')::bigint;
+    v_ubicacion_id := (v_item->>'ubicacion_id')::bigint;
+    v_cantidad     := (v_item->>'cantidad')::int;
+    v_pedido       := nullif(v_item->>'precio_unitario_usd', '')::numeric;
+
+    if v_cantidad is null or v_cantidad <= 0 then
+      raise exception 'La cantidad de cada pieza tiene que ser mayor que cero.';
+    end if;
+
+    -- Se bloquea la fila, y despues se mira cuanto de ella esta libre.
+    select e.cantidad into v_disponible
+      from existencias e
+     where e.modelo_id = v_modelo_id and e.ubicacion_id = v_ubicacion_id
+     for update;
+
+    select l.libre, l.apartadas into v_libre, v_apartadas
+      from v_existencia_libre l
+     where l.modelo_id = v_modelo_id and l.ubicacion_id = v_ubicacion_id;
+    v_libre     := coalesce(v_libre, 0);
+    v_apartadas := coalesce(v_apartadas, 0);
+
+    -- El precio, el nombre y el costo: la regla de siempre, en su sitio,
+    -- con el código si cubre esta pieza (`partes_de_linea`).
+    v_desc := coalesce((v_tramo->'por_modelo'->>v_modelo_id::text)::numeric, 0);
+    select coalesce(jsonb_agg(to_jsonb(x) order by x.orden), '[]'::jsonb)
+      into v_partes
+      from partes_de_linea(v_modelo_id, v_cantidad, v_pedido, v_desc,
+                           v_oferta->'por_modelo'->(v_modelo_id::text),
+                           coalesce((v_cubiertas->>v_modelo_id::text)::int, 0), v_tasa.tasa_bcv) x;
+    v_nombre := v_partes->0->>'nombre';
+
+    select nombre into v_ubi_nombre from ubicaciones where id = v_ubicacion_id;
+
+    if v_disponible is null or v_libre < v_cantidad then
+      if v_apartadas > 0 then
+        raise exception 'De "%" en % quedan % libres: % están apartadas para un pedido. Pides %.',
+          v_nombre, coalesce(v_ubi_nombre, 'esa ubicacion'), v_libre, v_apartadas, v_cantidad;
+      end if;
+      raise exception 'No hay suficiente "%" en %. Quedan %, y pides %.',
+        v_nombre, coalesce(v_ubi_nombre, 'esa ubicacion'), coalesce(v_disponible, 0), v_cantidad;
+    end if;
+
+    update existencias
+       set cantidad = cantidad - v_cantidad, actualizado_en = now()
+     where modelo_id = v_modelo_id and ubicacion_id = v_ubicacion_id;
+
+    for v_parte in select e from jsonb_array_elements(v_partes) e
+    loop
+      v_precio_bs := round((v_parte->>'precio_usd')::numeric * v_tasa.tasa_bcv, 2);
+
+      insert into venta_items (venta_id, modelo_id, ubicacion_id, cantidad,
+                               precio_unitario_usd, precio_unitario_bs,
+                               precio_lista_usd, costo_puesto_usd_snap,
+                               costo_operativo_usd_snap, motivo_rebaja,
+                               oferta_codigo_id, precio_sin_oferta_usd, precio_sin_oferta_bs, motivo_sin_oferta)
+      values (v_venta_id, v_modelo_id, v_ubicacion_id, (v_parte->>'cantidad')::int,
+              (v_parte->>'precio_usd')::numeric, v_precio_bs, (v_parte->>'precio_lista')::numeric,
+              (v_parte->>'costo')::numeric, v_operativo, v_parte->>'motivo',
+              (v_parte->>'oferta_codigo_id')::bigint, (v_parte->>'precio_sin_oferta_usd')::numeric,
+              round((v_parte->>'precio_sin_oferta_usd')::numeric * v_tasa.tasa_bcv, 2),
+              v_parte->>'motivo_sin_oferta');
+
+      v_total_bs := v_total_bs + (v_precio_bs * (v_parte->>'cantidad')::int);
+      if v_parte->>'oferta_codigo_id' is not null then
+        v_cubiertas := v_cubiertas || jsonb_build_object(v_modelo_id::text,
+          coalesce((v_cubiertas->>v_modelo_id::text)::int, 0) + (v_parte->>'cantidad')::int);
+      end if;
+    end loop;
+  end loop;
+
+  -- Las piezas y, encima, lo de fuera del catálogo: es lo que se cobró.
+  v_total_bs := v_total_bs + v_extra_bs;
+
+  update ventas
+     set total_bs  = v_total_bs,
+         total_usd = round(v_total_bs / v_tasa.tasa_venta, 4)
+   where id = v_venta_id;
+
+  -- Los códigos que valieron quedan usados por esta venta.
+  perform gastar_codigos(v_oferta, null, v_venta_id);
+
+  return v_venta_id;
+end;
+$fn$;
+
+revoke all on function registrar_venta(text, text, jsonb, bigint, text, text, text, bigint, text, text, boolean, text, numeric, text, text[])
+  from public, anon;
+grant execute on function registrar_venta(text, text, jsonb, bigint, text, text, text, bigint, text, text, boolean, text, numeric, text, text[])
+  to authenticated;
+
+
+-- EL APARTADO DEL MOSTRADOR
+-- La de esquema-dijes.sql con `p_codigos` al final, con la misma regla de
+-- la venta: en las unidades del código manda el mayor entre el tramo y la
+-- oferta y se ignora el precio a mano. Los códigos que valen quedan
+-- tomados por el apartado; si se cancela o vence, vuelven a servir; al
+-- entregarlo, quedan usados por su venta. Devuelve lo de siempre.
+drop function if exists apartar_en_tienda(jsonb, jsonb, bigint, text, text, text, text, boolean);
+
+create or replace function apartar_en_tienda(
+  p_items            jsonb,
+  p_pagos            jsonb,
+  p_cliente_id       bigint  default null,
+  p_cliente_cedula   text    default null,
+  p_cliente_nombre   text    default null,
+  p_cliente_apellido text    default null,
+  p_cliente_telefono text    default null,
+  p_verificado       boolean default true,
+  p_codigos          text[]  default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_tasa      tasas%rowtype;
+  v_cliente   clientes%rowtype;
+  v_cli_id    bigint;
+  v_modelo    bigint;
+  v_item      jsonb;
+  v_pago      jsonb;
+  v_cantidad  int;
+  v_piezas    int := 0;
+  v_desc      numeric(5,2);
+  v_tramo     jsonb;
+  v_oferta    jsonb;
+  v_cubiertas jsonb := '{}'::jsonb;
+  v_partes    jsonb;
+  v_parte     jsonb;
+  v_disp      int;
+  v_pedidas   int;
+  p           record;
+  v_lineas    jsonb := '[]'::jsonb;
+  v_subtotal  numeric(12,4) := 0;
+  v_total     numeric(12,4) := 0;
+  v_id        bigint;
+  v_token     uuid;
+  v_falta     numeric;
+  v_minimo    numeric;
+  v_metodo    text;
+begin
+  if not es_personal() then
+    raise exception 'Hay que iniciar sesión.';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'El apartado no tiene piezas.';
+  end if;
+  if p_pagos is null or jsonb_typeof(p_pagos) <> 'array' or jsonb_array_length(p_pagos) = 0 then
+    raise exception 'Para apartar hace falta el primer pago.';
+  end if;
+
+  select * into v_tasa from tasas where vigente limit 1;
+  if not found then
+    raise exception 'No hay tasa vigente. Fíjala en la pantalla de Tasas antes de cobrar.';
+  end if;
+
+  -- La clienta, con su cédula: un apartado es una deuda con nombre.
+  v_cli_id := resolver_cliente(p_cliente_id, p_cliente_cedula, p_cliente_nombre,
+                               p_cliente_apellido, p_cliente_telefono);
+  if v_cli_id is null then
+    raise exception 'Para apartar hace falta la clienta: búscala o escribe su cédula y su nombre.';
+  end if;
+  select * into v_cliente from clientes where id = v_cli_id;
+  if v_cliente.cedula_digitos is null then
+    raise exception 'Para apartar hace falta la cédula de la clienta.';
+  end if;
+
+  select coalesce(sum((x->>'cantidad')::int), 0) into v_piezas from jsonb_array_elements(p_items) x;
+  -- El tramo, línea por línea (`tramo_de_carrito`): los dijes no cuentan y
+  -- solo lo reciben los que van con una base.
+  v_tramo := tramo_de_carrito(p_items);
+  v_desc  := (v_tramo->>'descuento_pct')::numeric;
+
+  -- Candados en orden y existencias bloqueadas, como `registrar_venta`.
+  for v_modelo in
+    select distinct (x->>'modelo_id')::bigint from jsonb_array_elements(p_items) x order by 1
+  loop
+    perform pg_advisory_xact_lock(v_modelo);
+    perform 1 from existencias where modelo_id = v_modelo for update;
+  end loop;
+
+  -- Los códigos, bloqueados, con la regla de `cotizar_pedido`.
+  v_oferta := tomar_codigos(p_items, p_codigos);
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_modelo   := (v_item->>'modelo_id')::bigint;
+    v_cantidad := (v_item->>'cantidad')::int;
+    if v_cantidad is null or v_cantidad <= 0 then
+      raise exception 'La cantidad de cada pieza tiene que ser mayor que cero.';
+    end if;
+
+    select coalesce(jsonb_agg(to_jsonb(x) order by x.orden), '[]'::jsonb)
+      into v_partes
+      from partes_de_linea(v_modelo, v_cantidad, nullif(v_item->>'precio_unitario_usd', '')::numeric,
+                           coalesce((v_tramo->'por_modelo'->>v_modelo::text)::numeric, 0),
+                           v_oferta->'por_modelo'->(v_modelo::text),
+                           coalesce((v_cubiertas->>v_modelo::text)::int, 0), v_tasa.tasa_bcv) x;
+
+    for v_parte in select e from jsonb_array_elements(v_partes) e
+    loop
+      v_lineas := v_lineas || jsonb_build_array(jsonb_build_object(
+        'modelo_id', v_modelo, 'cantidad', (v_parte->>'cantidad')::int,
+        'precio_usd', v_parte->'precio_usd', 'precio_lista_usd', v_parte->'precio_lista',
+        'motivo', v_parte->>'motivo',
+        'oferta_codigo_id', v_parte->'oferta_codigo_id',
+        'precio_sin_oferta_usd', v_parte->'precio_sin_oferta_usd',
+        'motivo_sin_oferta', v_parte->>'motivo_sin_oferta'));
+      v_subtotal := v_subtotal + (v_parte->>'precio_lista')::numeric * (v_parte->>'cantidad')::int;
+      v_total    := v_total + (v_parte->>'precio_usd')::numeric * (v_parte->>'cantidad')::int;
+      if v_parte->>'oferta_codigo_id' is not null then
+        v_cubiertas := v_cubiertas || jsonb_build_object(v_modelo::text,
+          coalesce((v_cubiertas->>v_modelo::text)::int, 0) + (v_parte->>'cantidad')::int);
+      end if;
+    end loop;
+  end loop;
+
+  -- Lo libre, por modelo: todo lo que hay menos lo apartado.
+  for v_modelo, v_pedidas in
+    select (x->>'modelo_id')::bigint, sum((x->>'cantidad')::int)::int
+      from jsonb_array_elements(p_items) x group by 1
+  loop
+    select coalesce((select sum(cantidad) from existencias where modelo_id = v_modelo), 0)
+         - apartadas_de(v_modelo)
+      into v_disp;
+    if v_pedidas > v_disp then
+      select nombre into p from precio_de_linea(v_modelo, null, 0, null);
+      raise exception 'De "%" quedan % libres y quieres apartar %.', p.nombre, greatest(v_disp, 0), v_pedidas;
+    end if;
+  end loop;
+
+  v_total := round(v_total, 4);
+
+  insert into reservas (cliente_nombre, cliente_apellido, cliente_cedula, cliente_telefono,
+                        entrega, piezas, subtotal_usd, descuento_pct, total_usd,
+                        expira_en, cliente_id, datos_del_maestro, origen, creado_por, estado)
+  values (v_cliente.nombre, v_cliente.apellido, v_cliente.cedula, v_cliente.telefono,
+          'tienda', v_piezas, round(v_subtotal, 4), v_desc, v_total,
+          now(), v_cli_id, false, 'tienda', auth.uid(), 'abierta')
+  returning id, token into v_id, v_token;
+
+  insert into reserva_items (reserva_id, modelo_id, cantidad, precio_usd, precio_lista_usd, motivo_rebaja,
+                             oferta_codigo_id, precio_sin_oferta_usd, motivo_sin_oferta)
+  select v_id, (x->>'modelo_id')::bigint, (x->>'cantidad')::int,
+         (x->>'precio_usd')::numeric, (x->>'precio_lista_usd')::numeric, x->>'motivo',
+         (x->>'oferta_codigo_id')::bigint, (x->>'precio_sin_oferta_usd')::numeric, x->>'motivo_sin_oferta'
+    from jsonb_array_elements(v_lineas) with ordinality as e(x, n)
+   order by e.n;
+
+  -- Los códigos que valieron quedan tomados por este apartado.
+  perform gastar_codigos(v_oferta, v_id, null);
+
+  for v_pago in select * from jsonb_array_elements(p_pagos)
+  loop
+    v_metodo := v_pago->>'metodo';
+    v_falta  := saldo_padre_bcv(null, v_id, null);
+    perform anotar_abono_en(null, v_id, null, 'tienda', v_metodo,
+                            nullif(v_pago->>'monto', '')::numeric, v_pago->>'referencia',
+                            coalesce(p_verificado, true) or v_metodo in ('efectivo_bs', 'efectivo_usd', 'punto'),
+                            v_falta);
+  end loop;
+
+  v_minimo := v_total * config_requerida('apartado_inicial_pct') / 100;
+  v_falta  := saldo_padre_bcv(null, v_id, null);
+  if v_total - v_falta < v_minimo - 0.005 then
+    raise exception 'Para apartar, lo que paga hoy tiene que ser al menos el % %%: $% BCV, hoy Bs %.',
+      to_char(config_requerida('apartado_inicial_pct'), 'FM990'),
+      to_char(v_minimo, 'FM999G999G990D00'),
+      to_char(round(v_minimo * v_tasa.tasa_bcv, 2), 'FM999G999G990D00');
+  end if;
+  if v_falta < 0.005 then
+    raise exception 'Con eso ya está pagado completo: cóbralo como venta, no como apartado.';
+  end if;
+
+  perform pedido_al_dia(v_id);
+
+  return jsonb_build_object('id', v_id, 'token', v_token, 'falta_bcv', falta_pedido_bcv(v_id),
+                            'vence_apartado_en', (select vence_apartado_en from reservas where id = v_id));
+end;
+$fn$;
+
+revoke all on function apartar_en_tienda(jsonb, jsonb, bigint, text, text, text, text, boolean, text[]) from public, anon;
+grant execute on function apartar_en_tienda(jsonb, jsonb, bigint, text, text, text, text, boolean, text[]) to authenticated;
+
+
+-- EL ÚNICO CAMINO DE PEDIDO A VENTA
+-- La de esquema-abonos-y-apartados.sql, misma firma. Cada línea de
+-- `p_lineas` puede traer además `oferta_codigo_id`,
+-- `precio_sin_oferta_usd` y `motivo_sin_oferta` (los de su línea de
+-- pedido), y la venta los guarda; lo que no los trae (un pedido de
+-- revendedor) los deja en null. Lo sin oferta en bolívares, a la tasa de
+-- la venta, como el precio.
+create or replace function vender_congelado(
+  p_tipo            text,
+  p_metodo          metodo_pago,
+  p_lineas          jsonb,
+  p_cliente_id      bigint,
+  p_cliente_nombre  text,
+  p_cliente_telefono text,
+  p_notas           text,
+  p_usuario         uuid,
+  p_revendedor_id   bigint,
+  p_pago_referencia text
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_tasa      tasas%rowtype;
+  v_venta     bigint;
+  v_operativo numeric(12,4);
+  v_linea     jsonb;
+  v_ex        record;
+  v_modelo    bigint;
+  v_falta     int;
+  v_toma      int;
+  v_precio    numeric(12,4);
+  v_bs        numeric(14,2);
+  v_sin       numeric(12,4);
+  v_costo     numeric(12,4);
+  v_nombre    text;
+  v_total_bs  numeric(14,2) := 0;
+begin
+  select * into v_tasa from tasas where vigente limit 1;
+  if not found then
+    raise exception 'No hay tasa vigente. Fíjala en la pantalla de Tasas antes de cobrar.';
+  end if;
+
+  v_operativo := coalesce(costo_operativo_por_pieza(), 0);
+
+  -- Nace como una venta cobrada, no "por verificar": lo que se verificó fue
+  -- cada abono. (`verificada_en` es de las ventas que QUEDARON por verificar:
+  -- la ficha de la clienta lo lee como "se comprobó N días después".)
+  insert into ventas (usuario_id, tipo, metodo, tasa_venta_usada, tasa_bcv_usada,
+                      cliente_id, cliente_nombre, cliente_telefono, notas,
+                      por_verificar, pago_referencia, pago_parcial, revendedor_id)
+  values (p_usuario, p_tipo::tipo_venta, p_metodo, v_tasa.tasa_venta, v_tasa.tasa_bcv,
+          p_cliente_id, p_cliente_nombre, p_cliente_telefono, p_notas,
+          false, nullif(btrim(coalesce(p_pago_referencia, '')), ''), true, p_revendedor_id)
+  returning id into v_venta;
+
+  for v_linea in select * from jsonb_array_elements(p_lineas)
+  loop
+    v_modelo := (v_linea->>'modelo_id')::bigint;
+    v_falta  := (v_linea->>'cantidad')::int;
+    v_precio := (v_linea->>'precio_usd')::numeric;
+    v_bs     := round(v_precio * v_tasa.tasa_bcv, 2);
+    v_sin    := nullif(v_linea->>'precio_sin_oferta_usd', '')::numeric;
+
+    select m.costo_puesto_usd, m.nombre || coalesce(' · ' || m.variante, '')
+      into v_costo, v_nombre
+      from modelos m where m.id = v_modelo;
+
+    perform 1 from existencias where modelo_id = v_modelo for update;
+
+    for v_ex in
+      select l.ubicacion_id, l.libre
+        from v_existencia_libre l
+        join ubicaciones u on u.id = l.ubicacion_id
+       where l.modelo_id = v_modelo and l.libre > 0
+       order by l.cantidad desc, u.orden, u.id
+    loop
+      exit when v_falta = 0;
+      v_toma := least(v_falta, v_ex.libre);
+
+      update existencias
+         set cantidad = cantidad - v_toma, actualizado_en = now()
+       where modelo_id = v_modelo and ubicacion_id = v_ex.ubicacion_id and cantidad >= v_toma;
+      if not found then
+        raise exception 'La existencia de "%" cambió mientras se entregaba. Inténtalo otra vez.', v_nombre;
+      end if;
+
+      insert into venta_items (venta_id, modelo_id, ubicacion_id, cantidad,
+                               precio_unitario_usd, precio_unitario_bs,
+                               precio_lista_usd, costo_puesto_usd_snap,
+                               costo_operativo_usd_snap, motivo_rebaja,
+                               oferta_codigo_id, precio_sin_oferta_usd, precio_sin_oferta_bs, motivo_sin_oferta)
+      values (v_venta, v_modelo, v_ex.ubicacion_id, v_toma,
+              v_precio, v_bs, (v_linea->>'precio_lista_usd')::numeric, v_costo, v_operativo,
+              nullif(v_linea->>'motivo', ''),
+              nullif(v_linea->>'oferta_codigo_id', '')::bigint, v_sin, round(v_sin * v_tasa.tasa_bcv, 2),
+              nullif(v_linea->>'motivo_sin_oferta', ''));
+
+      v_total_bs := v_total_bs + v_bs * v_toma;
+      v_falta    := v_falta - v_toma;
+    end loop;
+
+    if v_falta > 0 then
+      raise exception 'De "%" faltan % en la tienda para completar la entrega.', v_nombre, v_falta;
+    end if;
+  end loop;
+
+  update ventas
+     set total_bs  = v_total_bs,
+         total_usd = round(v_total_bs / v_tasa.tasa_venta, 4)
+   where id = v_venta;
+
+  return v_venta;
+end;
+$fn$;
+
+-- La entrega de un pedido, la de esquema-abonos-y-apartados.sql, misma
+-- firma. Las líneas de la venta copian de las del pedido el motivo, el
+-- código y lo que costarían sin él; y los códigos que el pedido tenía
+-- tomados quedan usados por esta venta.
+create or replace function entregar_pedido(
+  p_reserva_id bigint,
+  p_metodo     text    default null,
+  p_monto      numeric default null,
+  p_referencia text    default null
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  r          reservas%rowtype;
+  v_fase     text;
+  v_falta    numeric;
+  v_pend     int;
+  v_tasa     numeric;
+  v_modelo   bigint;
+  v_metodo   metodo_pago;
+  v_ref      text;
+  v_cliente  bigint;
+  v_lineas   jsonb;
+  v_venta    bigint;
+begin
+  if not es_personal() then
+    raise exception 'Hay que iniciar sesión.';
+  end if;
+
+  select * into r from reservas where id = p_reserva_id for update;
+  if not found then
+    raise exception 'Ese pedido no existe.';
+  end if;
+
+  v_fase := fase_pedido(r.id);
+  if v_fase = 'entregado' then raise exception 'Ese pedido ya se entregó.'; end if;
+  if v_fase in ('cancelado', 'cerrado') then raise exception 'Ese pedido está cerrado.'; end if;
+  if v_fase = 'vencido' then
+    raise exception 'Ese apartado venció el %: sus piezas ya están libres.',
+      to_char(coalesce(r.vence_apartado_en, r.expira_en) at time zone 'America/Caracas', 'DD/MM/YYYY');
+  end if;
+  if not pedido_con_precio(r.id) then
+    raise exception 'Ese pedido es de antes del apartado: cóbralo con "Cobrar y entregar".';
+  end if;
+
+  if coalesce(p_monto, 0) > 0 then
+    v_falta := falta_pedido_bcv(r.id);
+    perform anotar_abono_en(null, r.id, null, 'tienda', p_metodo, p_monto, p_referencia, true, v_falta);
+  end if;
+
+  select count(*) into v_pend
+    from abonos where reserva_id = r.id and anulado_en is null and verificado_en is null;
+  if v_pend > 0 then
+    raise exception 'Hay % pago(s) sin verificar. Revisa en el banco si llegaron antes de entregar.', v_pend;
+  end if;
+
+  v_falta := falta_pedido_bcv(r.id, true);
+  if v_falta > 0 then
+    select tasa_bcv into v_tasa from tasas where vigente limit 1;
+    raise exception 'Todavía faltan $% BCV (hoy Bs %). Carga lo que falta y después entrega.',
+      to_char(v_falta, 'FM999G999G990D00'),
+      coalesce(to_char(round(v_falta * v_tasa, 2), 'FM999G999G990D00'), '?');
+  end if;
+
+  for v_modelo in
+    select distinct modelo_id from reserva_items where reserva_id = r.id order by 1
+  loop
+    perform pg_advisory_xact_lock(v_modelo);
+  end loop;
+
+  -- Se suelta: desde aquí sus piezas cuentan como libres y se toman.
+  update reservas set cerrada_en = now(), cerrada_por = auth.uid() where id = r.id;
+
+  select a.metodo into v_metodo
+    from abonos a where a.reserva_id = r.id and a.anulado_en is null
+   order by a.monto_bcv desc, a.fecha desc limit 1;
+  select a.referencia into v_ref
+    from abonos a where a.reserva_id = r.id and a.anulado_en is null and a.referencia is not null
+   order by a.fecha desc limit 1;
+
+  v_cliente := resolver_cliente(r.cliente_id, r.cliente_cedula, r.cliente_nombre,
+                                r.cliente_apellido, r.cliente_telefono);
+
+  select jsonb_agg(jsonb_build_object(
+           'modelo_id', ri.modelo_id, 'cantidad', ri.cantidad,
+           'precio_usd', ri.precio_usd, 'precio_lista_usd', ri.precio_lista_usd,
+           'motivo', ri.motivo_rebaja,
+           'oferta_codigo_id', ri.oferta_codigo_id,
+           'precio_sin_oferta_usd', ri.precio_sin_oferta_usd,
+           'motivo_sin_oferta', ri.motivo_sin_oferta) order by ri.id)
+    into v_lineas
+    from reserva_items ri where ri.reserva_id = r.id;
+
+  v_venta := vender_congelado(
+    'detal', v_metodo, v_lineas, v_cliente,
+    btrim(coalesce(r.cliente_nombre, '') || ' ' || coalesce(r.cliente_apellido, '')),
+    r.cliente_telefono,
+    case r.origen when 'tienda' then 'Apartado #' else 'Pedido del catálogo #' end || r.id,
+    coalesce(r.creado_por, auth.uid()), null, v_ref);
+
+  update abonos set venta_id = v_venta where reserva_id = r.id;
+
+  update reservas
+     set venta_id = v_venta, estado = 'confirmada', pagado_en = coalesce(pagado_en, now())
+   where id = r.id;
+
+  -- Lo que el pedido tenía tomado, usado por su venta.
+  update ofertas_codigos
+     set estado = 'usado', venta_id = v_venta, usado_en = now()
+   where reserva_id = r.id and estado = 'tomado';
+
+  return v_venta;
+end;
+$fn$;
+
+
+-- ANULAR UNA VENTA DEVUELVE SUS CÓDIGOS
+-- La de esquema-abonos-y-apartados.sql, misma firma: lo de siempre y,
+-- al final, sus códigos vuelven (`soltar_codigos_de_venta`).
+create or replace function anular_venta_por_verificar(p_venta_id bigint, p_motivo text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_item venta_items%rowtype;
+begin
+  if auth.uid() is null or not exists (select 1 from perfiles where id = auth.uid() and activo) then
+    raise exception 'Hay que iniciar sesion.';
+  end if;
+  perform 1 from ventas where id = p_venta_id and por_verificar and not anulada for update;
+  if not found then
+    raise exception 'Esa venta ya no está por verificar: pídele al administrador que la anule.';
+  end if;
+  if exists (select 1 from reservas where venta_id = p_venta_id)
+     or exists (select 1 from apartados where venta_id = p_venta_id) then
+    raise exception 'Esa venta salió de un pedido pagado por abonos: la anula solo el administrador.';
+  end if;
+
+  for v_item in select * from venta_items where venta_id = p_venta_id
+  loop
+    insert into existencias (modelo_id, ubicacion_id, cantidad)
+    values (v_item.modelo_id, v_item.ubicacion_id, v_item.cantidad)
+    on conflict (modelo_id, ubicacion_id)
+    do update set cantidad = existencias.cantidad + excluded.cantidad, actualizado_en = now();
+  end loop;
+
+  update ventas
+     set anulada = true, por_verificar = false,
+         verificada_por = auth.uid(), verificada_en = now(),
+         notas = coalesce(notas || ' | ', '') || 'Anulada sin pago: ' || coalesce(nullif(btrim(p_motivo), ''), 'el pago no llegó')
+   where id = p_venta_id;
+
+  update abonos
+     set anulado_en = now(), anulado_por = auth.uid(), anulado_motivo = 'venta anulada'
+   where venta_id = p_venta_id and anulado_en is null;
+
+  perform soltar_codigos_de_venta(p_venta_id);
+end;
+$fn$;
+
+-- La del administrador, la de esquema-devoluciones.sql, misma firma: lo
+-- de siempre y sus códigos vuelven.
+create or replace function admin_anular_venta(p_venta_id bigint, p_motivo text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_item venta_items%rowtype;
+begin
+  if not es_admin() then
+    raise exception 'Solo un administrador puede anular una venta.';
+  end if;
+  if (select anulada from ventas where id = p_venta_id) then
+    raise exception 'Esa venta ya estaba anulada.';
+  end if;
+  if (select devolucion_de from ventas where id = p_venta_id) is not null then
+    raise exception 'Eso es una nota de crédito: no se anula.';
+  end if;
+  if exists (select 1 from ventas where devolucion_de = p_venta_id and not anulada) then
+    raise exception 'Esa venta tiene piezas devueltas: no se puede anular entera.';
+  end if;
+
+  for v_item in select * from venta_items where venta_id = p_venta_id
+  loop
+    insert into existencias (modelo_id, ubicacion_id, cantidad)
+    values (v_item.modelo_id, v_item.ubicacion_id, v_item.cantidad)
+    on conflict (modelo_id, ubicacion_id)
+    do update set cantidad = existencias.cantidad + excluded.cantidad, actualizado_en = now();
+  end loop;
+
+  update ventas
+     set anulada = true,
+         notas = coalesce(notas || ' | ', '') || 'Anulada: ' || coalesce(p_motivo, 'sin motivo')
+   where id = p_venta_id;
+
+  perform soltar_codigos_de_venta(p_venta_id);
+end;
+$fn$;
 
 
 notify pgrst, 'reload schema';
