@@ -88,7 +88,9 @@
 --     select jsonb_array_length(ofertas_publicas() -> 'combos');   -> 0
 --     hasta que el administrador abra el panel o el Inventario (los
 --     arma su navegador). `ofertas_publicas() -> 'seleccion'` ya trae
---     las piezas libres que llevan más de 90 días sin venderse.
+--     piezas libres que llevan más de 90 días sin venderse: como mucho
+--     24, que cambian cada día (`select count(*) from seleccion_de_hoy()`
+--     dice cuántas califican en total).
 --  7. select count(*) from ofertas_codigos;                    -> 0
 --  8. select id, piso_margen_de(id) from modelos order by id;
 --     -> lo mismo que antes de correrlo (apúntalo antes para comparar).
@@ -813,7 +815,11 @@ insert into configuracion (clave, valor, descripcion) values
    'Ofertas en la landing: 1 encendidas, 0 apagadas. Apagadas no se enseñan ni se dan códigos nuevos; los ya dados se respetan hasta que vencen.')
 on conflict (clave) do update set descripcion = excluded.descripcion;
 
--- Una cifra de las ofertas: null si está vacía o si no existe.
+-- Una cifra de las ofertas: null si está vacía o si no existe. Los
+-- porcentajes (las claves "_pct"), con dos decimales: los que guardan el
+-- código, el combo y la oferta de la casa. Así el porcentaje con que se
+-- revisa una pieza, el que se congela y el que se enseña son el mismo
+-- (con "7,125" en la tabla, el código decía 7,13 y el precio iba al 7,125).
 create or replace function cifra_oferta(p_clave text)
 returns numeric
 language sql
@@ -821,7 +827,8 @@ stable
 security definer
 set search_path = public
 as $fn$
-  select (select c.valor from configuracion c where c.clave = p_clave);
+  select case when right(p_clave, 4) = '_pct' then round(c.valor, 2) else c.valor end
+    from (select (select x.valor from configuracion x where x.clave = p_clave) as valor) c;
 $fn$;
 
 -- Si hoy se enseñan ofertas y se dan códigos: el interruptor encendido, y
@@ -1524,6 +1531,36 @@ revoke all on function combos_vigentes()   from public, anon, authenticated;
 revoke all on function casas_vigentes()    from public, anon, authenticated;
 revoke all on function seleccion_de_hoy()  from public, anon, authenticated;
 
+-- Las piezas de la selección que la landing enseña hoy: como mucho
+-- `c_tope` de `seleccion_de_hoy()`, al azar con la fecha de hoy en
+-- Venezuela como semilla. El mismo día salen las mismas para todas las
+-- clientas, y al día siguiente salen otras. `seleccion_de_hoy()` sigue
+-- siendo la lista entera (el panel la enseña así).
+-- El tope es de CARGA, no del negocio: con los lotes de la prueba entraban
+-- 307 de 312 piezas, unos 58 KB por cada visita a la landing y la cinta
+-- "Oferta" en casi todo. `p_dia` es solo para probar otro día: la landing
+-- y `emitir_oferta` no lo pasan.
+create or replace function seleccion_ensenada(p_dia date default null)
+returns setof bigint
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  c_tope constant integer := 24;  -- tope de carga de la página, no una cifra del negocio
+  v_dia  date := coalesce(p_dia, (now() at time zone 'America/Caracas')::date);
+begin
+  return query
+  select s.id
+    from seleccion_de_hoy() s(id)
+   order by md5(v_dia::text || ':' || s.id::text), s.id
+   limit c_tope;
+end;
+$fn$;
+
+revoke all on function seleccion_ensenada(date) from public, anon, authenticated;
+
 
 -- Lo que la landing enseña, sin sesión. Apagadas (o sin las cifras de los
 -- códigos), todo vacío y `encendidas: false`: la página no pinta ninguna
@@ -1532,7 +1569,7 @@ revoke all on function seleccion_de_hoy()  from public, anon, authenticated;
 --   {encendidas, pareja_pct, mirada_segundos, dias_validez,
 --    combos: [{id, pct, total_lista_usd, total_oferta_usd, piezas}],
 --    regalo: [los combos con total_oferta_usd <= regalo_tope_usd],
---    seleccion: {pct, piezas},
+--    seleccion: {pct, piezas},     (las de `seleccion_ensenada()`: como mucho 24, cada día otras)
 --    casa: [{id, nombre, texto, foto, pct, hasta, total_lista_usd, total_oferta_usd, piezas}],
 --    en_oferta: [modelo_id, ...]}   (las piezas de la cinta "Oferta")
 create or replace function ofertas_publicas()
@@ -1585,7 +1622,7 @@ begin
            'piezas', coalesce(jsonb_agg(pieza_oferta(m.id, 1, v_sel_pct)
                                         order by m.categoria, m.nombre, m.variante nulls first, m.id), '[]'::jsonb))
     into v_sel
-    from seleccion_de_hoy() s(id)
+    from seleccion_ensenada() s(id)
     join modelos m on m.id = s.id;
 
   select coalesce(jsonb_agg(jsonb_build_object(
@@ -1637,7 +1674,8 @@ grant execute on function ofertas_publicas() to anon, authenticated;
 --                                    se enseña hoy (regalo: con su total
 --                                    dentro del tope); piezas y % de la base.
 --   casa                             p_ref es una oferta de la casa de hoy.
---   seleccion                        una pieza de la selección de hoy.
+--   seleccion                        una pieza de las que la selección
+--                                    enseña hoy (`seleccion_ensenada`).
 --   estuche                          la base elige al azar un combo o una
 --                                    pieza de la selección; uno al día.
 -- Lo que diga el navegador en p_modelos para combo, regalo, casa y estuche
@@ -1716,8 +1754,8 @@ begin
   elsif v_origen = 'seleccion' then
     v_pct := cifra_oferta('seleccion_pct');
     if p_modelos is null or cardinality(p_modelos) <> 1 or p_modelos[1] is null
-       or not exists (select 1 from seleccion_de_hoy() s(id) where s.id = p_modelos[1]) then
-      raise exception 'Esa pieza ya no está en la selección.';
+       or not exists (select 1 from seleccion_ensenada() s(id) where s.id = p_modelos[1]) then
+      raise exception 'Esa pieza no está en la selección de hoy.';
     end if;
     v_modelos := p_modelos;
 
@@ -1736,12 +1774,12 @@ begin
       raise exception 'Ya abriste tu estuche hoy. Vuelve mañana por otro.';
     end if;
 
-    -- Al azar: mitad y mitad entre un combo y una pieza de la selección (si
-    -- hay de los dos), y después uno de ellos.
+    -- Al azar: mitad y mitad entre un combo y una pieza de la selección que
+    -- se enseña hoy (si hay de los dos), y después uno de ellos.
     select jsonb_agg(jsonb_build_object('id', c.combo_id, 'pct', c.pct, 'modelos', to_jsonb(c.modelos)))
       into v_lista
       from combos_vigentes() c;
-    v_sel := array(select s.id from seleccion_de_hoy() s(id));
+    v_sel := array(select s.id from seleccion_ensenada() s(id));
     if v_lista is null and cardinality(v_sel) = 0 then
       raise exception 'Hoy el estuche está vacío. Vuelve mañana.';
     end if;
@@ -1917,11 +1955,15 @@ grant execute on function ver_oferta(text) to authenticated;
 -- LO DEL ADMINISTRADOR
 
 -- Crear o cambiar una oferta de la casa. Sin `p_id`, una nueva. Las piezas
--- se cambian todas de una vez (las de `p_modelos`, en ese orden). Rechaza
--- las que no aguantan el porcentaje, diciendo cuáles; esa revisión se
--- salta al terminarla (`p_activa` false o `p_hasta` ya pasado), para que
--- siempre se pueda terminar. Una pieza sin existencia hoy sí se guarda:
--- la oferta no sale mientras le falte una.
+-- se cambian todas de una vez (las de `p_modelos`, en ese orden). Mientras
+-- la oferta sigue viva, rechaza las piezas retiradas, sin precio, en
+-- camino, un dije sin su base y las que no aguantan el porcentaje,
+-- diciendo cuáles. Al terminarla (`p_activa` false o `p_hasta` ya
+-- pasado) esas revisiones se saltan, para que siempre se pueda terminar,
+-- aunque una pieza se haya retirado después. Una pieza sin existencia hoy
+-- sí se guarda: la oferta no sale mientras le falte una.
+-- El porcentaje se guarda con dos decimales (la columna), y con esos dos
+-- se revisa: lo que se comprueba es lo que se cobra.
 create or replace function admin_guardar_oferta_casa(
   p_id      bigint,
   p_nombre  text,
@@ -1946,6 +1988,7 @@ declare
   v_hoy    date    := (now() at time zone 'America/Caracas')::date;
   v_desde  date;
   v_activa boolean := coalesce(p_activa, true);
+  v_pct    numeric := round(p_pct, 2);
   v_ids    bigint[];
   v_malas  text;
   v_id     bigint;
@@ -1958,7 +2001,7 @@ begin
   if v_nombre is null then
     raise exception 'Ponle un nombre a la oferta.';
   end if;
-  if p_pct is null or p_pct <= 0 or p_pct >= 100 then
+  if v_pct is null or v_pct <= 0 or v_pct >= 100 then
     raise exception 'El descuento va entre 0 y 100 %%.';
   end if;
   if p_hasta is null then
@@ -1983,54 +2026,54 @@ begin
     raise exception 'Son demasiadas piezas para una oferta: hasta 40.';
   end if;
 
+  -- Una pieza que no existe no se puede guardar ni para terminar (la
+  -- tabla no la acepta). Las borradas ya salieron solas de la oferta.
   if exists (select 1 from unnest(v_ids) x where not exists (select 1 from modelos m where m.id = x)) then
     raise exception 'Una de las piezas ya no existe: recarga la pantalla.';
   end if;
-  select string_agg(format('"%s"', p.nombre), ', ' order by u.n) into v_malas
-    from unnest(v_ids) with ordinality as u(x, n)
-    left join pisos_oferta(v_ids) p on p.modelo_id = u.x
-   where p.modelo_id is null or p.lista is null;
-  if v_malas is not null then
+
+  -- Solo si la oferta sigue viva: al terminarla no se revisa nada de las
+  -- piezas (una retirada después no impide terminar).
+  if v_activa and p_hasta >= v_hoy then
     select string_agg(format('"%s"', m.nombre), ', ' order by u.n) into v_malas
       from unnest(v_ids) with ordinality as u(x, n)
       join modelos m on m.id = u.x
       left join grupos_precio g on g.id = m.grupo_precio_id
      where not m.activo or coalesce(m.precio_override_usd, g.precio_usd) is null;
-    raise exception 'Estas piezas están retiradas o no tienen precio: %.', v_malas;
-  end if;
-  select string_agg(format('"%s"', p.nombre), ', ' order by u.n) into v_malas
-    from unnest(v_ids) with ordinality as u(x, n)
-    join pisos_oferta(v_ids) p on p.modelo_id = u.x
-   where p.en_camino;
-  if v_malas is not null then
-    raise exception 'Estas piezas todavía no han llegado y no entran en una oferta: %.', v_malas;
-  end if;
-  if (select count(*) filter (where m.armado = 'dije') > count(*) filter (where m.armado = 'base')
-        from modelos m where m.id = any (v_ids)) then
-    raise exception 'Cada dije de la oferta va con su cadena o su pulsera: agrega una base por cada dije.';
-  end if;
-
-  if v_activa and p_hasta >= v_hoy then
+    if v_malas is not null then
+      raise exception 'Estas piezas están retiradas o no tienen precio: %.', v_malas;
+    end if;
     select string_agg(format('"%s"', p.nombre), ', ' order by u.n) into v_malas
       from unnest(v_ids) with ordinality as u(x, n)
       join pisos_oferta(v_ids) p on p.modelo_id = u.x
-     where precio_oferta_con(p.lista, p_pct) < p.piso;
+     where p.en_camino;
+    if v_malas is not null then
+      raise exception 'Estas piezas todavía no han llegado y no entran en una oferta: %.', v_malas;
+    end if;
+    if (select count(*) filter (where m.armado = 'dije') > count(*) filter (where m.armado = 'base')
+          from modelos m where m.id = any (v_ids)) then
+      raise exception 'Cada dije de la oferta va con su cadena o su pulsera: agrega una base por cada dije.';
+    end if;
+    select string_agg(format('"%s"', p.nombre), ', ' order by u.n) into v_malas
+      from unnest(v_ids) with ordinality as u(x, n)
+      join pisos_oferta(v_ids) p on p.modelo_id = u.x
+     where precio_oferta_con(p.lista, v_pct) < p.piso;
     if v_malas is not null then
       raise exception 'Con el % %% estas piezas bajarían de su mínimo: %. Quítalas o baja el descuento.',
-        trim_scale(p_pct), v_malas;
+        trim_scale(v_pct), v_malas;
     end if;
   end if;
 
   if p_id is null then
     insert into ofertas_casa (nombre, texto, foto, pct, desde, hasta, activa, actualizado_por)
-    values (v_nombre, v_texto, v_foto, p_pct, v_desde, p_hasta, v_activa, auth.uid())
+    values (v_nombre, v_texto, v_foto, v_pct, v_desde, p_hasta, v_activa, auth.uid())
     returning id into v_id;
   else
     update ofertas_casa
        set nombre          = v_nombre,
            texto           = v_texto,
            foto            = v_foto,
-           pct             = p_pct,
+           pct             = v_pct,
            desde           = v_desde,
            hasta           = p_hasta,
            activa          = v_activa,
@@ -2343,6 +2386,11 @@ begin
   end if;
   if not (v_clave = any (claves_ofertas())) then
     raise exception 'Esa cifra no es de las ofertas.';
+  end if;
+
+  -- Un porcentaje se guarda con dos decimales, los que se usan.
+  if right(v_clave, 4) = '_pct' then
+    p_valor := round(p_valor, 2);
   end if;
 
   if p_valor is not null then
