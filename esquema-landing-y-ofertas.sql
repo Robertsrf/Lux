@@ -2924,11 +2924,12 @@ revoke all on function soltar_codigos_de_venta(bigint)                          
 -- LO QUE SE DICE DE CADA CÓDIGO SEGÚN QUIÉN PREGUNTA
 -- Quien no tiene sesión de la tienda no puede averiguar qué códigos
 -- existen: distinguir "no existe" de "ya se usó" o "venció" le diría
--- cuáles son verdaderos. Para él, no_existe, vencido, usado y anulado son
--- un solo motivo, 'no_vale'; y el porcentaje solo sale cuando el código
--- aplica. faltan_piezas, comparte_pieza y pieza_no_disponible se quedan
--- (ya dijo un código que sirve). La tienda (`es_personal()`) ve el
--- detalle de siempre.
+-- cuáles son verdaderos. Con un carrito vacío un código vigente diría
+-- "faltan piezas" y uno inventado "no existe": mirando solo el motivo se
+-- distinguirían. Para él, todo código que no aplica (no_existe, vencido,
+-- usado, anulado, faltan_piezas, comparte_pieza y pieza_no_disponible) es
+-- un solo motivo, 'no_vale', sin porcentaje; el que aplica dice su
+-- porcentaje. La tienda (`es_personal()`) ve el detalle de siempre.
 create or replace function codigos_para_quien(p_codigos jsonb)
 returns jsonb
 language sql
@@ -2943,8 +2944,7 @@ as $fn$
                jsonb_build_object(
                  'codigo', e.value->>'codigo',
                  'aplica', (e.value->>'aplica')::boolean,
-                 'motivo', case when e.value->>'motivo' in ('no_existe', 'vencido', 'usado', 'anulado')
-                                then 'no_vale' else e.value->>'motivo' end,
+                 'motivo', case when (e.value->>'aplica')::boolean then null else 'no_vale' end,
                  'pct',    case when (e.value->>'aplica')::boolean then e.value->'pct' end)
                order by e.ord)
         from jsonb_array_elements(coalesce(p_codigos, '[]'::jsonb)) with ordinality as e(value, ord)
