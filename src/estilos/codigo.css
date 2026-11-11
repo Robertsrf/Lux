@@ -1,0 +1,45 @@
+/* =====================================================================
+   "Codigo" del mostrador (src/paginas/venta/Codigo.tsx) y el codigo
+   puesto en el carrito. Densidad tactil: campo y botones de 56 px,
+   texto de 18 px.
+   ===================================================================== */
+
+.cod-form { display: grid; gap: var(--e-3); margin-bottom: var(--e-4); }
+.cod-form .campo { margin: 0; }
+.cod-entrada {
+  min-height: 56px; font-size: 18px;
+  font-family: var(--fuente-display); font-weight: 600; letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums; text-transform: uppercase;
+}
+.cod-boton { min-height: 56px; font-size: 18px; padding: 0 var(--e-6); }
+
+.cod-resultado { margin-top: var(--e-4); }
+.cod-sirve { color: var(--exito); margin-bottom: var(--e-2); }
+
+.cod-piezas { list-style: none; margin: var(--e-4) 0; padding: 0; display: grid; gap: var(--e-3); }
+.cod-pieza {
+  display: grid; grid-template-columns: 72px 1fr; gap: var(--e-3); align-items: start;
+  padding-bottom: var(--e-3); border-bottom: 1px solid var(--linea-suave);
+}
+.cod-pieza__foto {
+  width: 72px; height: 72px; object-fit: cover;
+  border-radius: var(--radio); border: 1px solid var(--linea-suave); background: var(--panel);
+}
+.cod-pieza__datos { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; font-size: 16px; }
+.cod-pieza__donde { color: var(--texto-secundario); font-size: 14px; }
+.cod-pieza__precio { display: grid; gap: 2px; margin-top: var(--e-1); }
+.cod-pieza__antes { color: var(--texto-secundario); font-size: 14px; text-decoration: line-through; }
+.cod-pieza__ahora { font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; }
+.cod-total { display: grid; gap: 2px; font-size: 16px; }
+.cod-total strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.cod-total .cod-pieza__antes { text-decoration: none; }
+
+/* El codigo que va en la venta: una franja con su boton de quitarlo. */
+.codigo-puesto {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-3);
+}
+.codigo-puesto strong { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+
+/* "Codigo LUX-... · 5 %" en Pedidos, Clientes y Reportes. */
+.codigo-nota { font-size: var(--t-14); color: var(--texto-secundario); overflow-wrap: anywhere; }
+.codigo-nota strong { color: var(--texto); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }

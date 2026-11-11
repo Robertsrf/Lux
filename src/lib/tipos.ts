@@ -696,6 +696,10 @@ export interface LineaPedido {
   minimo_bcv: number | null;
   /** Quien lo aparto en el mostrador. */
   creado_por: string | null;
+  /** El codigo de oferta de esta linea y lo que costaria sin el, si la vista lo trae. */
+  oferta_codigo?: string | null;
+  oferta_pct?: number | null;
+  precio_sin_oferta_usd?: number | null;
 }
 
 /** v_pedido_armado: qué dije va en qué cadena o pulsera, en un pedido del catálogo. */
@@ -1024,6 +1028,10 @@ export interface CompraCliente {
   precio_unitario_usd?: number;
   /** La foto grande, para verla y asegurarse de lo que se llevo. */
   foto_path?: string | null;
+  /** El codigo de oferta de esta linea y lo que costaria sin el, si la vista lo trae. */
+  oferta_codigo?: string | null;
+  oferta_pct?: number | null;
+  precio_sin_oferta_bs?: number | null;
 }
 
 /** Lo que se le quito a un pedido (`v_pedido_cambios`). */
@@ -1104,6 +1112,10 @@ export interface LineaPorVerificar {
   extra_bs?: number;
   /** Que fue lo de fuera del catalogo. */
   extra_nota?: string | null;
+  /** El codigo de oferta de esta linea y lo que costaria sin el, si la vista lo trae. */
+  oferta_codigo?: string | null;
+  oferta_pct?: number | null;
+  precio_sin_oferta_bs?: number | null;
 }
 
 /**
@@ -1197,7 +1209,7 @@ export interface Rebaja {
   rebaja_usd: number;
   rebaja_pct: number;
   /** Null en las ventas anteriores a que se guardara el motivo. */
-  motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | null;
+  motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | 'oferta' | null;
 }
 
 /** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */

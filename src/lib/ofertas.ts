@@ -204,3 +204,47 @@ export function faltanParaTramo(
   if (!siguiente) return null;
   return { faltan: siguiente.piezas_min - piezas, pct: siguiente.descuento_pct };
 }
+
+// ------------------------------------------------ quitar una pieza de un codigo
+
+/** Una linea de un pedido o de una venta, con lo que costaria sin su oferta. */
+export interface LineaConOferta {
+  modelo_id: number;
+  cantidad: number;
+  /** Lo que se cobra por unidad (con la oferta). */
+  precio: number;
+  /** Lo que costaria por unidad sin el codigo; null si no se sabe. */
+  precio_sin_oferta: number | null;
+  oferta_codigo: string | null;
+}
+
+/**
+ * Una linea "tiene oferta" solo si su precio es menor que el de sin oferta:
+ * tras romperse un codigo sus lineas conservan el codigo, pero ya cuestan lo de siempre.
+ */
+export const tieneOferta = (l: Pick<LineaConOferta, 'precio' | 'precio_sin_oferta'>): boolean =>
+  l.precio_sin_oferta !== null && l.precio < l.precio_sin_oferta;
+
+/**
+ * Lo que pasa si se quita la pieza `quitaModelo`: si era de un codigo, las
+ * OTRAS piezas de ese codigo vuelven a su precio y el total sube. Devuelve
+ * cuantas piezas pierden la oferta y cuanto sube el total (en la unidad de
+ * los precios), o null si quitarla no rompe nada o no hay con que contarlo.
+ * Es solo para avisar antes: la base cuenta y devuelve `codigo_roto`.
+ */
+export function efectoDeRomperCodigo(
+  lineas: readonly LineaConOferta[],
+  quitaModelo: number,
+): { codigo: string; piezas: number; sube: number } | null {
+  const quitada = lineas.find((l) => l.modelo_id === quitaModelo && l.oferta_codigo && tieneOferta(l));
+  if (!quitada || !quitada.oferta_codigo) return null;
+  const otras = lineas.filter((l) => l.oferta_codigo === quitada.oferta_codigo && l.modelo_id !== quitaModelo && tieneOferta(l));
+  if (otras.length === 0) return null;
+  let piezas = 0;
+  let sube = 0;
+  for (const l of otras) {
+    piezas += l.cantidad;
+    sube += Math.round((l.precio_sin_oferta! - l.precio) * 10000) * l.cantidad;
+  }
+  return { codigo: quitada.oferta_codigo, piezas, sube: sube / 10000 };
+}

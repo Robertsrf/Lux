@@ -15,7 +15,20 @@ import type {
   ValorCategoriaFila, ValorInventario, VentaPorDia,
 } from '../../lib/tipos';
 
-const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad', revendedor: 'Revendedor' };
+const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad', revendedor: 'Revendedor', oferta: 'Con código' };
+
+/** El primer día del mes en el reloj de la tienda, como lo guarda `v_ofertas_mes`. */
+function primerDiaDelMes(): string {
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas' }).format(new Date());
+  return `${hoy.slice(0, 7)}-01`;
+}
+
+const ORIGEN_OFERTA: Record<string, string> = {
+  dos_vistas: 'Dos piezas que miró', complemento: 'Complétalo', escote: 'Su escote', combo: 'Combo de la semana',
+  estuche: 'Estuche', regalo: 'Para regalar', seleccion: 'Selección de la casa', casa: 'Oferta de la casa',
+};
+
+interface OfertaDelMes { origen: string; emitidos: number; usados: number; vendido_bcv: number | null; rebajado_bcv: number | null }
 
 const PERIODOS = [
   { dias: 7, texto: 'Últimos 7 días' },
@@ -99,6 +112,8 @@ export function Reportes() {
   const [valor, setValor] = useState<ValorInventario | null>(null);
   const [valorCat, setValorCat] = useState<ValorCategoriaFila[]>([]);
   const [rebajas, setRebajas] = useState<Rebaja[]>([]);
+  // Las ventas con codigo de oferta del mes. Sin el #65 la vista no existe: la tarjeta no sale.
+  const [ofertasMes, setOfertasMes] = useState<OfertaDelMes[] | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +148,18 @@ export function Reportes() {
     })();
   }, [dias]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { data, error: err } = await supabase
+          .from('v_ofertas_mes').select('origen, emitidos, usados, vendido_bcv, rebajado_bcv').eq('mes', primerDiaDelMes());
+        setOfertasMes(err ? null : ((data as OfertaDelMes[] | null) ?? []));
+      } catch {
+        setOfertasMes(null);
+      }
+    })();
+  }, []);
+
   const desde = hace(dias);
   const ventas = useMemo(() => filas.filter((f) => f.dia >= desde), [filas, desde]);
   const actual = useMemo(() => totalizar(ventas), [ventas]);
@@ -152,7 +179,7 @@ export function Reportes() {
         usd: deMonto(sumar(filas.map((x) => aMonto(x.rebaja_usd)))),
       };
     };
-    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), sinDato: de(null) };
+    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), oferta: de('oferta'), sinDato: de(null) };
   }, [rebajas]);
 
   const dormidos = useMemo(
@@ -346,6 +373,63 @@ export function Reportes() {
         </div>
       )}
 
+      {/* ------------------------------------------------ ventas con oferta */}
+
+      {ofertasMes !== null ? (
+        <>
+          <h2 className="seccion-titulo">Ventas con oferta · este mes</h2>
+          {ofertasMes.length === 0 ? (
+            <Vacio titulo="Este mes todavía no se vende con ningún código">
+              Cuando una clienta use un código de la landing, aparece aquí.
+            </Vacio>
+          ) : (
+            <>
+              <div className="tablero">
+                <div className="tablero__celda">
+                  <span className="dato__etiqueta">Ventas con código</span>
+                  <div className="tablero__cifra">{formatearEntero(ofertasMes.reduce((n, o) => n + o.usados, 0))}</div>
+                  <div className="tablero__meta">de {formatearEntero(ofertasMes.reduce((n, o) => n + o.emitidos, 0))} códigos dados</div>
+                </div>
+                <div className="tablero__celda">
+                  <span className="dato__etiqueta">Vendido con código</span>
+                  <div className="tablero__cifra">{formatearBcv(deMonto(sumar(ofertasMes.map((o) => aMonto(o.vendido_bcv)))))}</div>
+                  <div className="tablero__meta">lo cobrado por esas piezas</div>
+                </div>
+                <div className="tablero__celda">
+                  <span className="dato__etiqueta">Rebajado</span>
+                  <div className="tablero__cifra">{formatearBcv(deMonto(sumar(ofertasMes.map((o) => aMonto(o.rebajado_bcv)))))}</div>
+                  <div className="tablero__meta">lo que se dejó de cobrar</div>
+                </div>
+              </div>
+              <div className="tabla-envoltura" style={{ marginTop: 'var(--e-4)' }}>
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th>De dónde</th>
+                      <th className="num">Dados</th>
+                      <th className="num">Usados</th>
+                      <th className="num">Vendido · $ BCV</th>
+                      <th className="num">Rebajado · $ BCV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ofertasMes.map((o) => (
+                      <tr key={o.origen}>
+                        <td>{ORIGEN_OFERTA[o.origen] ?? o.origen}</td>
+                        <td className="num">{formatearEntero(o.emitidos)}</td>
+                        <td className="num">{formatearEntero(o.usados)}</td>
+                        <td className="num">{formatearMonto(o.vendido_bcv)}</td>
+                        <td className="num">{formatearMonto(o.rebajado_bcv)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
+      ) : null}
+
       {/* ------------------------------------------------ rebajas */}
 
       <h2 className="seccion-titulo">Rebajas · $ BCV</h2>
@@ -376,6 +460,16 @@ export function Reportes() {
                 <div className="tablero__cifra">{formatearBcv(resumenRebajas.revendedor.usd)}</div>
                 <div className="tablero__meta">
                   {resumenRebajas.revendedor.piezas} pieza{resumenRebajas.revendedor.piezas === 1 ? '' : 's'} · su descuento al retirar
+                </div>
+              </div>
+            ) : null}
+            {/* Lo que rebajó un código de oferta de la landing. */}
+            {resumenRebajas.oferta.piezas > 0 ? (
+              <div className="tablero__celda">
+                <span className="dato__etiqueta">Con código de oferta</span>
+                <div className="tablero__cifra">{formatearBcv(resumenRebajas.oferta.usd)}</div>
+                <div className="tablero__meta">
+                  {resumenRebajas.oferta.piezas} pieza{resumenRebajas.oferta.piezas === 1 ? '' : 's'} · lo rebajó el código
                 </div>
               </div>
             ) : null}

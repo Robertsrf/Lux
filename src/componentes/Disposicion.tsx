@@ -19,6 +19,7 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   // sin estas dos solo llegaba escribiendo la dirección.
   { a: '/venta/cierre',     texto: 'Cierre',     icono: 'cierre' },
   { a: '/venta/conteo',     texto: 'Conteo',     icono: 'conteo' },
+  { a: '/venta/codigo',     texto: 'Código',     icono: 'pedidos' },
   { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
   { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
   { a: '/admin/vendedoras', texto: 'Vendedoras', icono: 'vendedoras' },
@@ -44,6 +45,8 @@ const ENLACES_VENTA: EnlaceNav[] = [
   { a: '/venta/tablero',  texto: 'Mi día',    icono: 'dia' },
   { a: '/venta/cierre',   texto: 'Cierre',    icono: 'cierre' },
   { a: '/venta/conteo',   texto: 'Conteo',    icono: 'conteo' },
+  // El codigo de oferta que trae una clienta.
+  { a: '/venta/codigo',   texto: 'Código',    icono: 'pedidos' },
   { a: '/tasas',          texto: 'Tasas',     icono: 'tasas' },
   // El PDF, el enlace para WhatsApp y cuánta gente lo abre.
   { a: '/catalogo',       texto: 'Catálogo',  icono: 'catalogo' },

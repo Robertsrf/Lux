@@ -17,6 +17,11 @@ import type { Tasas } from '../../lib/dinero';
 import { nombreConVariante } from '../../lib/familias';
 import { enlaceReserva, enlaceWhatsApp } from '../../lib/revendedor';
 import { referenciaPedido } from '../../lib/enlaces';
+import { efectoDeRomperCodigo } from '../../lib/ofertas';
+import type { LineaConOferta } from '../../lib/ofertas';
+import { codigoDeLineas, codigoRotoDe, textoDeCodigo, useCodigosDePedidos } from '../../hooks/useCodigosDePedidos';
+import type { CodigoDeCobro, CodigoRoto } from '../../hooks/useCodigosDePedidos';
+import '../../estilos/codigo.css';
 import { useTasa } from '../../hooks/useTasa';
 import { useSesion } from '../../hooks/useSesion';
 import { useFotosGrandes } from '../../hooks/useFotosGrandes';
@@ -180,6 +185,12 @@ export function Pedidos() {
     if (elegida) visor.abrir(elegida, fichas);
   }, [fotos, visor.abrir]);
 
+  // El codigo de oferta de cada pedido y cada venta (v_ofertas, del administrador).
+  const { dePedido, deVenta } = useCodigosDePedidos(
+    pedidos.map((p) => p.cabecera.reserva_id),
+    ventas.map((v) => v.cabecera.venta_id),
+  );
+
   function alTerminar(mensaje: string) {
     setAviso(mensaje);
     void cargar();
@@ -228,6 +239,7 @@ export function Pedidos() {
                 key={cabecera.reserva_id}
                 cabecera={cabecera}
                 items={items}
+                codigo={codigoDeLineas(items, dePedido.get(cabecera.reserva_id))}
                 abonos={abonos.filter((a) => a.reserva_id === cabecera.reserva_id)}
                 cambios={cambios.filter((x) => x.reserva_id === cabecera.reserva_id)}
                 armados={armados.filter((x) => x.reserva_id === cabecera.reserva_id)}
@@ -253,6 +265,7 @@ export function Pedidos() {
                 key={cabecera.venta_id}
                 cabecera={cabecera}
                 items={items}
+                codigo={codigoDeLineas(items, deVenta.get(cabecera.venta_id))}
                 abonos={abonos.filter((a) => a.venta_id === cabecera.venta_id)}
                 cambios={cambiosVenta.filter((x) => x.venta_id === cabecera.venta_id)}
                 tasa={tasa}
@@ -477,6 +490,43 @@ function TablaPiezas({ items, conPrecio, verFotos, accion }: {
 }
 
 /**
+ * Lo que pasa con el codigo de oferta cuando se quita una de sus piezas,
+ * dicho ANTES de apretar. Con el precio sin oferta de cada linea se dice
+ * cuanto sube el total; sin el (la vista no lo trae), se avisa lo que pasa
+ * y la cifra sale al terminar, de la base.
+ */
+function AvisoDeCodigo({ codigo, efecto, moneda }: {
+  codigo: CodigoDeCobro | null;
+  efecto: { codigo: string; piezas: number; sube: number } | null;
+  moneda: 'usd' | 'bs';
+}) {
+  if (efecto) {
+    return (
+      <p className="campo__pista" role="status">
+        <strong>Es de un código ({efecto.codigo}).</strong>{' '}
+        {efecto.piezas === 1 ? 'La otra pieza del código vuelve' : `Las otras ${efecto.piezas} piezas del código vuelven`} a
+        su precio de siempre: el total sube {moneda === 'bs' ? formatearBs(efecto.sube) : formatearBcv(efecto.sube)}.
+      </p>
+    );
+  }
+  if (codigo && !codigo.roto) {
+    return (
+      <p className="campo__pista" role="status">
+        Se cobró con el código {codigo.codigo}. Si esta pieza es de las del código, las otras piezas del código
+        vuelven a su precio de siempre y el total sube; al quitarla se dice cuánto.
+      </p>
+    );
+  }
+  return null;
+}
+
+/** "El código LUX-X se rompió: las otras N piezas vuelven a su precio; el total pasa de A a B." */
+function textoCodigoRoto(c: CodigoRoto): string {
+  const f = c.moneda === 'bs' ? formatearBs : formatearBcv;
+  return ` El código ${c.codigo} se rompió: ${c.piezas === 1 ? 'la otra pieza vuelve' : `las otras ${c.piezas} piezas vuelven`} a su precio de siempre, y el total pasa de ${f(c.total_antes)} a ${f(c.total_despues)}.`;
+}
+
+/**
  * Quitar una pieza de un pedido que no se ha entregado (`quitar_de_pedido`).
  *
  * La pieza nunca salió de la tienda: queda libre en el acto. El pedido baja
@@ -485,8 +535,11 @@ function TablaPiezas({ items, conPrecio, verFotos, accion }: {
  * como "Devolución", hoy) o queda a su favor en el pedido. Sin dinero de
  * por medio, lo hacen las dos caras.
  */
-function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alTerminar }: {
+function QuitarPieza({ pedido, lineas, codigo, item, tieneEnPedido, tasa, esAdmin, alCerrar, alTerminar }: {
   pedido: LineaPedido;
+  /** Todas las lineas del pedido, para saber que pasa con su codigo. */
+  lineas: LineaPedido[];
+  codigo: CodigoDeCobro | null;
   item: FilaPieza;
   /** Cuántas de esta pieza lleva el pedido, sumando sus líneas. */
   tieneEnPedido: number;
@@ -506,7 +559,15 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
   const nombre = nombreConVariante(item.nombre, item.variante);
   const total = Number(pedido.total_usd ?? 0);
   const precio = Number(item.precio ?? 0);
-  const totalNuevo = Math.max(0, restarCifras(total, totalDeLineas([{ precio, cantidad }])));
+  // Si la pieza es de un codigo, las otras vuelven a su precio y el total sube.
+  const efecto = efectoDeRomperCodigo(
+    lineas.map((l): LineaConOferta => ({
+      modelo_id: l.modelo_id, cantidad: l.cantidad, precio: Number(l.precio_linea_usd ?? 0),
+      precio_sin_oferta: l.precio_sin_oferta_usd ?? null, oferta_codigo: l.oferta_codigo ?? null,
+    })),
+    item.modelo_id,
+  );
+  const totalNuevo = Math.max(0, restarCifras(total, totalDeLineas([{ precio, cantidad }])) + (efecto?.sube ?? 0));
   const verificado = Number(pedido.verificado_bcv ?? 0);
   const pagado = Number(pedido.pagado_bcv ?? 0);
   // Con pagos reportados sin revisar que pasarían del total nuevo, la base
@@ -529,7 +590,7 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
   async function quitar() {
     setTrabajando(true);
     setError(null);
-    const { error: err } = await supabase.rpc('quitar_de_pedido', {
+    const { data, error: err } = await supabase.rpc('quitar_de_pedido', {
       p_reserva_id: pedido.reserva_id,
       p_modelo_id: item.modelo_id,
       p_cantidad: cantidad,
@@ -540,8 +601,10 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
     });
     setTrabajando(false);
     if (err) { setError(mensajeDeError(err)); return; }
+    const roto = codigoRotoDe(data);
     alTerminar(`${cantidad === 1 ? 'Quitada' : `Quitadas ${cantidad}`} del pedido: ${nombre}. Ya está libre para la venta.`
-      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba queda a su favor en el pedido.') : ''));
+      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba queda a su favor en el pedido.') : '')
+      + (roto ? textoCodigoRoto(roto) : ''));
   }
 
   return (
@@ -572,6 +635,7 @@ function QuitarPieza({ pedido, item, tieneEnPedido, tasa, esAdmin, alCerrar, alT
           ? ' Las demás piezas conservan el precio con que se apartaron, aunque el pedido quede con menos piezas.'
           : ''}
       </p>
+      <AvisoDeCodigo codigo={codigo} efecto={efecto} moneda="usd" />
       {quitaTodas ? (
         <p className="campo__error" role="alert">Es la última pieza del pedido: para quitarlas todas, cancela el pedido.</p>
       ) : null}
@@ -687,8 +751,11 @@ function CambiosDelPedido({ cambios }: { cambios: PedidoCambio[] }) {
  * partes y lo ya pagado pasa del total nuevo, el administrador decide si se
  * le devuelve (sale de la caja como "Devolución", hoy) o se queda.
  */
-function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa, esAdmin, alCerrar, alTerminar }: {
+function QuitarDeVenta({ venta, lineas, codigo, item, tieneEnVenta, piezasEnVenta, abonos, tasa, esAdmin, alCerrar, alTerminar }: {
   venta: LineaPorVerificar;
+  /** Todas las lineas de la venta, para saber que pasa con su codigo. */
+  lineas: LineaPorVerificar[];
+  codigo: CodigoDeCobro | null;
   item: LineaPorVerificar;
   /** Cuántas de esta pieza lleva la venta, sumando sus líneas. */
   tieneEnVenta: number;
@@ -709,7 +776,14 @@ function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa,
 
   const nombre = nombreConVariante(item.nombre, item.variante);
   const totalBs = Number(venta.total_bs ?? 0);
-  const totalNuevoBs = Math.max(0, restarCifras(totalBs, totalDeLineas([{ precio: Number(item.precio_unitario_bs), cantidad }])));
+  const efecto = efectoDeRomperCodigo(
+    lineas.map((l): LineaConOferta => ({
+      modelo_id: l.modelo_id, cantidad: l.cantidad, precio: Number(l.precio_unitario_bs),
+      precio_sin_oferta: l.precio_sin_oferta_bs ?? null, oferta_codigo: l.oferta_codigo ?? null,
+    })),
+    item.modelo_id,
+  );
+  const totalNuevoBs = Math.max(0, restarCifras(totalBs, totalDeLineas([{ precio: Number(item.precio_unitario_bs), cantidad }])) + (efecto?.sube ?? 0));
   // La tasa BCV de la venta, de sus propios totales: la deuda se mide con
   // la de ese día, como la mide la base.
   const tasaVenta = venta.total_bcv ? totalBs / Number(venta.total_bcv) : null;
@@ -734,7 +808,7 @@ function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa,
   async function quitar() {
     setTrabajando(true);
     setError(null);
-    const { error: err } = await supabase.rpc('quitar_de_venta', {
+    const { data, error: err } = await supabase.rpc('quitar_de_venta', {
       p_venta_id: venta.venta_id,
       p_modelo_id: item.modelo_id,
       p_cantidad: cantidad,
@@ -745,8 +819,12 @@ function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa,
     });
     setTrabajando(false);
     if (err) { setError(mensajeDeError(err)); return; }
-    alTerminar(`${cantidad === 1 ? 'Quitada' : `Quitadas ${cantidad}`} de la venta ${venta.venta_id}: ${nombre}. Volvió a su ubicación y la venta queda en ${formatearBs(totalNuevoBs)}.`
-      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba se queda.') : ''));
+    const roto = codigoRotoDe(data);
+    // La venta queda en lo que dice la base cuando se rompio un codigo.
+    const queda = roto ? roto.total_despues : totalNuevoBs;
+    alTerminar(`${cantidad === 1 ? 'Quitada' : `Quitadas ${cantidad}`} de la venta ${venta.venta_id}: ${nombre}. Volvió a su ubicación y la venta queda en ${formatearBs(queda)}.`
+      + (haySobra ? (devolver ? ' La devolución quedó en la caja como salida de hoy.' : ' Lo que sobraba se queda.') : '')
+      + (roto ? textoCodigoRoto(roto) : ''));
   }
 
   return (
@@ -776,6 +854,7 @@ function QuitarDeVenta({ venta, item, tieneEnVenta, piezasEnVenta, abonos, tasa,
         {venta.pago_parcial ? '.' : ': es lo que tienes que ver en el banco para verificarla.'}
         {' '}La pieza vuelve a {item.ubicacion ?? 'su ubicación'}. Las demás conservan el precio con que se cobraron.
       </p>
+      <AvisoDeCodigo codigo={codigo} efecto={efecto} moneda="bs" />
       {quitaTodas ? (
         <p className="campo__error" role="alert">Es la última pieza de la venta: para quitarlas todas, anula la venta.</p>
       ) : null}
@@ -870,9 +949,10 @@ function CambiosDeLaVenta({ cambios }: { cambios: VentaCambio[] }) {
  * se cobran completos al entregar. Los demás se pagan por abonos, cada uno
  * con su referencia; se entregan cuando todo el dinero está verificado.
  */
-function PedidoDeTienda({ cabecera: c, items, abonos, cambios, armados, tasa, esAdmin, ahora, alTerminar, verFotos }: {
+function PedidoDeTienda({ cabecera: c, items, codigo, abonos, cambios, armados, tasa, esAdmin, ahora, alTerminar, verFotos }: {
   cabecera: LineaPedido;
   items: LineaPedido[];
+  codigo: CodigoDeCobro | null;
   abonos: AbonoDetalle[];
   cambios: PedidoCambio[];
   armados: ArmadoPedido[];
@@ -960,6 +1040,7 @@ function PedidoDeTienda({ cabecera: c, items, abonos, cambios, armados, tasa, es
             {' '}{formatearFecha(c.creado_en)} ·
             {' '}{c.piezas_total} {c.piezas_total === 1 ? 'pieza' : 'piezas'}
           </p>
+          {codigo ? <p className="codigo-nota"><strong>{textoDeCodigo(codigo)}</strong></p> : null}
           <TresPrecios bcv={total} tasa={tasa} />
         </div>
         {etiqueta}
@@ -1066,6 +1147,8 @@ function PedidoDeTienda({ cabecera: c, items, abonos, cambios, armados, tasa, es
         <QuitarPieza
           key={quitando.modelo_id}
           pedido={c}
+          lineas={items}
+          codigo={codigo}
           item={quitando}
           tieneEnPedido={items.filter((i) => i.modelo_id === quitando.modelo_id).reduce((n, i) => n + i.cantidad, 0)}
           tasa={tasa}
@@ -1241,9 +1324,10 @@ function CerrarPedidoDeAntes({ cabecera, alTerminar }: {
  * Las que se cobraron por partes antes del apartado llevan sus abonos, y
  * siguen recibiendo los que falten. Mientras falte algo no se verifica.
  */
-function VentaPorVerificar({ cabecera, items, abonos, cambios, tasa, esAdmin, alTerminar, verFotos }: {
+function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esAdmin, alTerminar, verFotos }: {
   cabecera: LineaPorVerificar;
   items: LineaPorVerificar[];
+  codigo: CodigoDeCobro | null;
   abonos: AbonoDetalle[];
   cambios: VentaCambio[];
   tasa: Tasas | null;
@@ -1306,6 +1390,7 @@ function VentaPorVerificar({ cabecera, items, abonos, cambios, tasa, esAdmin, al
             {' '}{piezas} {piezas === 1 ? 'pieza' : 'piezas'}
             {extraBs > 0 ? ' y algo fuera del catálogo' : ''}
           </p>
+          {codigo ? <p className="codigo-nota"><strong>{textoDeCodigo(codigo)}</strong></p> : null}
           <p className="pedido__total">
             {formatearBs(cabecera.total_bs)} · {formatearBcv(cabecera.total_bcv)} · {formatearBinance(cabecera.total_binance)}
           </p>
@@ -1391,6 +1476,8 @@ function VentaPorVerificar({ cabecera, items, abonos, cambios, tasa, esAdmin, al
         <QuitarDeVenta
           key={quitando.modelo_id}
           venta={cabecera}
+          lineas={items}
+          codigo={codigo}
           item={quitando}
           tieneEnVenta={items.filter((i) => i.modelo_id === quitando.modelo_id).reduce((n, i) => n + i.cantidad, 0)}
           piezasEnVenta={piezas}

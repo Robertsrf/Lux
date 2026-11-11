@@ -17,6 +17,11 @@ import { useSesion } from '../hooks/useSesion';
 import { useUbicaciones } from '../hooks/useCatalogos';
 import { METODOS_EN_DOLARES, METODOS_PAGO } from '../lib/tipos';
 import type { ClienteResumen, CompraCliente, MetodoPago, Ubicacion } from '../lib/tipos';
+import { efectoDeRomperCodigo } from '../lib/ofertas';
+import type { LineaConOferta } from '../lib/ofertas';
+import { codigoDeLineas, textoDeCodigo, useCodigosDePedidos } from '../hooks/useCodigosDePedidos';
+import type { CodigoDeCobro } from '../hooks/useCodigosDePedidos';
+import '../estilos/codigo.css';
 
 const metodoTexto = (m: MetodoPago) => METODOS_PAGO.find((x) => x.valor === m)?.texto ?? m;
 
@@ -192,6 +197,8 @@ function Ficha({ id }: { id: number | null }) {
   // tocar una miniatura abre la pieza en grande y deja pasar a las demás.
   // Antes del primer return (React 310).
   const compras = useMemo(() => ventas.map((v) => ({ ...v, juntas: juntarPiezas(v.piezas) })), [ventas]);
+  // Con que codigo de oferta se cobro cada compra (solo lo lee el administrador, que es quien devuelve).
+  const { deVenta } = useCodigosDePedidos([], esAdmin ? ventas.map((v) => v.cabecera.venta_id) : []);
   const fichas = useMemo<FotoAmpliada[]>(() => compras.flatMap((v) => v.juntas.map((p) => ({
     clave: `${v.cabecera.venta_id}-${p.modelo_id}`,
     nombre: p.nombre,
@@ -330,6 +337,9 @@ function Ficha({ id }: { id: number | null }) {
               <div className="compra__cabecera">
                 <div>
                   <span className="compra__fecha">{formatearFecha(cabecera.fecha)}</span>
+                  {codigoDeLineas(piezas, deVenta.get(cabecera.venta_id)) ? (
+                    <span className="codigo-nota"> · <strong>{textoDeCodigo(codigoDeLineas(piezas, deVenta.get(cabecera.venta_id))!)}</strong></span>
+                  ) : null}
                   <span className="compra__meta">
                     {desdeHace(cabecera.fecha)} · {metodoTexto(cabecera.metodo)} · {formatearBs(cabecera.total_bs)}
                     {cabecera.pago_referencia ? ` · ref. ${cabecera.pago_referencia}` : ''}
@@ -427,6 +437,8 @@ function Ficha({ id }: { id: number | null }) {
                       {devolviendo === clave ? (
                         <DevolverPieza
                           pieza={p}
+                          delaVenta={piezas}
+                          codigo={codigoDeLineas(piezas, deVenta.get(cabecera.venta_id))}
                           quedan={quedan}
                           ubicaciones={ubicaciones}
                           tasa={tasa}
@@ -472,8 +484,11 @@ function Ficha({ id }: { id: number | null }) {
  * se le devuelve el dinero, sale de la caja como "Devolución", nunca más de
  * lo que valía.
  */
-function DevolverPieza({ pieza, quedan, ubicaciones, tasa, alCerrar, alTerminar }: {
+function DevolverPieza({ pieza, delaVenta, codigo, quedan, ubicaciones, tasa, alCerrar, alTerminar }: {
   pieza: PiezaComprada;
+  /** Todas las piezas de esa venta, para saber que pasa con su codigo. */
+  delaVenta: PiezaComprada[];
+  codigo: CodigoDeCobro | null;
   quedan: number;
   ubicaciones: Ubicacion[];
   tasa: Tasas | null;
@@ -491,8 +506,22 @@ function DevolverPieza({ pieza, quedan, ubicaciones, tasa, alCerrar, alTerminar 
 
   const nombre = nombreConVariante(pieza.nombre, pieza.variante);
   const id = `${pieza.venta_id}-${pieza.modelo_id}`;
-  // Lo que valían las que vuelven, en dólares BCV: el tope de la devolución.
-  const valorBcv = totalDeLineas([{ precio: Number(pieza.precio_unitario_usd ?? 0), cantidad }]);
+  // Si la pieza es de un codigo de oferta, devolverla le quita la oferta a las
+  // otras piezas del codigo: esa diferencia se descuenta de lo que se le
+  // devuelve (la cuenta de `admin_devolver_pieza`, topada a lo que valia la pieza).
+  const efecto = efectoDeRomperCodigo(
+    delaVenta.map((l): LineaConOferta => ({
+      modelo_id: l.modelo_id, cantidad: l.total - l.vueltas, precio: Number(l.precio_unitario_bs),
+      precio_sin_oferta: l.precio_sin_oferta_bs ?? null, oferta_codigo: l.oferta_codigo ?? null,
+    })),
+    pieza.modelo_id,
+  );
+  const piezaBs = totalDeLineas([{ precio: Number(pieza.precio_unitario_bs), cantidad }]);
+  const descuentaBs = efecto ? Math.min(efecto.sube, piezaBs) : 0;
+  // Lo que valían las que vuelven, en dólares BCV: el tope de la devolución
+  // (menos lo que pierden las otras piezas del codigo).
+  const valorBruto = totalDeLineas([{ precio: Number(pieza.precio_unitario_usd ?? 0), cantidad }]);
+  const valorBcv = efecto && piezaBs > 0 ? valorBruto * ((piezaBs - descuentaBs) / piezaBs) : valorBruto;
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const valor = leerCifra(monto) ?? NaN;
   const devuelve = tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
@@ -577,6 +606,19 @@ function DevolverPieza({ pieza, quedan, ubicaciones, tasa, alCerrar, alTerminar 
         </div>
       ) : null}
       {pasa ? <p className="campo__error" role="alert">Es más de lo que valía la pieza.</p> : null}
+      {efecto ? (
+        <p className="campo__pista" role="status">
+          <strong>Es de un código ({efecto.codigo}).</strong>{' '}
+          {efecto.piezas === 1 ? 'La otra pieza del código pierde' : `Las otras ${efecto.piezas} piezas del código pierden`} su
+          descuento: la pieza vale {formatearBs(piezaBs)}, se descuentan {formatearBs(descuentaBs)} y se le devuelven
+          como mucho {formatearBs(piezaBs - descuentaBs)}.
+        </p>
+      ) : codigo && !codigo.roto ? (
+        <p className="campo__pista" role="status">
+          Se vendió con el código {codigo.codigo}. Si esta pieza es de las del código, las otras pierden su
+          descuento y eso se descuenta de lo que se le devuelve; la nota de crédito dice cuánto.
+        </p>
+      ) : null}
       <p className="campo__pista">
         La pieza vuelve a la existencia y a la venta. En Reportes, las ventas de hoy bajan exactamente lo
         que esa pieza sumó el día que se vendió; el día de la venta no cambia.

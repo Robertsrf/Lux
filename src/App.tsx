@@ -40,6 +40,7 @@ import { Cierre } from './paginas/venta/Cierre';
 import { ConteoSemanal } from './paginas/venta/ConteoSemanal';
 import { Guia } from './paginas/venta/Guia';
 import { Pedidos } from './paginas/venta/Pedidos';
+import { Codigo } from './paginas/venta/Codigo';
 
 const Inventario = lazy(() => import('./paginas/admin/Inventario').then((m) => ({ default: m.Inventario })));
 const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').then((m) => ({ default: m.FormularioModelo })));
@@ -133,6 +134,8 @@ export function App() {
             <Route path="/venta/conteo" element={<ConteoSemanal />} />
             <Route path="/venta/pedidos" element={<Pedidos />} />
             <Route path="/venta/guia" element={<Guia />} />
+            {/* Revisar un codigo de oferta: las dos caras. */}
+            <Route path="/venta/codigo" element={<Codigo />} />
 
             {/* La verificacion es de administrador. No enseña datos a quien
                 no debe verlos, pero si el nombre de cada vista y cada funcion

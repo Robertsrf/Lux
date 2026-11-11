@@ -76,3 +76,17 @@ test('vigente', () => {
   assert.equal(vigente(codigo('LUX-AAAAAA', [pieza(1)], ayer)), false);
   assert.equal(vigente(codigo('LUX-AAAAAA', [pieza(1)])), true);
 });
+
+test('efectoDeRomperCodigo: las otras piezas del codigo vuelven a su precio', async () => {
+  const { efectoDeRomperCodigo, tieneOferta } = await import('../../src/lib/ofertas.ts');
+  const lineas = [
+    { modelo_id: 1, cantidad: 1, precio: 9, precio_sin_oferta: 10, oferta_codigo: 'LUX-AAAAAA' },
+    { modelo_id: 2, cantidad: 2, precio: 4.5, precio_sin_oferta: 5, oferta_codigo: 'LUX-AAAAAA' },
+    { modelo_id: 3, cantidad: 1, precio: 7, precio_sin_oferta: 7, oferta_codigo: null },
+  ];
+  assert.deepEqual(efectoDeRomperCodigo(lineas, 1), { codigo: 'LUX-AAAAAA', piezas: 2, sube: 1 });
+  // Sin oferta (ya roto o sin codigo), quitarla no rompe nada.
+  assert.equal(efectoDeRomperCodigo(lineas, 3), null);
+  assert.equal(efectoDeRomperCodigo([{ ...lineas[0], precio: 10 }, lineas[1]], 1), null);
+  assert.equal(tieneOferta({ precio: 5, precio_sin_oferta: null }), false);
+});

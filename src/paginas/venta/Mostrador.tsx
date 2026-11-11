@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
@@ -23,6 +23,8 @@ import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
 import { METODOS_EN_DOLARES, METODOS_EN_PERSONA, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
 import type { ClienteDeVenta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
+import type { VerOferta } from '../../lib/ofertasApi';
+import '../../estilos/codigo.css';
 
 /*
   Las columnas que pide el mostrador.
@@ -75,6 +77,8 @@ export function Mostrador() {
   const textos = useTextos();
   const carrito = useCarrito(tasa);
   const visor = useVisorFoto();
+  const navegar = useNavigate();
+  const donde = useLocation();
   const esDobleToque = useDobleToque();
 
   const [ubicacionId, setUbicacionId] = useState<number | null>(null);
@@ -124,6 +128,19 @@ export function Mostrador() {
   }, []);
 
   useEffect(() => { void cargarMeta(); }, [cargarMeta]);
+
+  /*
+    "Pasar al cobro" en la pantalla Codigo llega aqui con el codigo ya
+    revisado: se mete al carrito con sus piezas y se limpia el estado de la
+    ruta, para que recargar la pagina no lo meta otra vez.
+  */
+  const agregarCodigo = carrito.agregarCodigo;
+  useEffect(() => {
+    const codigo = (donde.state as { codigo?: VerOferta } | null)?.codigo;
+    if (!codigo) return;
+    agregarCodigo(codigo);
+    navegar(donde.pathname, { replace: true, state: null });
+  }, [donde.state, donde.pathname, agregarCodigo, navegar]);
 
   useEffect(() => {
     void (async () => {
@@ -424,6 +441,13 @@ export function Mostrador() {
           <ResumenErrores titulo="No se registro la venta">{carrito.error}</ResumenErrores>
         ) : null}
 
+        {carrito.avisoCodigo ? <Aviso tono="alerta" titulo="Un código se cayó">{carrito.avisoCodigo}</Aviso> : null}
+        {carrito.codigos.map((c) => (
+          <div className="aviso aviso--exito codigo-puesto" key={c.codigo}>
+            <span><strong>Código {c.codigo}</strong>{c.pct !== null ? ` · ${c.pct} % menos en sus piezas` : ''}</span>
+          </div>
+        ))}
+
         {rebajasIgnoradas ? (
           <Aviso tono="alerta" titulo="Manda el descuento por cantidad">
             Con {t.piezasTramo} piezas se cobra el {formatearDescuento(t.descuento)} en todas. Lo que rebajaste
@@ -479,6 +503,16 @@ export function Mostrador() {
                       <span className="rebaja__piso" id={`piso-${clave}`}>
                         Mínimo {formatearBs(l.precio_minimo_bs)}, {rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs)} % menos
                         que la etiqueta. Para volver a la etiqueta, escribe {formatearBs(l.precio_lista_bs)}.
+                      </span>
+                    </div>
+                  ) : l.cubiertas > 0 ? (
+                    <div className="linea-cobro__precio linea-cobro__precio--fijo">
+                      <span>{formatearBs(l.precio_oferta_bs)} c/u</span>
+                      <s>{formatearBs(l.precio_lista_bs)}</s>
+                      <span className="rebaja__pista">
+                        {l.cubiertas < l.cantidad
+                          ? `con el código van ${l.cubiertas}; ${l.cantidad - l.cubiertas === 1 ? 'la otra' : 'las otras'} a ${formatearBs(l.precio_final_bs)}`
+                          : `con el código ${l.codigo ?? ''}`}
                       </span>
                     </div>
                   ) : l.en_tramo ? (
@@ -853,7 +887,22 @@ export function Mostrador() {
             <p>Toca una pieza para agregarla a la venta.</p>
           )}
         </div>
+        <Link className="boton boton--secundario" to="/venta/codigo">Tengo un código</Link>
       </div>
+
+      {/* Los codigos de oferta que ya van en esta venta, y por que se cayo uno. */}
+      {carrito.avisoCodigo ? <Aviso tono="alerta" titulo="Un código se cayó">{carrito.avisoCodigo}</Aviso> : null}
+      {carrito.codigos.map((c) => (
+        <div className="aviso aviso--exito codigo-puesto" key={c.codigo}>
+          <span>
+            <strong>Código {c.codigo}</strong>
+            {c.pct !== null ? ` · ${c.pct} % menos en sus piezas` : ''}
+          </span>
+          <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => carrito.quitarCodigo(c.codigo)}>
+            Quitar el código
+          </button>
+        </div>
+      ))}
 
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
