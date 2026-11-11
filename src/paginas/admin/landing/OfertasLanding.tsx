@@ -6,8 +6,9 @@ import { armarConjunto } from '../../../lib/combinar';
 import type { PiezaCombinable } from '../../../lib/combinar';
 import { formatearBcv, formatearFecha, leerCifra } from '../../../lib/dinero';
 import { urlPublicaFoto } from '../../../lib/fotos';
-import { cargarOfertasPublicas } from '../../../lib/ofertasApi';
-import type { OfertaCasa, OfertaCombo, OfertasPublicas } from '../../../lib/ofertas';
+import { cargarCombosAdmin, cargarOfertasCasaAdmin, cargarOfertasPublicas } from '../../../lib/ofertasApi';
+import { estadoDeCasa } from '../../../lib/ofertas';
+import type { ComboAdmin, EstadoCasa, OfertaCasa, OfertaCasaAdmin, OfertaCombo, OfertasPublicas } from '../../../lib/ofertas';
 import { CampoFoto } from './CamposLanding';
 
 /* ------------------------------------------------------------------ */
@@ -446,25 +447,39 @@ function FormularioCasa({ inicial, alTerminar, alCancelar }: {
   );
 }
 
-function OfertasDeLaCasa({ casa, alCambiar }: { casa: OfertaCasa[]; alCambiar: (mensaje: string) => void }) {
+const ETIQUETA_ESTADO: Record<EstadoCasa, { texto: string; tono: string }> = {
+  se_ensena: { texto: 'Se enseña hoy', tono: 'exito' },
+  apagada: { texto: 'Terminada o apagada', tono: 'alerta' },
+  por_empezar: { texto: 'Empieza después', tono: 'proxima' },
+  terminada: { texto: 'Ya pasó', tono: 'alerta' },
+  sin_piezas: { texto: 'No sale hoy: una pieza no está libre o no aguanta el descuento', tono: 'alerta' },
+};
+
+function OfertasDeLaCasa({ casa, todas, hoy, alCambiar }: {
+  casa: OfertaCasa[]; todas: OfertaCasaAdmin[] | null; hoy: string; alCambiar: (mensaje: string) => void;
+}) {
   const [editando, setEditando] = useState<BorradorCasa | null>(null);
   const [terminando, setTerminando] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function aBorrador(o: OfertaCasa): BorradorCasa {
+  function aBorrador(o: OfertaCasa | OfertaCasaAdmin): BorradorCasa {
     return {
       id: o.id, nombre: o.nombre, texto: o.texto ?? '', foto: o.foto, pct: textoDeCifra(o.pct),
-      desde: '', hasta: o.hasta.slice(0, 10),
+      // Con el #66 se conserva su día de salida; sin él, la base la toma desde hoy.
+      desde: 'desde' in o && typeof o.desde === 'string' ? o.desde.slice(0, 10) : '', hasta: o.hasta.slice(0, 10),
       piezas: o.piezas.map((p) => ({ id: p.modelo_id, nombre: p.variante ? `${p.nombre} · ${p.variante}` : p.nombre })),
     };
   }
 
-  async function terminar(o: OfertaCasa) {
+  const lista: (OfertaCasa | OfertaCasaAdmin)[] = todas ?? casa;
+
+  async function terminar(o: OfertaCasa | OfertaCasaAdmin) {
     setError(null);
     setTerminando(o.id);
     const { error: err } = await supabase.rpc('admin_guardar_oferta_casa', {
       p_id: o.id, p_nombre: o.nombre, p_texto: o.texto, p_foto: o.foto, p_pct: o.pct,
-      p_desde: null, p_hasta: o.hasta.slice(0, 10), p_modelos: o.piezas.map((p) => p.modelo_id), p_activa: false,
+      p_desde: 'desde' in o && typeof o.desde === 'string' ? o.desde.slice(0, 10) : null,
+      p_hasta: o.hasta.slice(0, 10), p_modelos: o.piezas.map((p) => p.modelo_id), p_activa: false,
     });
     setTerminando(null);
     if (err) setError(mensajeDeError(err));
@@ -475,25 +490,35 @@ function OfertasDeLaCasa({ casa, alCambiar }: { casa: OfertaCasa[]; alCambiar: (
     <div className="tarjeta">
       <h2>Ofertas de la casa</h2>
       <p className="campo__pista">
-        Las que creas tú, con su banner, su descuento y sus fechas. Aquí salen las que están vigentes hoy: una oferta
-        a la que ya se le vendió una pieza, o que empieza otro día, no aparece en esta lista.
+        Las que creas tú, con su banner, su descuento y sus fechas.{' '}
+        {todas
+          ? 'Aquí salen todas: las de hoy, las que empiezan otro día, las que ya pasaron y las apagadas. Guardar una oferta la vuelve a encender.'
+          : 'Aquí salen las que están vigentes hoy: una oferta a la que ya se le vendió una pieza, o que empieza otro día, no aparece en esta lista.'}
       </p>
       {error ? <Aviso tono="error">{error}</Aviso> : null}
-      {casa.length === 0 ? <Vacio titulo="No hay ninguna oferta de la casa vigente" /> : (
+      {lista.length === 0 ? <Vacio titulo={todas ? 'Todavía no hay ninguna oferta de la casa' : 'No hay ninguna oferta de la casa vigente'} /> : (
         <ul className="pl-ofertas">
-          {casa.map((o) => (
+          {lista.map((o) => {
+            const ad = 'vigente_hoy' in o ? o : null;
+            const estado = ad ? ETIQUETA_ESTADO[estadoDeCasa(ad, hoy)] : null;
+            return (
             <li key={o.id} className="pl-oferta">
               <div>
-                <strong>{o.nombre}</strong> · {textoDeCifra(o.pct)} % · hasta el {formatearFecha(o.hasta)}
+                <strong>{o.nombre}</strong> · {textoDeCifra(o.pct)} % · {ad ? `del ${formatearFecha(ad.desde)} ` : ''}hasta el {formatearFecha(o.hasta)}
+                {estado ? <> <span className={`etiqueta etiqueta--${estado.tono}`}>{estado.texto}</span></> : null}
                 <div className="campo__pista">{o.piezas.map((p) => p.nombre).join(' + ')}</div>
+                {ad ? <div className="campo__pista">Códigos: {ad.codigos_dados} dados, {ad.codigos_usados} usados.</div> : null}
               </div>
               <div className="grupo-botones">
                 <button type="button" className="boton boton--pequeno" onClick={() => setEditando(aBorrador(o))}>Editar</button>
-                <button type="button" className="boton boton--secundario boton--pequeno" disabled={terminando === o.id} onClick={() => void terminar(o)}>Terminar ya</button>
+                {ad && !ad.activa ? null : (
+                  <button type="button" className="boton boton--secundario boton--pequeno" disabled={terminando === o.id} onClick={() => void terminar(o)}>Terminar ya</button>
+                )}
                 <AnularCodigos origen="casa" refId={o.id} alTerminar={alCambiar} />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
       {editando ? (
@@ -625,11 +650,12 @@ function SeleccionDeLaCasa() {
 /*  Combos de la semana                                                 */
 /* ------------------------------------------------------------------ */
 
-function CombosDeLaSemana({ combos, armadosEn, alCambiar }: {
-  combos: OfertaCombo[]; armadosEn: string | null; alCambiar: (mensaje: string) => void;
+function CombosDeLaSemana({ combos, todos, armadosEn, alCambiar }: {
+  combos: OfertaCombo[]; todos: ComboAdmin[] | null; armadosEn: string | null; alCambiar: (mensaje: string) => void;
 }) {
   const [armando, setArmando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lista: (OfertaCombo | ComboAdmin)[] = todos ?? combos;
 
   async function rearmar() {
     setArmando(true);
@@ -656,18 +682,27 @@ function CombosDeLaSemana({ combos, armadosEn, alCambiar }: {
         {armadosEn ? `Se armaron por última vez el ${formatearFecha(armadosEn)}.` : 'Todavía no se han armado.'}
       </p>
       {error ? <Aviso tono="error" titulo="No se pudieron armar">{error}</Aviso> : null}
-      {combos.length === 0 ? <Vacio titulo="No hay combos vigentes">Toca «Rearmar» para armarlos.</Vacio> : (
+      {lista.length === 0 ? <Vacio titulo={todos ? 'No hay combos armados' : 'No hay combos vigentes'}>Toca «Rearmar» para armarlos.</Vacio> : (
         <ul className="pl-ofertas">
-          {combos.map((c) => (
+          {lista.map((c) => {
+            const ad = 'se_ensena_hoy' in c ? c : null;
+            return (
             <li key={c.id} className="pl-oferta">
               <div>
                 <strong>{c.piezas.length} piezas · {textoDeCifra(c.pct)} %</strong>
+                {ad ? (
+                  <> <span className={`etiqueta etiqueta--${ad.se_ensena_hoy ? 'exito' : 'alerta'}`}>
+                    {ad.se_ensena_hoy ? 'Se enseña hoy' : 'No sale hoy'}
+                  </span></>
+                ) : null}
                 <div className="campo__pista">{c.piezas.map((p) => p.nombre).join(' + ')}</div>
                 <div className="campo__pista">{formatearBcv(c.total_lista_usd)} → {formatearBcv(c.total_oferta_usd)}</div>
+                {ad ? <div className="campo__pista">Códigos: {ad.codigos_dados} dados, {ad.codigos_usados} usados.</div> : null}
               </div>
               <AnularCodigos origen="combo" refId={c.id} alTerminar={alCambiar} />
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
       <div className="acciones">
@@ -686,14 +721,21 @@ function CombosDeLaSemana({ combos, armadosEn, alCambiar }: {
 export function OfertasLanding() {
   const [cifras, setCifras] = useState<Cifras | null>(null);
   const [publicas, setPublicas] = useState<OfertasPublicas | null>(null);
+  const [casaTodas, setCasaTodas] = useState<OfertaCasaAdmin[] | null>(null);
+  const [combosTodos, setCombosTodos] = useState<ComboAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    const [c, p] = await Promise.all([supabase.rpc('admin_cifras_ofertas'), cargarOfertasPublicas()]);
+    // Las dos vistas del administrador son del #66: sin él llegan null y se usa lo público.
+    const [c, p, ct, cb] = await Promise.all([
+      supabase.rpc('admin_cifras_ofertas'), cargarOfertasPublicas(), cargarOfertasCasaAdmin(), cargarCombosAdmin(),
+    ]);
     if (c.error) { setError(mensajeDeError(c.error)); return; }
     setCifras((c.data as Cifras | null) ?? {});
     setPublicas(p);
+    setCasaTodas(ct);
+    setCombosTodos(cb);
   }, []);
 
   useEffect(() => {
@@ -705,6 +747,8 @@ export function OfertasLanding() {
 
   const despues = useCallback((mensaje: string) => { setExito(mensaje); void cargar(); }, [cargar]);
 
+  const hoy = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }), []);
+
   const armadosEn = useMemo(() => (typeof cifras?.combos_armados_en === 'string' ? cifras.combos_armados_en : null), [cifras]);
 
   if (error) return <Aviso tono="error" titulo="No se pudieron cargar las ofertas">{error}</Aviso>;
@@ -715,11 +759,11 @@ export function OfertasLanding() {
   return (
     <div className="pila">
       {exito ? <Aviso tono="exito">{exito}</Aviso> : null}
-      {apagadas ? <Aviso tono="alerta" titulo="Las ofertas están apagadas">Mientras estén apagadas, la landing no enseña ninguna y aquí no se ven los combos ni las ofertas vigentes.</Aviso> : null}
+      {apagadas ? <Aviso tono="alerta" titulo="Las ofertas están apagadas">Mientras estén apagadas, la landing no enseña ninguna.{casaTodas || combosTodos ? ' Aquí sigues viendo tus ofertas y combos para editarlos.' : ' Aquí no se ven los combos ni las ofertas vigentes.'}</Aviso> : null}
       <PanelCifras cifras={cifras} alCambiar={() => void cargar()} />
-      <OfertasDeLaCasa casa={publicas?.casa ?? []} alCambiar={despues} />
+      <OfertasDeLaCasa casa={publicas?.casa ?? []} todas={casaTodas} hoy={hoy} alCambiar={despues} />
       <SeleccionDeLaCasa />
-      <CombosDeLaSemana combos={publicas?.combos ?? []} armadosEn={armadosEn} alCambiar={despues} />
+      <CombosDeLaSemana combos={publicas?.combos ?? []} todos={combosTodos} armadosEn={armadosEn} alCambiar={despues} />
     </div>
   );
 }

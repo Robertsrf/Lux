@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { visitante } from './visitas';
-import type { CodigoOferta, OfertasPublicas, OrigenOferta, PiezaOferta } from './ofertas';
+import type { CodigoOferta, ComboAdmin, OfertaCasaAdmin, OfertasPublicas, OrigenOferta, PiezaOferta } from './ofertas';
 
 /**
  * Las llamadas de las ofertas (esquema-landing-y-ofertas.sql). Toda falla
@@ -118,5 +118,37 @@ export function registrarMiradas(miradas: MiradaEnviada[]): void {
     }).catch(() => undefined);
   } catch {
     // Sin red o sin la función todavía: la página sigue igual.
+  }
+}
+
+/**
+ * Todas las ofertas de la casa, para el panel (`v_ofertas_casa_admin`, #66).
+ * Null si la vista no existe todavia (sin el #66) o falla: el panel se
+ * queda con lo que `ofertas_publicas()` enseña.
+ */
+export async function cargarOfertasCasaAdmin(): Promise<OfertaCasaAdmin[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('v_ofertas_casa_admin')
+      .select('id, nombre, texto, foto, pct, desde, hasta, activa, vigente_hoy, piezas, codigos_dados, codigos_usados')
+      .order('hasta', { ascending: false });
+    if (error || !Array.isArray(data)) return null;
+    return data as unknown as OfertaCasaAdmin[];
+  } catch {
+    return null;
+  }
+}
+
+/** Los combos de la ultima vez que se rearmaron, con las ofertas apagadas o no (#66). Null sin el #66. */
+export async function cargarCombosAdmin(): Promise<ComboAdmin[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('v_combos_admin')
+      .select('id, pct, n_piezas, se_ensena_hoy, armado_en, piezas, total_lista_usd, total_oferta_usd, codigos_dados, codigos_usados')
+      .order('orden');
+    if (error || !Array.isArray(data)) return null;
+    return data as unknown as ComboAdmin[];
+  } catch {
+    return null;
   }
 }

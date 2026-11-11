@@ -248,3 +248,39 @@ export function efectoDeRomperCodigo(
   }
   return { codigo: quitada.oferta_codigo, piezas, sube: sube / 10000 };
 }
+
+/**
+ * Una oferta de la casa como la ve el administrador (`v_ofertas_casa_admin`,
+ * #66): todas, también las que empiezan después, las que ya pasaron y las
+ * apagadas. `vigente_hoy` dice si la clienta la ve hoy.
+ */
+export interface OfertaCasaAdmin extends OfertaCasa {
+  desde: string;
+  activa: boolean;
+  vigente_hoy: boolean;
+  codigos_dados: number;
+  codigos_usados: number;
+}
+
+/** Un combo de la última vez que se rearmaron (`v_combos_admin`, #66). */
+export interface ComboAdmin extends OfertaCombo {
+  n_piezas: number;
+  se_ensena_hoy: boolean;
+  armado_en: string;
+  codigos_dados: number;
+  codigos_usados: number;
+}
+
+/**
+ * Cómo está una oferta de la casa hoy, en una palabra para el panel. `hoy`
+ * es el día de la tienda en `YYYY-MM-DD`.
+ */
+export type EstadoCasa = 'se_ensena' | 'apagada' | 'por_empezar' | 'terminada' | 'sin_piezas';
+
+export function estadoDeCasa(o: Pick<OfertaCasaAdmin, 'activa' | 'desde' | 'hasta' | 'vigente_hoy'>, hoy: string): EstadoCasa {
+  if (o.vigente_hoy) return 'se_ensena';
+  if (!o.activa) return 'apagada';
+  if (o.hasta.slice(0, 10) < hoy) return 'terminada';
+  if (o.desde.slice(0, 10) > hoy) return 'por_empezar';
+  return 'sin_piezas';
+}
