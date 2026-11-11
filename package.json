@@ -11,7 +11,8 @@
     "pin": "node scripts/derivar-pin.mjs",
     "logos": "node scripts/preparar-logos.mjs",
     "respaldo": "node scripts/respaldar.mjs",
-    "verificar": "node scripts/verificar.mjs"
+    "verificar": "node scripts/verificar.mjs",
+    "pruebas": "node --test \"scripts/pruebas/*.test.mjs\""
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.2.5",
