@@ -37,7 +37,7 @@ export function useAparecer<T extends Element>(repetir = false): [RefObject<T | 
           }
         }
       },
-      { threshold: 0.15 },
+      { threshold: 0, rootMargin: '0px 0px -8% 0px' },
     );
     obs.observe(el);
     return () => obs.disconnect();

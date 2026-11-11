@@ -136,3 +136,33 @@ export function mensajeDePedido(p: AvisoDePedido): string {
     `Mi pedido: ${p.enlace}`,
   ].filter((x): x is string => x !== null).join('\n');
 }
+
+/** "@luxbyemory", "luxbyemory" o su enlace de TikTok → el perfil. Null si no es un usuario de TikTok. */
+export function enlaceTikTok(texto: string | null | undefined): { usuario: string; url: string } | null {
+  let usuario = (texto ?? '').trim().replace(/^@/, '');
+  if (/^https?:\/\//i.test(usuario)) {
+    try {
+      const url = new URL(usuario);
+      if (!/(^|\.)tiktok\.com$/i.test(url.hostname)) return null;
+      usuario = (url.pathname.split('/').filter(Boolean)[0] ?? '').replace(/^@/, '');
+    } catch {
+      return null;
+    }
+  }
+  return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? { usuario, url: `https://www.tiktok.com/@${usuario}` } : null;
+}
+
+/** "luxbyemory" o su enlace de Facebook → la página. Null si no es una página de Facebook. */
+export function enlaceFacebook(texto: string | null | undefined): { nombre: string; url: string } | null {
+  let nombre = (texto ?? '').trim();
+  if (/^https?:\/\//i.test(nombre)) {
+    try {
+      const url = new URL(nombre);
+      if (!/(^|\.)(facebook|fb)\.com$/i.test(url.hostname)) return null;
+      nombre = url.pathname.split('/').filter(Boolean)[0] ?? '';
+    } catch {
+      return null;
+    }
+  }
+  return /^[A-Za-z0-9.\-_]{5,50}$/.test(nombre) ? { nombre, url: `https://www.facebook.com/${nombre}` } : null;
+}

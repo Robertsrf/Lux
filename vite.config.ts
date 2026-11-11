@@ -31,6 +31,7 @@ function politicaDeSeguridad(urlSupabase: string): Plugin {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${origen}`.trim(),
+    `media-src 'self' ${origen}`.trim(),
     "font-src 'self' data:",
     `connect-src 'self' ${origen} ${tiempoReal}`.trim(),
     "worker-src 'self' blob:",

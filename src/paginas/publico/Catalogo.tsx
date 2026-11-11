@@ -17,9 +17,14 @@ import { decirMinutos, useReglasPedido } from '../../hooks/useReglasPedido';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
-import { AsiPides, ComoPedir, Estante, POR_ESTANTE, TarjetaPieza, TiposConFoto, irA } from '../../componentes/VitrinaPublica';
+import { AsiPides, POR_ESTANTE, TarjetaPieza, irA } from '../../componentes/VitrinaPublica';
 import type { PasoPedido, PedidoTarjeta, TipoVitrina } from '../../componentes/VitrinaPublica';
 import { LaTienda } from '../../componentes/LaTienda';
+import { Landing } from './landing/Landing';
+import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
+import type { PropsCatalogo } from './landing/SeccionesCatalogo';
+import { useLanding } from '../../hooks/useLanding';
+import { useOfertas } from '../../hooks/useOfertas';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
@@ -94,6 +99,9 @@ export function Catalogo() {
   const { tasa } = useTasa();
   const textos = useTextos();
   const reglas = useReglasPedido();
+  // La landing y las ofertas: si el SQL #65 no está o fallan, el inicio es el de siempre.
+  const landing = useLanding();
+  const ofertas = useOfertas();
 
   const [modelos, setModelos] = useState<ModeloPublico[]>([]);
   const [total, setTotal] = useState(0);
@@ -772,6 +780,137 @@ export function Catalogo() {
   const cuantasJoyas = total > modelos.length ? total : familias.length;
   const proximasVisibles = todosProximos ? familiasProximas : familiasProximas.slice(0, POR_ESTANTE);
 
+  // El inicio y la lista comparten el buscador y lo que se dice mientras llega
+  // (el error, "Trayendo el catálogo", "Ninguna pieza"): se arman una vez.
+  const portadaDeHoy = (
+    <section className="portada-catalogo">
+      <p className="portada-catalogo__de">
+        {textos.ciudad ? `Desde ${textos.ciudad} para toda Venezuela` : 'Para toda Venezuela'}
+      </p>
+      <h1 className="portada-catalogo__titulo">Joyas para usar todos los días</h1>
+      {/* En el teléfono, la versión corta; la larga sale en el detalle de cada pieza. */}
+      {textos.materiales_largo ? (
+        <p className={textos.materiales_corto ? 'portada-catalogo__texto portada-catalogo__texto--largo' : 'portada-catalogo__texto'}>{textos.materiales_largo}</p>
+      ) : null}
+      {textos.materiales_corto ? (
+        <p className={textos.materiales_largo ? 'portada-catalogo__texto portada-catalogo__texto--corto' : 'portada-catalogo__texto'}>{textos.materiales_corto}</p>
+      ) : null}
+      <AsiPides
+        pasos={['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil']}
+        alVerMas={() => irA('como-pedir')}
+      />
+      {/* Por dónde empezar, dicho con un botón: quien entra por
+          primera vez no sabe que hay que bajar. */}
+      <div className="portada-catalogo__empezar">
+        <button type="button" className="boton portada-catalogo__boton" onClick={irATodas}>
+          Ver todas las joyas
+        </button>
+        <button type="button" className="asi-pides__mas" onClick={() => irA('tipos')}>
+          O elige por tipo
+        </button>
+      </div>
+      {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace
+          falta: se le atiende por WhatsApp. */}
+      {whatsappTienda ? (
+        <p className="portada-catalogo__ayuda">
+          ¿Prefieres que te ayudemos?{' '}
+          <a href={whatsappTienda} target="_blank" rel="noopener noreferrer">Escríbenos por WhatsApp</a>
+          {' '}y te ayudamos a pedir.
+        </p>
+      ) : null}
+    </section>
+  );
+  const buscador = (
+    <div className="buscador-catalogo">
+      <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
+        <input
+          id="buscar-publico" type="search" value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Cadena, anillo, choker..." autoComplete="off"
+        />
+      </Campo>
+      {/* En la lista, qué se ve y en qué orden, a la vista y no plegado:
+          quien no sabe que "Filtrar" se abre, no lo abre. Lado a lado en
+          el teléfono. El tipo, en la lista de opciones solo en el
+          teléfono (en pantallas anchas están las fichas de arriba). */}
+      {enLista ? (
+        <div className="lista-controles">
+          {categorias.length > 1 && !texto.trim() ? (
+            <div className="lista-controles__tipo">
+              <Campo etiqueta="Ver" htmlFor="ver-publico">
+                <select
+                  id="ver-publico"
+                  value={categoria ?? ''}
+                  onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
+                >
+                  <option value="">Todas las joyas</option>
+                  {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
+                </select>
+              </Campo>
+            </div>
+          ) : null}
+          {campoOrden}
+        </div>
+      ) : null}
+      {/* En el inicio, el tipo y el orden plegados: con más piezas de las
+          que trae, el tipo lleva a todas, y ordenar por precio tiene que
+          poder hacerse sin entrar antes a un tipo. */}
+      {categorias.length > 1 && !enLista ? (
+        <Filtros activos={orden !== 'nombre' ? 1 : 0}>
+        <div className="fila">
+          <Campo etiqueta="Tipo" htmlFor="tipo-publico">
+            <select id="tipo-publico" value="" onChange={(e) => (e.target.value === '*' ? irATodas() : setCategoria(e.target.value || null))}>
+              <option value="">Elige un tipo</option>
+              <option value="*">Todas las joyas</option>
+              {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
+            </select>
+          </Campo>
+          {campoOrden}
+        </div>
+        </Filtros>
+      ) : null}
+    </div>
+  );
+  const aviso = (
+    <>
+      {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
+
+      {cargando || cargadoPara !== consultaActual ? (
+        <Cargando texto="Trayendo el catálogo" />
+      ) : modelos.length === 0 ? (
+        <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
+          <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
+          {enLista ? (
+            <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button>
+          ) : null}
+        </Vacio>
+      ) : null}
+    </>
+  );
+  // Las piezas del inicio ya son las de esta consulta (si no, se estaba
+  // escribiendo una letra y la base no ha respondido).
+  const piezasListas = !cargando && cargadoPara === consultaActual && modelos.length > 0;
+  const catalogoProps: PropsCatalogo = {
+    cargando,
+    tipos: piezasListas ? tipos : [],
+    estantes: piezasListas ? estantes : [],
+    cuantasJoyas,
+    traidas: modelos.length,
+    totalEnBase: total,
+    tarjeta: (f) => <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />,
+    irATodas,
+    irATipo: setCategoria,
+    pasos,
+    pieComoPedir: whatsappTienda ? 'Al apartar te sale un botón para avisarnos por WhatsApp.' : null,
+    proximas: familiasProximas,
+    proximasVisibles,
+    totalProximos,
+    cargadosProximos: proximos.length,
+    todosProximos,
+    alternarProximos: () => setTodosProximos((x) => !x),
+    alVerProxima: verProxima,
+  };
+
   return (
     <>
       {cabecera}
@@ -781,227 +920,69 @@ export function Catalogo() {
             después, siempre en el mismo sitio: si cambiara de lugar al
             escribir, el teléfono cerraría el teclado a media palabra. */}
         {enLista ? (
-          <div className="lista-cabeza">
-            <button type="button" className="volver" onClick={alInicio}>
-              <Icono nombre="volver" className="icono icono--sm" />
-              Volver al inicio
-            </button>
-            <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
-              {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las joyas')}
-            </h1>
-            {/* Los tipos a la vista, para pasar de uno a otro sin volver al
-                inicio ni abrir nada: un toque. Se envuelven, no se deslizan.
-                Solo en pantallas anchas: en el teléfono eran cuatro renglones
-                antes de la primera joya, y ahí va la lista "Ver" de abajo. */}
-            {categorias.length > 1 && !texto.trim() ? (
-              <nav className="tipos-fila" aria-label="Ver otro tipo de joya">
-                <button type="button" className="tipos-fila__tipo" aria-pressed={!categoria} onClick={irATodas}>Todas</button>
-                {categorias.map((c) => (
-                  <button key={c} type="button" className="tipos-fila__tipo" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
-                    {nombreDeTipo(c)}
-                  </button>
-                ))}
-              </nav>
-            ) : null}
-          </div>
-        ) : (
-          <section className="portada-catalogo">
-            <p className="portada-catalogo__de">
-              {textos.ciudad ? `Desde ${textos.ciudad} para toda Venezuela` : 'Para toda Venezuela'}
-            </p>
-            <h1 className="portada-catalogo__titulo">Joyas para usar todos los días</h1>
-            {/* En el teléfono, la versión corta; la larga sale en el detalle de cada pieza. */}
-            {textos.materiales_largo ? (
-              <p className={textos.materiales_corto ? 'portada-catalogo__texto portada-catalogo__texto--largo' : 'portada-catalogo__texto'}>{textos.materiales_largo}</p>
-            ) : null}
-            {textos.materiales_corto ? (
-              <p className={textos.materiales_largo ? 'portada-catalogo__texto portada-catalogo__texto--corto' : 'portada-catalogo__texto'}>{textos.materiales_corto}</p>
-            ) : null}
-            <AsiPides
-              pasos={['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil']}
-              alVerMas={() => irA('como-pedir')}
-            />
-            {/* Por dónde empezar, dicho con un botón: quien entra por
-                primera vez no sabe que hay que bajar. */}
-            <div className="portada-catalogo__empezar">
-              <button type="button" className="boton portada-catalogo__boton" onClick={irATodas}>
-                Ver todas las joyas
+          <>
+            <div className="lista-cabeza">
+              <button type="button" className="volver" onClick={alInicio}>
+                <Icono nombre="volver" className="icono icono--sm" />
+                Volver al inicio
               </button>
-              <button type="button" className="asi-pides__mas" onClick={() => irA('tipos')}>
-                O elige por tipo
-              </button>
-            </div>
-            {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace
-                falta: se le atiende por WhatsApp. */}
-            {whatsappTienda ? (
-              <p className="portada-catalogo__ayuda">
-                ¿Prefieres que te ayudemos?{' '}
-                <a href={whatsappTienda} target="_blank" rel="noopener noreferrer">Escríbenos por WhatsApp</a>
-                {' '}y te ayudamos a pedir.
-              </p>
-            ) : null}
-          </section>
-        )}
-
-        <div className="buscador-catalogo">
-          <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
-            <input
-              id="buscar-publico" type="search" value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              placeholder="Cadena, anillo, choker..." autoComplete="off"
-            />
-          </Campo>
-          {/* En la lista, qué se ve y en qué orden, a la vista y no plegado:
-              quien no sabe que "Filtrar" se abre, no lo abre. Lado a lado en
-              el teléfono. El tipo, en la lista de opciones solo en el
-              teléfono (en pantallas anchas están las fichas de arriba). */}
-          {enLista ? (
-            <div className="lista-controles">
+              <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
+                {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las joyas')}
+              </h1>
+              {/* Los tipos a la vista, para pasar de uno a otro sin volver al
+                  inicio ni abrir nada: un toque. Se envuelven, no se deslizan.
+                  Solo en pantallas anchas: en el teléfono eran cuatro renglones
+                  antes de la primera joya, y ahí va la lista "Ver" de abajo. */}
               {categorias.length > 1 && !texto.trim() ? (
-                <div className="lista-controles__tipo">
-                  <Campo etiqueta="Ver" htmlFor="ver-publico">
-                    <select
-                      id="ver-publico"
-                      value={categoria ?? ''}
-                      onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
-                    >
-                      <option value="">Todas las joyas</option>
-                      {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
-                    </select>
-                  </Campo>
-                </div>
+                <nav className="tipos-fila" aria-label="Ver otro tipo de joya">
+                  <button type="button" className="tipos-fila__tipo" aria-pressed={!categoria} onClick={irATodas}>Todas</button>
+                  {categorias.map((c) => (
+                    <button key={c} type="button" className="tipos-fila__tipo" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
+                      {nombreDeTipo(c)}
+                    </button>
+                  ))}
+                </nav>
               ) : null}
-              {campoOrden}
             </div>
-          ) : null}
-          {/* En el inicio, el tipo y el orden plegados: con más piezas de las
-              que trae, el tipo lleva a todas, y ordenar por precio tiene que
-              poder hacerse sin entrar antes a un tipo. */}
-          {categorias.length > 1 && !enLista ? (
-            <Filtros activos={orden !== 'nombre' ? 1 : 0}>
-            <div className="fila">
-              <Campo etiqueta="Tipo" htmlFor="tipo-publico">
-                <select id="tipo-publico" value="" onChange={(e) => (e.target.value === '*' ? irATodas() : setCategoria(e.target.value || null))}>
-                  <option value="">Elige un tipo</option>
-                  <option value="*">Todas las joyas</option>
-                  {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
-                </select>
-              </Campo>
-              {campoOrden}
-            </div>
-            </Filtros>
-          ) : null}
-        </div>
+            {buscador}
+            {aviso}
+            {piezasListas ? (
+              <>
+                <div className="rejilla-venta">
+                  {familias.map((f) => (
+                    <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+                  ))}
+                </div>
 
-        {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
-
-        {cargando || cargadoPara !== consultaActual ? (
-          <Cargando texto="Trayendo el catálogo" />
-        ) : modelos.length === 0 ? (
-          <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
-            <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
-            {enLista ? (
-              <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button>
+                {/* Lo que falta por ver, dicho: antes la pieza 401 no salia nunca. */}
+                {quedanPorVer > 0 ? (
+                  <div className="catalogo__mas">
+                    <p className="paginacion__cuenta">
+                      Viendo {formatearEntero(modelos.length)} de {formatearEntero(total)}
+                    </p>
+                    <button type="button" className="boton boton--secundario" disabled={cargandoMas} onClick={() => void cargarMas()}>
+                      {cargandoMas ? 'Trayendo más' : `Ver más piezas · faltan ${formatearEntero(quedanPorVer)}`}
+                    </button>
+                  </div>
+                ) : null}
+              </>
             ) : null}
-          </Vacio>
-        ) : enLista ? (
-          <>
-            <div className="rejilla-venta">
-              {familias.map((f) => (
-                <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
-              ))}
-            </div>
-
-            {/* Lo que falta por ver, dicho: antes la pieza 401 no salia nunca. */}
-            {quedanPorVer > 0 ? (
-              <div className="catalogo__mas">
-                <p className="paginacion__cuenta">
-                  Viendo {formatearEntero(modelos.length)} de {formatearEntero(total)}
-                </p>
-                <button type="button" className="boton boton--secundario" disabled={cargandoMas} onClick={() => void cargarMas()}>
-                  {cargandoMas ? 'Trayendo más' : `Ver más piezas · faltan ${formatearEntero(quedanPorVer)}`}
-                </button>
-              </div>
-            ) : null}
+            <SeccionComoPedir c={catalogoProps} />
+            <SeccionProximamente c={catalogoProps} />
+            {!cargando ? <LaTienda id="la-tienda" textos={textos} /> : null}
           </>
         ) : (
-          <>
-            <TiposConFoto id="tipos" tipos={tipos} alElegir={setCategoria} todas={{ cuantas: cuantasJoyas, alVer: irATodas }} />
-            {estantes.map((e) => (
-              <Estante
-                key={e.categoria}
-                titulo={nombreDeTipo(e.categoria)}
-                cuantas={e.familias.length}
-                alVerTodas={e.familias.length > POR_ESTANTE ? () => setCategoria(e.categoria) : undefined}
-              >
-                {e.familias.slice(0, POR_ESTANTE).map((f) => (
-                  <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
-                ))}
-              </Estante>
-            ))}
-            {/* Con más piezas de las que trae el inicio, se dice: cortar sin
-                avisar es lo que dejaba la pieza 401 sin salir nunca. */}
-            {total > modelos.length ? (
-              <p className="paginacion__cuenta">
-                Aquí salen las primeras {formatearEntero(modelos.length)} de {formatearEntero(total)} piezas. Elige un tipo arriba para verlas todas.
-              </p>
-            ) : null}
-            {/* Al final de los estantes, lo mismo que arriba: todas juntas. */}
-            <div className="ver-todas">
-              <p className="ver-todas__texto">¿Prefieres verlas todas juntas, sin separar por tipo?</p>
-              <button type="button" className="boton ver-todas__boton" onClick={irATodas}>
-                Ver todas las joyas · {formatearEntero(cuantasJoyas)}
-              </button>
-            </div>
-          </>
-        )}
-
-        {!cargando ? (
-          <ComoPedir
-            id="como-pedir"
-            pasos={pasos}
-            pie={whatsappTienda ? 'Al apartar te sale un botón para avisarnos por WhatsApp.' : undefined}
+          <Landing
+            secciones={landing.secciones}
+            catalogo={catalogoProps}
+            ofertas={ofertas}
+            textos={textos}
+            whatsapp={whatsappTienda}
+            portadaDeHoy={portadaDeHoy}
+            buscador={buscador}
+            aviso={aviso}
           />
-        ) : null}
-
-        {/*
-          PRÓXIMAMENTE. Lo nuevo de un lote que todavía no llega: foto,
-          nombre y precio, y ningún botón de pedir. No dice cuántas vienen
-          ni dónde van: eso es de la tienda. Cuando el dueño libera el lote,
-          estas piezas suben a la vitrina con su "Agregar". Un estante de
-          cuatro: antes eran 41 tarjetas, el 27 % de la página.
-        */}
-        {!cargando && familiasProximas.length > 0 ? (
-          <section className="proximos" aria-labelledby="titulo-proximos">
-            <div className="estante__cabeza">
-              <h2 className="estante__titulo" id="titulo-proximos">
-                Próximamente <span className="estante__cuantas">{familiasProximas.length}</span>
-              </h2>
-            </div>
-            <p className="proximos__nota">
-              Vienen en camino. Todavía no se pueden pedir: cuando lleguen, salen arriba con su botón para agregar.
-            </p>
-            <div className="rejilla-venta">
-              {proximasVisibles.map((f) => (
-                <TarjetaPieza key={f.clave} familia={f} alVer={() => verProxima(f)} proxima />
-              ))}
-            </div>
-            {/* Abre y cierra: abierto, las 48 alargaban la página 8.000 px y
-                dejaban la tienda al fondo, sin manera de volver a plegarlas. */}
-            {familiasProximas.length > POR_ESTANTE ? (
-              <div className="catalogo__mas">
-                <button type="button" className="boton boton--secundario" aria-expanded={todosProximos} onClick={() => setTodosProximos((x) => !x)}>
-                  {todosProximos ? 'Ver menos' : `Ver las ${formatearEntero(familiasProximas.length)} que vienen`}
-                </button>
-              </div>
-            ) : null}
-            {todosProximos && totalProximos > proximos.length ? (
-              <p className="paginacion__cuenta">Y {formatearEntero(totalProximos - proximos.length)} más que vienen en camino.</p>
-            ) : null}
-          </section>
-        ) : null}
-
-        {!cargando ? <LaTienda id="la-tienda" textos={textos} /> : null}
+        )}
 
         <footer className="pie-catalogo">
           {textos.catalogo_pie ?? 'Lux by Emory'}

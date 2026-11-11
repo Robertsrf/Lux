@@ -12,7 +12,8 @@ export type NombreIcono =
   | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
   | 'clientes' | 'agregar' | 'quitar' | 'mover' | 'revendedores' | 'vendedoras' | 'caja'
-  | 'capacitacion' | 'volver';
+  | 'capacitacion' | 'volver'
+  | 'acero' | 'oro' | 'sello' | 'pausa' | 'reproducir' | 'atras' | 'adelante';
 
 const TRAZOS: Record<NombreIcono, string> = {
   inventario: 'M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z M3.5 7.5 12 12l8.5-4.5 M12 12v9',
@@ -56,6 +57,16 @@ const TRAZOS: Record<NombreIcono, string> = {
   caja:       'M3.5 13.5h17v6a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-6Z M9.5 17h5 M8 3.5V10 M5.5 7.5 8 10l2.5-2.5 M16 10V3.5 M13.5 6 16 3.5 18.5 6',
   // Volver: un galón a la izquierda, del catálogo de un tipo al de todo.
   volver:     'M14.5 5.5 8 12l6.5 6.5',
+  // Los materiales de la landing. Acero: una tuerca hexagonal. Oro: un
+  // destello de cuatro puntas. Sello: la certificacion, con su visto.
+  acero:      'M12 2.8l7.8 4.5v9.4L12 21.2l-7.8-4.5V7.3L12 2.8Z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+  oro:        'M12 3c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7Z M19 17.5v3 M17.5 19h3',
+  sello:      'M12 3l2.2 1.6 2.7-.2 1 2.5 2.2 1.6-.8 2.6.8 2.6-2.2 1.6-1 2.5-2.7-.2L12 21l-2.2-1.6-2.7.2-1-2.5L3.9 15.5l.8-2.6-.8-2.6L6.1 8.7l1-2.5 2.7.2L12 3Z M9 12l2 2 4-4',
+  // Los sliders: pausa, seguir y las dos flechas.
+  pausa:      'M9 5.5v13 M15 5.5v13',
+  reproducir: 'M8 5.5v13l10.5-6.5L8 5.5Z',
+  atras:      'M14.5 5.5 8 12l6.5 6.5',
+  adelante:   'M9.5 5.5 16 12l-6.5 6.5',
 };
 
 export function Icono({ nombre, className = 'icono' }: { nombre: NombreIcono; className?: string }) {

@@ -188,3 +188,37 @@ export function fuenteFoto(
     sizes,
   };
 }
+
+/**
+ * La direccion de una foto o un video de la landing, venga de donde venga:
+ * una ruta del sitio (`landing/portada-1.webp`, la de las fotos de partida),
+ * un enlace https o una ruta del bucket (lo que sube el dueno desde el
+ * panel). Null sin ruta.
+ */
+export function rutaDeLanding(ruta: string | null | undefined): string | null {
+  const r = (ruta ?? '').trim();
+  if (!r) return null;
+  if (/^https:\/\//i.test(r)) return r;
+  if (r.startsWith('landing/')) return `${import.meta.env.BASE_URL}${r}`;
+  return urlPublicaFoto(r);
+}
+
+/**
+ * Una foto de la landing con su `srcset`. Las de partida (`landing/x.webp`)
+ * tienen una hermana de 800 px (`landing/x-800.webp`, scripts/preparar-landing.mjs):
+ * la pantalla modesta pide esa. Las que sube el dueno al bucket solo tienen
+ * un tamano, y van sin `srcset`.
+ */
+export function fotoDeLanding(
+  ruta: string | null | undefined,
+  sizes: string,
+): { src: string; srcSet?: string; sizes: string } | null {
+  const src = rutaDeLanding(ruta);
+  if (!src) return null;
+  const r = (ruta ?? '').trim();
+  if (r.startsWith('landing/') && r.endsWith('.webp')) {
+    const chica = `${import.meta.env.BASE_URL}${r.slice(0, -'.webp'.length)}-800.webp`;
+    return { src, srcSet: `${chica} 800w, ${src} 1600w`, sizes };
+  }
+  return { src, sizes };
+}
