@@ -333,3 +333,217 @@
   .lp-cinta__lista { min-width: 0; flex-wrap: wrap; justify-content: center; }
   .lp-cinta__lista[aria-hidden='true'] { display: none; }
 }
+
+/* =====================================================================
+   LAS OFERTAS (esquema-landing-y-ofertas.sql)
+
+   Lujo silencioso: cintas finas en oro arena, nada de rojo ni de urgencia.
+   La única fecha que se dice es la de vencimiento de un código.
+
+   CONTRASTE (medido con la paleta, peor caso de cada par)
+     verde profundo sobre oro arena (cinta) ..... 5,38
+     crema sobre verde profundo ................. 8,92
+     tinta sobre blanco ......................... 15,18
+     oro de texto sobre blanco / sobre panel .... 5,86 / 5,44
+     texto secundario sobre blanco / papel ...... 6,13 / 5,35
+     alerta de texto sobre panel (no aplica) .... 5,41
+     error sobre papel (aviso) .................. 6,62
+     texto verde sobre papel .................... 9,75
+   MOVIMIENTO: solo transform y opacity; con movimiento reducido, quieto.
+   ===================================================================== */
+
+/* --- La cinta fina de "Oferta" sobre la foto de una tarjeta ---------------- */
+.tarjeta-modelo__cinta {
+  position: absolute; top: var(--e-3); left: 0; z-index: 1;
+  padding: 3px var(--e-3) 3px var(--e-2);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500; line-height: 1.3;
+  letter-spacing: var(--tracking); text-transform: uppercase;
+  color: var(--verde-profundo); background: var(--oro-arena);
+  border-radius: 0 var(--radio-pill) var(--radio-pill) 0;
+  box-shadow: var(--sombra-1);
+  pointer-events: none;
+}
+
+/* --- Una sección de ofertas ------------------------------------------------ */
+.lp-oferta { margin: 0 0 var(--e-6); }
+.lp-ofertas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-4); grid-template-columns: minmax(0, 1fr); }
+.lp-ofertas--piezas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-3); }
+.lp-oferta__tarjeta {
+  position: relative; display: grid; align-content: start; gap: var(--e-3);
+  padding: var(--e-4);
+  background: var(--superficie); border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-lg); box-shadow: var(--sombra-1);
+  min-width: 0;
+}
+.lp-oferta__tarjeta--pieza { padding: 0 0 var(--e-3); overflow: hidden; }
+.lp-oferta__tarjeta--pieza > :not(.lp-oferta__foto):not(.lp-oferta__cinta) { margin-inline: var(--e-3); }
+.lp-oferta__tarjeta--casa { padding: 0 var(--e-4) var(--e-4); overflow: hidden; }
+.lp-oferta__banner { display: block; width: calc(100% + 2 * var(--e-4)); max-width: none; margin: 0 calc(-1 * var(--e-4)); aspect-ratio: 16 / 9; object-fit: cover; }
+.lp-oferta__foto { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--panel-hondo); }
+.lp-oferta__nombre { margin: 0; font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; line-height: 1.2; color: var(--texto-fuerte); overflow-wrap: anywhere; }
+.lp-oferta__nombre--pieza { font-size: var(--t-16); }
+.lp-oferta__texto { margin: 0; font-size: var(--t-16); line-height: 1.5; color: var(--texto); }
+.lp-oferta__piezas { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--t-14); line-height: 1.4; color: var(--texto); }
+.lp-oferta__piezas li { overflow-wrap: anywhere; }
+.lp-oferta__hasta { margin: 0; font-size: var(--t-14); color: var(--texto-secundario); }
+.lp-oferta__mas { display: flex; justify-content: center; margin-top: var(--e-4); }
+.lp-oferta__boton { width: 100%; }
+.lp-oferta__aviso { margin: 0; font-size: var(--t-14); line-height: 1.4; color: var(--error); }
+
+/* La cinta de un porcentaje: fina, en oro, en la esquina de la tarjeta. */
+.lp-oferta__cinta {
+  justify-self: start;
+  padding: 3px var(--e-3);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500; line-height: 1.3;
+  letter-spacing: var(--tracking); text-transform: uppercase;
+  color: var(--verde-profundo); background: var(--oro-arena);
+  border-radius: var(--radio-pill);
+}
+.lp-oferta__tarjeta--pieza .lp-oferta__cinta { position: absolute; top: var(--e-3); left: 0; border-radius: 0 var(--radio-pill) var(--radio-pill) 0; }
+
+/* Las fotos de las piezas, juntas. */
+.lp-minis { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--e-2); }
+.lp-minis__pieza { flex: 1 1 0; min-width: 0; max-width: 110px; }
+.lp-minis--grande .lp-minis__pieza { max-width: 160px; }
+.lp-minis__pieza img, .lp-minis__vacia { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radio); background: var(--panel-hondo); }
+
+/* El precio de una oferta: el de siempre tachado, el de oferta del mismo tamaño en las dos monedas. */
+.lp-precio { margin: 0; display: grid; gap: 1px; }
+.lp-precio__antes { font-size: var(--t-14); color: var(--texto-secundario); }
+.lp-precio__ahora { font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; color: var(--texto-fuerte); }
+
+@media (min-width: 640px) {
+  .lp-ofertas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-ofertas--piezas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* --- La hoja de un código o de dos piezas ---------------------------------- */
+.lp-fondo {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--tinta) 58%, transparent);
+  animation: aparecer 160ms var(--salida);
+}
+.lp-hoja {
+  width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain;
+  display: grid; gap: var(--e-3); align-content: start;
+  padding: var(--e-2) var(--e-4) calc(var(--e-5) + env(safe-area-inset-bottom, 0px));
+  background: var(--papel); color: var(--texto);
+  border-radius: var(--radio-lg) var(--radio-lg) 0 0;
+  box-shadow: var(--sombra-3);
+  animation: hoja-sube 260ms var(--salida);
+}
+.lp-hoja--ancha { max-width: 520px; }
+.lp-hoja:focus { outline: none; }
+.lp-hoja__asa { justify-self: center; width: 40px; height: 4px; margin: var(--e-2) 0; border-radius: var(--radio-pill); background: var(--linea); }
+.lp-hoja__titulo { margin: 0; font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; line-height: 1.2; color: var(--texto-fuerte); text-wrap: balance; }
+.lp-hoja__texto, .lp-hoja__pie { margin: 0; font-size: var(--t-16); line-height: 1.5; }
+.lp-hoja__pie { font-size: var(--t-14); color: var(--texto-secundario); }
+.lp-hoja__acciones { display: grid; gap: var(--e-2); }
+.lp-hoja__acciones .boton { width: 100%; }
+@media (min-width: 640px) {
+  .lp-fondo { align-items: center; padding: var(--e-4); }
+  .lp-hoja { border-radius: var(--radio-lg); padding-bottom: var(--e-5); }
+}
+
+/* Las dos piezas de una hoja o de un escote. */
+.lp-dos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-3); }
+.lp-dos__una { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.lp-dos__foto { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radio); background: var(--panel-hondo); margin-bottom: var(--e-1); }
+.lp-dos__nombre { font-size: var(--t-14); font-weight: 500; line-height: 1.3; color: var(--texto-fuerte); overflow-wrap: anywhere; }
+.lp-dos__precio { font-size: var(--t-14); font-variant-numeric: tabular-nums; color: var(--texto); }
+
+/* Las líneas y el total de la ventana de un código. */
+.lp-lineas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.lp-lineas__fila { display: grid; gap: 2px; padding-bottom: var(--e-2); border-bottom: 1px solid var(--linea); }
+.lp-lineas__nombre { font-size: var(--t-16); font-weight: 500; color: var(--texto-fuerte); overflow-wrap: anywhere; }
+.lp-lineas__precios { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3); font-size: var(--t-14); font-variant-numeric: tabular-nums; }
+.lp-lineas__antes, .lp-total s { color: var(--texto-secundario); }
+.lp-total { display: grid; gap: 2px; font-size: var(--t-14); }
+.lp-total__cifras { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3); font-size: var(--t-16); font-variant-numeric: tabular-nums; }
+.lp-total__cifras strong { font-family: var(--fuente-display); font-size: var(--t-20); color: var(--texto-fuerte); }
+
+/* El código grande, para guardarlo con una captura. */
+.lp-codigo {
+  display: grid; gap: var(--e-1); justify-items: center; text-align: center;
+  padding: var(--e-4);
+  background: var(--panel); border: 1px solid var(--oro-arena); border-radius: var(--radio-md);
+}
+.lp-codigo__rotulo { font-size: var(--t-12); font-weight: 500; letter-spacing: var(--tracking); text-transform: uppercase; color: var(--texto-secundario); }
+.lp-codigo__valor { font-family: var(--fuente-display); font-size: var(--t-28); font-weight: 600; letter-spacing: 0.12em; line-height: 1.1; color: var(--oro-texto); overflow-wrap: anywhere; user-select: all; }
+.lp-codigo__nota { margin: 0; font-size: var(--t-16); line-height: 1.4; color: var(--texto); }
+.lp-codigo__vence { margin: 0; font-size: var(--t-14); color: var(--texto-secundario); }
+
+/* --- Abre tu estuche ------------------------------------------------------- */
+.lp-estuche { display: grid; justify-items: center; gap: var(--e-4); margin: 0 0 var(--e-6); text-align: center; }
+.lp-estuche > .lp-titulo { justify-self: stretch; }
+.lp-estuche__escena {
+  position: relative; width: min(100%, 280px); aspect-ratio: 240 / 150;
+  perspective: 700px;
+}
+.lp-estuche__escena svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.lp-estuche__fondo, .lp-estuche__tapa { position: absolute; inset: 0; }
+.lp-estuche__tapa {
+  transform-origin: 50% 20%;
+  transition: transform 1000ms var(--salida), opacity 1000ms var(--salida);
+}
+.lp-estuche__escena--abierto .lp-estuche__tapa { transform: rotateX(-105deg); opacity: 0.3; }
+.lp-estuche__cuerpo { fill: var(--panel); stroke: var(--oro-texto); stroke-width: 1.6; }
+.lp-estuche__filigrana { stroke: var(--oro-texto); stroke-width: 1.2; opacity: 0.85; }
+.lp-estuche__broche { fill: var(--oro-arena); stroke: var(--oro-texto); stroke-width: 1.2; }
+.lp-estuche__joya { stroke: var(--oro-texto); stroke-width: 2.2; fill: none; opacity: 0; transition: opacity 700ms var(--salida) 500ms; }
+.lp-estuche__gema { fill: var(--oro-arena); }
+.lp-estuche__escena--abierto .lp-estuche__joya { opacity: 1; }
+.lp-estuche__destello {
+  position: absolute; left: 50%; top: 50%; width: 55%; aspect-ratio: 1; margin: -27.5% 0 0 -27.5%;
+  border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, color-mix(in srgb, var(--oro-arena) 85%, transparent) 0%, transparent 68%);
+}
+.lp-estuche__escena--abierto .lp-estuche__destello { animation: lp-destello 1400ms ease-out 350ms both; }
+@keyframes lp-destello { 0% { opacity: 0; transform: scale(0.4); } 35% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
+.lp-estuche__hoy { margin: 0; display: grid; justify-items: center; gap: var(--e-3); font-size: var(--t-16); line-height: 1.5; }
+.lp-estuche__hoy p { margin: 0; }
+.lp-estuche__codigo { font-family: var(--fuente-display); letter-spacing: 0.08em; color: var(--oro-texto); }
+
+/* --- ¿Qué escote usas? ----------------------------------------------------- */
+.lp-escote__elegir { display: flex; flex-wrap: wrap; gap: var(--e-2); justify-content: center; margin-bottom: var(--e-4); }
+.lp-escote__opcion {
+  min-height: 48px; padding: 0 var(--e-4);
+  font-family: var(--fuente-ui); font-size: var(--t-16); font-weight: 500; color: var(--texto);
+  background: var(--superficie); border: 1px solid var(--salvia); border-radius: var(--radio-pill);
+  cursor: pointer; transition: background-color var(--rapido), border-color var(--rapido);
+}
+.lp-escote__opcion[aria-pressed="true"] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+.lp-escote__resultado { display: grid; gap: var(--e-4); align-items: center; }
+.lp-escote__dibujo { width: min(100%, 300px); justify-self: center; }
+.lp-escote__piezas { display: grid; gap: var(--e-3); }
+.lp-escote__consejo { margin: 0; font-size: var(--t-16); line-height: 1.5; color: var(--texto); }
+.lp-escote .silueta { display: block; width: 100%; height: auto; overflow: visible; }
+.lp-escote .silueta path { fill: none; stroke: var(--verde-profundo); stroke-width: 2.2; }
+.lp-escote .silueta .silueta__claviculas { stroke-width: 1.4; opacity: 0.55; }
+.lp-escote .silueta .silueta__joya { stroke: var(--oro-texto); stroke-width: 3; }
+.lp-escote .silueta__gema { fill: var(--oro-texto); }
+.lp-escote .silueta__boton { fill: var(--verde-profundo); opacity: 0.8; }
+@media (min-width: 640px) {
+  .lp-escote__resultado { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+}
+
+/* --- Tus códigos, en "Tu pedido" --------------------------------------------- */
+.lp-tuscodigos { margin: var(--e-4) 0; }
+.lp-tuscodigos__titulo { margin: 0 0 var(--e-2); font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; color: var(--texto-fuerte); }
+.lp-tuscodigos__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+.lp-tuscodigos__uno { display: grid; gap: var(--e-1); justify-items: start; padding: var(--e-3) var(--e-4); background: var(--superficie); border: 1px solid var(--oro-arena); border-radius: var(--radio-md); }
+.lp-tuscodigos__uno--no { border-color: var(--linea); background: var(--panel); }
+.lp-tuscodigos__cabeza { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3); }
+.lp-tuscodigos__codigo { font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; letter-spacing: 0.08em; color: var(--oro-texto); }
+.lp-tuscodigos__pct { font-size: var(--t-14); color: var(--texto-secundario); }
+.lp-tuscodigos__piezas { margin: 0; font-size: var(--t-14); line-height: 1.4; color: var(--texto); overflow-wrap: anywhere; }
+.lp-tuscodigos__estado { margin: 0; font-size: var(--t-14); font-weight: 500; color: var(--texto-fuerte); }
+.lp-tuscodigos__uno--no .lp-tuscodigos__estado { color: var(--alerta-texto); }
+
+/* --- Quieto, también en las ofertas ----------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .lp-fondo, .lp-hoja { animation: none; }
+  .lp-estuche__tapa, .lp-estuche__joya, .lp-escote__opcion { transition: none; }
+  .lp-estuche__escena--abierto .lp-estuche__destello { animation: none; opacity: 0; }
+}

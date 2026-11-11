@@ -267,7 +267,14 @@ export interface Cotizacion {
   descuento_pct: number;
   subtotal_usd: number;
   total_usd: number;
-  lineas: { modelo_id: number; cantidad: number; precio_usd: number; precio_lista_usd: number; motivo: string | null }[];
+  lineas: {
+    modelo_id: number; cantidad: number; precio_usd: number; precio_lista_usd: number; motivo: string | null;
+    /** Desde el #65: el código que cubre esta línea y lo que costaría sin él. */
+    oferta_codigo?: string | null;
+    precio_sin_oferta_usd?: number | null;
+  }[];
+  /** Desde el #65: lo que la base dice de cada código que se le mandó. */
+  codigos?: { codigo: string; aplica: boolean; motivo: string | null; pct?: number }[];
   /** Piezas que ya no se pueden cotizar (retiradas o sin precio): no suman. */
   sin_precio: number[];
 }

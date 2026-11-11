@@ -53,11 +53,13 @@ export interface PedidoTarjeta {
  * de 42 en el inicio. Una alerta que sale en todas no avisa de nada; el
  * texto ya dice lo que hay que saber.
  */
-export function TarjetaPieza<T extends PiezaVitrina>({ familia, alVer, pedido, proxima = false }: {
+export function TarjetaPieza<T extends PiezaVitrina>({ familia, alVer, pedido, proxima = false, oferta }: {
   familia: Familia<T>;
   alVer: () => void;
   pedido?: PedidoTarjeta;
   proxima?: boolean;
+  /** El texto de la cinta fina de oro ("Oferta"). Solo la pasa el catálogo de la tienda. */
+  oferta?: string;
 }) {
   const m = familia.cabeza;
   const unica = familia.variantes.length === 1;
@@ -82,6 +84,7 @@ export function TarjetaPieza<T extends PiezaVitrina>({ familia, alVer, pedido, p
         {foto
           ? <img className="tarjeta-modelo__foto" {...foto} alt="" loading="lazy" />
           : <span className="tarjeta-modelo__foto" />}
+        {oferta ? <span className="tarjeta-modelo__cinta">{oferta}</span> : null}
         <span className="tarjeta-modelo__cuerpo">
           <span className="tarjeta-modelo__nombre">{m.nombre}</span>
           {etiquetas ? <span className="tarjeta-modelo__variantes">{etiquetas}</span> : null}

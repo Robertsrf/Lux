@@ -60,6 +60,14 @@ interface PropsVisor {
   posicion?: { n: number; total: number } | null;
   accion?: AccionVisor;
   secundaria?: AccionSecundaria;
+  /**
+   * Para contar cuánto se mira cada pieza (las ofertas de "las dos que
+   * miraste"): `alAbrirPieza` al abrir el detalle de una pieza o pasar a
+   * otra medida, y `alCerrarPieza` al cerrarlo. Opcionales: el mostrador no
+   * las pasa.
+   */
+  alAbrirPieza?: (modeloId: number) => void;
+  alCerrarPieza?: () => void;
 }
 
 /** Cuanto hay que arrastrar el dedo para que cuente como pasar de pieza. */
@@ -85,12 +93,15 @@ const UMBRAL_PX = 48;
  * Se cierra con Escape, tocando el fondo o con el boton, y devuelve el foco
  * a donde estaba: en el mostrador, la pieza que se estaba mirando.
  */
-export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, accion, secundaria }: PropsVisor) {
+export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, accion, secundaria, alAbrirPieza, alCerrarPieza }: PropsVisor) {
   const caja = useRef<HTMLDivElement>(null);
   const previo = useRef<Element | null>(null);
   const inicio = useRef<{ x: number; y: number } | null>(null);
   const [direccion, setDireccion] = useState<'antes' | 'despues' | null>(null);
   const abierto = foto !== null;
+  // Los avisos de las miradas, por referencia: que cambien no reabre nada.
+  const avisoCerrar = useRef(alCerrarPieza);
+  avisoCerrar.current = alCerrarPieza;
 
   const irAntes = useCallback(() => {
     if (!alAnterior) return;
@@ -109,12 +120,14 @@ export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, a
   useEffect(() => {
     if (!abierto) { setDireccion(null); return; }
     previo.current = document.activeElement;
+    const alCerrarDetalle = () => avisoCerrar.current?.();
     caja.current?.focus();
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = overflow;
       (previo.current as HTMLElement | null)?.focus?.();
+      alCerrarDetalle();
     };
   }, [abierto]);
 
@@ -200,22 +213,31 @@ export function VisorFoto({ foto, alCerrar, alAnterior, alSiguiente, posicion, a
         posicion={posicion ?? null}
         {...(accion ? { accion } : {})}
         {...(secundaria ? { secundaria } : {})}
+        {...(alAbrirPieza ? { alAbrirPieza } : {})}
       />
     </div>
   );
 }
 
 function Contenido({
-  foto, direccion, posicion, accion, secundaria,
+  foto, direccion, posicion, accion, secundaria, alAbrirPieza,
 }: {
   foto: FotoAmpliada;
   direccion: 'antes' | 'despues' | null;
   posicion: { n: number; total: number } | null;
   accion?: AccionVisor;
   secundaria?: AccionSecundaria;
+  alAbrirPieza?: (modeloId: number) => void;
 }) {
   const [elegida, setElegida] = useState(() => Math.max(0, foto.variantes.findIndex((x) => x.id === foto.inicial)));
   const v = foto.variantes[elegida] ?? foto.variantes[0];
+  // Cada pieza que se mira, y cada medida a la que se pasa, cuenta como una apertura.
+  const idMirada = v?.id;
+  const avisoAbrir = useRef(alAbrirPieza);
+  avisoAbrir.current = alAbrirPieza;
+  useEffect(() => {
+    if (idMirada !== undefined) avisoAbrir.current?.(idMirada);
+  }, [idMirada]);
   const url = v ? urlPublicaFoto(v.path ?? v.thumbPath ?? null) : null;
   const varias = foto.variantes.length > 1;
   const cuadro = cuadroDe(foto.variantes.map((x) => x.etiqueta));

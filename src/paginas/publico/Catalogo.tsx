@@ -10,6 +10,9 @@ import type { ParArmado } from '../../lib/armados';
 import { ArmarDije } from '../../componentes/ArmarDije';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, nombreConVariante, nombreDeTipo, porCategoria } from '../../lib/familias';
+import { armarConjunto } from '../../lib/combinar';
+import { faltanParaTramo, vigente } from '../../lib/ofertas';
+import type { CodigoOferta, EstadoCodigo, OrigenOferta, PiezaOferta } from '../../lib/ofertas';
 import type { Familia } from '../../lib/familias';
 import { enlaceWhatsAppA } from '../../lib/enlaces';
 import { useTasa } from '../../hooks/useTasa';
@@ -25,6 +28,10 @@ import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalo
 import type { PropsCatalogo } from './landing/SeccionesCatalogo';
 import { useLanding } from '../../hooks/useLanding';
 import { useOfertas } from '../../hooks/useOfertas';
+import { useMiradas } from '../../hooks/useMiradas';
+import { HojaCompletalo, HojaPareja } from './landing/Completalo';
+import { TusCodigos } from './landing/TusCodigos';
+import { VentanaOferta } from './landing/VentanaOferta';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import { useTextos } from '../../hooks/useTextos';
@@ -102,6 +109,22 @@ export function Catalogo() {
   // La landing y las ofertas: si el SQL #65 no está o fallan, el inicio es el de siempre.
   const landing = useLanding();
   const ofertas = useOfertas();
+  // Las dos que más miró: el umbral viene de la base; sin él (o con las ofertas
+  // apagadas) no se ofrece nada, aunque lo mirado se siga contando.
+  const datosOfertas = ofertas.ofertas;
+  const ofertasVivas = datosOfertas?.encendidas === true;
+  const parejaPct = ofertasVivas ? datosOfertas?.pareja_pct ?? null : null;
+  const miradas = useMiradas(parejaPct !== null ? datosOfertas?.mirada_segundos ?? null : null);
+  // El código que se acaba de ganar, a la vista; y la pieza que combina con la última que agregó.
+  const [ventana, setVentana] = useState<CodigoOferta | null>(null);
+  const [completalo, setCompletalo] = useState<{ a: number; b: number } | null>(null);
+  const agregadasEnLaVisita = useRef(0);
+  // Los códigos vigentes viajan con el pedido; sin ninguno (o sin el #65) la
+  // llamada es la de siempre.
+  const codigosVigentes = useMemo(() => ofertas.codigos.filter((c) => vigente(c)).slice(0, 20), [ofertas.codigos]);
+  const claveCodigos = codigosVigentes.map((c) => c.codigo).join(',');
+  const enOferta = useMemo(() => new Set<number>(ofertasVivas ? datosOfertas?.en_oferta ?? [] : []), [ofertasVivas, datosOfertas]);
+  const cintaDe = (f: Familia<ModeloPublico>) => (f.variantes.some((v) => enOferta.has(v.id)) ? 'Oferta' : undefined);
 
   const [modelos, setModelos] = useState<ModeloPublico[]>([]);
   const [total, setTotal] = useState(0);
@@ -295,17 +318,20 @@ export function Catalogo() {
   useEffect(() => {
     if (seleccion.size === 0) { setCotizacion(null); return; }
     const items = [...seleccion.entries()].map(([modelo_id, cantidad]) => ({ modelo_id, cantidad }));
-    const clave = claveDe(items);
-    let vigente = true;
+    const clave = claveDe(items) + '#' + claveCodigos;
+    let vivo = true;
     const reloj = window.setTimeout(() => {
       void (async () => {
-        const { data, error: err } = await supabase.rpc('cotizar_pedido', { p_items: items });
-        if (!vigente) return;
+        const { data, error: err } = await supabase.rpc('cotizar_pedido', {
+          p_items: items,
+          ...(claveCodigos ? { p_codigos: claveCodigos.split(',') } : {}),
+        });
+        if (!vivo) return;
         setCotizacion(err || !data ? null : { ...(data as Cotizacion), clave });
       })();
     }, 250);
-    return () => { vigente = false; window.clearTimeout(reloj); };
-  }, [seleccion]);
+    return () => { vivo = false; window.clearTimeout(reloj); };
+  }, [seleccion, claveCodigos]);
 
   const resumen = useMemo(() => {
     let piezas = 0;
@@ -331,25 +357,48 @@ export function Catalogo() {
     const descuento = tramo.descuento;
     // El tramo que viene: "3 mas y baja 5 %", contado sin dijes. Desde una
     // pieza se puede pedir, y esto es lo que invita a llevar mas.
-    const siguiente = tramos
-      .filter((t) => t.activo && t.min_piezas > tramo.piezas)
-      .sort((x, y) => x.min_piezas - y.min_piezas)[0] ?? null;
-    const deLaBase = cotizacion !== null && cotizacion.clave === claveDe(items) ? cotizacion : null;
+    const siguiente = faltanParaTramo(
+      tramo.piezas,
+      tramos.filter((t) => t.activo).map((t) => ({ piezas_min: t.min_piezas, descuento_pct: t.descuento_pct })),
+    );
+    const deLaBase = cotizacion !== null && cotizacion.clave === claveDe(items) + '#' + claveCodigos ? cotizacion : null;
+    // Cuántas unidades de cada pieza cubre un código, según la base.
+    const ofertaDe = new Map<number, number>();
+    for (const l of deLaBase?.lineas ?? []) {
+      if (l.oferta_codigo) ofertaDe.set(l.modelo_id, (ofertaDe.get(l.modelo_id) ?? 0) + l.cantidad);
+    }
     return {
       piezas,
       subtotal: deLaBase ? Number(deLaBase.subtotal_usd) : subtotal,
       descuento: deLaBase ? (Number(deLaBase.descuento_pct) || null) : descuento,
       totalUsd: deLaBase ? Number(deLaBase.total_usd) : deMonto(sumar(conDescuento)),
-      /** El precio de cada pieza en este pedido, si ya respondió la base. */
-      precioDe: new Map((deLaBase?.lineas ?? []).map((l) => [l.modelo_id, Number(l.precio_usd)])),
+      /** El precio de cada pieza en este pedido, si ya respondió la base (la primera línea: la de oferta, si la hay). */
+      precioDe: (deLaBase?.lineas ?? []).reduce((mapa, l) => (mapa.has(l.modelo_id) ? mapa : mapa.set(l.modelo_id, Number(l.precio_usd))), new Map<number, number>()),
+      /** Cuántas unidades de cada pieza llevan un código. */
+      ofertaDe,
+      conOferta: ofertaDe.size > 0,
+      /** Lo que la base dijo de cada código que se le mandó. */
+      codigos: (deLaBase?.codigos as EstadoCodigo[] | undefined) ?? null,
       calculando: seleccion.size > 0 && !deLaBase,
-      siguiente: siguiente ? { faltan: siguiente.min_piezas - tramo.piezas, pct: siguiente.descuento_pct } : null,
+      siguiente,
     };
-  }, [seleccion, tramos, conocidos, cotizacion]);
+  }, [seleccion, tramos, conocidos, cotizacion, claveCodigos]);
 
   // Las parejas que caben en lo que lleva el pedido: si quita una cadena,
   // la pareja de esa cadena se cae sola (como en `guardar_armados`).
   const armados = useMemo(() => paresVigentes(pares, seleccion), [pares, seleccion]);
+
+  // La pareja que más miró deja de ofrecerse si una ya no se puede pedir o si ya va entera en el pedido.
+  const { pareja: parejaMirada, descartar: descartarPareja } = miradas;
+  useEffect(() => {
+    if (!parejaMirada) return;
+    const [a, b] = parejaMirada;
+    const ma = conocidos.get(a);
+    const mb = conocidos.get(b);
+    const sirve = ma && mb && ma.disponible > 0 && mb.disponible > 0 && ma.precio_usd !== null && mb.precio_usd !== null
+      && !(seleccion.has(a) && seleccion.has(b));
+    if (!sirve) descartarPareja();
+  }, [parejaMirada, descartarPareja, conocidos, seleccion]);
 
   // Un producto con variantes es UNA tarjeta, no dos: la cadena de 45 cm y
   // la de 60 cm son la misma pieza con dos opciones.
@@ -465,7 +514,16 @@ export function Catalogo() {
   }
 
   function agregarPorId(id: number) {
+    const eraNueva = !seleccion.has(id);
     cambiar(id, (seleccion.get(id) ?? 0) + 1);
+    // Complétalo: solo con las dos primeras piezas distintas de la visita, no cada vez.
+    if (eraNueva && agregadasEnLaVisita.current < 2) {
+      agregadasEnLaVisita.current += 1;
+      if (parejaPct !== null && !ventana) {
+        const otra = complementoDe(id, new Map(seleccion).set(id, 1));
+        if (otra) setCompletalo({ a: id, b: otra.id });
+      }
+    }
     // La primera vez se dice dónde quedó y cómo se sigue: quien pide por
     // primera vez no sabe que la barra de abajo es su pedido.
     if (!yaSeDijo.current) { yaSeDijo.current = true; setRecienAgregada(true); }
@@ -474,6 +532,57 @@ export function Catalogo() {
   function vaciar() {
     setSeleccion(new Map());
     setPares([]);
+  }
+
+  /**
+   * Las piezas de un código entran al pedido: la cantidad que pide el código
+   * o la que ya llevaba, la mayor, y nunca más de las que hay libres. Las que
+   * el catálogo no ha traído (la oferta puede ser de una pieza que la
+   * clienta no ha visto) se piden a la vista pública.
+   */
+  async function meterPiezas(piezas: PiezaOferta[]) {
+    const faltan = piezas.map((p) => p.modelo_id).filter((id) => !conocidos.has(id));
+    const nuevas = new Map<number, ModeloPublico>();
+    if (faltan.length > 0) {
+      const { data } = await supabase.from('v_disponible_publico').select(COLUMNAS).in('id', faltan);
+      const filas = (data as unknown as ModeloPublico[] | null) ?? [];
+      recordar(filas);
+      for (const f of filas) nuevas.set(f.id, f);
+    }
+    setSeleccion((previa) => {
+      const copia = new Map(previa);
+      for (const p of piezas) {
+        const max = (conocidos.get(p.modelo_id) ?? nuevas.get(p.modelo_id))?.disponible ?? 0;
+        const n = Math.min(max, Math.max(copia.get(p.modelo_id) ?? 0, p.cantidad));
+        if (n > 0) copia.set(p.modelo_id, n);
+      }
+      return copia;
+    });
+  }
+
+  /** Gana el código, lo enseña y mete sus piezas al pedido. Lanza con el mensaje de la base si no se puede. */
+  async function quererOferta(origen: OrigenOferta, modelos: number[], ref?: number) {
+    const codigo = await ofertas.ganar(origen, modelos, ref);
+    await meterPiezas(codigo.piezas);
+    setCompletalo(null);
+    miradas.descartar();
+    setVentana(codigo);
+  }
+
+  /**
+   * "Complétalo": con la pieza que acaba de agregar como ancla, la que
+   * `armarConjunto` encuentra de otra parte del cuerpo (mismo tono si el
+   * nombre lo dice), libre y que todavía no va en el pedido.
+   */
+  function complementoDe(id: number, pedido: Map<number, number>): ModeloPublico | null {
+    const ancla = conocidos.get(id);
+    if (!ancla || ancla.armado === 'dije') return null;
+    const enPedido = new Set([...pedido.keys()].map((k) => conocidos.get(k)?.familia));
+    const candidatas = [...conocidos.values()].filter((m) => m.familia !== ancla.familia
+      && !enPedido.has(m.familia) && m.disponible > 0 && m.precio_usd !== null && m.armado !== 'dije');
+    const conjunto = armarConjunto(agruparPorFamilia([ancla, ...candidatas]), 0, 2);
+    if (!conjunto.some((p) => p.familia === ancla.familia)) return null;
+    return conjunto.find((p) => p.familia !== ancla.familia) ?? null;
   }
 
   /** "Agrégale un dije", desde una cadena o pulsera para armar. */
@@ -549,9 +658,13 @@ export function Catalogo() {
       // Qué dije va en qué base, solo si armó alguna: así un pedido sin
       // dijes encaja también en la base de antes de esquema-dijes.sql.
       ...(armados.length > 0 ? { p_armados: armadosParaLaBase(armados) } : {}),
+      // Los códigos vigentes; la base usa los que valen y calla los demás.
+      ...(codigosVigentes.length > 0 ? { p_codigos: codigosVigentes.map((c) => c.codigo) } : {}),
     });
 
     if (err) { setError(mensajeDeError(err)); setReservando(false); return; }
+    // Los códigos que el pedido tomó ya no son de ella: que no vuelvan a salir en otro.
+    for (const e of resumen.codigos ?? []) if (e.aplica) ofertas.quitar(e.codigo);
     navegar(`/reserva/${data as string}`);
   }
 
@@ -643,6 +756,11 @@ export function Catalogo() {
                       {precio !== null ? `${formatearBs(precioEnBs(precio, tasa))} c/u · ` : ''}
                       {m ? `quedan ${m.disponible}` : ''}
                     </div>
+                    {resumen.ofertaDe.has(id) ? (
+                      <div className="campo__pista">
+                        {(resumen.ofertaDe.get(id) ?? 0) < cantidad ? `${resumen.ofertaDe.get(id)} con tu código` : 'Con tu código'}
+                      </div>
+                    ) : null}
                     {/* La cadena dice qué dijes lleva puestos, y deja ponerle uno. */}
                     {m?.armado === 'base' ? (
                       <>
@@ -669,12 +787,20 @@ export function Catalogo() {
             })}
           </div>
 
+          <TusCodigos
+            codigos={ofertas.codigos}
+            estados={resumen.codigos}
+            carrito={seleccion}
+            alQuitar={ofertas.quitar}
+          />
+
           <div className="total-cobro" aria-busy={resumen.calculando}>
             <div>
               <span className="util secundario">Tu total</span>
               <div className="campo__pista">
                 {resumen.piezas === 1 ? '1 pieza vale' : `${resumen.piezas} piezas valen`} {formatearBs(precioEnBs(resumen.subtotal, tasa))}
                 {resumen.descuento ? `, menos el descuento por cantidad` : ''}
+                {resumen.conOferta ? `${resumen.descuento ? ' y' : ', menos'} tus códigos` : ''}
               </div>
             </div>
             <div>
@@ -897,7 +1023,7 @@ export function Catalogo() {
     cuantasJoyas,
     traidas: modelos.length,
     totalEnBase: total,
-    tarjeta: (f) => <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />,
+    tarjeta: (f) => <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} {...(cintaDe(f) ? { oferta: cintaDe(f)! } : {})} />,
     irATodas,
     irATipo: setCategoria,
     pasos,
@@ -950,7 +1076,7 @@ export function Catalogo() {
               <>
                 <div className="rejilla-venta">
                   {familias.map((f) => (
-                    <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} />
+                    <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} {...(cintaDe(f) ? { oferta: cintaDe(f)! } : {})} />
                   ))}
                 </div>
 
@@ -976,6 +1102,7 @@ export function Catalogo() {
             secciones={landing.secciones}
             catalogo={catalogoProps}
             ofertas={ofertas}
+            acciones={{ tasa, querer: quererOferta, verCodigo: setVentana }}
             textos={textos}
             whatsapp={whatsappTienda}
             portadaDeHoy={portadaDeHoy}
@@ -992,6 +1119,8 @@ export function Catalogo() {
 
         <VisorFoto
           {...visor.props}
+          alAbrirPieza={miradas.abrir}
+          alCerrarPieza={miradas.cerrar}
           accion={{
             texto: 'Agregar al pedido',
             alTocar: agregarPorId,
@@ -1009,6 +1138,32 @@ export function Catalogo() {
         />
 
         {hojaArmar}
+
+        {ventana ? (
+          <VentanaOferta
+            codigo={ventana}
+            tasa={tasa}
+            alVerPedido={() => { setVentana(null); setPaso('pedido'); }}
+            alCerrar={() => setVentana(null)}
+          />
+        ) : completalo && parejaPct !== null && conocidos.get(completalo.a) && conocidos.get(completalo.b) ? (
+          <HojaCompletalo
+            a={conocidos.get(completalo.a)!}
+            b={conocidos.get(completalo.b)!}
+            pct={parejaPct}
+            alQuerer={() => quererOferta('complemento', [completalo.a, completalo.b])}
+            alCerrar={() => setCompletalo(null)}
+          />
+        ) : miradas.pareja && parejaPct !== null && !visor.foto && familiaAbierta === null && armandoBase === null
+          && conocidos.get(miradas.pareja[0]) && conocidos.get(miradas.pareja[1]) ? (
+          <HojaPareja
+            a={conocidos.get(miradas.pareja[0])!}
+            b={conocidos.get(miradas.pareja[1])!}
+            pct={parejaPct}
+            alQuerer={() => quererOferta('dos_vistas', [miradas.pareja![0], miradas.pareja![1]])}
+            alCerrar={miradas.descartar}
+          />
+        ) : null}
 
         {(() => {
           const abierta = familiaAbierta === null ? null : familias.find((x) => x.clave === familiaAbierta);
@@ -1056,8 +1211,10 @@ export function Catalogo() {
                 {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
                 {resumen.descuento ? (
                   <span className="barra-carrito__tramo"> · {formatearDescuento(resumen.descuento)} menos</span>
-                ) : resumen.siguiente ? (
-                  <span className="barra-carrito__falta"> · {resumen.siguiente.faltan} más y baja {formatearDescuento(resumen.siguiente.pct)}</span>
+                ) : null}
+                {resumen.conOferta ? <span className="barra-carrito__tramo"> · con tu oferta</span> : null}
+                {resumen.siguiente ? (
+                  <span className="barra-carrito__falta"> · Te faltan {resumen.siguiente.faltan} joya{resumen.siguiente.faltan === 1 ? '' : 's'} para {formatearDescuento(resumen.siguiente.pct)} en todo el pedido</span>
                 ) : null}
               </div>
               <div className="barra-carrito__total" aria-live="polite" aria-busy={resumen.calculando}>
