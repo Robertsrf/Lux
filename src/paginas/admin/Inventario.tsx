@@ -112,6 +112,11 @@ export function Inventario() {
     })();
   }, []);
 
+  // Los combos de la semana se rearman solos si tienen más de 7 días (una vez por visita, en silencio).
+  useEffect(() => {
+    void import('./landing/OfertasLanding').then((m) => m.rearmarSiHaceFalta()).catch(() => undefined);
+  }, []);
+
   const { grupos } = useGrupos();
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();

@@ -222,3 +222,52 @@ export function fotoDeLanding(
   }
   return { src, sizes };
 }
+
+/**
+ * Una foto o un video para la landing (panel Landing). La foto se comprime
+ * como siempre (WebP, lado mayor 1600 px, unos 300 KB); el video es un mp4 de
+ * hasta 20 MB y se sube tal cual. Van a `landing/` del bucket `fotos`.
+ *
+ * Devuelve la DIRECCION PUBLICA completa y no la ruta del bucket: una ruta
+ * `landing/x.webp` es justo la forma de las fotos de partida del sitio
+ * (`rutaDeLanding` la buscaria en la pagina y no en el bucket), y la base
+ * acepta la direccion del bucket tal cual (`landing_ruta_valida`).
+ */
+export const LIMITE_VIDEO_LANDING = 20 * 1024 * 1024;
+
+export async function subirArchivoLanding(archivo: File, tipo: 'foto' | 'video'): Promise<string> {
+  const marca = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  let cuerpo: File | Blob = archivo;
+  let ruta: string;
+  let contentType: string;
+
+  if (tipo === 'foto') {
+    if (!archivo.type.startsWith('image/')) {
+      throw new Error('Ese archivo no es una imagen. Sube una foto en JPG, PNG o WebP.');
+    }
+    const imageCompression = await compresor();
+    cuerpo = await imageCompression(archivo, {
+      fileType: 'image/webp', initialQuality: 0.8, ...TRABAJADOR,
+      maxWidthOrHeight: 1600, maxSizeMB: 0.3,
+    });
+    ruta = `landing/${marca}.webp`;
+    contentType = 'image/webp';
+  } else {
+    if (archivo.type !== 'video/mp4') {
+      throw new Error('El video tiene que ser un archivo mp4.');
+    }
+    if (archivo.size > LIMITE_VIDEO_LANDING) {
+      throw new Error(`El video pesa ${formatearPeso(archivo.size)} y el límite son ${formatearPeso(LIMITE_VIDEO_LANDING)}. Acórtalo o bájale la calidad.`);
+    }
+    ruta = `landing/${marca}.mp4`;
+    contentType = 'video/mp4';
+  }
+
+  const subida = await supabase.storage.from(BUCKET).upload(ruta, cuerpo, {
+    contentType, upsert: false, cacheControl: '31536000',
+  });
+  if (subida.error) throw subida.error;
+  const url = urlPublicaFoto(ruta);
+  if (!url) throw new Error('La foto se subió, pero no se pudo armar su dirección. Inténtalo otra vez.');
+  return url;
+}

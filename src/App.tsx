@@ -48,6 +48,7 @@ const LoteEnCamino = lazy(() => import('./paginas/admin/LoteEnCamino').then((m) 
 const Grupos = lazy(() => import('./paginas/admin/Grupos').then((m) => ({ default: m.Grupos })));
 const Tasas = lazy(() => import('./paginas/Tasas').then((m) => ({ default: m.Tasas })));
 const Tramos = lazy(() => import('./paginas/admin/Tramos').then((m) => ({ default: m.Tramos })));
+const Landing = lazy(() => import('./paginas/admin/Landing').then((m) => ({ default: m.Landing })));
 const Textos = lazy(() => import('./paginas/admin/Textos').then((m) => ({ default: m.Textos })));
 const Costos = lazy(() => import('./paginas/admin/Costos').then((m) => ({ default: m.Costos })));
 const Inversiones = lazy(() => import('./paginas/admin/Inversiones').then((m) => ({ default: m.Inversiones })));
@@ -158,6 +159,7 @@ export function App() {
             <Route path="/admin/lotes/:id" element={soloAdmin(<LoteEnCamino />)} />
             <Route path="/admin/grupos" element={soloAdmin(<Grupos />)} />
             <Route path="/admin/tramos" element={soloAdmin(<Tramos />)} />
+            <Route path="/admin/landing" element={soloAdmin(<Landing />)} />
             <Route path="/admin/textos" element={soloAdmin(<Textos />)} />
             <Route path="/admin/costos" element={soloAdmin(<Costos />)} />
             <Route path="/admin/inversiones" element={soloAdmin(<Inversiones />)} />

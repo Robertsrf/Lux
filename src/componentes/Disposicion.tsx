@@ -31,6 +31,7 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   { a: '/admin/costos',     texto: 'Costos',     icono: 'reportes' },
   { a: '/admin/inversiones', texto: 'Inversiones', icono: 'lotes' },
   { a: '/tasas',            texto: 'Tasas',      icono: 'tasas' },
+  { a: '/admin/landing',    texto: 'Landing',    icono: 'catalogo' },
   { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
   { a: '/catalogo',         texto: 'Catálogo',   icono: 'catalogo' },
   { a: '/vitrina',          texto: 'Vitrina',    icono: 'vitrina' },

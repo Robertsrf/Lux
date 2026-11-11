@@ -21,6 +21,8 @@ const ETIQUETAS: Record<string, string> = {
   horario_tienda: 'Horario de la tienda: sale en el catálogo (un renglón por línea)',
   mapa_tienda: 'Enlace de Google Maps de la tienda (en Maps, "Compartir" y copiar). Vacío, "Cómo llegar" busca la dirección',
   instagram_tienda: 'Instagram de la tienda: solo el usuario, sin @ (sale en el catálogo)',
+  tiktok_tienda: 'TikTok de la tienda: solo el usuario, sin @ (sale en la landing, en Síguenos)',
+  facebook_tienda: 'Facebook de la tienda: el nombre de la página o su enlace (sale en la landing, en Síguenos)',
   pago_movil_titular: 'Pago móvil: nombre del titular, como lo enseña el banco (la clienta lo compara antes de pagar)',
 };
 

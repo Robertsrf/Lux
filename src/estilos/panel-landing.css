@@ -1,0 +1,90 @@
+/* =====================================================================
+   Administración → Landing (src/paginas/admin/Landing.tsx)
+   Densidad del administrador. Usable en el teléfono: nada de ancho fijo.
+   ===================================================================== */
+
+.pl-pagina { max-width: 860px; }
+.pl-pestanas { margin-bottom: var(--e-5); }
+
+/* La lista de secciones */
+.pl-secciones { list-style: none; margin: var(--e-4) 0; padding: 0; display: grid; gap: var(--e-2); }
+.pl-seccion {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--e-2) var(--e-4); align-items: center;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--linea-suave); border-radius: var(--radio);
+  background: var(--superficie);
+}
+.pl-seccion--oculta { background: var(--panel); }
+.pl-seccion__datos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); min-width: 0; }
+.pl-seccion__titulo { color: var(--texto-secundario); overflow-wrap: anywhere; }
+.pl-seccion__sale { margin-top: 0; }
+.pl-seccion__acciones { grid-column: 1 / -1; }
+
+/* El formulario de una sección */
+.pl-formulario { border-color: var(--verde-profundo); }
+.pl-lista { display: grid; gap: var(--e-4); margin: var(--e-5) 0; }
+.pl-elemento {
+  display: grid; gap: var(--e-3);
+  padding: var(--e-4);
+  border: 1px solid var(--linea-suave); border-radius: var(--radio);
+  background: var(--panel);
+}
+.pl-elemento__cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--e-2); }
+.pl-boton { border: 1px solid var(--linea); border-radius: var(--radio); padding: var(--e-3) var(--e-4); margin: 0; min-width: 0; }
+.pl-boton legend { padding: 0 var(--e-2); font-size: var(--t-14); color: var(--texto-secundario); }
+
+/* La vista previa de una foto, con el velo que le pone la landing */
+.pl-foto { display: grid; gap: var(--e-2); justify-items: start; }
+.pl-vista { position: relative; width: 100%; max-width: 360px; border-radius: var(--radio); overflow: hidden; background: var(--panel-hondo); }
+.pl-vista img, .pl-vista video { display: block; width: 100%; height: auto; max-height: 260px; object-fit: cover; }
+.pl-vista__velo {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to top, rgb(20 41 44 / 0.62), rgb(20 41 44 / 0) 60%);
+}
+
+/* Ofertas */
+.pl-cifras { display: grid; gap: var(--e-5); margin-top: var(--e-5); }
+.pl-cifra { display: grid; gap: var(--e-2); justify-items: start; }
+.pl-cifra .campo { width: 100%; }
+.pl-cifra__vacia { margin: 0; color: var(--alerta-texto); font-size: var(--t-14); }
+
+.pl-ofertas { list-style: none; margin: var(--e-4) 0; padding: 0; display: grid; gap: var(--e-3); }
+.pl-oferta {
+  display: grid; gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--linea-suave); border-radius: var(--radio);
+}
+.pl-anular { display: grid; gap: var(--e-2); min-width: 0; }
+
+.pl-seleccion { list-style: none; margin: var(--e-3) 0; padding: 0; display: grid; gap: var(--e-2); }
+.pl-seleccion li {
+  display: grid; grid-template-columns: auto 1fr; gap: var(--e-2) var(--e-3); align-items: center;
+  padding: var(--e-2) 0; border-bottom: 1px solid var(--linea-suave);
+}
+.pl-seleccion li > .grupo-botones { grid-column: 1 / -1; }
+.pl-seleccion__datos { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+
+.pl-buscador { margin-top: var(--e-4); }
+.pl-hallazgos { list-style: none; margin: var(--e-2) 0; padding: 0; display: grid; gap: var(--e-2); }
+.pl-hallazgos li {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--e-2);
+  padding: var(--e-2) var(--e-3); border: 1px solid var(--linea-suave); border-radius: var(--radio-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Los códigos */
+.pl-codigos { list-style: none; margin: var(--e-3) 0 0; padding: 0; display: grid; gap: var(--e-3); }
+.pl-codigo { display: grid; gap: var(--e-2); padding: var(--e-3) 0; border-bottom: 1px solid var(--linea-suave); }
+.pl-codigo__datos { display: grid; gap: 2px; justify-items: start; min-width: 0; overflow-wrap: anywhere; }
+.pl-codigo__texto { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+
+@media (min-width: 640px) {
+  .pl-seccion { grid-template-columns: 1fr auto auto; }
+  .pl-seccion__acciones { grid-column: auto; }
+  .pl-oferta { grid-template-columns: 1fr auto; align-items: center; }
+  .pl-cifra { grid-template-columns: 1fr auto; align-items: end; }
+  .pl-cifra__vacia { grid-column: 1 / -1; }
+  .pl-seleccion li { grid-template-columns: auto 1fr auto; }
+  .pl-seleccion li > .grupo-botones { grid-column: auto; }
+  .pl-codigo { grid-template-columns: 1fr auto; align-items: start; }
+}
