@@ -523,6 +523,70 @@
       "description": "El catálogo de la tienda y la base del de cada revendedor (24/10/2026). Portada en un panel verde profundo de radio 22 px: label oro arena (5,38:1), titular Fraunces 28 px crema (8,92:1), los materiales en EB Garamond 16 px crema y \"Así pides\" en tres pasos con el número en un círculo de oro relleno. Después el buscador, \"Elige por tipo\" (cuadros con foto, tres por fila en el teléfono), un estante por tipo (Fraunces 20 px, cuatro tarjetas y \"Ver todas\"), \"Cómo pedir\" con cuatro pasos numerados en círculos verdes y las cifras de la base, Próximamente como estante y \"La tienda\" en verde (Cómo llegar, horario, WhatsApp en oro relleno, Instagram y \"Cómo pagar\" plegado). La tarjeta de vitrina no lleva el material ni la clave de bodega; cuántas quedan va en label secundario, sin alerta, también \"Última pieza\". Para todos (27/10/2026): en la portada, \"Ver todas las joyas\" en oro relleno y la ayuda por WhatsApp; \"Todas las joyas\" primero entre los tipos (un cuadro de cuatro fotos) y al final de los estantes; en la lista, \"Ver\" y \"Ordenar\" a la vista; tras la primera pieza, un aviso que dice cómo se sigue; y \"Letra grande\" en la cabecera, que sube la escala un paso.",
       "html": "<section class=\"ds-portada\"><p class=\"ds-portada-de\">Desde Sabana de Mendoza para toda Venezuela</p><h1 class=\"ds-portada-titulo\">Joyas para usar todos los días</h1><ol class=\"ds-pasos\"><li><span>1</span>Elige tus piezas</li><li><span>2</span>Apártalas con tu cédula</li><li><span>3</span>Paga por pago móvil</li></ol></section>",
       "css": ".ds-portada { width: 360px; padding: 24px; background: #1F4045; border-radius: 22px; color: #EDE5D3; display: grid; gap: 12px; } .ds-portada-de { margin: 0; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: #D0AE8A; } .ds-portada-titulo { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 600; line-height: 1.15; } .ds-pasos { list-style: none; margin: 0; padding: 16px 0 0; border-top: 1px solid rgba(208,174,138,.45); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; } .ds-pasos li { display: grid; gap: 8px; justify-items: start; } .ds-pasos span { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #D0AE8A; color: #1F4045; font-family: 'Fraunces', Georgia, serif; font-weight: 600; }"
+    },
+    {
+      "name": "Puertas de la landing",
+      "kind": "custom",
+      "refersTo": "navigation",
+      "description": "Barra pegada arriba (sticky, top 0, 48 px, fondo papel) con tres botones de píldora: Joyas, Ofertas y Lo que viene. Ofertas solo sale si hay una sección de oferta que se dibuje y las ofertas están encendidas; Lo que viene solo con próximas. Cada sección deja 72 px arriba al saltar a ella.",
+      "html": "<nav class=\"ds-puertas\"><button>Joyas</button><button>Ofertas</button><button>Lo que viene</button></nav>",
+      "css": ".ds-puertas { width: 360px; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; padding: 8px 0; background: #F4EFE4; } .ds-puertas button { min-height: 48px; border: 1px solid #1F4045; border-radius: 999px; background: #FFFFFF; color: #1F4045; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; font-weight: 500; }"
+    },
+    {
+      "name": "Portada de la landing",
+      "kind": "custom",
+      "refersTo": "page",
+      "description": "Slider de fotos 3:2 con scroll-snap que pasa cada 6 s y se detiene al tocar, al salir de la vista, en segundo plano o con movimiento reducido; puntos de 44 px y botón de pausa. El texto NUNCA va sobre la foto: en el teléfono, foto arriba y texto abajo sobre verde profundo liso; desde 900 px, dos columnas. Titular Fraunces crema (8,92:1), botón de oro arena con texto verde profundo (5,38:1) de 52 px. Un velo corto funde la foto con el verde y no lleva texto.",
+      "html": "<section class=\"ds-lp-portada\"><div class=\"ds-lp-foto\"></div><div class=\"ds-lp-texto\"><h1>Joyas que no se manchan</h1><p>Acero 316L, titanio y baño de oro de 18K PVD.</p><button>Ver las joyas</button></div></section>",
+      "css": ".ds-lp-portada { width: 360px; background: #1F4045; border-radius: 22px; overflow: hidden; } .ds-lp-foto { aspect-ratio: 3 / 2; background: #EDE5D3; } .ds-lp-texto { display: grid; gap: 12px; padding: 24px; color: #EDE5D3; } .ds-lp-texto h1 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 600; } .ds-lp-texto p { margin: 0; font-family: 'EB Garamond', Georgia, serif; font-size: 18px; } .ds-lp-texto button { min-height: 52px; border: 1px solid #D0AE8A; border-radius: 999px; background: #D0AE8A; color: #1F4045; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; font-weight: 500; }"
+    },
+    {
+      "name": "Cinta de la landing",
+      "kind": "custom",
+      "refersTo": "custom",
+      "description": "Banda de verde profundo con borde fino de oro arriba y abajo y frases en Jost 14 px oro arena (5,38:1) que corren de derecha a izquierda en 45 s, con un rombo fino de oro entre frase y frase. Se detiene al pasar el cursor; quieta con movimiento reducido. Sin ofertas, no sale.",
+      "html": "<div class=\"ds-cinta\"><span>Dos piezas, 5 %</span><span>Combos de la semana</span></div>",
+      "css": ".ds-cinta { width: 360px; display: flex; justify-content: space-around; overflow: hidden; background: #1F4045; border-block: 1px solid #D0AE8A; border-radius: 8px; } .ds-cinta span { padding: 12px 24px; font-family: 'Jost', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #D0AE8A; white-space: nowrap; }"
+    },
+    {
+      "name": "Estuche (abre tu estuche)",
+      "kind": "custom",
+      "refersTo": "custom",
+      "description": "Estuche dibujado en línea (SVG, 280 px como máximo, 240 × 150): cuerpo en panel con borde de oro-texto, filigrana y broche de oro arena. Al tocarlo la tapa gira (rotateX, 1 s), la joya aparece a línea y un destello de oro arena crece y se apaga. Debajo, el código de hoy en Fraunces con 0,08 em entre letras, oro-texto. Una vez al día por visitante; solo transform y opacity.",
+      "html": "<div class=\"ds-estuche\"><svg viewBox=\"0 0 240 150\" width=\"240\"><rect x=\"10\" y=\"40\" width=\"220\" height=\"100\" rx=\"10\" fill=\"#FAF6EE\" stroke=\"#835D35\" stroke-width=\"1.6\"/><circle cx=\"120\" cy=\"40\" r=\"7\" fill=\"#D0AE8A\" stroke=\"#835D35\"/></svg><p class=\"ds-estuche-codigo\">LUX-7K3M9P</p></div>",
+      "css": ".ds-estuche { width: 280px; display: grid; justify-items: center; gap: 12px; } .ds-estuche-codigo { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; letter-spacing: 0.08em; color: #835D35; }"
+    },
+    {
+      "name": "Cinta Oferta",
+      "kind": "custom",
+      "refersTo": "chip",
+      "description": "Píldora de oro arena con texto verde profundo (5,38:1), Jost 12 px en mayúsculas, pegada al borde izquierdo de la foto de una tarjeta (radio solo a la derecha), a 12 px de arriba. Dice el porcentaje; el precio de oferta va debajo, del mismo tamaño en bolívares y en $ BCV, con el de siempre tachado.",
+      "html": "<div class=\"ds-oferta\"><span>Oferta 5 %</span></div>",
+      "css": ".ds-oferta { position: relative; width: 160px; height: 120px; background: #EDE5D3; border-radius: 16px; } .ds-oferta span { position: absolute; top: 12px; left: 0; padding: 3px 12px 3px 8px; background: #D0AE8A; color: #1F4045; border-radius: 0 999px 999px 0; font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Ventana de un código",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Hoja centrada sobre un fondo de verde profundo velado: las fotos de las piezas juntas, cada línea con su precio tachado y el de oferta, el total y el código grande en una caja de panel con borde de oro arena (rótulo en label secundario, LUX-XXXXXX en Fraunces 28 px con 0,12 em entre letras), \"Guárdalo con una captura: sirve también en la tienda\" y \"Vence el…\" en hora de Caracas. Atrapa el foco, cierra con Escape, devuelve el foco y bloquea el scroll de abajo. Dos botones: Ver mi pedido y Seguir viendo.",
+      "html": "<div class=\"ds-codigo\"><span class=\"ds-codigo-rotulo\">Tu código</span><span class=\"ds-codigo-valor\">LUX-7K3M9P</span><span class=\"ds-codigo-vence\">Vence el 14/11/2026</span></div>",
+      "css": ".ds-codigo { width: 320px; display: grid; gap: 4px; justify-items: center; padding: 16px; background: #FAF6EE; border: 1px solid #D0AE8A; border-radius: 12px; } .ds-codigo-rotulo { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #506664; } .ds-codigo-valor { font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 600; letter-spacing: 0.12em; color: #14292C; } .ds-codigo-vence { font-family: 'Jost', system-ui, sans-serif; font-size: 14px; color: #506664; }"
+    },
+    {
+      "name": "Panel Landing (administración)",
+      "kind": "custom",
+      "refersTo": "page",
+      "description": "/admin/landing con la densidad del administrador (40 px, texto 15 px), usable en el teléfono: una columna bajo 640 px. Tres pestañas: Secciones (una fila por sección con el interruptor Sale, Subir, Bajar, Editar y Borrar con confirmación; la escondida va sobre fondo panel), Ofertas (interruptor general, las cifras, ofertas de la casa, Selección y combos) y Resultados (el mes, los códigos con Anular y lo más mirado). Cada foto lleva vista previa y texto alternativo.",
+      "html": "<ul class=\"ds-pl\"><li><span>Portada</span><span>Sale</span></li><li class=\"ds-pl-oculta\"><span>Video</span><span>Escondida</span></li></ul>",
+      "css": ".ds-pl { width: 360px; margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; } .ds-pl li { display: flex; justify-content: space-between; padding: 12px 16px; background: #FFFFFF; border: 1px solid #EDE7DA; border-radius: 8px; font-family: 'Jost', system-ui, sans-serif; font-size: 15px; color: #1F4045; } .ds-pl .ds-pl-oculta { background: #FAF6EE; }"
+    },
+    {
+      "name": "Código (mostrador)",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "/venta/codigo, de las dos caras, con la densidad táctil: campo de 56 px y texto de 18 px en Fraunces 600 con 0,08 em entre letras y mayúsculas, botón de 56 px, y el resultado dicho en palabras (Sirve, Ya se usó, Venció, La tienda lo anuló, Una pieza ya no está, No existe). Cuando sirve: cada pieza con foto de 72 px, dónde hay libres y el precio de oferta en bolívares y en $ BCV del mismo tamaño, y Pasar al cobro. Nunca la palabra piso, margen ni costo.",
+      "html": "<div class=\"ds-cod\"><input value=\"LUX-7K3M9P\" /><button>Revisar</button></div>",
+      "css": ".ds-cod { width: 340px; display: grid; gap: 12px; } .ds-cod input { min-height: 56px; padding: 0 16px; border: 1px solid #E0D8C7; border-radius: 12px; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; color: #14292C; } .ds-cod button { min-height: 56px; border: 0; border-radius: 999px; background: #1F4045; color: #EDE5D3; font-family: 'Jost', system-ui, sans-serif; font-size: 18px; font-weight: 500; }"
     }
   ],
   "narrative": {
@@ -585,6 +649,11 @@
         "name": "La regla de la paleta del revendedor",
         "body": "La única excepción a \"ningún otro color\": el catálogo y el panel de un revendedor pueden llevar una de seis paletas (lux, noche, vino, grafito, ciruela, oliva), cada una con los mismos papeles que la de Lux y cada par de texto medido a 4,5:1. No hay selector de color libre, y debajo de su nombre siempre dice \"Joyas Lux by Emory\".",
         "section": "colors"
+      },
+      {
+        "name": "La regla de la portada sin texto encima",
+        "body": "En la landing, el texto de la portada va sobre verde profundo liso, debajo de la foto en el teléfono y a su lado desde 900 px; nunca encima. El dueño sube las fotos, y el contraste (8,92:1 crema, 5,38:1 oro) no puede depender de la que elija. Y todo lo que se mueve usa solo transform y opacity, y se queda quieto con prefers-reduced-motion.",
+        "section": "components"
       }
     ],
     "dos": [
@@ -599,7 +668,8 @@
       "Do poner la navegación y las acciones principales abajo en el teléfono.",
       "Do envolver un juego pequeño de pestañas o filtros; si no cabe en dos líneas, deslizarlo con la barra visible.",
       "Do escribir el error junto a su campo, diciendo qué pasó y cómo se arregla.",
-      "Do quitarle un elemento a cada pantalla antes de darla por terminada."
+      "Do quitarle un elemento a cada pantalla antes de darla por terminada.",
+      "Do poner el texto de la portada de la landing sobre verde profundo liso, nunca encima de la foto."
     ],
     "donts": [
       "Don't usar oro como texto sobre crema o blanco.",
@@ -610,7 +680,8 @@
       "Don't aplicar EB Garamond a etiquetas, botones o datos, ni Fraunces a párrafos.",
       "Don't usar filas alternas en tablas: compiten con el hover.",
       "Don't poner nada crítico en la esquina superior izquierda del teléfono.",
-      "Don't poner el logo de SGS ni reproducir certificados del proveedor en piezas de la marca."
+      "Don't poner el logo de SGS ni reproducir certificados del proveedor en piezas de la marca.",
+      "Don't mover nada en la landing con otra propiedad que transform y opacity, ni dejarla moverse con prefers-reduced-motion."
     ]
   }
 }

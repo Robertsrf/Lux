@@ -98,6 +98,18 @@ const VISTAS_DE_COSTO = [
   'v_rebajas',
 ];
 
+/**
+ * Por dentro de las ofertas (esquema-landing-y-ofertas.sql): el piso, el
+ * estado de un codigo, el codigo nuevo y la seleccion. Cerradas a todos.
+ */
+const FUNCIONES_DE_OFERTAS = [
+  ['oferta_de_lineas', { p_items: [], p_codigos: [] }],
+  ['aguanta_oferta', { p_modelo: -1, p_pct: 5 }],
+  ['codigo_oferta_nuevo', {}],
+  ['seleccion_de_hoy', {}],
+  ['estado_codigo', { p_id: -1 }],
+];
+
 /** Funciones que revelan costo. Tienen que rechazarla. */
 const FUNCIONES_CERRADAS = [
   ['costo_operativo_por_pieza', {}],
@@ -108,6 +120,7 @@ const FUNCIONES_CERRADAS = [
   // por partida y el plan de ventas. Revocadas a todos.
   ['gastos_fijos_partidas', {}],
   ['plan_ventas', {}],
+  ...FUNCIONES_DE_OFERTAS,
 ];
 
 async function main() {
@@ -608,9 +621,9 @@ async function main() {
   const cot = await P.rpc('cotizar_pedido', { p_items: unaP.data?.length ? [{ modelo_id: unaP.data[0].id, cantidad: 1 }] : [] });
   const clavesCot = Object.keys(cot.data ?? {}).sort().join(',');
   const clavesLinea = Object.keys(cot.data?.lineas?.[0] ?? {}).sort().join(',');
-  dice(!cot.error && clavesCot === 'descuento_pct,lineas,piezas,sin_precio,subtotal_usd,total_usd',
+  dice(!cot.error && clavesCot === 'codigos,descuento_pct,lineas,piezas,sin_precio,subtotal_usd,total_usd',
     'cotizar_pedido() abre sin sesion, sus claves', cot.error ? 'ERROR ' + cot.error.code : clavesCot);
-  dice(!cot.error && (clavesLinea === '' || clavesLinea === 'cantidad,modelo_id,motivo,precio_lista_usd,precio_usd'),
+  dice(!cot.error && (clavesLinea === '' || clavesLinea === 'cantidad,modelo_id,motivo,oferta_codigo,precio_lista_usd,precio_sin_oferta_usd,precio_usd'),
     'cotizar_pedido(): cada linea sin costo', clavesLinea || 'sin lineas');
 
   /*
@@ -837,6 +850,136 @@ async function main() {
     const estado = await estadoFn(S);
     dice(estado === esperado, `funcion vendedoras: ${quien} (${esperado})`,
       estado === 404 ? 'NO ESTA PUBLICADA: ver INSTALACION.md' : 'responde ' + estado);
+  }
+
+  /*
+    LA LANDING Y LAS OFERTAS (esquema-landing-y-ofertas.sql, #65, y
+    esquema-ofertas-en-pantallas.sql, #66).
+
+    La landing es de todos y no lleva una cifra. Las ofertas y sus códigos
+    las ve la tienda y las maneja el dueño: las tablas no las lee nadie en
+    crudo, las vistas del dueño salen vacías para ella, y lo que se le da a
+    quien no tiene sesión (`ofertas_publicas`, `emitir_oferta`, `cotizar_pedido`)
+    no trae ni una clave de costo, piso o margen, ni dice qué códigos existen.
+    Todo con id -1 o con datos que no escriben nada: la base rechaza antes.
+  */
+  console.log('\nLA LANDING Y LAS OFERTAS');
+  const TABLAS_OFERTAS = [
+    'landing_secciones', 'catalogo_miradas', 'ofertas_casa', 'oferta_casa_items',
+    'seleccion_manual', 'combos_rearmados', 'combos_semana', 'combo_semana_items',
+    'ofertas_codigos', 'ofertas_codigo_items',
+  ];
+  for (const tabla of TABLAS_OFERTAS) {
+    for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+      const { error } = await S.from(tabla).select('*').limit(1);
+      dice(error?.code === '42501', `${tabla}: ${quien} no la lee en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+    }
+  }
+  const claveDeCosto = /costo|piso|margen|operativo/i;
+  /** Las claves de un jsonb, en cualquier nivel. */
+  const clavesDe = (x) => (x && typeof x === 'object')
+    ? Object.entries(x).flatMap(([k, v]) => [k, ...clavesDe(v)])
+    : [];
+
+  const landP = await P.from('v_landing').select('*');
+  const clavesLanding = [...new Set((landP.data ?? []).flatMap((s) => [...Object.keys(s), ...clavesDe(s.datos)]))];
+  dice(!landP.error && (landP.data?.length ?? 0) > 0, 'v_landing abre sin sesion', landP.error ? 'ERROR ' + landP.error.code : (landP.data?.length ?? 0) + ' secciones');
+  dice(clavesLanding.every((c) => !/costo|piso|margen|operativo|precio|usd|bs/i.test(c)),
+    'v_landing: ninguna columna de dinero', clavesLanding.join(',') || 'sin filas');
+  const landEsc = await P.from('v_landing').update({ titulo: 'x' }).eq('id', -1);
+  dice(landEsc.error?.code === '42501', 'v_landing: sin sesion no la reescribe', landEsc.error ? 'rechazada ' + landEsc.error.code : 'LA DEJO ESCRIBIR');
+
+  const ofP = await P.rpc('ofertas_publicas');
+  const clavesOf = [...new Set(clavesDe(ofP.data))].filter((c) => claveDeCosto.test(c));
+  dice(!ofP.error && clavesOf.length === 0, 'ofertas_publicas() sin costo, piso ni margen',
+    ofP.error ? 'ERROR ' + ofP.error.code : clavesOf.length ? 'TRAE ' + clavesOf.join(', ') : 'limpio, en todos los niveles');
+  dice(!ofP.error && typeof ofP.data?.encendidas === 'boolean', 'ofertas_publicas() dice si estan encendidas',
+    ofP.error ? 'ERROR ' + ofP.error.code : String(ofP.data?.encendidas));
+  // Sin piezas no se emite nada: el error es de negocio, no de permiso. Una
+  // emision buena escribiria un codigo, y esta comprobacion no escribe.
+  const emiP = await P.rpc('emitir_oferta', { p_origen: 'dos_vistas', p_modelos: [], p_ref: null, p_visitante: crypto.randomUUID() });
+  dice(!!emiP.error && emiP.error.code !== '42501' && !emiP.data, 'emitir_oferta() abre sin sesion y pide las piezas',
+    emiP.error ? emiP.error.message : 'EMITIO CON CERO PIEZAS');
+
+  // El total del carrito con un codigo que no existe: dice solo "no vale".
+  const piezaP = await P.from('v_disponible_publico').select('id').limit(1);
+  if (piezaP.data?.length) {
+    const cotC = await P.rpc('cotizar_pedido', { p_items: [{ modelo_id: piezaP.data[0].id, cantidad: 1 }], p_codigos: ['LUX-222222'] });
+    const c0 = cotC.data?.codigos?.[0];
+    dice(!cotC.error && c0?.motivo === 'no_vale', 'cotizar_pedido(): un codigo inventado "no vale"',
+      cotC.error ? 'ERROR ' + cotC.error.code : JSON.stringify(c0 ?? null));
+    dice(!cotC.error && !!c0 && (c0.pct ?? null) === null, 'cotizar_pedido(): sin porcentaje para un codigo que no vale',
+      cotC.error ? 'ERROR ' + cotC.error.code : 'pct ' + String(c0?.pct ?? null));
+  } else {
+    dice(false, 'cotizar_pedido() con codigo: hace falta una pieza libre', 'v_disponible_publico vacia');
+    dice(false, 'cotizar_pedido(): sin porcentaje para un codigo que no vale', 'sin pieza');
+  }
+
+  // La tienda revisa un codigo; quien no tiene sesion no.
+  const verP = await P.rpc('ver_oferta', { p_codigo: 'LUX-222222' });
+  dice(verP.error?.code === '42501', 'ver_oferta() sin sesion, rechazada', verP.error ? 'rechazada ' + verP.error.code : 'RESPONDIO');
+  const verV = await V.rpc('ver_oferta', { p_codigo: 'LUX-222222' });
+  dice(!verV.error && verV.data?.estado === 'no_existe', 'ver_oferta(): ella revisa un codigo', verV.error ? 'ERROR ' + verV.error.code : String(verV.data?.estado));
+
+  // Las admin_* nuevas: ella recibe "solo un administrador", sin sesion 42501.
+  const ADMIN_OFERTAS = [
+    ['admin_guardar_seccion', { p_id: -1, p_tipo: 'portada', p_titulo: null, p_texto: null, p_datos: {}, p_visible: null }],
+    ['admin_ordenar_secciones', { p_ids: [] }],
+    ['admin_borrar_seccion', { p_id: -1 }],
+    ['admin_guardar_oferta_casa', { p_id: -1, p_nombre: 'x', p_texto: null, p_foto: null, p_pct: 5, p_desde: null, p_hasta: null, p_modelos: [], p_activa: false }],
+    ['admin_seleccion', { p_modelo_id: -1, p_accion: 'auto' }],
+    ['admin_rearmar_combos', { p_combos: [] }],
+    ['admin_anular_codigo', { p_codigo: 'LUX-222222', p_motivo: 'prueba' }],
+    ['admin_anular_codigos_de', { p_origen: 'combo', p_ref: -1, p_motivo: 'prueba' }],
+    ['admin_cifras_ofertas', {}],
+    ['admin_guardar_cifra_oferta', { p_clave: 'seleccion_pct', p_valor: 5 }],
+  ];
+  for (const [fn, args] of ADMIN_OFERTAS) {
+    const v = await V.rpc(fn, args);
+    dice(!!v.error && /administrador/i.test(v.error.message), `${fn}(): ella no`, v.error ? 'rechazada' : 'RESPONDIO');
+    const p = await P.rpc(fn, args);
+    dice(p.error?.code === '42501', `${fn}() sin sesion, rechazada`, p.error ? 'rechazada ' + p.error.code : 'RESPONDIO');
+  }
+  const cifrasA = await A.rpc('admin_cifras_ofertas');
+  dice(!cifrasA.error && !!cifrasA.data, 'admin_cifras_ofertas(): el dueno las lee', cifrasA.error ? cifrasA.error.message : 'responde');
+
+  // Las vistas del dueño: vacias para ella, cerradas sin sesion.
+  const VISTAS_OFERTAS = [
+    'v_ofertas', 'v_ofertas_mes', 'v_miradas', 'v_landing_admin', 'v_seleccion_admin',
+    'v_ofertas_casa_admin', 'v_combos_admin',
+  ];
+  for (const vista of VISTAS_OFERTAS) {
+    const v = await V.from(vista).select('*').limit(1);
+    dice(!v.error && (v.data?.length ?? 0) === 0, `${vista}: ella la ve vacia`, v.error ? 'ERROR ' + v.error.code : (v.data?.length ?? 0) + ' filas');
+    const p = await P.from(vista).select('*').limit(1);
+    dice(p.error?.code === '42501', `${vista}: sin sesion, cerrada`, p.error ? 'rechazada ' + p.error.code : 'LA DEJO LEER');
+    const a = await A.from(vista).select('*').limit(1);
+    dice(!a.error, `${vista}: el dueno la lee`, a.error ? 'ERROR ' + a.error.code : 'responde');
+  }
+
+  // Las funciones de adentro de las ofertas no las llama nadie a mano (a
+  // ella ya la rechaza FUNCIONES_CERRADAS).
+  for (const [fn, args] of FUNCIONES_DE_OFERTAS) {
+    for (const [quien, S] of [['sin sesion', P], ['el administrador', A]]) {
+      const { error } = await S.rpc(fn, args);
+      dice(error?.code === '42501', `${fn}(): ${quien}, cerrada`, error ? 'rechazada ' + (error.code ?? '') : 'RESPONDIO');
+    }
+  }
+
+  // El codigo, en las lineas de Pedidos, de las ventas por verificar y de
+  // la ficha de la clienta (#66): las columnas estan y ninguna es de costo.
+  const CON_CODIGO = [
+    ['v_pedido_vendedora', 'oferta_codigo, oferta_pct, precio_sin_oferta_usd'],
+    ['v_ventas_por_verificar', 'oferta_codigo, oferta_pct, precio_sin_oferta_bs'],
+    ['v_cliente_compras', 'oferta_codigo, oferta_pct, precio_sin_oferta_bs'],
+  ];
+  for (const [vista, cols] of CON_CODIGO) {
+    const r = await V.from(vista).select(cols).limit(1);
+    dice(!r.error, `${vista}: trae el codigo de cada linea`, r.error ? 'ERROR ' + r.error.code : 'responde');
+    const t = await V.from(vista).select('*').limit(50);
+    const deCosto = [...new Set((t.data ?? []).flatMap((f) => Object.keys(f)).filter((c) => claveDeCosto.test(c)))];
+    dice(!t.error && deCosto.length === 0, `${vista}: sin costo, piso ni margen`,
+      t.error ? 'ERROR ' + t.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : 'limpio');
   }
 
   // Con el código de un revendedor de prueba (LUX_REVENDEDOR en el entorno),

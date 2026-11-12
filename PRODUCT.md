@@ -58,6 +58,8 @@ dice "Agrégale un dije". El dije también se vende solo, para una cadena que ya
 la clienta; así cuenta en lo vendido, pero no para el descuento por cantidad ni para
 la meta de la vendedora, que se miden en joyas.
 
+Y desde el 09/11/2026, **la landing y las ofertas**: el inicio del catálogo en línea ya no es una lista de piezas sino una vitrina que se recorre bajando, con fotos, quiénes somos, qué buscamos, los materiales, las redes y el método de compra, para que quien llega sin conocer la tienda no se pierda. El dueño la arma desde el panel Landing: pone, esconde y ordena las secciones y cambia sus textos y fotos, sin tocar código. Con ella llegan las ofertas "por todos lados", en la voz de la casa: dos piezas que miraste un rato, combos de la semana que varían, una selección de piezas que llevan tiempo sin salir, ofertas que él mismo crea y un estuche que se abre una vez al día. Todas funcionan igual: un código de un solo uso (LUX-XXXXXX) que la clienta guarda con una captura y que sirve en el catálogo y también en la tienda, donde la vendedora lo revisa en la pantalla Código. Nunca baja una pieza del precio mínimo que deja ganancia, no se suma al descuento por cantidad y vence a los pocos días. Las cifras (porcentajes, días, el tope del regalo) las fija el dueño en el panel; si deja una vacía, esa oferta no sale. Lo que no hace: no manda fotos con texto encima, no promete un precio que la base no haya dado y no guarda quién mira qué.
+
 **Todo el sistema funciona desde el teléfono, la administración incluida.** Antes
 esta línea decía que la administración era de escritorio, y el código la creía: el
 inventario en un teléfono era una tabla de trece columnas de la que solo se veían

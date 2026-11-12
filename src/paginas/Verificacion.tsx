@@ -529,6 +529,86 @@ export function Verificacion() {
       bien: Boolean(corregir.error && /no existe/i.test(corregir.error.message)),
     });
 
+    // La landing y las ofertas (#65 y #66). Todo con datos que no escriben
+    // nada; lo que exige otra sesion (anon, o el dueno contra la vendedora)
+    // lo hace `npm run verificar`.
+    const aviso = (nombre: string, esperado: string, obtenido: string, bien: boolean) =>
+      resultados.push({ nombre, esperado, obtenido, bien });
+    const claveDeCosto = /costo|piso|margen|operativo/i;
+    const clavesDe = (x: unknown): string[] =>
+      x && typeof x === 'object'
+        ? Object.entries(x as Record<string, unknown>).flatMap(([k, v]) => [k, ...clavesDe(v)])
+        : [];
+
+    for (const tabla of [
+      'landing_secciones', 'catalogo_miradas', 'ofertas_casa', 'oferta_casa_items',
+      'seleccion_manual', 'combos_rearmados', 'combos_semana', 'combo_semana_items',
+      'ofertas_codigos', 'ofertas_codigo_items',
+    ]) {
+      const r = await supabase.from(tabla).select('*').limit(1);
+      aviso(`Tabla ${tabla}, en crudo`, 'Rechazada para todos: se lee por sus vistas',
+        r.error ? `Rechazada: ${r.error.message}` : 'DEVOLVIO DATOS', r.error?.code === '42501');
+    }
+
+    const landing = await supabase.from('v_landing').select('*');
+    const clavesLanding = [...new Set((landing.data ?? []).flatMap((s: Record<string, unknown>) => [...Object.keys(s), ...clavesDe(s.datos)]))];
+    aviso('Vista v_landing', 'Responde y no trae una sola columna de dinero',
+      landing.error ? `Fallo: ${landing.error.message}` : `${landing.data?.length ?? 0} secciones`,
+      !landing.error && clavesLanding.every((c) => !/costo|piso|margen|operativo|precio|usd|bs/i.test(c)));
+
+    const ofertas = await supabase.rpc('ofertas_publicas');
+    const deCostoOf = [...new Set(clavesDe(ofertas.data))].filter((c) => claveDeCosto.test(c));
+    aviso('Funcion ofertas_publicas', 'Responde sin costo, piso ni margen, en ningun nivel',
+      ofertas.error ? `Fallo: ${ofertas.error.message}` : deCostoOf.length ? `Trae ${deCostoOf.join(', ')}` : 'Limpia',
+      !ofertas.error && deCostoOf.length === 0);
+
+    const unaPieza = await supabase.from('v_disponible_publico').select('id').limit(1);
+    if (unaPieza.data?.length) {
+      const cot = await supabase.rpc('cotizar_pedido', {
+        p_items: [{ modelo_id: (unaPieza.data[0] as { id: number }).id, cantidad: 1 }], p_codigos: ['LUX-222222'],
+      });
+      const c0 = (cot.data as { codigos?: { motivo?: string; pct?: number | null }[] } | null)?.codigos?.[0];
+      aviso('Un codigo inventado en el total del carrito', 'Dice "no vale" y no da porcentaje',
+        cot.error ? `Fallo: ${cot.error.message}` : JSON.stringify(c0 ?? null),
+        !cot.error && c0?.motivo === 'no_vale' && (c0.pct ?? null) === null);
+    }
+
+    for (const vista of [
+      'v_ofertas', 'v_ofertas_mes', 'v_miradas', 'v_landing_admin', 'v_seleccion_admin',
+      'v_ofertas_casa_admin', 'v_combos_admin',
+    ]) {
+      const r = await supabase.from(vista).select('*').limit(1);
+      aviso(`Vista ${vista}`, esAdmin ? 'Responde: es tuya' : 'Ninguna fila: es del administrador',
+        r.error ? `Fallo: ${r.error.message}` : `${r.data?.length ?? 0} fila(s)`,
+        !r.error && (esAdmin || (r.data?.length ?? 0) === 0));
+    }
+
+    const cifrasOf = await supabase.rpc('admin_cifras_ofertas');
+    aviso('Funcion admin_cifras_ofertas', esAdmin ? 'Responde: son tus cifras' : 'Rechazada por no ser admin',
+      cifrasOf.error ? `Rechazada: ${cifrasOf.error.message}` : 'Respondio',
+      esAdmin ? !cifrasOf.error : Boolean(cifrasOf.error));
+
+    for (const [fn, args] of [
+      ['oferta_de_lineas', { p_items: [], p_codigos: [] }], ['aguanta_oferta', { p_modelo: -1, p_pct: 5 }],
+      ['codigo_oferta_nuevo', {}], ['seleccion_de_hoy', {}], ['estado_codigo', { p_id: -1 }],
+    ] as const) {
+      const r = await supabase.rpc(fn, args);
+      aviso(`Funcion ${fn}`, 'Rechazada SIEMPRE, tambien para el admin: es de adentro',
+        r.error ? `Rechazada: ${r.error.message}` : 'RESPONDIO', Boolean(r.error));
+    }
+
+    // El codigo en las lineas de Pedidos y de la ficha: las columnas estan y
+    // ninguna es de costo.
+    for (const [vista, cols] of [
+      ['v_pedido_vendedora', 'oferta_codigo, oferta_pct, precio_sin_oferta_usd'],
+      ['v_ventas_por_verificar', 'oferta_codigo, oferta_pct, precio_sin_oferta_bs'],
+      ['v_cliente_compras', 'oferta_codigo, oferta_pct, precio_sin_oferta_bs'],
+    ] as const) {
+      const r = await supabase.from(vista).select(cols).limit(1);
+      aviso(`Codigo en ${vista}`, 'Responde con el codigo, su porcentaje y el precio sin oferta',
+        r.error ? `Fallo: ${r.error.message}` : 'Responde', !r.error);
+    }
+
     setPruebas(resultados);
     setCorriendo(false);
   }, [esAdmin]);

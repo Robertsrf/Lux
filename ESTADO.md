@@ -59,8 +59,12 @@ src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
                          panel, con su código. El panel viaja aparte.
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
-esquema*.sql             56 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    193 comprobaciones de seguridad (198 con LUX_REVENDEDOR).
+esquema*.sql             66 migraciones, en el orden de INSTALACION.md.
+scripts/verificar.mjs    353 comprobaciones de seguridad (358 con LUX_REVENDEDOR).
+scripts/pruebas/        `npm run pruebas`: las pruebas de lo que no es base (hoy
+                        `lib/ofertas.ts`), con el ejecutor de Node, sin dependencias.
+scripts/preparar-landing.mjs  prepara las fotos de public/landing/ (WebP, dos anchos).
+public/landing/         las fotos de la landing, 17 en dos anchos (1600 y 800 px).
 scripts/respaldar.mjs    el respaldo, por HTTPS.
 ```
 
@@ -170,7 +174,7 @@ Al 14/10/2026, cero vulnerabilidades, también en las de desarrollo (`sharp`
 y `source-map-js` se subieron de parche ese día). La que hay que vigilar de
 verdad es `@supabase/supabase-js`, porque es la que habla con la base y la que
 sostiene la sesión. Las mayores de `vite` y `typescript` no corren prisa: este
-proyecto no tiene tests, así que una mayor se prueba a mano o no se prueba.
+proyecto solo tiene `npm run pruebas` para lo que no es base, así que una mayor se prueba a mano o no se prueba.
 
 **`uqr` va fijado en `0.1.2`, sin `^`.** Dibuja el QR de la vitrina. La 0.1.3
 salió en abril de 2026 después de dos años y medio sin versiones, y un paquete
@@ -187,6 +191,8 @@ que la compresión de fotos bajaba código de cdn.jsdelivr.net en cada subida.
 
 Después de subir cualquier dependencia: `npm run build`, entrar con las dos
 sesiones y abrir el catálogo público sin sesión.
+**Lo que sirve para probar y NO es dependencia del repo.** Las pruebas de SQL corren sobre PGlite (Postgres en memoria) y las de pantalla sobre `playwright-core`; las dos viven fuera del repo, en la carpeta de trabajo de quien construye, y no están en `package.json`. Así el build y la superficie de ataque no cargan con ellas. Quien las necesite las instala allí (la base de pruebas se arma con INSTALACION.md, #1 a #66). Lo que sí está en el repo es `npm run pruebas`, que corre `scripts/pruebas/*.test.mjs` con el ejecutor de Node.
+
 
 ### Vigilancia
 
@@ -205,6 +211,8 @@ Dentro del sistema, la pantalla **Verificación** hace comprobaciones parecidas
 desde el navegador, con la sesión que tengas abierta. Es de administrador.
 
 ### Lo que caduca solo
+
+**Las fotos de la landing** (`public/landing/`) vienen de los catálogos de los proveedores, con su permiso, y se usan **sin marca ni logo** (nada de SGS ni de proveedor: el cerebro de marca lo prohíbe). Las prepara `scripts/preparar-landing.mjs` (WebP calidad 78, 1600 y 800 px, sin metadatos, con tope de 300 y 120 KB). Para cambiar una, el dueño sube la suya desde el panel Landing al bucket; las del sitio solo se reemplazan en el repo.
 
 **Las tasas.** El precio en bolívares sale de la tasa vigente. Si nadie la
 actualiza, los precios quedan viejos sin avisar. Las ventas ya registradas no se
@@ -243,6 +251,8 @@ pantalla abierta conserva la versión vieja; al entrar a una pantalla que se
 carga aparte (Reportes, la vitrina), la página se recarga sola una vez
 (`LimiteDeError`). Si a los cinco minutos vuelve a fallar, deja el aviso con el
 botón Recargar en vez de entrar en un bucle.
+
+**Los códigos de oferta.** Vencen solos a los `oferta_dias_validez` días (3); no hace falta limpiarlos y no se borran: son historia de lo que se rebajó. Un pedido vencido con dinero retiene su código hasta que se archive o se cancele (CLAUDE.md, Trampas). Si las ofertas se apagan (`ofertas_encendidas` en 0), los códigos ya dados se siguen respetando hasta que vencen.
 
 **Los apartados de revendedores.** Vencen solos a los 15 días y la pieza vuelve a
 la tienda; no hace falta hacer nada. Lo que sí conviene mirar de vez en cuando en

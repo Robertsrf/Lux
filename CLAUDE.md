@@ -65,7 +65,12 @@ src/
                 armados.ts (qué dije va en qué base, en los dos catálogos),
                 enlaces.ts (WhatsApp, Maps e Instagram estrictos: sin un
                 dato válido no hay enlace; la referencia "LX-3F9A2C" y el
-                aviso de un pedido por WhatsApp)
+                aviso de un pedido por WhatsApp),
+                ofertas.ts (las ofertas sin red: normalizar un código, qué
+                códigos aplican a un carrito, `faltanParaTramo`, la pareja que
+                se ofrece, `efectoDeRomperCodigo`, `estadoDeCasa`),
+                ofertasApi.ts (llama a `ofertas_publicas`, `emitir_oferta`,
+                `ver_oferta` y manda las miradas con `keepalive`)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
@@ -75,7 +80,13 @@ src/
                 useFotosGrandes (la foto grande de piezas que solo traen su
                 miniatura: pedidos, compras de una clienta),
                 useLetraGrande ("Letra grande" del catálogo y del pedido:
-                sube la escala un paso, se recuerda en el teléfono)
+                sube la escala un paso, se recuerda en el teléfono),
+                useLanding (las secciones de `v_landing`; null sin el #65),
+                useOfertas (lo que ofrece la base y los códigos de la clienta,
+                en `lux-codigos-v1`; se llama UNA vez, en Catalogo, y se pasa
+                hacia abajo), useMiradas (cuánto mira una pieza y cuándo
+                ofrecerle la pareja), useAparecer (algo entra al verse),
+                useCodigosDePedidos (el código de cada línea, para Pedidos)
   componentes/  Disposicion (las secciones de la tienda), Armazon (la barra
                 lateral y la de abajo, de la tienda y del revendedor), Piezas
                 (Aviso, Campo, Cargando, Vacio, Filtros, Ayuda), Iconos,
@@ -113,10 +124,14 @@ src/
                 "Revisar y liberar"; liberado, lo que llegó), Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
                 Caja (lo que entra y lo que sale, día por día y mes por mes),
+                Landing (/admin/landing: Secciones, Ofertas y Resultados;
+                con admin/landing/: secciones, ofertas y resultados),
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
                 y de dónde saca cada dato)
     venta/      Mostrador, Pedidos ("Quitar" una pieza de un pedido sin
                 entregar o de una venta por verificar, con su historia),
+                Codigo (/venta/codigo: la tienda revisa un código de oferta y
+                lo pasa al cobro, de las dos caras),
                 Tablero, Cierre, Guia,
                 ConteoSemanal (el conteo de inventario: a ciegas, contra la
                 foto de lo FÍSICO, con borrador en el teléfono, cada producto
@@ -131,6 +146,13 @@ src/
                 GuiaRevendedor (/guia-revendedor, la guía
                 para quien quiere ser revendedor) con GuiaRevendedorPiezas
                 (calculadora, recorrido, manual, preguntas, solicitud)
+    publico/landing/  Landing (arma las secciones de `v_landing`; sin ellas,
+                el inicio de siempre), Puertas (la barra pegada de arriba),
+                Portada (el slider), Cintas, Historia (Nosotros y Buscamos),
+                Materiales, Galeria, VideoLanding, Redes, SeccionesCatalogo,
+                Estuche, Combos (y Regalo), Seleccion, OfertasCasa, Escote,
+                TusCodigos, Completalo (la pareja y "Complétalo"),
+                VentanaOferta (el código para guardar) y PiezasOferta
                                            (sin sesión)
     revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
                 (/apartado/:token)         (sin sesión, como el catálogo)
@@ -147,7 +169,11 @@ src/
     Verificacion                           (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
                 revendedor.css (las seis paletas de su catálogo, medidas),
-                guia-revendedor.css (la guía pública)
+                guia-revendedor.css (la guía pública),
+                landing.css (la landing y sus ofertas), panel-landing.css,
+                codigo.css (la pantalla Código)
+public/landing/ las fotos de la landing, en dos anchos (1600 y 800 px); las
+                prepara `scripts/preparar-landing.mjs` (ESTADO.md)
 supabase/functions/vendedoras   crea, pausa y cambia el PIN de las vendedoras
                 del local con la llave maestra, en el servidor de Supabase.
                 Se publica aparte (INSTALACION.md, 3.1); no va en el build.
@@ -240,6 +266,29 @@ ninguna sesión, tampoco la del administrador (desde
 dejan rastro. Leer sí. Una función nueva que escriba existencias tiene que
 ser de definidor.
 
+**La landing y las ofertas** (#65, #66). Todas revocadas a todos, ni el
+administrador las lee en crudo (se leen por sus vistas y se escriben por sus
+funciones): `landing_secciones` (cada sección: tipo, orden, visible, título,
+texto y `datos`) · `catalogo_miradas` (por día y pieza: veces y segundos, sin
+visitante; con `on delete cascade` a `modelos` para no impedir
+`admin_eliminar_de_lote`) · `ofertas_casa` y `oferta_casa_items` (las ofertas
+que crea el dueño) · `seleccion_manual` (piezas metidas o sacadas a mano de la
+Selección) · `combos_rearmados`, `combos_semana` y `combo_semana_items` (los
+combos de la semana, armados por el navegador del administrador) ·
+`ofertas_codigos` (cada código: origen, porcentaje, visitante, vencimiento,
+estado `emitido`, `tomado`, `usado` o `anulado`, el pedido o la venta que lo
+tiene y `roto_en`) · `ofertas_codigo_items` (sus piezas). Las líneas de
+pedidos y ventas ganan `oferta_codigo_id`, `precio_sin_oferta_usd`,
+`motivo_sin_oferta` (y en la venta `precio_sin_oferta_bs`);
+`venta_items.motivo_rebaja` acepta `oferta`.
+Las diez cifras de las ofertas viven en `configuracion` (`claves_ofertas()`
+las lista): `ofertas_encendidas` (el interruptor), `oferta_pareja_pct`,
+`oferta_min_pct`, `oferta_max_pct`, `seleccion_pct`, `seleccion_dias_sin_venta`,
+`regalo_tope_usd`, `oferta_dias_validez`, `oferta_codigos_dia_max` y
+`oferta_mirada_segundos`. **Solo ellas pueden quedar vacías** (una restricción
+lo dice): sin una cifra, la oferta que depende de ella no sale. Ninguna la
+inventa el código.
+
 De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
 funciones): `revendedores` (con la huella de su código, nunca el código) ·
 `revendedor_sesiones` · `revendedor_precios` (el que él le pone a cada pieza) ·
@@ -302,6 +351,19 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_conteos` | Cada conteo de inventario: cuándo, qué ubicación, quién, cuántas piezas y cuántas faltaron o sobraron | vendedora y admin |
 | `v_conteo_detalle` | Las líneas de un conteo: lo que esperaba el sistema y lo que se contó. Sin costo | vendedora y admin |
 | `v_margen_ventas`, `v_diagnostico`, `v_capex_lote` | Ganancia y costos | solo admin |
+| `v_landing` | Las secciones visibles de la landing, en orden, sin una cifra de dinero. Solo `select` (sin el `revoke` previo, cualquiera podía escribir en ella) | cualquiera, sin sesión |
+| `v_landing_admin` | Todas las secciones, las escondidas también, con si se repiten y quién las tocó | solo admin |
+| `v_miradas` | Lo más mirado en 30 días (veces, segundos) y cuántas se vendieron | solo admin |
+| `v_ofertas` | Cada código con su estado de verdad y sus piezas | solo admin |
+| `v_ofertas_mes` | Por mes y origen: códigos dados y usados, lo vendido y lo rebajado en $ BCV | solo admin |
+| `v_seleccion_admin` | La Selección de la casa entera, con por qué está (automática, metida o sacada) | solo admin |
+| `v_ofertas_casa_admin` | Todas las ofertas de la casa (futuras, terminadas, apagadas), con sus piezas y sus códigos (#66) | solo admin |
+| `v_combos_admin` | Los combos del último rearmado, se enseñen o no hoy (#66) | solo admin |
+
+`v_pedido_vendedora`, `v_ventas_por_verificar` y `v_cliente_compras` ganaron al
+final (#66) `oferta_codigo`, `oferta_pct` y el precio sin oferta de cada línea
+(null sin código; ninguna de costo): con eso Pedidos dice "Código LUX-… · 5 %"
+y avisa cuánto sube el resto antes de quitar o devolver.
 
 `modelos`, `lotes` y `venta_items` están **revocadas** para `authenticated`: se leen
 por sus vistas. Nunca hagas que el frontend de la vendedora consulte `modelos`
@@ -530,6 +592,50 @@ Las `admin_*` llevan `if not es_admin() then raise` por dentro. **Ese guardián 
 va en una función que la vendedora necesite**: `es_admin()` mira `auth.uid()` y sigue
 dando falso dentro de una función de definidor, así que pondría la venta de rodillas.
 
+### La landing y las ofertas (esquema-landing-y-ofertas.sql, #65)
+
+Sin sesión: `ofertas_publicas()` (lo que la landing enseña: combos, regalo,
+selección, ofertas de la casa y `en_oferta`, ningún costo, piso ni margen en
+ningún nivel), `emitir_oferta(origen, piezas, ref, visitante)` (un código de
+un solo uso con sus piezas, su porcentaje y su vencimiento; el mismo pedido
+da el mismo código; hasta `oferta_codigos_dia_max` por visitante al día) y
+`registrar_miradas(visitante, miradas)` (con sesión no cuenta, como las
+visitas). La tienda revisa un código con `ver_oferta(codigo)`, de las dos
+caras: dice `sirve`, `usado`, `vencido`, `anulado`, `pieza_no_disponible` o
+`no_existe`, con las piezas y dónde hay libres.
+
+Del administrador (todas con `if not es_admin() then raise` dentro):
+`admin_guardar_seccion`, `admin_ordenar_secciones`, `admin_borrar_seccion`,
+`admin_guardar_oferta_casa`, `admin_seleccion` (meter, sacar o volver a
+automático), `admin_rearmar_combos` (descarta los que no aguantan el piso, un
+dije sin base o una sola pieza, y dice por qué), `admin_anular_codigo`,
+`admin_anular_codigos_de` (todos los de una oferta o un combo),
+`admin_cifras_ofertas` y `admin_guardar_cifra_oferta` (las diez cifras).
+
+Por dentro, revocadas a todos: `oferta_de_lineas(items, codigos, reserva)` (la
+única regla de qué código vale para qué piezas), `partes_de_linea` (el precio de
+una línea, en una o dos partes), `tomar_codigos`, `gastar_codigos`,
+`soltar_codigos_de_venta`, `codigos_para_quien` (lo que se enseña de cada
+código según quién pregunta), `estado_codigo` (el estado de verdad; usa
+`fase_pedido` en vez de copiar la regla del pedido), `codigo_oferta_nuevo`,
+`normalizar_codigo`, `aguanta_oferta`, `pisos_oferta`, `piezas_que_fallan`,
+`seleccion_de_hoy`, `seleccion_ensenada`, `piso_margen_con` y las envolturas
+`*_admin()` de sus vistas.
+
+- **`piso_margen_con(lista, costo, margen)`** es la cuenta del piso, sola.
+  `piso_margen_de` conserva su firma y su resultado (probado pieza por pieza) y
+  la llama; así las ofertas costean muchas piezas con las cifras comunes
+  calculadas una vez (`pisos_oferta`), como `costo_bcv_con`.
+- **`cotizar_pedido`, `crear_reserva`, `registrar_venta` y `apartar_en_tienda`
+  ganaron `p_codigos text[] default null` al final.** El navegador viejo no
+  manda códigos y recibe lo de antes (`cotizar_pedido` suma `codigos: []` y a
+  cada línea `oferta_codigo` y `precio_sin_oferta_usd` en null). Se borró la
+  firma vieja de cada una: una sola de cada.
+- **`quitar_de_pedido`, `quitar_de_venta` y `admin_devolver_pieza`** responden
+  `codigo_roto` (null o `{codigo, piezas, total_antes, total_despues, moneda}`).
+  `vender_congelado` y `entregar_pedido` copian el código de cada línea;
+  `anular_venta_por_verificar` y `admin_anular_venta` lo devuelven.
+- `admin_respaldo` gana las diez tablas.
 ### Las dos fórmulas de las que sale toda cifra de dinero
 
 Desde `esquema-cuentas-claras.sql` hay **una** fórmula por cifra, y todas las
@@ -762,6 +868,86 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     grande"** en la cabecera del catálogo y del pedido (`useLetraGrande`): la
     escala sube un paso en `<html>`, se recuerda en el teléfono y se quita al
     salir de esas páginas. El catálogo de los revendedores no lo tiene todavía.
+- **La landing** (pedido del dueño del 09/11/2026: "que la dirección del
+  catálogo sea una landing de Lux, con motion, sliders y fotografías"; diseño
+  en `docs/superpowers/specs/2026-11-09-landing-y-ofertas-design.md`). El
+  inicio del catálogo (`/#/publico`) ya no está escrito a mano: son secciones
+  de 19 tipos que el dueño pone, esconde y ordena en el panel **Landing**
+  (`/admin/landing`). Sin sesión se leen por `v_landing`; el panel, por
+  `v_landing_admin`.
+  - **`admin_guardar_seccion` pide todo, siempre**: título, texto y datos
+    completos. Lo que llega null se borra; solo `p_visible` null es "como
+    estaba". Las 12 secciones de la base (Elige por tipo, Cómo pedir, La
+    tienda...) se esconden y no se borran ni se repiten; portada, materiales,
+    galería, nosotros y redes sí. El tipo de una sección no cambia.
+  - **Ni una cifra de dinero**: precios y porcentajes salen de las vistas de
+    siempre y de `ofertas_publicas()`. Lo sembrado no nombra proveedores. La
+    base comprueba `datos` (`landing_datos_error`): fotos del sitio
+    (`landing/x.webp`) o del bucket, y botones con un destino de la lista.
+  - **Sin el #65 el inicio es el de siempre** (`secciones === null`: la portada
+    de hoy, el buscador y los estantes). Una sección de oferta sin datos no se
+    dibuja ni cuenta para la puerta "Ofertas" (`seDibuja`).
+  - **La portada nunca lleva texto sobre la foto**: abajo en el teléfono, dos
+    columnas desde 900 px. El contraste no depende de la foto que ponga el
+    dueño. Cada foto lleva su texto alternativo, que el panel pide.
+  - **El video sale escondido** hasta que el dueño sube uno: una sección
+    visible vacía no aporta.
+  - **Las miradas** (`useMiradas`): el detalle de una pieza abierto cuenta
+    segundos por día y pieza, sin guardar quién. Si alguien mira un rato dos
+    (`oferta_mirada_segundos`) se le ofrece la pareja con `oferta_pareja_pct`,
+    una vez por visita. La landing no está en el catálogo del revendedor ni en
+    la vitrina.
+- **Las ofertas con código** (pedido del dueño del 09/11/2026: ofertas "por
+  todos lados", con la voz de la casa, y "un código aleatorio de un solo uso que
+  se verifique en la tienda"). **Un solo mecanismo** para todo lo que baja un
+  precio en la landing: el código `LUX-XXXXXX`, seis letras de 31 posibles
+  (`codigo_oferta_nuevo`), de **un solo uso**, que cubre un conjunto de piezas a
+  un porcentaje y vence en `oferta_dias_validez` días. Su origen dice de dónde
+  salió: `dos_vistas` (la pareja que miraste), `complemento` ("Complétalo"),
+  `estuche`, `combo`, `regalo`, `seleccion`, `casa` y `escote`.
+  - **Un código es un conjunto**: vale solo si TODAS sus piezas están en el
+    pedido y libres. Cada pieza va en un solo código, y una pieza que ya cubre
+    uno no se cubre con otro.
+  - **No se suma al tramo**: en las piezas del código manda el MAYOR entre el
+    tramo y la oferta (`partes_de_linea`); el precio a mano se ignora. Si el
+    tramo gana o empata, el código se gasta igual. Si la línea pide más
+    unidades de las que cubre el código, se parte en dos.
+  - **Nunca baja de `piso_margen_de`**: ni al darlo (`aguanta_oferta`) ni al
+    cobrarlo. Si el costo sube entre tanto, el código se respeta y manda el piso
+    (se cobra el piso, no el precio de la oferta). **Un código dado se respeta
+    hasta que vence**, aunque apaguen las ofertas; solo `admin_anular_codigo`
+    lo quita antes.
+  - **Quitar o devolver una pieza rompe el código** (`roto_en`): las otras
+    vuelven a lo que costaban sin él (`precio_sin_oferta_*`) y la respuesta
+    dice `codigo_roto`. Si la pieza ya se entregó, la nota de crédito cobra, en
+    `extra_bs`, lo que las otras se ahorraron, nunca más de lo que vale la
+    pieza. Pedidos lo avisa antes de quitar.
+  - **Pedido toma, venta usa.** Un pedido toma el código (`tomado`); si se cancela
+    o vence sin dinero, lo suelta; la venta (o la entrega) lo usa. Anular la
+    venta lo devuelve. Un pedido vencido CON dinero lo retiene hasta archivarse
+    o cancelarse (ver Trampas).
+  - **La Selección de la casa** son las piezas libres que llevan
+    `seleccion_dias_sin_venta` días sin venderse (el dueño mete o saca a mano).
+    La landing enseña **24 al día, que rotan** (semilla: la fecha de
+    Venezuela): con todas, cada visita pesaba 58 KB y casi todo el catálogo salía
+    en cinta. 24 es de carga, no del negocio. Los dijes no entran.
+  - **Los combos de la semana los arma el navegador del administrador**
+    (`rearmarCombos`, al abrir el panel o el Inventario) con `armarConjunto`, y
+    la base los acepta o los descarta (`admin_rearmar_combos`): el porcentaje
+    sube con las piezas, del mínimo (2 piezas) al máximo (4), entre
+    `oferta_min_pct` y `oferta_max_pct`. Sin armarlos, no hay combos. **El estuche** da cada día
+    un código distinto por visitante, una vez al día.
+  - **La tienda revisa el código en "Código"** (`/venta/codigo`, de las dos
+    caras): lo escribe tal cual (mayúsculas, espacios y guiones no importan),
+    ve los seis estados dichos y "Pasar al cobro" lo mete al Mostrador. Sin
+    palabra "piso", "margen" ni "costo".
+  - **Sin sesión nunca se sabe qué códigos existen**: `cotizar_pedido` responde
+    `no_vale` y sin porcentaje a todo código que no aplica, sea cual sea el
+    motivo (para la tienda el motivo es el de verdad). El navegador calcula
+    por su cuenta "faltan piezas" y "comparte pieza", porque conoce las piezas
+    de sus códigos.
+  - **Reportes**: `v_ofertas_mes` (Reportes, "Ventas con oferta") y la columna
+    `oferta` en las rebajas. Las diez cifras se cambian en el panel (Ofertas).
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -1112,12 +1298,13 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 250 comprobaciones con las dos sesiones (255 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 353 comprobaciones con las dos sesiones (358 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run pruebas       # las pruebas de lo que no es base: `lib/ofertas.ts` y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 ```
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
-una política**. Si no hay terminal a mano, la pantalla **Verificación** hace cuarenta y tres
+una política**. Si no hay terminal a mano, la pantalla **Verificación** hace setenta y dos
 de esas comprobaciones desde el navegador, con la sesión abierta; es menos fuerte
 porque no puede entrar como las dos, pero se corre desde el teléfono. Lo que vigila no lo mira el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que vuelve
@@ -1257,6 +1444,47 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   $88,35 en la barra y $91,35 en el pedido (probado en PGlite). Si una regla
   no se puede enseñar sin abrir un dato, se le pregunta a la base
   (`cotizar_pedido`), no se aproxima en el navegador.
+- **Escribir en `configuracion` ejecuta `claves_ofertas()`.** El `check` que
+  deja vacías solo las diez cifras de las ofertas la llama en cada `insert` o
+  `update`, de cualquier clave y de cualquier sesión, así que está abierta a
+  `authenticated` (como `piso_margen_de`). Si se revoca, Costos deja de poder
+  guardar. Se vio en la revisión de la Tarea 3 (09/11/2026).
+- **Un código tomado no puede volver a `emitido` mientras su pedido pueda
+  entregarse.** Primera versión: vencer el pedido soltaba el código. Un abono
+  verificado después revivía el pedido (`pedido_al_dia` pone `pagado_en` aunque
+  esté vencido), y el mismo código quedaba en dos pedidos. Ahora solo se suelta
+  en un estado terminal (`estado_codigo`): cancelado, cerrado, o vencido sin un
+  solo abono vivo. Y `entregar_pedido` lo repite como defensa: las líneas cuyo
+  código ya no es de ese pedido se cobran a `precio_sin_oferta_*`. Revisión de
+  seguridad del 11/11/2026.
+- **Un motivo distinto por código es un oráculo.** `cotizar_pedido` está abierta
+  sin sesión y recibe hasta 20 códigos por llamada: con motivos distintos
+  (`no_existe` contra `faltan_piezas`) cualquiera averiguaba cuáles existen.
+  Tras dos arreglos (S2 y S2b), para quien no es de la tienda todo código que no
+  aplica es `no_vale`, sin porcentaje, y `codigos_para_quien` es el único sitio
+  que decide qué se enseña. **Una función sin sesión que dé detalle por código
+  debe pasar por ella.** Sigue la fuerza bruta (31^6, unos 887 millones, un uso,
+  tres días): aceptado.
+- **El tope por visitante lo elige el cliente.** `emitir_oferta` cuenta los
+  códigos por el `uuid` que manda el navegador; quien cambia de uuid esquiva el
+  tope. Aceptado (S4): lo acotan el porcentaje (5 % la pareja, hasta 10 % el
+  combo), el piso, el uso único y los tres días, y un tope por IP bloquearía a
+  clientas reales detrás de la misma red. Para frenar a una sola fuente existe
+  un freno global de 20.000 códigos al día, y quien cambie de visitante puede
+  agotarlo: las ofertas del día se apagan para todos.
+- **Retener un código ajeno se puede, y cuesta una hora.** Quien conozca un
+  código (se lo mandaron, lo vio en una captura) puede ponerlo en un pedido
+  falso: queda tomado hasta que el pedido vence (`reserva_minutos`), con el
+  tope de 2 pedidos sin pagar por cédula y teléfono. Con un abono sin verificar
+  y a propósito, hasta que se archive. El administrador cancela el pedido y el
+  código se suelta. Por diseño: el código es de una persona, no un secreto.
+- **El cobro de más de una devolución se reconoce por un texto.**
+  `v_ofertas_mes` descuenta del rebajado lo que `admin_devolver_pieza` cobra de
+  más, y lo encuentra por `extra_nota like 'Descuento del código…'`. Si alguien
+  cambia ese texto, la cifra deja de compensar sin error.
+- **Una línea con código roto conserva su `oferta_codigo_id`.** Con el precio ya
+  sin oferta. Una pantalla que lea "tiene código" como "tiene oferta" miente:
+  se compara `precio_usd < precio_sin_oferta_usd` (`tieneOferta`).
 
 ---
 
