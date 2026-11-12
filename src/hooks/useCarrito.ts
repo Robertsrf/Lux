@@ -276,7 +276,8 @@ export function useCarrito(tasa: Tasas | null) {
           ofertaBs = tasaBcv ? bsDeBcv(ofertaUsd, tasaBcv) : l.precio_lista_bs;
         } else {
           ofertaUsd = pieza?.precio_oferta_usd ?? l.precio_lista_usd;
-          ofertaBs = pieza?.precio_oferta_bs ?? l.precio_lista_bs;
+          // En bolívares a la tasa vigente, no a la de la consulta de `ver_oferta`.
+          ofertaBs = pieza ? (tasaBcv ? bsDeBcv(pieza.precio_oferta_usd, tasaBcv) : pieza.precio_oferta_bs) : l.precio_lista_bs;
         }
       }
 

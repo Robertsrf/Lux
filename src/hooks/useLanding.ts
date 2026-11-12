@@ -54,6 +54,8 @@ export function useLanding(): { secciones: SeccionLanding[] | null; cargando: bo
 
   useEffect(() => {
     let vivo = true;
+    // Si tarda más de ~2,5 s se enseña el inicio de siempre y no se espera más.
+    const limite = window.setTimeout(() => { if (vivo) setCargando(false); }, 2500);
     void (async () => {
       try {
         const { data, error } = await supabase
@@ -75,10 +77,11 @@ export function useLanding(): { secciones: SeccionLanding[] | null; cargando: bo
       } catch {
         if (vivo) setSecciones(null);
       } finally {
+        window.clearTimeout(limite);
         if (vivo) setCargando(false);
       }
     })();
-    return () => { vivo = false; };
+    return () => { vivo = false; window.clearTimeout(limite); };
   }, []);
 
   return { secciones, cargando };

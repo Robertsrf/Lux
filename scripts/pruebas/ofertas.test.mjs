@@ -90,3 +90,15 @@ test('efectoDeRomperCodigo: las otras piezas del codigo vuelven a su precio', as
   assert.equal(efectoDeRomperCodigo([{ ...lineas[0], precio: 10 }, lineas[1]], 1), null);
   assert.equal(tieneOferta({ precio: 5, precio_sin_oferta: null }), false);
 });
+
+import { valorDevueltoBcv } from '../../src/lib/dinero.ts';
+
+test('valorDevueltoBcv: sin efecto del codigo devuelve el valor bruto', () => {
+  assert.equal(valorDevueltoBcv(10, 1000, 0), 10);
+  assert.equal(valorDevueltoBcv(10, 0, 50), 10);
+});
+
+test('valorDevueltoBcv: descuenta la parte que pierden las otras piezas, con tope', () => {
+  assert.equal(valorDevueltoBcv(10, 1000, 250), 7.5);
+  assert.equal(valorDevueltoBcv(10, 1000, 5000), 0);
+});

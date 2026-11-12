@@ -628,3 +628,15 @@ export function cuentaRegresiva(iso: string | null | undefined): string | null {
   const segundos = Math.floor((faltan % 60000) / 1000);
   return `${minutos}:${String(segundos).padStart(2, '0')}`;
 }
+
+/**
+ * Lo que valían, en dólares BCV, las piezas que se devuelven de una venta con
+ * código: su valor bruto menos la parte que pierden las otras piezas del
+ * código (`descuentaBs`, topada a lo que valían en bolívares, `piezaBs`).
+ * Sin efecto sobre el código o sin bolívares, el valor bruto.
+ */
+export function valorDevueltoBcv(valorBruto: number, piezaBs: number, descuentaBs: number): number {
+  if (!(piezaBs > 0) || !(descuentaBs > 0)) return valorBruto;
+  const queda = Math.max(piezaBs - Math.min(descuentaBs, piezaBs), 0);
+  return valorBruto * (queda / piezaBs);
+}

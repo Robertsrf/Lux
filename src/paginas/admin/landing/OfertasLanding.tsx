@@ -383,6 +383,7 @@ function FormularioCasa({ inicial, alTerminar, alCancelar }: {
     const pct = leerCifra(b.pct);
     if (b.nombre.trim() === '') { setError('Ponle un nombre a la oferta.'); return; }
     if (pct === null) { setError('Escribe el porcentaje como número, por ejemplo 12 o 7,5.'); return; }
+    if (pct <= 0 || pct >= 100) { setError('El porcentaje va entre 0 y 100.'); return; }
     if (b.hasta === '') { setError('Elige hasta qué día vale.'); return; }
     if (b.piezas.length === 0) { setError('Mete al menos una pieza.'); return; }
     setGuardando(true);
@@ -391,7 +392,7 @@ function FormularioCasa({ inicial, alTerminar, alCancelar }: {
       p_nombre: b.nombre.trim(),
       p_texto: b.texto.trim() || null,
       p_foto: b.foto,
-      p_pct: pct,
+      p_pct: Math.round(pct * 100) / 100,
       p_desde: b.desde || null,
       p_hasta: b.hasta,
       p_modelos: b.piezas.map((p) => p.id),

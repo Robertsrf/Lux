@@ -69,11 +69,11 @@ function seDibuja(tipo: TipoSeccion, o: OfertasPublicas | null | undefined, hayP
 const SIN_APARECER: ReadonlySet<TipoSeccion> = new Set<TipoSeccion>(['portada', 'cintas', 'tipos', 'estantes', 'como_pedir', 'proximamente', 'tienda']);
 
 /** Cada sección entra una sola vez, con un fundido corto, al aparecer en pantalla. */
-function Seccion({ tipo, children }: { tipo: TipoSeccion; children: ReactNode }) {
+function Seccion({ id, tipo, children }: { id: string; tipo: TipoSeccion; children: ReactNode }) {
   const [ref, visible] = useAparecer<HTMLDivElement>();
   const anima = !SIN_APARECER.has(tipo);
   const clase = !anima ? 'lp-seccion' : visible ? 'lp-seccion lp-aparece lp-aparece--visible' : 'lp-seccion lp-aparece';
-  return <div id={idSeccion(tipo)} ref={ref} className={clase} data-tipo={tipo}>{children}</div>;
+  return <div id={id} ref={ref} className={clase} data-tipo={tipo}>{children}</div>;
 }
 
 /**
@@ -175,12 +175,16 @@ export function Landing({ secciones, catalogo, ofertas, acciones, textos, whatsa
     buscadorPuesto = true;
     partes.push(<div key="buscador">{buscador}{aviso}</div>);
   };
+  // `seccion-<tipo>` es de la primera de cada tipo (a ella lleva `seccion:<tipo>`); las demás llevan también su id.
+  const tiposVistos = new Set<string>();
   for (const s of secciones) {
     const nodo = dibujar(s);
     if (nodo === undefined) continue;
     // El buscador va justo después de la portada y las cintas.
     if (s.tipo !== 'portada' && s.tipo !== 'cintas') ponerBuscador();
-    partes.push(<Seccion key={s.id} tipo={s.tipo}>{nodo}</Seccion>);
+    const idDom = tiposVistos.has(s.tipo) ? `${idSeccion(s.tipo)}-${s.id}` : idSeccion(s.tipo);
+    tiposVistos.add(s.tipo);
+    partes.push(<Seccion key={s.id} id={idDom} tipo={s.tipo}>{nodo}</Seccion>);
   }
   ponerBuscador();
 

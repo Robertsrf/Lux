@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { tieneOferta } from '../lib/ofertas';
 
 /** El codigo de oferta con que se cobro un pedido o una venta. */
 export interface CodigoDeCobro {
@@ -11,11 +12,23 @@ export interface CodigoDeCobro {
 
 /** Lo que dice cada linea, si la vista la trae (columnas opcionales). */
 export function codigoDeLineas(
-  lineas: readonly { oferta_codigo?: string | null; oferta_pct?: number | null }[],
+  lineas: readonly { oferta_codigo?: string | null; oferta_pct?: number | null; precio_linea_usd?: number | null; precio_unitario_usd?: number | null; precio_unitario_bs?: number | null;
+    precio_sin_oferta_usd?: number | null; precio_sin_oferta_bs?: number | null }[],
   respaldo?: CodigoDeCobro,
 ): CodigoDeCobro | null {
-  const l = lineas.find((x) => x.oferta_codigo);
-  if (l?.oferta_codigo) return { codigo: l.oferta_codigo, pct: l.oferta_pct ?? respaldo?.pct ?? null, roto: respaldo?.roto ?? false };
+  const conCodigo = lineas.filter((x) => x.oferta_codigo);
+  const l = conCodigo[0];
+  if (l?.oferta_codigo) {
+    // Roto si lo dice la base, o si ya ninguna línea del código cuesta menos que sin oferta.
+    const pares = conCodigo.map((x) => (x.precio_sin_oferta_usd != null && (x.precio_linea_usd ?? x.precio_unitario_usd) != null
+      ? { precio: Number(x.precio_linea_usd ?? x.precio_unitario_usd), precio_sin_oferta: Number(x.precio_sin_oferta_usd) }
+      : x.precio_sin_oferta_bs != null && x.precio_unitario_bs != null
+        ? { precio: Number(x.precio_unitario_bs), precio_sin_oferta: Number(x.precio_sin_oferta_bs) }
+        : null));
+    const sabe = pares.some((p) => p !== null);
+    const sinOferta = pares.every((p) => p === null || !tieneOferta(p));
+    return { codigo: l.oferta_codigo, pct: l.oferta_pct ?? respaldo?.pct ?? null, roto: (respaldo?.roto ?? false) || (sabe && sinOferta) };
+  }
   return respaldo ?? null;
 }
 

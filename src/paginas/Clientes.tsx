@@ -7,7 +7,7 @@ import { VisorFoto, useVisorFoto } from '../componentes/VisorFoto';
 import type { FotoAmpliada } from '../componentes/VisorFoto';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, centavoArriba, formatearBcv, formatearBinance, formatearBs, formatearFecha,
-  leerCifra, totalDeLineas,
+  leerCifra, totalDeLineas, valorDevueltoBcv,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import { nombreConVariante } from '../lib/familias';
@@ -521,7 +521,7 @@ function DevolverPieza({ pieza, delaVenta, codigo, quedan, ubicaciones, tasa, al
   // Lo que valían las que vuelven, en dólares BCV: el tope de la devolución
   // (menos lo que pierden las otras piezas del codigo).
   const valorBruto = totalDeLineas([{ precio: Number(pieza.precio_unitario_usd ?? 0), cantidad }]);
-  const valorBcv = efecto && piezaBs > 0 ? valorBruto * ((piezaBs - descuentaBs) / piezaBs) : valorBruto;
+  const valorBcv = efecto ? valorDevueltoBcv(valorBruto, piezaBs, descuentaBs) : valorBruto;
   const enDolares = METODOS_EN_DOLARES.includes(metodo);
   const valor = leerCifra(monto) ?? NaN;
   const devuelve = tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;

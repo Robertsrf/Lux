@@ -93,7 +93,7 @@ export function Portada({ diapositivas }: { diapositivas: ElementoLanding[] }) {
           const esta = n === actual;
           return (
             <article
-              key={d.foto ?? n}
+              key={`${n}-${d.foto ?? ''}`}
               className={esta ? 'lp-portada__diapositiva lp-portada__diapositiva--viva' : 'lp-portada__diapositiva'}
               aria-roledescription="diapositiva"
               aria-label={`${n + 1} de ${lista.length}`}
@@ -127,7 +127,7 @@ export function Portada({ diapositivas }: { diapositivas: ElementoLanding[] }) {
           <div className="lp-portada__puntos" role="group" aria-label="Elegir diapositiva">
             {lista.map((d, n) => (
               <button
-                key={d.foto ?? n}
+                key={`${n}-${d.foto ?? ''}`}
                 type="button"
                 className="lp-portada__punto"
                 aria-label={`Diapositiva ${n + 1} de ${lista.length}`}

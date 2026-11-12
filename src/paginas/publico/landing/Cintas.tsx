@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatearDescuento } from '../../../lib/dinero';
 import type { OfertasPublicas } from '../../../lib/ofertas';
 
@@ -32,14 +33,18 @@ export function frasesDeCinta(o: OfertasPublicas | null): string[] {
  */
 export function Cintas({ ofertas }: { ofertas: OfertasPublicas | null }) {
   const frases = frasesDeCinta(ofertas);
+  const [parada, setParada] = useState(false);
   if (frases.length === 0) return null;
   return (
-    <div className="lp-cinta" role="region" aria-label="Ofertas del momento">
+    <div className={parada ? 'lp-cinta lp-cinta--parada' : 'lp-cinta'} role="region" aria-label="Ofertas del momento">
+      <button type="button" className="lp-cinta__pausa" aria-pressed={parada} onClick={() => setParada((p) => !p)}>
+        {parada ? 'Mover las ofertas' : 'Parar las ofertas'}
+      </button>
       <div className="lp-cinta__pista">
         {[0, 1].map((copia) => (
           <ul key={copia} className="lp-cinta__lista" aria-hidden={copia === 1 ? 'true' : undefined}>
-            {frases.map((f) => (
-              <li key={f} className="lp-cinta__frase">{f}</li>
+            {frases.map((f, n) => (
+              <li key={`${n}-${f}`} className="lp-cinta__frase">{f}</li>
             ))}
           </ul>
         ))}

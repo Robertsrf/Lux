@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import type { CodigoOferta } from '../../../lib/ofertas';
+import type { CodigoOferta, PiezaOferta } from '../../../lib/ofertas';
 import { formatearBcv, formatearBs, formatearDescuento, precioEnBs } from '../../../lib/dinero';
 import type { Tasa } from '../../../lib/tipos';
 import { Miniaturas, nombreDePieza, totalDeLista, totalDeOferta } from './PiezasOferta';
@@ -33,6 +33,8 @@ export function Dialogo({ titulo, alCerrar, children, ancho = false }: {
 
     const alTeclear = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); cerrar.current(); return; }
+      // Con el diálogo encima, las flechas no pasan de pieza en el visor de atrás.
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.stopImmediatePropagation(); return; }
       if (e.key !== 'Tab' || !caja.current) return;
       const lista = [...caja.current.querySelectorAll<HTMLElement>(FOCALES)];
       if (lista.length === 0) { e.preventDefault(); return; }
@@ -81,8 +83,10 @@ export function fechaDeVencimiento(iso: string): string {
  * con una captura (sirve también en la tienda) y hasta cuándo vale, que es
  * la única fecha que se enseña.
  */
-export function VentanaOferta({ codigo, tasa, alVerPedido, alCerrar }: {
+export function VentanaOferta({ codigo, tasa, faltan = [], alVerPedido, alCerrar }: {
   codigo: CodigoOferta;
+  /** Piezas del código que el pedido todavía no cubre (por falta de red o de existencia). */
+  faltan?: readonly PiezaOferta[];
   tasa: Pick<Tasa, 'tasa_bcv'> | null;
   alVerPedido: () => void;
   alCerrar: () => void;
@@ -126,7 +130,14 @@ export function VentanaOferta({ codigo, tasa, alVerPedido, alCerrar }: {
         {vence ? <p className="lp-codigo__vence">Vence el {vence}</p> : null}
       </div>
 
-      <p className="lp-hoja__pie">Ya están en tu pedido con el descuento. El total final lo confirma tu pedido.</p>
+      {faltan.length === 0 ? (
+        <p className="lp-hoja__pie">Ya están en tu pedido con el descuento. El total final lo confirma tu pedido.</p>
+      ) : (
+        <p className="lp-hoja__pie" role="status">
+          Todavía falta en tu pedido: {faltan.map((p) => `${nombreDePieza(p)}${p.cantidad > 1 ? ` × ${p.cantidad}` : ''}`).join(', ')}.
+          El descuento solo vale con todas las piezas: elígelas con «Seguir viendo» y agrégalas, o toca «Ver mi pedido» para revisarlo.
+        </p>
+      )}
 
       <div className="lp-hoja__acciones">
         <button type="button" className="boton lp-boton" onClick={alVerPedido}>Ver mi pedido</button>

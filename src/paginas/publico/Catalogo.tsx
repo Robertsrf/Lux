@@ -11,7 +11,7 @@ import { ArmarDije } from '../../componentes/ArmarDije';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, nombreConVariante, nombreDeTipo, porCategoria } from '../../lib/familias';
 import { armarConjunto } from '../../lib/combinar';
-import { faltanParaTramo, vigente } from '../../lib/ofertas';
+import { codigoCompleto, faltanParaTramo, vigente } from '../../lib/ofertas';
 import type { CodigoOferta, EstadoCodigo, OrigenOferta, PiezaOferta } from '../../lib/ofertas';
 import type { Familia } from '../../lib/familias';
 import { enlaceWhatsAppA } from '../../lib/enlaces';
@@ -563,7 +563,8 @@ export function Catalogo() {
   /** Gana el código, lo enseña y mete sus piezas al pedido. Lanza con el mensaje de la base si no se puede. */
   async function quererOferta(origen: OrigenOferta, modelos: number[], ref?: number) {
     const codigo = await ofertas.ganar(origen, modelos, ref);
-    await meterPiezas(codigo.piezas);
+    // El código ya existe: si meter las piezas falla (red), la ventana se abre igual y dice qué falta.
+    try { await meterPiezas(codigo.piezas); } catch { /* la ventana lo avisa */ }
     setCompletalo(null);
     miradas.descartar();
     setVentana(codigo);
@@ -1098,7 +1099,9 @@ export function Catalogo() {
             {!cargando ? <LaTienda id="la-tienda" textos={textos} /> : null}
           </>
         ) : (
-          <Landing
+          landing.cargando ? (
+            <div className="lp-espera" role="status" aria-busy="true"><span className="visualmente-oculto">Cargando</span></div>
+          ) : <Landing
             secciones={landing.secciones}
             catalogo={catalogoProps}
             ofertas={ofertas}
@@ -1143,6 +1146,7 @@ export function Catalogo() {
           <VentanaOferta
             codigo={ventana}
             tasa={tasa}
+            faltan={codigoCompleto(ventana, seleccion) ? [] : ventana.piezas.filter((p) => (seleccion.get(p.modelo_id) ?? 0) < p.cantidad)}
             alVerPedido={() => { setVentana(null); setPaso('pedido'); }}
             alCerrar={() => setVentana(null)}
           />

@@ -29,7 +29,7 @@ export function Galeria({ seccion }: { seccion: SeccionLanding }) {
         {fotos.map((d, n) => {
           const foto = fotoDeLanding(d.foto, '(min-width: 900px) 300px, 70vw');
           return foto ? (
-            <li key={d.foto ?? n} className="lp-galeria__foto">
+            <li key={`${n}-${d.foto ?? ''}`} className="lp-galeria__foto">
               <img {...foto} alt={d.alt ?? ''} loading="lazy" decoding="async" width={800} height={800} />
             </li>
           ) : null;

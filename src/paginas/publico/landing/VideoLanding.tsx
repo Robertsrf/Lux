@@ -17,16 +17,21 @@ export function VideoLanding({ seccion }: { seccion: SeccionLanding }) {
   const [caja, visible] = useAparecer<HTMLDivElement>(true);
   const ahorro = Boolean((navigator as Navigator & ConexionLenta).connection?.saveData);
   const [pedido, setPedido] = useState(false);
-  const puede = !ahorro || pedido;
+  const quieto = (() => {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+  })();
+  const [pausado, setPausado] = useState(false);
+  // Con ahorro de datos o movimiento reducido no arranca solo: póster y un botón.
+  const puede = (!ahorro && !quieto) || pedido;
   const src = rutaDeLanding(seccion.datos.video);
   const poster = rutaDeLanding(seccion.datos.poster);
 
   useEffect(() => {
     const v = video.current;
     if (!v || !puede) return;
-    if (visible) void v.play().catch(() => undefined);
+    if (visible && !pausado) void v.play().catch(() => undefined);
     else v.pause();
-  }, [visible, puede]);
+  }, [visible, puede, pausado]);
 
   if (!src) return null;
   return (
@@ -46,7 +51,11 @@ export function VideoLanding({ seccion }: { seccion: SeccionLanding }) {
         />
         {!puede ? (
           <button type="button" className="boton lp-video__ver" onClick={() => setPedido(true)}>Ver el video</button>
-        ) : null}
+        ) : (
+          <button type="button" className="boton boton--secundario lp-video__pausa" aria-pressed={pausado} onClick={() => setPausado((p) => !p)}>
+            {pausado ? 'Reanudar el video' : 'Pausar el video'}
+          </button>
+        )}
       </div>
     </section>
   );
