@@ -386,6 +386,7 @@ Píldoras con respuesta al tacto. Jost 12 px, mayúsculas, tracking 0,12 em, 42 
 ### Chips
 - **Style:** `.etiqueta`, píldora con borde de 1 px en `currentColor`, 11 px en mayúsculas.
 - **State:** alerta, éxito y error tiñen texto y fondo al 8 % del color de estado. **Próximamente / En camino** (`.etiqueta--proxima`) va en oro de texto sobre oro arena al 8 %: 5,58 sobre blanco, 4,95 sobre papel, 4,52 sobre crema. No es una alerta, es una promesa, y por eso no usa el color de alerta. Los filtros de categoría son botones secundarios pequeños que se envuelven en dos líneas, nunca se deslizan a escondidas.
+- **Para quién** (`.para-quien`, catálogo en línea): tres partes iguales a todo el ancho (hasta 520 px) dentro de una píldora blanca con borde salvia (3,20:1), 48 px de alto, Jost 14 px en mayúsculas; la elegida en verde profundo con texto crema. Bajo 360 px se aprieta el espaciado para que "Caballero" quepa en 320. En el Inventario es una lista desplegable pequeña (`.selector-para`, 40 px) bajo el nombre de cada producto.
 - **Las píldoras de elegir** (`.selector-ubicacion`, 46 px, verde profundo la elegida): en el teléfono las de las ubicaciones del mostrador y del conteo se cambian por una lista desplegable. Las de los momentos de la Guía llevan `.selector-ubicacion--fija`, que no se oculta nunca y reparte el ancho (tres por renglón a 390 px): no tienen lista, y sin el modificador la Guía se quedaba fija en "Recibir" en el teléfono.
 
 ### Tables

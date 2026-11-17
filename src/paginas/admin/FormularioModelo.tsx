@@ -11,7 +11,7 @@ import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto
 import type { FotoProcesada } from '../../lib/fotos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
-import type { LoteAdmin, ModeloAdmin, PrecioSugerido } from '../../lib/tipos';
+import type { LoteAdmin, ModeloAdmin, ParaQuien, PrecioSugerido } from '../../lib/tipos';
 
 
 const VACIO = {
@@ -143,6 +143,12 @@ function Formulario() {
   const [armadoOriginal, setArmadoOriginal] = useState('pieza');
   // Se cambió el tipo y falta la sugerencia de su escalera.
   const [tipoCambiado, setTipoCambiado] = useState(false);
+  // Para quién (#67): dama, caballero o unisex, de todo el producto. Se
+  // guarda aparte, con `admin_fijar_para`, después del producto. Sin el
+  // #67 la columna no existe: el campo no sale y el resto sigue igual.
+  const [para, setPara] = useState<ParaQuien | ''>('');
+  const [paraOriginal, setParaOriginal] = useState<ParaQuien | ''>('');
+  const [paraDisponible, setParaDisponible] = useState(true);
   const campoVariante = useRef<HTMLInputElement>(null);
   const nuevas = useRef(0);
 
@@ -185,6 +191,14 @@ function Formulario() {
         armado: m.armado ?? 'pieza',
       });
       setArmadoOriginal(m.armado ?? 'pieza');
+      // Aparte, para que sin el #67 el formulario cargue igual.
+      const { data: dp, error: errPara } = await supabase.from('v_catalogo_admin').select('para').eq('id', m.id).maybeSingle();
+      if (errPara) setParaDisponible(false);
+      else {
+        const p = (dp as { para: ParaQuien | null } | null)?.para ?? '';
+        setPara(p);
+        setParaOriginal(p);
+      }
       setFotoActual(urlPublicaFoto(m.foto_thumb_path ?? m.foto_path));
       setAutoAsignado(true);
 
@@ -443,6 +457,10 @@ function Formulario() {
       setError('Falta el costo de la pieza, en $ Binance y con punto para los decimales: 4.25. Si de verdad no costó nada, escribe 0.');
       return;
     }
+    if (esNuevo && paraDisponible && !para) {
+      setError('Elige para quién es: dama, caballero o unisex.');
+      return;
+    }
     setGuardando(true);
 
     try {
@@ -490,6 +508,12 @@ function Formulario() {
 
       if (err) throw err;
       if (!data) throw new Error('La base no devolvio el modelo guardado.');
+      // La marca, de todo el producto. El producto ya está guardado: si esto
+      // falla no se queda en el formulario (guardar otra vez duplicaría una
+      // pieza nueva); el Inventario la enseña "Sin marcar" para corregirla.
+      if (paraDisponible && para && para !== paraOriginal) {
+        await supabase.rpc('admin_fijar_para', { p_modelos: [Number(data)], p_para: para });
+      }
       navegar(volverA);
     } catch (e) {
       setError(mensajeDeError(e));
@@ -635,6 +659,21 @@ function Formulario() {
               <option value="dije">Dije</option>
             </select>
           </Campo>
+
+          {paraDisponible ? (
+            <Campo
+              etiqueta="Para quién"
+              htmlFor="m-para"
+              pista="Lo llevan todas sus medidas. Lo unisex sale en Dama y en Caballero del catálogo."
+            >
+              <select id="m-para" value={para} onChange={(e) => setPara(e.target.value as ParaQuien | '')}>
+                {para === '' ? <option value="">{esNuevo ? 'Elige' : 'Sin marcar'}</option> : null}
+                <option value="dama">Dama</option>
+                <option value="caballero">Caballero</option>
+                <option value="unisex">Unisex: dama y caballero</option>
+              </select>
+            </Campo>
+          ) : null}
 
           {categoriaNueva ? (
             <Campo

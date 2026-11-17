@@ -18,7 +18,7 @@ import { Icono } from '../../componentes/Iconos';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { FILTROS_VACIOS, POR_PAGINA, useInventario } from '../../hooks/useInventario';
 import type { FiltrosInventario } from '../../hooks/useInventario';
-import type { ModeloAdmin } from '../../lib/tipos';
+import type { ModeloAdmin, ParaQuien } from '../../lib/tipos';
 
 /**
  * Una cifra de las medidas de un producto: "Bs 700,00 – Bs 950,00", o una
@@ -99,6 +99,8 @@ export function Inventario() {
   const [error, setError] = useState<string | null>(null);
   // Lo que se está moviendo de ubicación: una pieza, o las medidas de un producto.
   const [moviendo, setMoviendo] = useState<ModeloAdmin[] | null>(null);
+  // El producto al que se le está cambiando "para quién".
+  const [marcando, setMarcando] = useState<number | null>(null);
   const [movido, setMovido] = useState<string | null>(null);
   // Los productos con medidas que están abiertos.
   const [abiertas, setAbiertas] = useState<Set<number>>(new Set());
@@ -120,7 +122,7 @@ export function Inventario() {
   const { grupos } = useGrupos();
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
-  const { modelos, existencias, apartadas, total, cargando, error: errorCarga, recargar } = useInventario(filtros, pagina);
+  const { modelos, existencias, apartadas, paraDe, total, cargando, error: errorCarga, recargar } = useInventario(filtros, pagina);
 
   useEffect(() => {
     void (async () => {
@@ -330,6 +332,36 @@ export function Inventario() {
     );
   }
 
+  /**
+   * Para quién es el producto (#67), corregible aquí mismo: el #67 marcó lo
+   * que ya estaba cargado leyendo nombres, y el dueño corrige lo que no
+   * cuadre. Cambia todas sus medidas. Sin el #67, no sale.
+   */
+  async function marcarPara(id: number, valor: ParaQuien) {
+    setMarcando(id);
+    setError(null);
+    const { error: err } = await supabase.rpc('admin_fijar_para', { p_modelos: [id], p_para: valor });
+    setMarcando(null);
+    if (err) { setError(mensajeDeError(err)); return; }
+    void recargar();
+  }
+  function selectorPara(id: number, nombre: string) {
+    if (!paraDe) return null;
+    const valor = paraDe.get(id) ?? '';
+    return (
+      <select
+        className="selector-para" aria-label={`Para quién es ${nombre}`}
+        value={valor} disabled={marcando === id}
+        onChange={(e) => void marcarPara(id, e.target.value as ParaQuien)}
+      >
+        {valor === '' ? <option value="">Sin marcar</option> : null}
+        <option value="dama">Dama</option>
+        <option value="caballero">Caballero</option>
+        <option value="unisex">Unisex</option>
+      </select>
+    );
+  }
+
   /** Una pieza: suelta, o una medida debajo de su producto. */
   function filaModelo(m: ModeloAdmin, enFamilia: boolean) {
     const detalle = detalleUbicaciones([m.id]);
@@ -359,6 +391,7 @@ export function Inventario() {
                 {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
                 <EtiquetaArmado armado={m.armado} />
               </div>
+              {selectorPara(m.id, m.nombre)}
               {m.variantes_nota ? <div className="celda-nota">{m.variantes_nota}</div> : null}
             </>
           )}
@@ -414,6 +447,7 @@ export function Inventario() {
             {m.nombre}
             {m.variante ? <span className="etiqueta-variante">{m.variante}</span> : null}
           </div>
+          {selectorPara(m.id, m.nombre)}
           <div className="ficha-inv__precio">
             {formatearBs(m.precio_bs)}
             <span className="ficha-inv__usd">{formatearBcv(m.precio_usd)}</span>
@@ -456,6 +490,7 @@ export function Inventario() {
         <div className="ficha-inv__cuerpo">
           <div className="ficha-inv__sku">{f.cabeza.sku} · {unico(vs.map((m) => m.grupo))}</div>
           <div className="ficha-inv__nombre">{f.cabeza.nombre}</div>
+          {selectorPara(f.cabeza.id, f.cabeza.nombre)}
           {botonMedidas(f)}
           {/* "Desde", como la tarjeta del mostrador: el rango entero no
               cabía en el ancho de un teléfono. Cada medida dice el suyo. */}
@@ -553,6 +588,7 @@ export function Inventario() {
         </td>
         <td className="celda-modelo">
           <div className="celda-nombre">{f.cabeza.nombre} <EtiquetaArmado armado={f.cabeza.armado} /></div>
+          {selectorPara(f.cabeza.id, f.cabeza.nombre)}
           {botonMedidas(f)}
           {f.cabeza.variantes_nota ? <div className="celda-nota">{f.cabeza.variantes_nota}</div> : null}
         </td>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
-import type { Existencia, ModeloAdmin } from '../lib/tipos';
+import type { Existencia, ModeloAdmin, ParaQuien } from '../lib/tipos';
 
 export const POR_PAGINA = 50;
 
@@ -47,6 +47,9 @@ export function useInventario(filtros: FiltrosInventario, pagina: number) {
   // Lo apartado por pedidos, por pieza. Sin esto el inventario decia "5" y
   // el mostrador "Quedan 3 · 2 apartadas": dos cifras para la misma pieza.
   const [apartadas, setApartadas] = useState<Map<number, number>>(new Map());
+  // Para quién es cada pieza (#67). Aparte de COLUMNAS: sin el #67 la
+  // columna no existe y el inventario tiene que cargar igual; entonces es null.
+  const [paraDe, setParaDe] = useState<Map<number, ParaQuien | null> | null>(null);
   const [total, setTotal] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +163,13 @@ export function useInventario(filtros: FiltrosInventario, pagina: number) {
       }
       setExistencias(mapa);
       setApartadas(porPieza);
+
+      if (filas.length > 0) {
+        const pr = await supabase.from('v_catalogo_admin').select('id, para').in('id', filas.map((m) => m.id));
+        setParaDe(pr.error ? null : new Map(((pr.data as { id: number; para: ParaQuien | null }[] | null) ?? []).map((f) => [f.id, f.para])));
+      } else {
+        setParaDe(new Map());
+      }
     } catch (e) {
       setError(mensajeDeError(e));
       setModelos([]);
@@ -173,5 +183,5 @@ export function useInventario(filtros: FiltrosInventario, pagina: number) {
 
   useEffect(() => { void recargar(); }, [recargar]);
 
-  return { modelos, existencias, apartadas, total, cargando, error, recargar };
+  return { modelos, existencias, apartadas, paraDe, total, cargando, error, recargar };
 }

@@ -3394,6 +3394,30 @@ table.tabla tfoot td {
 .buscador-catalogo { margin-bottom: var(--e-5); }
 .buscador-catalogo .fila { margin-top: var(--e-3); }
 
+/* Para quién: Todas, Dama o Caballero. Tres partes iguales a todo el ancho,
+   48 px de alto: es lo primero que elige quien entra, con el pulgar. */
+.para-quien {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px; padding: 4px; margin-bottom: var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--salvia); border-radius: var(--radio-pill);
+  max-width: 520px;
+}
+.para-quien__opcion {
+  min-height: 48px; padding: 0 var(--e-3);
+  border: 0; border-radius: var(--radio-pill);
+  background: transparent; color: var(--texto-fuerte);
+  font-family: var(--fuente-ui); font-size: var(--t-14); font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--rapido), color var(--rapido);
+}
+.para-quien__opcion:hover { background: var(--verde-suave); }
+.para-quien__opcion[aria-pressed='true'] { background: var(--verde-profundo); color: var(--crema); }
+.para-quien__opcion:focus-visible { outline: 2px solid var(--verde-profundo); outline-offset: 2px; }
+/* En 320 px "Caballero" no cabe con el espaciado de las etiquetas: se aprieta. */
+@media (max-width: 359px) { .para-quien__opcion { padding: 0 var(--e-1); letter-spacing: 0.04em; } }
+
 /* La lista de un tipo o de una búsqueda: volver y el título. */
 .lista-cabeza { margin-bottom: var(--e-4); display: grid; justify-items: start; gap: var(--e-1); }
 .lista-cabeza__titulo {
@@ -3775,4 +3799,15 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
   .portada-catalogo .asi-pides__pasos li { grid-template-columns: 28px 1fr; align-items: center; font-size: var(--t-16); }
   .estante .rejilla-venta, .proximos .rejilla-venta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .la-tienda__tarjeta { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+
+/* Para quién, en el Inventario: corregible con un toque, sin abrir el
+   formulario. Pequeño en la tabla (40 px, densidad de escritorio). */
+.selector-para {
+  display: block; margin-top: var(--e-1);
+  min-height: 40px; width: auto; max-width: 100%;
+  padding: 0 var(--e-3);
+  font-family: var(--fuente-ui); font-size: var(--t-14);
+  color: var(--texto-fuerte); background: var(--superficie);
+  border: 1px solid var(--salvia); border-radius: var(--radio-pill);
 }

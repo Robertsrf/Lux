@@ -702,7 +702,7 @@ async function main() {
   dice(!plA.error, 'v_por_llegar: el dueno, lo que viene', plA.error ? 'ERROR ' + plA.error.code : 'responde');
   const proxP = await P.from('v_proximamente').select('*').limit(20);
   const clavesProx = [...new Set((proxP.data ?? []).flatMap((f) => Object.keys(f)))].sort().join(',');
-  dice(!proxP.error && (clavesProx === '' || clavesProx === 'categoria,familia,foto_path,foto_thumb_path,id,nombre,precio_bs,precio_usd,sku,variante,variantes_nota'),
+  dice(!proxP.error && (clavesProx === '' || clavesProx === 'categoria,familia,foto_path,foto_thumb_path,id,nombre,para,precio_bs,precio_usd,sku,variante,variantes_nota'),
     'v_proximamente sin sesion, sus claves', proxP.error ? 'ERROR ' + proxP.error.code : clavesProx || 'sin piezas en camino');
   // Ni costo, ni pisos, ni cuántas vienen ni a dónde: eso es de la tienda.
   for (const col of ['costo_puesto_usd', 'precio_minimo_usd', 'piso_tramo_usd', 'por_llegar', 'ubicaciones_codigo']) {
@@ -933,6 +933,8 @@ async function main() {
     ['admin_anular_codigos_de', { p_origen: 'combo', p_ref: -1, p_motivo: 'prueba' }],
     ['admin_cifras_ofertas', {}],
     ['admin_guardar_cifra_oferta', { p_clave: 'seleccion_pct', p_valor: 5 }],
+    // Dama, caballero o unisex (#67).
+    ['admin_fijar_para', { p_modelos: [], p_para: 'dama' }],
   ];
   for (const [fn, args] of ADMIN_OFERTAS) {
     const v = await V.rpc(fn, args);

@@ -242,6 +242,9 @@ número al azar que guarda su navegador; revocada a todos, se escribe por
 `reserva_armados` (qué dije va en qué base en un pedido del catálogo, con
 cuántas; revocada a todos, se escribe por `crear_reserva(..., p_armados)` y se
 lee por `v_pedido_armado`).
+`modelos.para` dice para quién es el producto: `dama`, `caballero` o `unisex`
+(null: sin marcar); lo llevan todas sus medidas (`modelo_hereda_para` se lo
+copia a una medida nueva) y lo cambia `admin_fijar_para` (#67).
 `modelos.armado` dice si la pieza es un **dije** o una **base** para armar
 (null: una pieza como cualquiera); `grupos_precio.escalera`, si el grupo es de
 la escalera de las piezas o de la de los dijes; `venta_items.es_dije`, si la
@@ -390,7 +393,10 @@ reposición: cuántas más de una pieza que ya se vende vienen en un lote en
 camino), `admin_liberar_lote` (lo que llegó, a la existencia) y
 `admin_eliminar_de_lote` (borra un producto que se cargó mal en un lote que
 todavía no llega, con todas sus medidas y lo que se esperaba; nada de un lote
-que ya llegó, y si tiene historia no borra nada y lo dice).
+que ya llegó, y si tiene historia no borra nada y lo dice) y
+`admin_fijar_para(modelos, para)` (dama, caballero o unisex, a familias
+enteras; la llaman el formulario después de `admin_guardar_modelo` y el
+selector de cada producto en el Inventario).
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -948,6 +954,19 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     de sus códigos.
   - **Reportes**: `v_ofertas_mes` (Reportes, "Ventas con oferta") y la columna
     `oferta` en las rebajas. Las diez cifras se cambian en el panel (Ofertas).
+- **Dama, caballero o unisex** (pedido del dueño del 17/11/2026, cuando
+  llegó la joyería de caballero). Cada producto dice para quién es
+  (`modelos.para`). El catálogo en línea lleva arriba, en el buscador (el
+  mismo sitio en la landing y en la lista), **"Todas · Dama · Caballero"**:
+  va en la ruta (`?para=dama`), se conserva al cambiar de tipo y filtra la
+  lista, los estantes, los tipos y Próximamente; **lo unisex sale en las
+  dos**. El #67 marcó lo que ya estaba cargado por reglas de nombre
+  (hombre, negro, anubis... caballero; zarcillos, perla, corazón... dama;
+  cadena cubana o fígaro, unisex; sin señal, dama) y el dueño corrige en el
+  Inventario, con el selector de cada producto. Un producto nuevo no se
+  guarda sin elegir. El formulario y el Inventario leen `para` aparte de sus
+  columnas de siempre: sin el #67 cargan igual y el selector no sale. El
+  catálogo del revendedor, el mostrador y la vitrina no filtran todavía.
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -1298,7 +1317,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 353 comprobaciones con las dos sesiones (358 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 355 comprobaciones con las dos sesiones (360 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # las pruebas de lo que no es base: `lib/ofertas.ts` y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 ```

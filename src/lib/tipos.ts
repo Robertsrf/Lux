@@ -52,6 +52,9 @@ export type Escalera = 'pieza' | 'dije';
  */
 export type Armado = 'dije' | 'base' | null;
 
+/** Para quién es un producto (#67). Null: sin marcar. Lo llevan todas sus medidas. */
+export type ParaQuien = 'dama' | 'caballero' | 'unisex';
+
 export interface Ubicacion {
   id: number;
   nombre: string;
@@ -168,6 +171,8 @@ export interface ModeloVenta {
   variante: string | null;
   /** Dije, base para armar o nada. Opcional: no todas las consultas lo piden. */
   armado?: Armado;
+  /** Dama, caballero o unisex (#67). Opcional: no todas las consultas lo piden. */
+  para?: ParaQuien | null;
 }
 
 /** Vista v_catalogo_admin: agrega costos y margen. Filtra con es_admin(). */

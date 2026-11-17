@@ -64,6 +64,14 @@ const TOPE_INICIO = 1000;
 
 type Orden = 'nombre' | 'menor' | 'mayor';
 
+/**
+ * Para quién (pedido del dueño del 17/11/2026: "una selección de piezas de
+ * caballero y de dama, y también mezcladas"). Lo unisex sale en las dos.
+ * Va en la ruta (`?para=dama`) y se conserva al cambiar de tipo.
+ */
+type Para = 'dama' | 'caballero';
+const OPCIONES_PARA: readonly [Para | null, string][] = [[null, 'Todas'], ['dama', 'Dama'], ['caballero', 'Caballero']];
+
 /** Lo que dura el aviso de la primera pieza agregada: lo bastante para leerlo con calma. */
 const AVISO_AGREGADA_MS = 7000;
 
@@ -144,18 +152,26 @@ export function Catalogo() {
   const [error, setError] = useState<string | null>(null);
   const [parametros, setParametros] = useSearchParams();
   const paso: 'catalogo' | 'pedido' = parametros.get('paso') === 'pedido' ? 'pedido' : 'catalogo';
+  const paraEnRuta = parametros.get('para');
+  const para: Para | null = paraEnRuta === 'dama' || paraEnRuta === 'caballero' ? paraEnRuta : null;
+  const conPara = (p: Record<string, string>): Record<string, string> => (para ? { ...p, para } : p);
   const setPaso = (p: 'catalogo' | 'pedido') => {
     // Sin replace: cada cambio deja su huella en el historial.
-    setParametros(p === 'pedido' ? { paso: 'pedido' } : {});
+    setParametros(conPara(p === 'pedido' ? { paso: 'pedido' } : {}));
   };
   // El tipo va en la ruta: el botón de atrás del teléfono vuelve del tipo al
   // inicio, que es lo que la clienta espera.
   const categoria = parametros.get('tipo');
-  const setCategoria = (c: string | null) => setParametros(c ? { tipo: c } : {});
+  const setCategoria = (c: string | null) => setParametros(conPara(c ? { tipo: c } : {}));
   // "Todas las joyas", juntas y sin separar por tipo (pedido del dueño del
   // 27/10/2026: "no hay una sección para ver todo"). También en la ruta.
   const verTodas = !categoria && parametros.get('ver') === 'todas';
-  const irATodas = () => setParametros({ ver: 'todas' });
+  const irATodas = () => setParametros(conPara({ ver: 'todas' }));
+  // Cambiar de "Dama" a "Caballero" no es un paso atrás: reemplaza.
+  const elegirPara = (x: Para | null) => {
+    const p: Record<string, string> = categoria ? { tipo: categoria } : verTodas ? { ver: 'todas' } : {};
+    setParametros(x ? { ...p, para: x } : p, { replace: true });
+  };
   const enLista = Boolean(categoria || verTodas || texto.trim() || orden !== 'nombre');
   // La primera pieza que agrega: se le dice dónde quedó y cómo sigue.
   const [recienAgregada, setRecienAgregada] = useState(false);
@@ -164,7 +180,7 @@ export function Catalogo() {
   // (se escribió una letra y la base no ha respondido), no se dibujan: la
   // primera letra pintaba la lista con las mil filas del inicio, letra por
   // letra, en un teléfono de gama baja.
-  const consultaActual = `${categoria ?? (verTodas ? '*' : '')}|${texto.trim()}|${orden}`;
+  const consultaActual = `${categoria ?? (verTodas ? '*' : '')}|${texto.trim()}|${orden}|${para ?? ''}`;
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
   const turno = useRef(0);
   // Los datos de la clienta viven aqui y no en el formulario: si vuelve a
@@ -194,6 +210,7 @@ export function Catalogo() {
   const consulta = useCallback((desde: number) => {
     let q = supabase.from('v_disponible_publico').select(COLUMNAS, { count: 'exact' });
     if (categoria) q = q.eq('categoria', categoria);
+    if (para) q = q.in('para', [para, 'unisex']);
     if (texto.trim()) {
       const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
       q = q.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
@@ -205,7 +222,7 @@ export function Catalogo() {
       : q.order('precio_usd', { ascending: orden === 'menor' }).order('nombre', { ascending: true });
     const hasta = enLista ? desde + POR_TANDA - 1 : TOPE_INICIO - 1;
     return q.order('familia', { ascending: true }).order('id', { ascending: true }).range(desde, hasta);
-  }, [texto, categoria, orden, enLista]);
+  }, [texto, categoria, orden, enLista, para]);
 
   const recordar = useCallback((filas: ModeloPublico[]) => {
     setConocidos((prev) => {
@@ -288,19 +305,23 @@ export function Catalogo() {
   // enseña: si esta sección falla, el catálogo de verdad sigue entero, y
   // un aviso rojo por un adelanto asustaría a la clienta por nada.
   useEffect(() => {
+    let vivo = true;
     void (async () => {
-      const { data, count, error: err } = await supabase
+      let q = supabase
         .from('v_proximamente')
-        .select(COLUMNAS_PROXIMO, { count: 'exact' })
+        .select(COLUMNAS_PROXIMO, { count: 'exact' });
+      if (para) q = q.in('para', [para, 'unisex']);
+      const { data, count, error: err } = await q
         .order('categoria', { ascending: true }).order('nombre', { ascending: true })
         .order('familia', { ascending: true }).order('id', { ascending: true })
         .range(0, TOPE_PROXIMO - 1);
-      if (err) return;
+      if (err || !vivo) return;
       const filas = (data as unknown as ModeloProximo[] | null) ?? [];
       setProximos(filas);
       setTotalProximos(count ?? filas.length);
     })();
-  }, []);
+    return () => { vivo = false; };
+  }, [para]);
 
   // Las categorias se piden una sola vez y sin filtrar: si salieran de lo
   // que ya esta en pantalla, elegir una haria desaparecer a las demas. Las
@@ -949,6 +970,16 @@ export function Catalogo() {
   );
   const buscador = (
     <div className="buscador-catalogo">
+      <div className="para-quien" role="group" aria-label="Joyas para">
+        {OPCIONES_PARA.map(([valor, etiqueta]) => (
+          <button
+            key={etiqueta} type="button" className="para-quien__opcion"
+            aria-pressed={para === valor} onClick={() => elegirPara(valor)}
+          >
+            {etiqueta}
+          </button>
+        ))}
+      </div>
       <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
         <input
           id="buscar-publico" type="search" value={texto}
@@ -1005,9 +1036,11 @@ export function Catalogo() {
       {cargando || cargadoPara !== consultaActual ? (
         <Cargando texto="Trayendo el catálogo" />
       ) : modelos.length === 0 ? (
-        <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
-          <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
-          {enLista ? (
+        <Vacio titulo={texto ? 'Ninguna pieza coincide' : para ? `Por ahora no hay piezas de ${para} a la venta` : 'Por ahora no hay piezas disponibles'}>
+          <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : para ? 'Mira lo que viene en camino, o ve todas las joyas.' : 'Vuelve pronto: estamos surtiendo la vitrina.'}</p>
+          {para && !texto ? (
+            <button type="button" className="boton boton--secundario" onClick={() => elegirPara(null)}>Ver todas las joyas</button>
+          ) : enLista ? (
             <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button>
           ) : null}
         </Vacio>
@@ -1054,7 +1087,7 @@ export function Catalogo() {
                 Volver al inicio
               </button>
               <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
-                {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : 'Todas las joyas')}
+                {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : para ? `Joyas de ${para}` : 'Todas las joyas')}
               </h1>
               {/* Los tipos a la vista, para pasar de uno a otro sin volver al
                   inicio ni abrir nada: un toque. Se envuelven, no se deslizan.
