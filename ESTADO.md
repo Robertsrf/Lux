@@ -60,7 +60,7 @@ src/paginas/revendedor/  el catálogo de cada revendedor (sin sesión) y su
 src/lib/dinero.ts        toda la aritmética de dinero y tasas.
 src/lib/tipos.ts         el contrato con cada vista de la base.
 esquema*.sql             66 migraciones, en el orden de INSTALACION.md.
-scripts/verificar.mjs    355 comprobaciones de seguridad (360 con LUX_REVENDEDOR).
+scripts/verificar.mjs    356 comprobaciones de seguridad (361 con LUX_REVENDEDOR).
 scripts/pruebas/        `npm run pruebas`: las pruebas de lo que no es base (hoy
                         `lib/ofertas.ts`), con el ejecutor de Node, sin dependencias.
 scripts/preparar-landing.mjs  prepara las fotos de public/landing/ (WebP, dos anchos).

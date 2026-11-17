@@ -114,7 +114,8 @@ src/
                 LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
                 Instagram y "Cómo pagar"; SOLO en el de la tienda),
                 LetraGrande (el botón "Letra grande" de la cabecera del
-                catálogo y del pedido)
+                catálogo y del pedido), ElegirPara ("Todas · Dama ·
+                Caballero", de los dos catálogos en línea)
   paginas/
     admin/      Inventario (un producto por fila; sus medidas se abren
                 debajo; "Próximamente" lo que no ha llegado),
@@ -966,7 +967,13 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   Inventario, con el selector de cada producto. Un producto nuevo no se
   guarda sin elegir. El formulario y el Inventario leen `para` aparte de sus
   columnas de siempre: sin el #67 cargan igual y el selector no sale. El
-  catálogo del revendedor, el mostrador y la vitrina no filtran todavía.
+  selector es `ElegirPara` (`componentes/ElegirPara.tsx`, con `paraDeRuta` y
+  `paraQueVe`), y lo lleva también **el catálogo de cada revendedor**, que
+  filtra en `rv_catalogo_publico` (gana `para` en el #68). **La vitrina**
+  dice para quién es cada pieza junto a su categoría ("Collar · Caballero";
+  lo unisex, "Dama y caballero") y sus controles eligen "Todas · Dama ·
+  Caballero" por televisor (`lux-vitrina-para`); con un filtro y nada que
+  enseñar, ofrece volver a todas. El mostrador y el PDF no filtran.
 - **Mover una pieza de ubicación** es un toque: el botón "Mover" del Inventario
   (junto a Editar) y el de cada tarjeta del Mostrador, de las dos caras. Lo hace
   `mover_existencia` en una transacción y queda en `movimientos`.
@@ -1317,7 +1324,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 355 comprobaciones con las dos sesiones (360 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 356 comprobaciones con las dos sesiones (361 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # las pruebas de lo que no es base: `lib/ofertas.ts` y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 ```

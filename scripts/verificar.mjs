@@ -404,6 +404,9 @@ async function main() {
   // Su catálogo público: responde sin sesión y no trae lo que él paga a Lux.
   const catRv = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select('id, precio_usd').limit(1);
   dice(!catRv.error, 'rv_catalogo_publico() sin sesion', catRv.error ? 'ERROR ' + catRv.error.code : 'responde');
+  // Dama o caballero en su catálogo (#68): su clienta filtra por aquí.
+  const catRvPara = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select('id, para').limit(1);
+  dice(!catRvPara.error, 'rv_catalogo_publico() trae para (#68)', catRvPara.error ? 'ERROR ' + catRvPara.error.code : 'responde');
   for (const col of ['precio_lux_usd', 'costo_puesto_usd', 'piso_tramo_usd']) {
     const f = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select(col).limit(1);
     dice(!!f.error, col + ' no sale en su catalogo', f.error ? 'no existe la columna' : 'LA COLUMNA ESTA AHI');

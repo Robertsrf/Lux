@@ -23,6 +23,7 @@ import type { ParArmado } from '../../lib/armados';
 import { TUS_DATOS_VACIOS, TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../componentes/TusDatos';
 import type { ModeloRevendedor, PerfilRevendedor } from '../../lib/tipos';
+import { ElegirPara, paraDeRuta, paraQueVe, type Para } from '../../componentes/ElegirPara';
 import '../../estilos/revendedor.css';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, familia, variante';
@@ -63,14 +64,22 @@ export function CatalogoRevendedor() {
   const [error, setError] = useState<string | null>(null);
   const [parametros, setParametros] = useSearchParams();
   const paso: 'catalogo' | 'apartar' = parametros.get('paso') === 'apartar' ? 'apartar' : 'catalogo';
-  const setPaso = (p: 'catalogo' | 'apartar') => setParametros(p === 'apartar' ? { paso: 'apartar' } : {});
+  // Dama o caballero, como en la tienda (#68): en la ruta, y se conserva al
+  // cambiar de tipo o de paso.
+  const para = paraDeRuta(parametros.get('para'));
+  const conPara = (p: Record<string, string>): Record<string, string> => (para ? { ...p, para } : p);
+  const setPaso = (p: 'catalogo' | 'apartar') => setParametros(conPara(p === 'apartar' ? { paso: 'apartar' } : {}));
   // El tipo en la ruta, como en el catálogo de la tienda: atrás vuelve al inicio.
   const categoria = parametros.get('tipo');
-  const setCategoria = (c: string | null) => setParametros(c ? { tipo: c } : {});
+  const setCategoria = (c: string | null) => setParametros(conPara(c ? { tipo: c } : {}));
+  const elegirPara = (x: Para | null) => {
+    const p: Record<string, string> = categoria ? { tipo: categoria } : {};
+    setParametros(x ? { ...p, para: x } : p, { replace: true });
+  };
   const enLista = Boolean(categoria || texto.trim());
   // De qué consulta son las filas que hay: mientras no sean de la de ahora
   // no se dibujan (la primera letra pintaba las 400 del inicio en la lista).
-  const consultaActual = `${categoria ?? ''}|${texto.trim()}`;
+  const consultaActual = `${categoria ?? ''}|${texto.trim()}|${para ?? ''}`;
   const [cargadoPara, setCargadoPara] = useState<string | null>(null);
   const turno = useRef(0);
   const [datos, setDatos] = useState<EstadoTusDatos>(TUS_DATOS_VACIOS);
@@ -144,6 +153,7 @@ export function CatalogoRevendedor() {
       .order('nombre', { ascending: true })
       .limit(LIMITE);
     if (categoria) consulta = consulta.eq('categoria', categoria);
+    if (para) consulta = consulta.in('para', paraQueVe(para));
     if (texto.trim()) {
       const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
       consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
@@ -158,9 +168,9 @@ export function CatalogoRevendedor() {
       for (const f of filas) copia.set(f.id, f);
       return copia;
     });
-    setCargadoPara(`${categoria ?? ''}|${texto.trim()}`);
+    setCargadoPara(`${categoria ?? ''}|${texto.trim()}|${para ?? ''}`);
     setCargando(false);
-  }, [usuario, texto, categoria]);
+  }, [usuario, texto, categoria, para]);
 
   useEffect(() => {
     const t = setTimeout(() => void cargar(), texto ? 300 : 0);
@@ -490,6 +500,7 @@ export function CatalogoRevendedor() {
         )}
 
         <div className="buscador-catalogo">
+          <ElegirPara para={para} alElegir={elegirPara} />
           <Campo etiqueta="Buscar una pieza" htmlFor="buscar-rv">
             <input
               id="buscar-rv" type="search" value={texto}
@@ -515,9 +526,11 @@ export function CatalogoRevendedor() {
         {cargando || cargadoPara !== consultaActual ? (
           <Cargando texto="Trayendo el catálogo" />
         ) : modelos.length === 0 ? (
-          <Vacio titulo={texto ? 'Ninguna pieza coincide' : 'Por ahora no hay piezas disponibles'}>
+          <Vacio titulo={texto ? 'Ninguna pieza coincide' : para ? `Por ahora no hay piezas de ${para}` : 'Por ahora no hay piezas disponibles'}>
             <p>{texto ? 'Prueba con otra palabra, o mira todo el catálogo.' : `Vuelve pronto, o escríbele a ${primerNombre}.`}</p>
-            {enLista ? <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button> : null}
+            {para && !texto ? (
+              <button type="button" className="boton boton--secundario" onClick={() => elegirPara(null)}>Ver todas las joyas</button>
+            ) : enLista ? <button type="button" className="boton boton--secundario" onClick={alInicio}>Ver todo el catálogo</button> : null}
           </Vacio>
         ) : !enLista ? (
           <>

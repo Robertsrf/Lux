@@ -17,7 +17,8 @@ import { armarConjunto, zonasDe } from '../lib/combinar';
 import type { Zona } from '../lib/combinar';
 import { useTextos } from '../hooks/useTextos';
 import { useFrases } from '../hooks/useFrases';
-import type { Frase, ModeloPublico } from '../lib/tipos';
+import type { Frase, ModeloPublico, ParaQuien } from '../lib/tipos';
+import { paraQueVe, type Para } from '../componentes/ElegirPara';
 import '../estilos/vitrina.css';
 
 /**
@@ -27,7 +28,9 @@ import '../estilos/vitrina.css';
  */
 type PiezaVitrina = Pick<ModeloPublico,
   'id' | 'sku' | 'nombre' | 'categoria' | 'variantes_nota' | 'foto_path' | 'foto_thumb_path'
-  | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante' | 'disponible'>;
+  | 'precio_usd' | 'precio_bs' | 'ubicaciones_codigo' | 'familia' | 'variante' | 'disponible'>
+  // Dama, caballero o unisex (#67).
+  & { para?: ParaQuien | null };
 type FamiliaVitrina = Familia<PiezaVitrina>;
 
 const TAMANO_PAGINA = 500;
@@ -46,6 +49,14 @@ const REFRESCAR_MS = 5 * 60_000;
 const REINTENTOS_MS = [15_000, 30_000, 60_000, 120_000, 300_000];
 /** Si el QR va en pantalla, por televisor. */
 const CLAVE_QR = 'lux-vitrina-qr';
+/**
+ * Qué enseña este televisor: todas, solo dama o solo caballero (lo unisex
+ * sale en las dos). Por televisor, como el QR: uno puede quedarse con lo de
+ * caballero junto a esa vitrina (pedido del dueño del 17/11/2026).
+ */
+const CLAVE_PARA = 'lux-vitrina-para';
+/** Cómo se dice en la pantalla para quién es una pieza. */
+const NOMBRE_PARA: Record<ParaQuien, string> = { dama: 'Dama', caballero: 'Caballero', unisex: 'Dama y caballero' };
 /** Lo que dura la salida de una escena mientras entra la siguiente. */
 const SALIDA_MS = 900;
 /** Cada cuánto cambia el mensaje del riel. */
@@ -285,6 +296,12 @@ function armarGuion(familias: FamiliaVitrina[], frases: Frase[], conMateriales: 
 const leerQr = () => {
   try { return localStorage.getItem(CLAVE_QR) !== 'no'; } catch { return true; }
 };
+const leerPara = (): Para | null => {
+  try {
+    const v = localStorage.getItem(CLAVE_PARA);
+    return v === 'dama' || v === 'caballero' ? v : null;
+  } catch { return null; }
+};
 
 /**
  * Vitrina: el catalogo pasando solo, para dejarlo puesto en un televisor.
@@ -321,6 +338,7 @@ export function Vitrina() {
   const [controles, setControles] = useState(true);
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [conQr, setConQr] = useState(leerQr);
+  const [paraTv, setParaTv] = useState<Para | null>(leerPara);
   // La escena que se va, mientras entra la nueva: se funde encima.
   const [saliente, setSaliente] = useState<Escena | null>(null);
   // El mensaje del riel que se está leyendo.
@@ -343,7 +361,7 @@ export function Vitrina() {
       for (let desde = 0; desde < TOPE; desde += TAMANO_PAGINA) {
         const { data, error: err } = await supabase
           .from('v_disponible_publico')
-          .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante, disponible')
+          .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, ubicaciones_codigo, familia, variante, disponible, para')
           // Un dije suelto no es la pieza que vende la tienda: no sale como
           // estelar, ni en un trío, ni en una colección (esquema-dijes.sql).
           .or('armado.is.null,armado.neq.dije')
@@ -367,7 +385,7 @@ export function Vitrina() {
       // es un adelanto, y no tumba la vitrina de lo que sí se vende.
       const prox = await supabase
         .from('v_proximamente')
-        .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante')
+        .select('id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, familia, variante, para')
         .order('categoria', { ascending: true })
         .order('nombre', { ascending: true })
         .order('id', { ascending: true })
@@ -408,16 +426,25 @@ export function Vitrina() {
 
   // Sin foto no sale: en un televisor, una pieza sin foto es una pantalla
   // vacia con un precio. Si ninguna tiene foto, salen todas.
+  // Lo de este televisor: todas, o solo dama o solo caballero (y lo unisex).
+  const deEsteTv = useMemo(() => {
+    if (!paraTv) return { venta: modelos, proximas: proximos };
+    const ve = paraQueVe(paraTv);
+    const sirve = (m: PiezaVitrina) => ve.includes(m.para ?? '');
+    return { venta: modelos.filter(sirve), proximas: proximos.filter(sirve) };
+  }, [modelos, proximos, paraTv]);
   const conFotos = useMemo(() => {
-    const algunas = modelos.filter((m) => m.foto_path || m.foto_thumb_path);
-    return algunas.length > 0 ? algunas : modelos;
-  }, [modelos]);
+    const lista = deEsteTv.venta;
+    const algunas = lista.filter((m) => m.foto_path || m.foto_thumb_path);
+    return algunas.length > 0 ? algunas : lista;
+  }, [deEsteTv]);
   const familias = useMemo(() => intercalar(agruparPorFamilia(conFotos)), [conFotos]);
   // Lo próximo, con la misma regla de la foto.
   const familiasProximas = useMemo(() => {
-    const algunas = proximos.filter((m) => m.foto_path || m.foto_thumb_path);
-    return intercalar(agruparPorFamilia(algunas.length > 0 ? algunas : proximos));
-  }, [proximos]);
+    const lista = deEsteTv.proximas;
+    const algunas = lista.filter((m) => m.foto_path || m.foto_thumb_path);
+    return intercalar(agruparPorFamilia(algunas.length > 0 ? algunas : lista));
+  }, [deEsteTv]);
 
   const materiales = textos.materiales_largo?.trim() || textos.materiales_corto?.trim() || null;
   const guion = useMemo(
@@ -527,6 +554,14 @@ export function Vitrina() {
     });
   }, []);
 
+  const elegirParaTv = useCallback((valor: Para | null) => {
+    setParaTv(valor);
+    try {
+      if (valor) localStorage.setItem(CLAVE_PARA, valor);
+      else localStorage.removeItem(CLAVE_PARA);
+    } catch { /* solo esta vez */ }
+  }, []);
+
   useEffect(() => {
     const alCambiar = () => setPantallaCompleta(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', alCambiar);
@@ -628,7 +663,14 @@ export function Vitrina() {
     );
   }
   if (total === 0 || !actual) {
-    return (
+    // Con un filtro puesto y nada que le toque, hay que poder quitarlo desde
+    // aquí: esta pantalla no lleva los controles.
+    return paraTv ? (
+      <Vacio titulo={`No hay piezas de ${paraTv} que mostrar`}>
+        <p>Este televisor enseña solo lo de {paraTv}. Mientras llega, puede enseñarlo todo.</p>
+        <button type="button" className="boton" onClick={() => elegirParaTv(null)}>Enseñar todas</button>
+      </Vacio>
+    ) : (
       <Vacio titulo="No hay piezas que mostrar">
         <p>La vitrina muestra los modelos con existencia. Carga inventario y vuelve.</p>
       </Vacio>
@@ -740,9 +782,23 @@ export function Vitrina() {
           </button>
         </div>
 
+        <div className="vitrina__grupo" role="group" aria-label="Qué enseña este televisor">
+          {([[null, 'Todas'], ['dama', 'Dama'], ['caballero', 'Caballero']] as const).map(([valor, etiqueta]) => (
+            <button
+              key={etiqueta}
+              type="button"
+              className="boton boton--secundario boton--pequeno"
+              aria-pressed={paraTv === valor}
+              onClick={() => elegirParaTv(valor)}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+
         <div className="vitrina__grupo">
           <span className="vitrina__cuenta">
-            {`Escena ${(indice % total) + 1} de ${total} · ${familias.length} piezas`}
+            {`Escena ${(indice % total) + 1} de ${total} · ${familias.length} piezas${paraTv ? ` · solo ${paraTv}` : ''}`}
             {/* Si se cayo la red, se sigue mostrando lo ultimo que llego, y
                 se dice desde cuando. */}
             {sinRed && actualizada
@@ -838,9 +894,16 @@ function EscenaPieza({ familia, lado, materiales, proxima = false }: { familia: 
       <Arco pieza={conFoto(variantes)} nombre={cabeza.nombre} clase="vitrina__arco--estelar" brillo />
 
       <div className="vitrina__ficha vitrina__ajustable">
+        {/* Para quién, junto a la categoría: "Collar · Caballero". */}
         {proxima ? (
-          <p className="vitrina__categoria vitrina__proxima vitrina__aparece">Próximamente</p>
-        ) : cabeza.categoria ? <p className="vitrina__categoria vitrina__aparece">{cabeza.categoria}</p> : null}
+          <p className="vitrina__categoria vitrina__proxima vitrina__aparece">
+            Próximamente{cabeza.para ? ` · ${NOMBRE_PARA[cabeza.para]}` : ''}
+          </p>
+        ) : cabeza.categoria || cabeza.para ? (
+          <p className="vitrina__categoria vitrina__aparece">
+            {[cabeza.categoria, cabeza.para ? NOMBRE_PARA[cabeza.para] : null].filter(Boolean).join(' · ')}
+          </p>
+        ) : null}
         <h1 className="vitrina__nombre vitrina__aparece">{cabeza.nombre}</h1>
         {nota ? <p className="vitrina__nota vitrina__aparece">{nota}</p> : null}
 

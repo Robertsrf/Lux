@@ -38,6 +38,7 @@ import { useTextos } from '../../hooks/useTextos';
 import { BotonLetraGrande } from '../../componentes/LetraGrande';
 import { registrarVisita } from '../../lib/visitas';
 import type { Cotizacion, ModeloProximo, ModeloPublico, Tramo } from '../../lib/tipos';
+import { ElegirPara, paraDeRuta, paraQueVe, type Para } from '../../componentes/ElegirPara';
 
 const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante, armado';
 
@@ -63,14 +64,6 @@ const POR_TANDA = 120;
 const TOPE_INICIO = 1000;
 
 type Orden = 'nombre' | 'menor' | 'mayor';
-
-/**
- * Para quién (pedido del dueño del 17/11/2026: "una selección de piezas de
- * caballero y de dama, y también mezcladas"). Lo unisex sale en las dos.
- * Va en la ruta (`?para=dama`) y se conserva al cambiar de tipo.
- */
-type Para = 'dama' | 'caballero';
-const OPCIONES_PARA: readonly [Para | null, string][] = [[null, 'Todas'], ['dama', 'Dama'], ['caballero', 'Caballero']];
 
 /** Lo que dura el aviso de la primera pieza agregada: lo bastante para leerlo con calma. */
 const AVISO_AGREGADA_MS = 7000;
@@ -152,8 +145,8 @@ export function Catalogo() {
   const [error, setError] = useState<string | null>(null);
   const [parametros, setParametros] = useSearchParams();
   const paso: 'catalogo' | 'pedido' = parametros.get('paso') === 'pedido' ? 'pedido' : 'catalogo';
-  const paraEnRuta = parametros.get('para');
-  const para: Para | null = paraEnRuta === 'dama' || paraEnRuta === 'caballero' ? paraEnRuta : null;
+  // Para quién: va en la ruta y se conserva al cambiar de tipo (ElegirPara).
+  const para = paraDeRuta(parametros.get('para'));
   const conPara = (p: Record<string, string>): Record<string, string> => (para ? { ...p, para } : p);
   const setPaso = (p: 'catalogo' | 'pedido') => {
     // Sin replace: cada cambio deja su huella en el historial.
@@ -210,7 +203,7 @@ export function Catalogo() {
   const consulta = useCallback((desde: number) => {
     let q = supabase.from('v_disponible_publico').select(COLUMNAS, { count: 'exact' });
     if (categoria) q = q.eq('categoria', categoria);
-    if (para) q = q.in('para', [para, 'unisex']);
+    if (para) q = q.in('para', paraQueVe(para));
     if (texto.trim()) {
       const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
       q = q.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
@@ -310,7 +303,7 @@ export function Catalogo() {
       let q = supabase
         .from('v_proximamente')
         .select(COLUMNAS_PROXIMO, { count: 'exact' });
-      if (para) q = q.in('para', [para, 'unisex']);
+      if (para) q = q.in('para', paraQueVe(para));
       const { data, count, error: err } = await q
         .order('categoria', { ascending: true }).order('nombre', { ascending: true })
         .order('familia', { ascending: true }).order('id', { ascending: true })
@@ -970,16 +963,7 @@ export function Catalogo() {
   );
   const buscador = (
     <div className="buscador-catalogo">
-      <div className="para-quien" role="group" aria-label="Joyas para">
-        {OPCIONES_PARA.map(([valor, etiqueta]) => (
-          <button
-            key={etiqueta} type="button" className="para-quien__opcion"
-            aria-pressed={para === valor} onClick={() => elegirPara(valor)}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </div>
+      <ElegirPara para={para} alElegir={elegirPara} />
       <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
         <input
           id="buscar-publico" type="search" value={texto}
