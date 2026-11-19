@@ -12,6 +12,8 @@ import type { FotoProcesada } from '../../lib/fotos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import type { LoteAdmin, ModeloAdmin, ParaQuien, PrecioSugerido } from '../../lib/tipos';
+import { grupoTrasSugerencia } from '../../lib/grupoSugerido';
+import type { QuienPusoGrupo } from '../../lib/grupoSugerido';
 
 
 const VACIO = {
@@ -127,7 +129,14 @@ function Formulario() {
   const [sugerencia, setSugerencia] = useState<PrecioSugerido | null>(null);
   const [margenObjetivo, setMargenObjetivo] = useState('');
   const [categoriaNueva, setCategoriaNueva] = useState(false);
-  const [autoAsignado, setAutoAsignado] = useState(false);
+  // Quién puso el grupo: la máquina lo mueve con el costo; el dueño, no.
+  // Una pieza que se edita trae el suyo, que cuenta como del dueño.
+  const [quienGrupo, setQuienGrupo] = useState<QuienPusoGrupo>(esNuevo ? 'maquina' : 'dueno');
+  // Si la cuenta del precio falla, se dice: antes se callaba y la cadena
+  // quedaba con rayas sin que nadie supiera por qué.
+  const [errorSugerencia, setErrorSugerencia] = useState<string | null>(null);
+  // Cada petición de sugerencia lleva su número; solo cuenta la última.
+  const ultimaPeticion = useRef(0);
   const [cargando, setCargando] = useState(!esNuevo);
   const [guardando, setGuardando] = useState(false);
   const [procesandoFoto, setProcesandoFoto] = useState(false);
@@ -200,7 +209,7 @@ function Formulario() {
         setParaOriginal(p);
       }
       setFotoActual(urlPublicaFoto(m.foto_thumb_path ?? m.foto_path));
-      setAutoAsignado(true);
+      setQuienGrupo('dueno');
 
       // Sus hermanas, con su costo y su precio de hoy, y las existencias
       // de todas en una sola consulta.
@@ -335,14 +344,28 @@ function Formulario() {
   // El flete prorrateado, la conversion a dolares BCV y el precio sugerido
   // los calcula la base. El navegador no repite ninguna de esas formulas:
   // las pregunta.
+  //
+  // Se pide otra vez con cada cambio, y una respuesta puede llegar después
+  // de la siguiente (la primera de la sesión suele tardar): sin el número,
+  // la de un costo viejo pisaba a la del costo escrito y la cadena salía
+  // incompleta hasta cambiar el tipo (reportado por el dueño el 18/11/2026).
   const pedirSugerencia = useCallback(async () => {
+    const numero = ++ultimaPeticion.current;
     const { data, error: err } = await supabase.rpc('admin_sugerir_precio', {
       p_lote_id: form.lote_id ? Number(form.lote_id) : null,
       p_costo_usd: Number(form.costo_unitario_usd || 0),
       p_margen_pct: margenObjetivo === '' ? null : Number(margenObjetivo),
       p_es_dije: form.armado === 'dije',
     });
-    if (!err) setSugerencia(data as unknown as PrecioSugerido);
+    if (numero !== ultimaPeticion.current) return;
+    if (err) {
+      // Mejor rayas y el porqué que la cadena de otro costo.
+      setSugerencia(null);
+      setErrorSugerencia(mensajeDeError(err));
+      return;
+    }
+    setErrorSugerencia(null);
+    setSugerencia(data as unknown as PrecioSugerido);
   }, [form.lote_id, form.costo_unitario_usd, margenObjetivo, form.armado]);
 
   useEffect(() => {
@@ -350,30 +373,30 @@ function Formulario() {
     return () => clearTimeout(t);
   }, [pedirSugerencia]);
 
-  // Asignacion automatica del grupo: solo la primera vez y solo si el
-  // admin no ha elegido nada. Si el elige a mano, no se le vuelve a mover.
+  // El grupo sigue al costo mientras lo ponga la máquina; el que elige el
+  // dueño no se mueve. La regla entera vive en `grupoTrasSugerencia`.
   useEffect(() => {
     if (!sugerencia) return;
-    // Que la sugerencia sea la del tipo de ahora, no la que llegó antes de
-    // cambiarlo: si no, un dije se quedaría con un grupo de las piezas.
-    if ((sugerencia.escalera ?? 'pieza') !== (form.armado === 'dije' ? 'dije' : 'pieza')) return;
-    // Cambió el tipo: el grupo de la escalera nueva reemplaza al que tenía.
-    // Sin grupo en ella (no hay escalera de dijes todavía), se queda el de
-    // antes: mejor G9 que sin precio, y el formulario dice qué falta.
-    if (tipoCambiado) {
-      if (sugerencia.grupo_id && form.precio_override_usd === '') {
-        setForm((f) => ({ ...f, grupo_precio_id: String(sugerencia.grupo_id) }));
-      }
-      setTipoCambiado(false);
-      setAutoAsignado(true);
-      return;
-    }
-    if (autoAsignado || !sugerencia.grupo_id) return;
-    if (form.grupo_precio_id !== '' || form.precio_override_usd !== '') return;
-    if (Number(form.costo_unitario_usd || 0) <= 0) return;
-    setForm((f) => ({ ...f, grupo_precio_id: String(sugerencia.grupo_id) }));
-    setAutoAsignado(true);
-  }, [sugerencia, autoAsignado, tipoCambiado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd, form.armado]);
+    const r = grupoTrasSugerencia(sugerencia, {
+      grupo: form.grupo_precio_id,
+      quien: quienGrupo,
+      tipoCambiado,
+      escalera: form.armado === 'dije' ? 'dije' : 'pieza',
+      costo: Number(form.costo_unitario_usd || 0),
+      hayPrecioPropio: form.precio_override_usd.trim() !== '',
+    });
+    // De la otra escalera: llegó antes de cambiar el tipo, se espera la suya.
+    if (!r) return;
+    if (tipoCambiado) setTipoCambiado(false);
+    if (r.quien !== quienGrupo) setQuienGrupo(r.quien);
+    if (r.grupo !== form.grupo_precio_id) setForm((f) => ({ ...f, grupo_precio_id: r.grupo }));
+  }, [sugerencia, quienGrupo, tipoCambiado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd, form.armado]);
+
+  /** El dueño elige el grupo: desde ahí la máquina no lo toca. */
+  function elegirGrupo(valor: string) {
+    cambiar('grupo_precio_id', valor);
+    setQuienGrupo('dueno');
+  }
 
   /**
    * Cambiar el tipo cambia de escalera. El grupo elegido NO se suelta aquí:
@@ -726,7 +749,7 @@ function Formulario() {
 
           <div className="fila">
             <Campo etiqueta="Grupo de precio" htmlFor="m-grupo">
-              <select id="m-grupo" value={form.grupo_precio_id} onChange={(e) => cambiar('grupo_precio_id', e.target.value)}>
+              <select id="m-grupo" value={form.grupo_precio_id} onChange={(e) => elegirGrupo(e.target.value)}>
                 <option value="">Sin grupo</option>
                 {/* Los de su escalera; y el que ya tenga, aunque sea de la
                     otra, para que se vea en qué está. */}
@@ -818,6 +841,16 @@ function Formulario() {
               </li>
             </ol>
 
+            {errorSugerencia ? (
+              <Aviso tono="alerta">
+                No se pudo calcular el precio: {errorSugerencia}
+                {' '}
+                <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void pedirSugerencia()}>
+                  Calcular otra vez
+                </button>
+              </Aviso>
+            ) : null}
+
             {sugerencia?.grupo_id ? (
               <Aviso tono={sugerencia.grupo_alcanza ? 'exito' : 'alerta'}>
                 {sugerencia.grupo_alcanza ? (
@@ -834,7 +867,7 @@ function Formulario() {
                         <button
                           type="button"
                           className="boton boton--secundario boton--pequeno"
-                          onClick={() => cambiar('grupo_precio_id', String(sugerencia.grupo_id))}
+                          onClick={() => elegirGrupo(String(sugerencia.grupo_id))}
                         >
                           Usar {sugerencia.grupo_nombre}
                         </button>
