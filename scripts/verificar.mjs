@@ -401,6 +401,14 @@ async function main() {
   const esc = await A.rpc('rv_escalera');
   dice(!esc.error && (esc.data?.length ?? 0) > 0, 'rv_escalera(), los niveles',
     esc.error ? 'ERROR ' + esc.error.code : (esc.data?.length ?? 0) + ' niveles');
+  // El usuario es su subdominio (#69): nunca "entrar" ni "www". Solo se
+  // pregunta a la regla; nunca se crea un revendedor para probar.
+  const entrarA = await A.rpc('usuario_rv_valido', { p_usuario: 'entrar' });
+  const jaduA = await A.rpc('usuario_rv_valido', { p_usuario: 'jadujoyas' });
+  dice(!entrarA.error && entrarA.data === false && jaduA.data === true, 'usuario_rv_valido(): entrar no, jadujoyas si (#69)',
+    entrarA.error ? 'ERROR ' + entrarA.error.code : `${entrarA.data} / ${jaduA.data}`);
+  const reservP = await P.rpc('usuario_rv_valido', { p_usuario: 'entrar' });
+  dice(!!reservP.error, 'usuario_rv_valido() sin sesion, rechazada', reservP.error ? 'rechazada ' + reservP.error.code : 'RESPONDIO');
   // Su catálogo público: responde sin sesión y no trae lo que él paga a Lux.
   const catRv = await P.rpc('rv_catalogo_publico', { p_usuario: 'nadie-con-este-usuario' }).select('id, precio_usd').limit(1);
   dice(!catRv.error, 'rv_catalogo_publico() sin sesion', catRv.error ? 'ERROR ' + catRv.error.code : 'responde');
