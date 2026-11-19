@@ -59,14 +59,14 @@ function politicaDeSeguridad(urlSupabase: string): Plugin {
   };
 }
 
-// base relativa: funciona igual en GitHub Pages de usuario y de proyecto.
-// El routing es con HashRouter, asi que no hace falta reescritura de rutas.
+// base absoluta: con rutas de verdad (/admin/modelos/12) una relativa pediria
+// los archivos en /admin/modelos/assets. Cloudflare sirve desde la raiz.
 export default defineConfig(({ mode }) => {
   // loadEnv lee el .env y, por encima, las variables VITE_ del entorno: las
   // que pasa el despliegue de GitHub (.github/workflows/desplegar.yml).
   const env = loadEnv(mode, '.', 'VITE_');
   return {
-    base: './',
+    base: '/',
     plugins: [react(), politicaDeSeguridad(env.VITE_SUPABASE_URL ?? '')],
     build: {
       target: 'es2020',

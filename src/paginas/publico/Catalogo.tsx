@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { rutaDelCatalogo } from '../../lib/direccion';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, Filtros, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
@@ -710,7 +711,7 @@ export function Catalogo() {
   const cabecera = (
     <header className="barra barra--publica">
       <div className="barra__interior">
-        <Link to="/publico" className="barra__marca" aria-label="Lux by Emory, ir al inicio del catálogo">
+        <Link to={rutaDelCatalogo()} className="barra__marca" aria-label="Lux by Emory, ir al inicio del catálogo">
           <Wordmark alto={40} />
         </Link>
         <div className="barra__publica-acciones">
@@ -730,7 +731,7 @@ export function Catalogo() {
   // Volver atras despues de apartar deja la seleccion vacia: en vez de un
   // formulario de pedido sin piezas, se regresa al catalogo.
   if (paso === 'pedido' && seleccion.size === 0) {
-    return <Navigate to="/publico" replace />;
+    return <Navigate to={rutaDelCatalogo()} replace />;
   }
 
   if (paso === 'pedido') {

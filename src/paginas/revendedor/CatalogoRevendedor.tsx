@@ -8,6 +8,7 @@ import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, nombreConVariante, nombreDeTipo, porCategoria } from '../../lib/familias';
 import type { Familia } from '../../lib/familias';
 import { enlaceCatalogoRv } from '../../lib/revendedor';
+import { rutaDelCatalogoRv, usuarioDelSubdominio } from '../../lib/direccion';
 import { enlaceWhatsAppA } from '../../lib/enlaces';
 import { AsiPides, ComoPedir, Estante, POR_ESTANTE, TarjetaPieza, TiposConFoto, irA } from '../../componentes/VitrinaPublica';
 import type { PasoPedido, PedidoTarjeta, TipoVitrina } from '../../componentes/VitrinaPublica';
@@ -31,8 +32,8 @@ const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_th
 const LIMITE = 400;
 
 /**
- * El catálogo de un revendedor: /#/r/<usuario>. Lo abre su clienta desde el
- * enlace que él le manda, sin sesión.
+ * El catálogo de un revendedor: <usuario>.luxbyemory.com (en desarrollo,
+ * /r/<usuario>). Lo abre su clienta desde el enlace que él le manda, sin sesión.
  *
  * Es el catálogo de la tienda con tres diferencias:
  *   - su nombre y su paleta arriba, y "Joyas Lux by Emory" debajo;
@@ -43,7 +44,9 @@ const LIMITE = 400;
  * que él le paga a Lux, ni dónde está la pieza en la tienda.
  */
 export function CatalogoRevendedor() {
-  const { usuario = '' } = useParams();
+  // En su subdominio el usuario sale de la dirección; en /r/<usuario>, de la ruta.
+  const { usuario: deLaRuta } = useParams();
+  const usuario = deLaRuta ?? usuarioDelSubdominio();
   const navegar = useNavigate();
   const { tasa } = useTasa();
   const textos = useTextos();
@@ -141,6 +144,16 @@ export function CatalogoRevendedor() {
     if (perfil) document.title = `${perfil.catalogo_nombre} · Joyas Lux by Emory`;
     return () => { document.title = 'Lux by Emory'; };
   }, [perfil]);
+
+  // El ícono de la pestaña es su logo, nunca el de Lux: su clienta lo ve
+  // como de él. Sin logo, ninguno. Al salir vuelve el de antes.
+  useEffect(() => {
+    const icono = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!icono || !perfilListo) return;
+    const antes = icono.href;
+    icono.href = urlPublicaFoto(perfil?.logo_path) ?? 'data:,';
+    return () => { icono.href = antes; };
+  }, [perfil, perfilListo]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -384,7 +397,7 @@ export function CatalogoRevendedor() {
   /* ------------------------------------------------------------ apartar */
 
   if (paso === 'apartar' && seleccion.size === 0) {
-    return <Navigate to={`/r/${usuario}`} replace />;
+    return <Navigate to={rutaDelCatalogoRv(usuario)} replace />;
   }
 
   if (paso === 'apartar') {

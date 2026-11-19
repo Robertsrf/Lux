@@ -1,5 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { destinoDeRuta } from './lib/dominio';
+import { direcciones, lugarActual } from './lib/direccion';
 import { ProveedorSesion, useSesion } from './hooks/useSesion';
 import { RutaProtegida } from './componentes/RutaProtegida';
 import { Disposicion } from './componentes/Disposicion';
@@ -68,7 +70,44 @@ const GuiaRevendedor = lazy(() => import('./paginas/publico/GuiaRevendedor').the
 const EntrarRevendedor = lazy(() => import('./paginas/revendedor/EntrarRevendedor').then((m) => ({ default: m.EntrarRevendedor })));
 const PanelRevendedor = lazy(() => import('./paginas/revendedor/Panel').then((m) => ({ default: m.PanelRevendedor })));
 
-/** GitHub Pages no reescribe rutas: se usa HashRouter (/#/admin/inventario). */
+/*
+  RUTAS SIN NUMERAL (fase 2, 19/11/2026). Cloudflare devuelve index.html
+  para cualquier dirección (wrangler.jsonc), así que el sitio usa rutas de
+  verdad: luxbyemory.com/rv, no luxbyemory.com/#/rv. Antes era HashRouter
+  porque GitHub Pages no sabía hacerlo.
+
+  Y una sola aplicación sirve tres clases de dirección (lib/dominio.ts):
+  luxbyemory.com (la landing, los pedidos, la guía, /rv, la vitrina),
+  entrar.luxbyemory.com (el personal) y <usuario>.luxbyemory.com (el
+  catálogo de un revendedor). `PorDireccion` mira cada ruta: si es de otra
+  dirección, lleva allá. La clienta de un revendedor nunca cae en Lux.
+*/
+const LUGAR = lugarActual();
+
+/** La raíz de cada dirección. */
+const raiz = (() => {
+  switch (LUGAR.tipo) {
+    case 'tienda': return 'catalogo';
+    case 'revendedor':
+    case 'ninguno': return 'revendedor';
+    default: return 'inicio';
+  }
+})();
+
+function Salto({ a }: { a: string }) {
+  useEffect(() => { window.location.replace(a); }, [a]);
+  return <Cargando texto="Abriendo" />;
+}
+
+function PorDireccion({ children }: { children: React.ReactNode }) {
+  const { pathname, search } = useLocation();
+  const destino = destinoDeRuta(LUGAR, pathname + search, direcciones());
+  if ('ir' in destino) {
+    return destino.ir.startsWith('/') ? <Navigate to={destino.ir} replace /> : <Salto a={destino.ir} />;
+  }
+  return <>{children}</>;
+}
+
 function Inicio() {
   const { sesion, perfil, cargando } = useSesion();
   if (cargando) return <Cargando texto="Abriendo" />;
@@ -80,9 +119,10 @@ const soloAdmin = (elemento: React.ReactNode) => <RutaProtegida soloAdmin>{eleme
 
 export function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <ProveedorSesion>
         <LimiteDeError>
+        <PorDireccion>
         <Routes>
           <Route path="/entrar" element={<Entrar />} />
 
@@ -175,11 +215,15 @@ export function App() {
             <Route path="/admin/capacitacion" element={soloAdmin(<CapacitacionRv />)} />
           </Route>
 
-          <Route path="/" element={<Inicio />} />
+          <Route
+            path="/"
+            element={raiz === 'catalogo' ? <CatalogoPublico /> : raiz === 'revendedor' ? <CatalogoRevendedor /> : <Inicio />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </PorDireccion>
         </LimiteDeError>
       </ProveedorSesion>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

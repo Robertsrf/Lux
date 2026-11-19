@@ -8,6 +8,8 @@ import { bsDeBcv, formatearBcv, formatearBs, formatearFechaHora, precioEnBs, res
 import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
 import { enlaceApartado, enlaceWhatsApp } from '../../lib/revendedor';
+import { destinoDeApartado } from '../../lib/dominio';
+import { direcciones, lugarActual, rutaDelCatalogoRv } from '../../lib/direccion';
 import { useTasa } from '../../hooks/useTasa';
 import { useTemaRv } from '../../hooks/useTemaRv';
 import type { ApartadoPublico as Apartado } from '../../lib/tipos';
@@ -50,7 +52,12 @@ export function ApartadoPublico() {
     return () => clearInterval(id);
   }, []);
 
-  if (cargando) return <Cargando texto="Buscando tu pedido" />;
+  // El pedido vive en el subdominio de SU revendedor: abierto desde el de
+  // Lux o desde el de otro, salta allá. Nunca bajo el nombre de otro.
+  const salto = apartado && token ? destinoDeApartado(lugarActual(), apartado.usuario, token, direcciones()) : null;
+  useEffect(() => { if (salto) window.location.replace(salto); }, [salto]);
+
+  if (cargando || salto) return <Cargando texto="Buscando tu pedido" />;
 
   if (!apartado) {
     return (
@@ -89,7 +96,7 @@ export function ApartadoPublico() {
               <span className="rv-marca__de">Joyas Lux by Emory</span>
             </div>
           </div>
-          <Link to={`/r/${apartado.usuario}`} className="sesion__quien">Ver el catálogo</Link>
+          <Link to={rutaDelCatalogoRv(apartado.usuario)} className="sesion__quien">Ver el catálogo</Link>
         </div>
       </header>
 

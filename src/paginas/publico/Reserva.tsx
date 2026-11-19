@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { rutaDelCatalogo } from '../../lib/direccion';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
 import { Wordmark } from '../../componentes/Marca';
@@ -92,7 +93,7 @@ export function Reserva() {
           <Wordmark alto={40} />
           <div className="barra__publica-acciones">
             <BotonLetraGrande />
-            <Link to="/publico" className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
+            <Link to={rutaDelCatalogo()} className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
           </div>
         </div>
       </header>
