@@ -1,4 +1,12 @@
-name: Desplegar a GitHub Pages
+name: Desplegar a Cloudflare
+
+# Desde la fase 2 (19/11/2026) el sitio lo sirve Cloudflare, en
+# luxbyemory.com, entrar.luxbyemory.com y <usuario>.luxbyemory.com
+# (wrangler.jsonc). GitHub Pages queda solo como reenvío de la dirección
+# vieja (robertsrf.github.io/Lux/#/...), que sale en imágenes publicadas.
+#
+# Un push a main publica las dos cosas. "Run workflow" sobre otra rama
+# publica solo en Cloudflare: así se prueba una rama sin tocar github.io.
 
 on:
   push:
@@ -11,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: despliegue
   cancel-in-progress: true
 
 jobs:
@@ -27,43 +35,91 @@ jobs:
 
       - run: npm ci
 
-      # Sin estas variables el sitio se publica sin poder hablar con Supabase.
-      # Mejor fallar aqui que publicar una pantalla de error.
-      - name: Comprobar variables de Supabase
+      # Sin estas variables el sitio se publica sin poder hablar con Supabase,
+      # o con los enlaces armados para una sola dirección. Mejor fallar aquí.
+      - name: Comprobar variables
         run: |
           if [ -z "$URL" ] || [ -z "$KEY" ]; then
             echo "Faltan VITE_SUPABASE_URL y/o VITE_SUPABASE_ANON_KEY."
             echo "Ponlas en Settings > Secrets and variables > Actions > Variables."
             exit 1
           fi
+          if [ -z "$DOMINIO" ]; then
+            echo "Falta VITE_DOMINIO_BASE (luxbyemory.com)."
+            echo "Ponla en Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
         env:
           URL: ${{ vars.VITE_SUPABASE_URL }}
           KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          DOMINIO: ${{ vars.VITE_DOMINIO_BASE }}
 
-      # La anon key de Supabase es publica por diseno: puede ir como variable
-      # del repositorio. La service_role key JAMAS entra aqui.
+      - run: npm run pruebas
+
+      # La anon key de Supabase es pública por diseño: puede ir como variable
+      # del repositorio. La service_role key JAMÁS entra aquí.
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_DOMINIO_BASE: ${{ vars.VITE_DOMINIO_BASE }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  cloudflare:
+    needs: construir
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Comprobar el acceso a Cloudflare
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CUENTA" ]; then
+            echo "Faltan los secretos CLOUDFLARE_API_TOKEN y/o CLOUDFLARE_ACCOUNT_ID."
+            echo "Ponlos en Settings > Secrets and variables > Actions > Secrets."
+            exit 1
+          fi
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CUENTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # La versión va fijada: una nueva de wrangler no entra sin que se pruebe.
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.157.0'
+          command: deploy --var SUPABASE_URL:${{ vars.VITE_SUPABASE_URL }} --var SUPABASE_ANON_KEY:${{ vars.VITE_SUPABASE_ANON_KEY }}
+
+  # El reenvío de github.io. Solo desde main y solo si Cloudflare publicó:
+  # nunca se manda a la gente a un dominio que no responde.
+  reenvio:
+    needs: cloudflare
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
 
       # Pages hay que encenderlo UNA vez a mano en Settings > Pages > Source:
-      # GitHub Actions. GITHUB_TOKEN no puede crear el sitio ("Resource not
-      # accessible by integration"). Con el sitio ya creado, esto es un no-op.
+      # GitHub Actions. Con el sitio ya creado, esto es un no-op.
       - uses: actions/configure-pages@v5
         with:
           enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: reenvio-github
 
-  desplegar:
-    needs: construir
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.despliegue.outputs.page_url }}
-    steps:
       - id: despliegue
         uses: actions/deploy-pages@v4

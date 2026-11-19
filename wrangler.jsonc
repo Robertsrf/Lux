@@ -1,0 +1,29 @@
+// Cloudflare sirve Lux (fase 2, 19/11/2026). Lo publica .github/workflows/desplegar.yml
+// con `wrangler deploy`, que pasa SUPABASE_URL y SUPABASE_ANON_KEY con --var.
+// Ningún secreto vive aquí: el token de Cloudflare es un secreto de GitHub.
+{
+  "$schema": "https://unpkg.com/wrangler@4.157.0/config-schema.json",
+  "name": "lux",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-11-03",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Cualquier ruta que no sea un archivo devuelve index.html con 200:
+    // luxbyemory.com/rv abre igual que luxbyemory.com/ (BrowserRouter).
+    "not_found_handling": "single-page-application",
+    // El script solo corre donde puede haber una tarjeta que cambiar; los
+    // archivos de /assets salen directo, sin gastar invocaciones.
+    "run_worker_first": ["/", "/apartado/*"]
+  },
+  "routes": [
+    { "pattern": "luxbyemory.com", "custom_domain": true },
+    { "pattern": "entrar.luxbyemory.com", "custom_domain": true },
+    // Un revendedor nuevo no toca Cloudflare: el comodín cubre cualquier
+    // nombre (con un registro DNS "*" en naranja, ver la guía del dueño).
+    { "pattern": "*.luxbyemory.com/*", "zone_name": "luxbyemory.com" }
+  ],
+  "vars": {
+    "DOMINIO_BASE": "luxbyemory.com"
+  }
+}

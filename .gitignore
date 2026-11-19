@@ -23,3 +23,6 @@ correccion-*.sql
 # y telefonos de clientas, y este repositorio es publico.
 respaldos/
 Respaldos Lux/
+
+# La caché local de wrangler (Cloudflare).
+.wrangler/
