@@ -93,7 +93,7 @@ Y en cada fase, el mismo camino, con los orquestadores:
 
 | # | Estado | Commit | SQL |
 |---|---|---|---|
-| 1 | Hecha; falta la prueba a mano con sesión de administrador | rama `fase-1-precio-sugerido` | — |
+| 1 | Hecha y probada con sesión (19/11): reproducido en main, corregido en la rama | rama `fase-1-precio-sugerido` | — |
 | 2 | Pendiente (el dueño está comprando el dominio, 18/11) | | |
 | 3 | Pendiente | | |
 | 4 | Pendiente | | |
