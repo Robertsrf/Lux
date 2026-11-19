@@ -5,7 +5,7 @@ import { Aviso, Ayuda, Campo, Cargando } from '../../componentes/Piezas';
 import { Icono } from '../../componentes/Iconos';
 import {
   aDolaresReales, aMonto, binanceDesdeBs, deMonto, formatearBcv, formatearBinance, formatearBs,
-  formatearMonto, formatearPorcentaje, precioEnBs,
+  formatearMonto, formatearPorcentaje, leerCifra, precioEnBs,
 } from '../../lib/dinero';
 import { formatearPeso, OBJETIVO_GRANDE, procesarFoto, subirFoto, urlPublicaFoto } from '../../lib/fotos';
 import type { FotoProcesada } from '../../lib/fotos';
@@ -196,7 +196,8 @@ function Formulario() {
         lote_id: m.lote_id ? String(m.lote_id) : '',
         costo_unitario_usd: String(m.costo_unitario_usd ?? ''),
         grupo_precio_id: m.grupo_precio_id ? String(m.grupo_precio_id) : '',
-        precio_override_usd: m.precio_override_usd === null ? '' : String(m.precio_override_usd),
+        // Con coma decimal, como se escribe aquí y como lo lee `leerCifra`.
+        precio_override_usd: m.precio_override_usd === null ? '' : String(m.precio_override_usd).replace('.', ','),
         armado: m.armado ?? 'pieza',
       });
       setArmadoOriginal(m.armado ?? 'pieza');
@@ -434,7 +435,7 @@ function Formulario() {
     if (f.costo.trim() === '' || Number(f.costo) === costoProducto) {
       return {
         bcv: precioBcv,
-        detalle: form.precio_override_usd ? 'igual: precio propio' : grupoElegido ? `igual: ${grupoElegido.nombre}` : 'igual',
+        detalle: precioPropio !== null ? 'igual: precio propio' : grupoElegido ? `igual: ${grupoElegido.nombre}` : 'igual',
         alcanza: true,
       };
     }
@@ -480,6 +481,10 @@ function Formulario() {
       setError('Falta el costo de la pieza, en $ Binance y con punto para los decimales: 4.25. Si de verdad no costó nada, escribe 0.');
       return;
     }
+    if (precioPropioIlegible) {
+      setError('El precio propio no se entiende. Escríbelo con coma para los decimales (12,50) o déjalo vacío para usar el del grupo.');
+      return;
+    }
     if (esNuevo && paraDisponible && !para) {
       setError('Elige para quién es: dama, caballero o unisex.');
       return;
@@ -506,7 +511,7 @@ function Formulario() {
         p_costo_unitario_usd: Number(form.costo_unitario_usd || 0),
         p_descripcion: form.descripcion || null,
         p_variantes_nota: form.variantes_nota || null,
-        p_precio_override_usd: form.precio_override_usd ? Number(form.precio_override_usd) : null,
+        p_precio_override_usd: precioPropio,
         p_foto_path: rutas?.foto_path ?? null,
         p_foto_thumb_path: rutas?.foto_thumb_path ?? null,
         p_sku: form.sku || null,
@@ -555,7 +560,13 @@ function Formulario() {
 
   const grupoElegido = grupos.find((g) => String(g.id) === form.grupo_precio_id);
   const escaleraDelForm = form.armado === 'dije' ? 'dije' : 'pieza';
-  const precioBcv = form.precio_override_usd ? Number(form.precio_override_usd) : grupoElegido?.precio_usd ?? null;
+  // El precio propio se lee con `leerCifra`, como toda cifra que escribe una
+  // persona: el campo era numérico y "12,5" con coma quedaba VACÍO, así que la
+  // pieza se guardaba con el precio del grupo sin aviso. Lo que no se
+  // entiende no se guarda, y se dice.
+  const precioPropio = form.precio_override_usd.trim() === '' ? null : leerCifra(form.precio_override_usd);
+  const precioPropioIlegible = form.precio_override_usd.trim() !== '' && precioPropio === null;
+  const precioBcv = precioPropio ?? (precioPropioIlegible ? null : grupoElegido?.precio_usd ?? null);
 
   // Todo se compara en DOLARES BCV, que es la moneda de la etiqueta. El
   // costo total ya viene asi de la base: mercancia convertida con la brecha
@@ -762,8 +773,13 @@ function Formulario() {
                   ))}
               </select>
             </Campo>
-            <Campo etiqueta="Precio propio $" htmlFor="m-override" pista="Solo si esta pieza no sigue el precio de su grupo.">
-              <input id="m-override" type="number" step="0.01" min="0" value={form.precio_override_usd} onChange={(e) => cambiar('precio_override_usd', e.target.value)} />
+            <Campo
+              etiqueta="Precio propio $"
+              htmlFor="m-override"
+              pista="Solo si esta pieza no sigue el precio de su grupo. Con coma para los decimales: 12,50."
+              error={precioPropioIlegible ? 'No se entiende esa cifra. Escríbela así: 12,50, o déjala vacía.' : null}
+            >
+              <input id="m-override" type="text" inputMode="decimal" autoComplete="off" value={form.precio_override_usd} onChange={(e) => cambiar('precio_override_usd', e.target.value)} />
             </Campo>
           </div>
 
