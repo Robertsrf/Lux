@@ -91,8 +91,10 @@ jobs:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CUENTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # La versión va fijada: una nueva de wrangler no entra sin que se pruebe.
-      - uses: cloudflare/wrangler-action@v3
+      # Fijada a un commit exacto, no a una etiqueta: esta acción recibe el
+      # token de Cloudflare, y una etiqueta se puede mover. Se sube a mano.
+      # wrangler también va fijado: una versión nueva no entra sin probarla.
+      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
