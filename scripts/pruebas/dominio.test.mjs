@@ -125,3 +125,9 @@ test('usuarioDesdeNombre no propone un nombre reservado', () => {
   assert.equal(usuarioDesdeNombre('Lux'), 'lux-joyas');
   assert.equal(usuarioValido(usuarioDesdeNombre('Entrar')), true);
 });
+
+test('destinoDeRuta no arma una direccion con un usuario que no puede ser subdominio', () => {
+  for (const r of ['/r/x@evil.com', '/r/evil.com', '/r/entrar', '/r/a%2Fb']) {
+    assert.deepEqual(destinoDeRuta(TIENDA, r, D), { ir: '/' }, r);
+  }
+});

@@ -136,7 +136,12 @@ export function destinoDeRuta(lugar: Lugar, ruta: string, d: Direcciones): Desti
     case 'tienda': {
       if (camino === '/publico') return { ir: `/${busqueda}` };
       const rv = /^\/r\/([^/]+)\/?$/.exec(camino);
-      if (rv?.[1]) return { ir: urlRevendedor(d, rv[1].toLowerCase(), '/') };
+      if (rv?.[1]) {
+        // Solo un usuario que puede ser subdominio arma una dirección: nunca
+        // "x@otro.com" ni "otro.com", que llevarían fuera del dominio.
+        const usuario = rv[1].toLowerCase();
+        return { ir: usuarioValido(usuario) ? urlRevendedor(d, usuario, '/') : '/' };
+      }
       if (RUTAS_PERSONAL.test(camino)) return { ir: urlEntrar(d, ruta) };
       return { abrir: true };
     }
