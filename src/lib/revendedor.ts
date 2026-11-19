@@ -1,5 +1,7 @@
 import { supabase, mensajeDeError } from './supabase';
 import type { PaletaRevendedor } from './tipos';
+import { USUARIOS_RESERVADOS, urlRevendedor, urlTienda, usuarioValido } from './dominio';
+import { direcciones } from './direccion';
 
 /*
   EL REVENDEDOR NO TIENE SESIÓN DE SUPABASE
@@ -81,19 +83,25 @@ export async function rpcRv<T>(funcion: string, argumentos: Record<string, unkno
 
 /* ------------------------------------------------------------------ enlaces */
 
-/** La dirección donde corre la aplicación, sin el index.html de GitHub Pages. */
-function base(): string {
-  const { origin, pathname } = window.location;
-  return `${origin}${pathname.replace(/index\.html$/, '')}`;
-}
+/*
+  Las direcciones salen de la regla de lib/dominio.ts: su catálogo en
+  <usuario>.luxbyemory.com, el panel en luxbyemory.com/rv. Sin dominio
+  (desarrollo), todo en la misma dirección, como antes.
+*/
 
-export const enlaceCatalogoRv = (usuario: string) => `${base()}#/r/${usuario}`;
-export const enlacePanelRv = () => `${base()}#/rv`;
+/** Su catálogo, el que manda a sus clientas: su subdominio. */
+export const enlaceCatalogoRv = (usuario: string) => urlRevendedor(direcciones(), usuario, '/');
+export const enlacePanelRv = () => urlTienda(direcciones(), '/rv');
 /** La guía pública: la que se manda a quien quiere ser revendedor. */
-export const enlaceGuiaRv = () => `${base()}#/guia-revendedor`;
-export const enlaceApartado = (token: string) => `${base()}#/apartado/${token}`;
+export const enlaceGuiaRv = () => urlTienda(direcciones(), '/guia-revendedor');
+/**
+ * El pedido de su clienta, en el subdominio de él. Sin su usuario, en el de
+ * Lux: la página salta sola al suyo cuando sabe de quién es.
+ */
+export const enlaceApartado = (token: string, usuario?: string | null) =>
+  (usuario ? urlRevendedor(direcciones(), usuario, `/apartado/${token}`) : urlTienda(direcciones(), `/apartado/${token}`));
 /** El enlace del pedido de la tienda: ahí la clienta ve lo que pagó y reporta lo que falta. */
-export const enlaceReserva = (token: string) => `${base()}#/reserva/${token}`;
+export const enlaceReserva = (token: string) => urlTienda(direcciones(), `/reserva/${token}`);
 
 /**
  * Un enlace de WhatsApp. Con número, a esa persona; sin número, a elegir
@@ -130,19 +138,17 @@ export function claseTema(paleta: string | null | undefined): string {
   return `tema-rv tema-rv--${id}`;
 }
 
-/** El usuario que va en su enlace: la misma regla que el `check` de `revendedores.usuario`. */
-export function usuarioValido(usuario: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{2,29}$/.test(usuario);
-}
+/*
+  Su usuario es el nombre de su subdominio: la regla y los nombres
+  reservados viven en lib/dominio.ts (y en la base, `usuario_rv_valido`).
+*/
+export { usuarioValido, usuarioDesdeNombre, USUARIOS_RESERVADOS } from './dominio';
 
-/** Su usuario a partir de su nombre: "María González" -> "maria-gonzalez". */
-export function usuarioDesdeNombre(nombre: string): string {
-  return nombre
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 30);
+/** Por qué un usuario no sirve, en palabras de la pantalla; null si sirve. */
+export function porQueNoSirveUsuario(usuario: string): string | null {
+  if (USUARIOS_RESERVADOS.includes(usuario)) return 'Ese nombre lo usa la tienda: prueba con otro.';
+  if (!usuarioValido(usuario)) return 'De 3 a 30 letras minúsculas, números o guiones, sin empezar ni terminar en guion.';
+  return null;
 }
 
 /** "Quedan 3 días", "Vence hoy", para un apartado. Días enteros, hacia abajo. */

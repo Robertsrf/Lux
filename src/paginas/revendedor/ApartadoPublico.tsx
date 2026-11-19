@@ -82,8 +82,8 @@ export function ApartadoPublico() {
   const recibePagos = falta > 0 && fase !== null && !['vencido', 'cancelado'].includes(fase);
   const daCredito = Boolean(apartado.dias_credito);
   const faltaMinimo = !apartado.confirmado_en && minimo !== null ? Math.max(0, restarCifras(minimo, pagado)) : null;
-  const mensaje = `Hola ${quien}, es sobre mi pedido: ${enlaceApartado(token ?? '')}`;
-  const mensajePago = `Hola ${quien}, ya te pagué mi pedido. Lo reporté aquí: ${enlaceApartado(token ?? '')}`;
+  const mensaje = `Hola ${quien}, es sobre mi pedido: ${enlaceApartado(token ?? '', apartado.usuario)}`;
+  const mensajePago = `Hola ${quien}, ya te pagué mi pedido. Lo reporté aquí: ${enlaceApartado(token ?? '', apartado.usuario)}`;
 
   return (
     <>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { Cargando } from '../../componentes/Piezas';
+import { enlacePublico } from '../../componentes/CompartirCatalogo';
 import { SeccionesLanding } from './landing/SeccionesLanding';
 import '../../estilos/panel-landing.css';
 
@@ -24,7 +25,7 @@ export function Landing() {
           <h1>Landing</h1>
           <p>La página de inicio del catálogo: qué secciones salen, en qué orden, con qué fotos, y sus ofertas.</p>
         </div>
-        <a className="boton boton--secundario" href="#/publico" target="_blank" rel="noopener noreferrer">Ver la landing</a>
+        <a className="boton boton--secundario" href={enlacePublico()} target="_blank" rel="noopener noreferrer">Ver la landing</a>
       </div>
 
       <div className="metodos-pago pl-pestanas" role="group" aria-label="Qué ver">

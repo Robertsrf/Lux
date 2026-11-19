@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTextos } from '../hooks/useTextos';
+import { urlTienda } from '../lib/dominio';
+import { direcciones } from '../lib/direccion';
 
 /**
  * El enlace del catalogo publico, listo para mandarlo por WhatsApp.
@@ -9,22 +11,22 @@ import { useTextos } from '../hooks/useTextos';
  * saberse la direccion de memoria y escribirla a mano en el telefono, con la
  * clienta esperando. Aqui se copia de un toque.
  *
- * El enlace se arma con la direccion donde ESTE corriendo la aplicacion, no
- * con una escrita a mano: asi funciona igual en GitHub Pages, en local y en
- * cualquier dominio que se le ponga manana, sin tocar codigo.
+ * El enlace sale de la regla de direcciones (lib/dominio.ts), no de una
+ * escrita a mano: el dominio lo pone el despliegue (VITE_DOMINIO_BASE).
  */
 
 const MENSAJE_POR_DEFECTO =
   'Hola, te comparto el catalogo de Lux by Emory. Puedes ver las piezas '
   + 'disponibles y apartar las que te gusten desde ahi:';
 
-/** También lo usa el QR de la vitrina: un enlace, un sitio. */
+/**
+ * También lo usan el QR de la vitrina y el del catálogo PDF: un enlace, un
+ * sitio. Con el dominio es la raíz (luxbyemory.com), aunque se pida desde
+ * entrar.luxbyemory.com; sin él (desarrollo), /publico en la misma dirección.
+ */
 export function enlacePublico(): string {
-  const { origin, pathname } = window.location;
-  // En GitHub Pages la ruta puede terminar en index.html: se recorta para
-  // no dejar un enlace feo con el archivo a la vista.
-  const base = pathname.replace(/index\.html$/, '');
-  return `${origin}${base}#/publico`;
+  const d = direcciones();
+  return urlTienda(d, d.base ? '/' : '/publico');
 }
 
 export function CompartirCatalogo({ titulo = 'Enviar el catálogo', enlace: propio, mensaje: suyo, pista }: {

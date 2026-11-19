@@ -282,7 +282,7 @@ export function AsiPides({ pasos, alVerMas }: { pasos: string[]; alVerMas: () =>
   );
 }
 
-/** Ir a una sección de la página sin tocar la ruta: el sitio usa `#/` para navegar. */
+/** Ir a una sección de la página sin tocar la ruta ni la búsqueda (?tipo=, ?para=). */
 export function irA(id: string) {
   const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.getElementById(id)?.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth', block: 'start' });

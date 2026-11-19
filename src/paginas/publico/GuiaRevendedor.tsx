@@ -478,7 +478,7 @@ export function GuiaRevendedor() {
             <dl className="guia-rv__enlaces">
               <div><dt>Tu catálogo</dt><dd className="guia-rv__url">{enlaceCatalogoRv('tu-usuario')}</dd><p>El que mandas a tus clientas. En vez de "tu-usuario" va el tuyo.</p></div>
               <div><dt>Tu panel</dt><dd className="guia-rv__url">{enlacePanelRv()}</dd><p>Solo para ti: entras con tu código.</p></div>
-              <div><dt>El pedido de tu clienta</dt><dd className="guia-rv__url">{enlaceApartado('…')}</dd><p>Cada pedido tiene el suyo. Ahí tu clienta ve qué pidió, tu pago móvil, y te avisa que pagó.</p></div>
+              <div><dt>El pedido de tu clienta</dt><dd className="guia-rv__url">{enlaceApartado('…', 'tu-usuario')}</dd><p>Cada pedido tiene el suyo. Ahí tu clienta ve qué pidió, tu pago móvil, y te avisa que pagó.</p></div>
               <div><dt>Esta guía</dt><dd className="guia-rv__url">{enlaceGuiaRv()}</dd><p>Para volver cuando tengas una duda.</p></div>
             </dl>
           </Seccion>

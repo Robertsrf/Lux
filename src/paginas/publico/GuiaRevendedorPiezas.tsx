@@ -9,7 +9,7 @@ import {
   porCantidad, precioSobreEtiqueta,
 } from '../../lib/dinero';
 import {
-  PALETAS, claseTema, enlaceCatalogoRv, enlaceWhatsApp, usuarioDesdeNombre, usuarioValido,
+  PALETAS, claseTema, enlaceCatalogoRv, enlaceWhatsApp, porQueNoSirveUsuario, usuarioDesdeNombre, usuarioValido,
 } from '../../lib/revendedor';
 import type { PaletaRevendedor } from '../../lib/tipos';
 
@@ -323,7 +323,8 @@ function erroresDe(d: Datos, ocupado: boolean): Errores {
   if (ced.length < 6 || ced.length > 9) e.cedula = 'Escribe tu cédula, solo los números.';
   if (d.telefono.replace(/\D/g, '').length < 11) e.telefono = 'Escribe tu WhatsApp con el código: 0412 1234567.';
   if (!d.ciudad.trim()) e.ciudad = 'Escribe en qué ciudad vendes.';
-  if (!usuarioValido(d.usuario)) e.usuario = 'De 3 a 30 letras sin acentos, números o guiones, y que empiece con letra o número.';
+  const malUsuario = porQueNoSirveUsuario(d.usuario);
+  if (malUsuario) e.usuario = malUsuario;
   else if (ocupado) e.usuario = 'Ese ya lo usa otro revendedor: prueba con otro.';
   if (!d.acepto) e.acepto = 'Marca que leíste la guía y entiendes cómo funciona.';
   return e;

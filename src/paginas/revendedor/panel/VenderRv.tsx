@@ -154,7 +154,7 @@ export function VenderRv() {
           <span className="acciones" style={{ marginTop: 'var(--e-3)' }}>
             <a
               className="boton boton--secundario boton--pequeno"
-              href={enlaceWhatsApp(hecho.telefono, `Hola ${hecho.clienta}, aquí está tu pedido: ${enlaceApartado(hecho.token)}`)}
+              href={enlaceWhatsApp(hecho.telefono, `Hola ${hecho.clienta}, aquí está tu pedido: ${enlaceApartado(hecho.token, resumen?.usuario)}`)}
               target="_blank" rel="noopener noreferrer"
             >
               Mandarle su enlace

@@ -203,7 +203,8 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
     }
   })();
 
-  const mensajeClienta = `Hola ${primer}, aquí ves tu pedido y me avisas cuando pagues: ${enlaceApartado(a.token)}`;
+  const { resumen } = usePanelRv();
+  const mensajeClienta = `Hola ${primer}, aquí ves tu pedido y me avisas cuando pagues: ${enlaceApartado(a.token, resumen?.usuario)}`;
 
   return (
     <div className="tarjeta">

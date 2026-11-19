@@ -5,7 +5,7 @@ import { formatearBcv, formatearEntero, formatearFecha, formatearMonto, leerCifr
 import { subirLogoRevendedor, urlPublicaFoto } from '../../lib/fotos';
 import { copiarTexto } from '../../componentes/PagoMovil';
 import {
-  PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, usuarioDesdeNombre,
+  PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, porQueNoSirveUsuario, usuarioDesdeNombre,
 } from '../../lib/revendedor';
 import type { PaletaRevendedor, RevendedorAdmin } from '../../lib/tipos';
 import '../../estilos/revendedor.css';
@@ -326,7 +326,7 @@ export function Revendedores() {
             <Campo etiqueta="Nombre" htmlFor="rv-nombre">
               <input id="rv-nombre" value={form.nombre} onChange={(e) => cambiar('nombre', e.target.value)} autoComplete="off" required />
             </Campo>
-            <Campo etiqueta="Usuario" htmlFor="rv-usuario" pista={`Va en su enlace: …/#/r/${form.usuario || 'usuario'}`}>
+            <Campo etiqueta="Usuario" htmlFor="rv-usuario" pista={porQueNoSirveUsuario(form.usuario || usuarioDesdeNombre(form.nombre)) ?? `Su catálogo: ${enlaceCatalogoRv(form.usuario || usuarioDesdeNombre(form.nombre) || 'usuario')}`}>
               <input id="rv-usuario" value={form.usuario} onChange={(e) => cambiar('usuario', e.target.value.toLowerCase())} autoComplete="off" autoCapitalize="none" spellCheck={false} />
             </Campo>
           </div>

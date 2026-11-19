@@ -13,9 +13,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/marca/favicon-32.png" />
     <link rel="apple-touch-icon" href="/marca/icono-180.png" />
 
-    <!-- Vista previa al compartir por WhatsApp. Como el sitio es un SPA con
-         HashRouter, los rastreadores solo leen estas etiquetas estaticas:
-         valen para todo el sitio, no por pantalla. -->
+    <!-- Vista previa al compartir por WhatsApp. Como es una sola pagina,
+         los rastreadores solo leen estas etiquetas estaticas, que
+         valen para todo el sitio. En el subdominio de un revendedor el
+         Worker (cloudflare/worker.js) las cambia por las suyas. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Lux by Emory" />
     <meta property="og:locale" content="es_VE" />
@@ -24,8 +25,8 @@
          descuidado, y es la portada de la tienda. -->
     <meta property="og:title" content="Lux by Emory — Catálogo" />
     <meta property="og:description" content="Joyería hipoalergénica. Mira las piezas disponibles y arma tu pedido al mayor." />
-    <meta property="og:url" content="https://robertsrf.github.io/Lux/#/publico" />
-    <meta property="og:image" content="https://robertsrf.github.io/Lux/marca/og.png" />
+    <meta property="og:url" content="https://luxbyemory.com/" />
+    <meta property="og:image" content="https://luxbyemory.com/marca/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -45,8 +46,8 @@
         "@type": "JewelryStore",
         "name": "Lux by Emory",
         "description": "Joyería hipoalergénica: piezas que no manchan ni irritan la piel.",
-        "url": "https://robertsrf.github.io/Lux/#/publico",
-        "image": "https://robertsrf.github.io/Lux/marca/og.png",
+        "url": "https://luxbyemory.com/",
+        "image": "https://luxbyemory.com/marca/og.png",
         "address": {
           "@type": "PostalAddress",
           "addressLocality": "Sabana de Mendoza",
