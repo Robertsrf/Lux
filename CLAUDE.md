@@ -71,6 +71,8 @@ src/
                 se ofrece, `efectoDeRomperCodigo`, `estadoDeCasa`),
                 ofertasApi.ts (llama a `ofertas_publicas`, `emitir_oferta`,
                 `ver_oferta` y manda las miradas con `keepalive`)
+                grupoSugerido.ts (qué grupo de precio pone la máquina en el
+                formulario de una pieza: sigue al costo hasta que el dueño elige)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
@@ -1470,6 +1472,14 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   $88,35 en la barra y $91,35 en el pedido (probado en PGlite). Si una regla
   no se puede enseñar sin abrir un dato, se le pregunta a la base
   (`cotizar_pedido`), no se aproxima en el navegador.
+- **Una petición que se repite al escribir puede volver fuera de orden.**
+  El formulario de una pieza pedía `admin_sugerir_precio` con cada cambio y
+  guardaba la respuesta que llegara; además ponía el grupo una sola vez, con
+  la primera. La cadena y el grupo se quedaban con un costo viejo o a medio
+  escribir, y "se arreglaba" cambiando el tipo a Dije y volviendo (reportado
+  por el dueño el 18/11/2026). Ahora cada petición lleva su número y solo
+  cuenta la última, el grupo sigue al costo hasta que el dueño lo elige
+  (`lib/grupoSugerido.ts`) y un error se dice en vez de callarse.
 - **Escribir en `configuracion` ejecuta `claves_ofertas()`.** El `check` que
   deja vacías solo las diez cifras de las ofertas la llama en cada `insert` o
   `update`, de cualquier clave y de cualquier sesión, así que está abierta a
