@@ -192,15 +192,38 @@ Lo que vigila no lo protege el compilador: un `revoke` que se cae, un
 `where es_admin()` que alguien quita al reescribir una vista, un `having` que
 vuelve a ser `where`. Esas cosas no rompen el build. Se rompen calladas.
 
-## 6. GitHub Pages
+## 6. Cloudflare (y GitHub Pages como reenvío)
 
-En **Settings → Secrets and variables → Actions → Variables**:
+Desde la fase 2 (19/11/2026) el sitio lo sirve **Cloudflare**, en
+`luxbyemory.com` (la landing, los pedidos, la guía, `/rv`, `/vitrina`),
+`entrar.luxbyemory.com` (el personal) y `<usuario>.luxbyemory.com` (cada
+revendedor). Las rutas no llevan `#`: Cloudflare devuelve `index.html` en
+cualquier ruta (`wrangler.jsonc`). Paso a paso, con dónde tocar en cada pantalla:
+`docs/fases/2026-11-revendedores/fase-2-pasos-del-dueno.md`.
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+En **Settings → Secrets and variables → Actions**:
 
-En **Settings → Pages**, source **GitHub Actions**. Cada push a `main` despliega
-con `.github/workflows/desplegar.yml`.
+- **Variables**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y
+  `VITE_DOMINIO_BASE` (`luxbyemory.com`). Sin el dominio, el sitio arma los
+  enlaces para una sola dirección (como en desarrollo).
+- **Secrets**: `CLOUDFLARE_API_TOKEN` (plantilla "Edit Cloudflare Workers",
+  solo esta cuenta y esta zona) y `CLOUDFLARE_ACCOUNT_ID`.
+
+En Cloudflare: el dominio activo (nameservers de Namecheap apuntando a
+Cloudflare), registros `AAAA * 100::` y `AAAA www 100::` en naranja, SSL/TLS
+en **Full (strict)**, "Always Use HTTPS" y la regla "Redirect from WWW to
+root". `luxbyemory.com` y `entrar.luxbyemory.com` los crea el despliegue
+(`custom_domain` en `wrangler.jsonc`).
+
+Cada push a `main` corre `.github/workflows/desplegar.yml`: pruebas, build,
+`wrangler deploy` y, solo si Cloudflare publicó, **GitHub Pages con el
+reenvío** (`reenvio-github/`): `robertsrf.github.io/Lux/#/<ruta>` lleva a
+`luxbyemory.com/<ruta>`. En **Settings → Pages**, source **GitHub Actions**.
+"Run workflow" sobre otra rama publica solo en Cloudflare.
+
+Para probar los subdominios en local: `VITE_DOMINIO_BASE=lux.localhost npm run dev`
+y abre `lux.localhost:5173`, `entrar.lux.localhost:5173` o
+`<usuario>.lux.localhost:5173`.
 
 ---
 

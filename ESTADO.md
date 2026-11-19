@@ -14,7 +14,7 @@ Para instalarlo desde cero, **INSTALACION.md**. Para entender por qué es como e
 
 Sistema de inventario, punto de venta y catálogo de Lux by Emory, una joyería
 hipoalergénica en Sabana de Mendoza, Venezuela. Vite, React 19, TypeScript
-estricto, CSS plano sin Tailwind, Supabase detrás y GitHub Pages delante. Tres
+estricto, CSS plano sin Tailwind, Supabase detrás y Cloudflare delante. Tres
 usuarios: dos administradores y una vendedora.
 
 ## 2. La regla que manda sobre todas
@@ -212,6 +212,20 @@ desde el navegador, con la sesión que tengas abierta. Es de administrador.
 
 ### Lo que caduca solo
 
+**El dominio `luxbyemory.com` se renueva cada año en Namecheap** (comprado en
+noviembre de 2026; la fecha exacta, en Namecheap → Domain List). Si vence se
+cae todo: la tienda, `entrar.` y los catálogos de los revendedores. La
+renovación automática va encendida; si la tarjeta cambia, se actualiza allí.
+
+**Cloudflare** sirve el sitio (plan gratis: el script del Worker corre solo
+en `/` y `/apartado/*`, con 100.000 invocaciones al día; los archivos no las
+gastan). El token de GitHub (`CLOUDFLARE_API_TOKEN`) no caduca salvo que se
+le ponga fecha; si se borra o se cambia, el despliegue falla con un aviso y el
+sitio sigue con la última versión. `wrangler` (4.157.0) y la acción
+`cloudflare/wrangler-action` (commit de la v3.15.0) van fijados en
+`desplegar.yml`: se suben a mano. **GitHub Pages** queda solo como reenvío de
+`robertsrf.github.io/Lux/#/...`, que sale en imágenes publicadas del 17/11/2026.
+
 **Las fotos de la landing** (`public/landing/`) vienen de los catálogos de los proveedores, con su permiso, y se usan **sin marca ni logo** (nada de SGS ni de proveedor: el cerebro de marca lo prohíbe). Las prepara `scripts/preparar-landing.mjs` (WebP calidad 78, 1600 y 800 px, sin metadatos, con tope de 300 y 120 KB). Para cambiar una, el dueño sube la suya desde el panel Landing al bucket; las del sitio solo se reemplazan en el repo.
 
 **Las tasas.** El precio en bolívares sale de la tasa vigente. Si nadie la
@@ -233,7 +247,7 @@ por comodidad.
 
 **La función de servidor `vendedoras`.** Si se cambia
 `supabase/functions/vendedoras/index.ts`, hay que publicarla otra vez
-(INSTALACION.md, 3.1): el build de GitHub Pages no la sube.
+(INSTALACION.md, 3.1): el despliegue a Cloudflare no la sube.
 
 **La sesión de un revendedor.** Dura 30 días desde la última vez que entró; después
 vuelve a escribir su código. Si un revendedor deja de trabajar con la tienda, se

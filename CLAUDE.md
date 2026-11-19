@@ -2,7 +2,9 @@
 
 Sistema de inventario, punto de venta y catálogo de una joyería hipoalergénica en
 Sabana de Mendoza, Venezuela. Vite + React 19 + TypeScript estricto + CSS plano,
-Supabase detrás y GitHub Pages delante.
+Supabase detrás y Cloudflare delante (desde la fase 2, 19/11/2026): Lux en
+`luxbyemory.com`, el personal en `entrar.luxbyemory.com` y cada revendedor en
+`<usuario>.luxbyemory.com`.
 
 **Este archivo se actualiza en el mismo commit que el cambio que lo desactualiza.**
 No es documentación de cortesía: es lo primero que se lee al empezar, y si miente
@@ -72,7 +74,12 @@ src/
                 ofertasApi.ts (llama a `ofertas_publicas`, `emitir_oferta`,
                 `ver_oferta` y manda las miradas con `keepalive`)
                 grupoSugerido.ts (qué grupo de precio pone la máquina en el
-                formulario de una pieza: sigue al costo hasta que el dueño elige)
+                formulario de una pieza: sigue al costo hasta que el dueño elige),
+                dominio.ts (LA regla de direcciones, pura: en qué dirección
+                está la app, qué ruta se abre ahí y a dónde lleva la que no,
+                las direcciones de cada cosa, los usuarios reservados y el
+                enlace viejo con `#/`), direccion.ts (lo único que lee el host
+                y `VITE_DOMINIO_BASE`; la ruta del catálogo en cada dirección)
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
@@ -180,12 +187,25 @@ public/landing/ las fotos de la landing, en dos anchos (1600 y 800 px); las
 supabase/functions/vendedoras   crea, pausa y cambia el PIN de las vendedoras
                 del local con la llave maestra, en el servidor de Supabase.
                 Se publica aparte (INSTALACION.md, 3.1); no va en el build.
+wrangler.jsonc  Cloudflare: sirve dist/ (cualquier ruta → index.html), los
+                dominios y el comodín *.luxbyemory.com
+cloudflare/     worker.js (solo cambia la tarjeta de vista previa en el
+                subdominio de un revendedor) y tarjeta.mjs (qué dice, puro)
+reenvio-github/ lo único que sirve ya GitHub Pages: robertsrf.github.io/Lux/#/x
+                → luxbyemory.com/x (hay imágenes publicadas con la vieja)
 ```
 
 - **TypeScript estricto, sin `any`.** Dominio en español, API de React en inglés:
   `precioUsd`, `costoPuesto`, pero `useState`, `handleClick`.
 - **CSS plano sobre variables de `tokens.css`.** Sin Tailwind, sin CSS-in-JS.
-- **`HashRouter`**: GitHub Pages no reescribe rutas.
+- **`BrowserRouter`, rutas sin `#`** (desde el 19/11/2026: el dueño quiso
+  `luxbyemory.com/rv`, no `/#/rv`). Cloudflare devuelve `index.html` en
+  cualquier ruta y la vista previa de WhatsApp ve un 200. Antes era
+  `HashRouter` porque GitHub Pages no sabía. **Ninguna pantalla arma una
+  dirección a mano**: todo sale de `lib/dominio.ts` (`urlTienda`,
+  `urlEntrar`, `urlRevendedor`) y `lib/direccion.ts`; `PorDireccion`
+  (`App.tsx`) lleva cada ruta a la dirección que le toca. Un enlace viejo
+  con `#/` se convierte en `main.tsx` antes de montar el router.
 - **Toda lógica de dinero vive en `lib/dinero.ts`.** Si un componente multiplica un
   precio con un `*` suelto, se mueve a la librería.
 - **Todos los `useMemo` van antes del primer `return` temprano**, o React lanza el
@@ -213,8 +233,9 @@ sostiene el teléfono con una mano y joyas con la otra.
 ### Y fuera de la tienda: los revendedores
 
 Personas elegidas por el dueño que venden las joyas a su propia clientela. Cada
-uno tiene su catálogo (`/#/r/<usuario>`, con su nombre y su paleta) y su panel
-(`/#/rv`), con el mismo armazón que la tienda vestido de sus colores. **No es una
+uno tiene su catálogo (`<usuario>.luxbyemory.com`, con su nombre y su paleta) y su
+panel (`luxbyemory.com/rv`), con el mismo armazón que la tienda vestido de sus
+colores. **No es una
 tercera cara con sesión de Supabase**: entra con un código que le da el dueño, y
 para la base es alguien sin sesión (ver "Los revendedores" en las reglas).
 
@@ -880,7 +901,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 - **La landing** (pedido del dueño del 09/11/2026: "que la dirección del
   catálogo sea una landing de Lux, con motion, sliders y fotografías"; diseño
   en `docs/superpowers/specs/2026-11-09-landing-y-ofertas-design.md`). El
-  inicio del catálogo (`/#/publico`) ya no está escrito a mano: son secciones
+  inicio del catálogo (`luxbyemory.com`; en desarrollo `/publico`) ya no está escrito a mano: son secciones
   de 19 tipos que el dueño pone, esconde y ordena en el panel **Landing**
   (`/admin/landing`). Sin sesión se leen por `v_landing`; el panel, por
   `v_landing_admin`.
@@ -1015,7 +1036,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cambian en Textos. La página del pedido los enseña con un botón de copiar cada
   uno; se copian limpios (solo dígitos, y del banco solo el código).
 - **La guía para revendedores** (pedida por el dueño el 30/09/2026). Una página
-  pública (`/#/guia-revendedor`) que el dueño manda desde "Capacitación
+  pública (`luxbyemory.com/guia-revendedor`) que el dueño manda desde "Capacitación
   revendedores" a quien quiera serlo: qué es, qué hace y qué no el sistema, sus
   enlaces, cuánto le sale cada pieza (con una calculadora), cómo se le paga a
   Lux, el tope, el manual del panel paso a paso, un pedido de principio a fin,
@@ -1279,7 +1300,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     `revendedor_sobre_etiqueta_usd` ($0,10). No le hace la competencia a la tienda.
     Si la etiqueta sube por encima de su precio, manda el mínimo.
   - **El pedido, en dos plazos** (decisión del 30/09/2026, en la cabecera de
-    `esquema-revendedores-plazos.sql`). Su clienta pide desde `/#/r/<usuario>`
+    `esquema-revendedores-plazos.sql`). Su clienta pide desde `<usuario>.luxbyemory.com`
     (o él vende desde su panel, `rv_vender`) y las piezas salen de lo libre
     `revendedor_horas_pago` (2) horas mientras ella le paga A ÉL, a su pago
     móvil. Cuando ella reporta el pago, las piezas siguen apartadas **hasta que
@@ -1318,6 +1339,20 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     caracteres (59 bits, se guarda la huella) y cada `rv_*` recibe su testigo. Si
     alguna vez se piensa en darle una cuenta, primero hay que cerrar todo lo que
     hoy se abre a `authenticated`.
+  - **Su dirección es su subdominio** (fase 2, 19/11/2026): `jadujoyas.luxbyemory.com`
+    abre su catálogo en la raíz y `/apartado/<token>` el pedido de su clienta;
+    cualquier otra ruta ahí lleva a su catálogo: su clienta nunca cae en una
+    pantalla de Lux. Nace solo al crearlo (el comodín de Cloudflare), sin `www`
+    delante (el certificado gratis cubre un nivel). Su panel NO va ahí: es
+    `luxbyemory.com/rv`, el mismo para todos. Por eso su usuario es un nombre de
+    subdominio: `usuario_rv_valido` (#69, el `check` y `admin_guardar_revendedor`)
+    rechaza los reservados (`entrar`, `www`, `admin`...), los que terminan en
+    guion y los `xn--`; `USUARIOS_RESERVADOS` de `lib/dominio.ts` repite la
+    lista y `scripts/pruebas/reservados.test.mjs` vigila que digan lo mismo.
+    Pausado o inexistente, su subdominio dice "Este catálogo no está
+    disponible" sin nombrar a Lux. La tarjeta que enseñan WhatsApp y la pestaña
+    es la suya (su nombre y su logo, "Joyas Lux by Emory" en pequeño): la pone
+    `cloudflare/worker.js` leyendo `rv_perfil_publico`.
   - **Su paleta:** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
     excepción a "ningún otro color", y no hay selector de color libre.
 
@@ -1326,10 +1361,16 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 356 comprobaciones con las dos sesiones (361 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
-npm run pruebas       # las pruebas de lo que no es base: `lib/ofertas.ts` y los guiones de scripts/
+npm run verificar     # 358 comprobaciones con las dos sesiones (363 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
+npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
 ```
+
+Publicar es hacer push a `main`: el flujo prueba, construye, publica en
+Cloudflare y, si salió, deja el reenvío de github.io. Para probar una rama
+en Cloudflare sin tocar github.io: Actions → "Desplegar a Cloudflare" → Run
+workflow sobre la rama.
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
 una política**. Si no hay terminal a mano, la pantalla **Verificación** hace setenta y dos
@@ -1522,6 +1563,18 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
 - **Una línea con código roto conserva su `oferta_codigo_id`.** Con el precio ya
   sin oferta. Una pantalla que lea "tiene código" como "tiene oferta" miente:
   se compara `precio_usd < precio_sin_oferta_usd` (`tieneOferta`).
+- **El navegador guarda por dirección.** `luxbyemory.com`, `entrar.` y cada
+  subdominio tienen su propio almacenamiento: la sesión del personal vive en
+  `entrar.`, la del revendedor en `luxbyemory.com`, el carrito de su clienta
+  en su subdominio. Al pasar de github.io al dominio (19/11/2026) todos
+  entraron una vez más y el borrador de un conteo a medias se quedaba atrás:
+  por eso el cambio se hizo sin conteos abiertos. Si una dirección cambia
+  otra vez, lo mismo.
+- **Una ruta de `wrangler dev` no es la del dominio.** En local, `request.url`
+  dice `localhost` aunque se mande otro `Host`: para probar el Worker como un
+  subdominio, `wrangler dev --local-upstream jadujoyas.luxbyemory.com`. Y la
+  `compatibility_date` no puede pasar la que soporta la versión fijada de
+  wrangler (falla al arrancar, no al publicar).
 
 ---
 

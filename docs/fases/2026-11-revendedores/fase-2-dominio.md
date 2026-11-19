@@ -1,3 +1,8 @@
+> **Reemplazado** por el diseño del 19/11/2026,
+> [2026-11-19-dominio-y-subdominios-design.md](../../superpowers/specs/2026-11-19-dominio-y-subdominios-design.md):
+> Cloudflare sirve todo el sitio, sin `#`, y el personal entra por
+> `entrar.luxbyemory.com`. Lo de abajo es el punto de partida, no lo que se hizo.
+
 # Fase 2 — Dominio, SSL y un subdominio por revendedor
 
 ## Lo que pidió el dueño (18/11/2026)

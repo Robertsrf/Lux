@@ -39,6 +39,7 @@ empezar en frío.
 | 5 | El inventario propio del revendedor | [fase-5-inventario-del-revendedor.md](fase-5-inventario-del-revendedor.md) | Sí | 3, 4 |
 | 6 | El catálogo y el carrito del revendedor, rediseñados | [fase-6-catalogo-del-revendedor.md](fase-6-catalogo-del-revendedor.md) | Algo (su tema) | 2, 5 |
 | 7 | El panel del revendedor, y Vender fácil | [fase-7-panel-del-revendedor.md](fase-7-panel-del-revendedor.md) | Poco | 5, 6 |
+| 8 | La landing con el catálogo de Lux, rehecha | [fase-8-landing-de-lux.md](fase-8-landing-de-lux.md) | No (en principio) | 2 |
 
 La 1 y la 2 no dependen de nada y se pueden hacer ya. La 3, 4 y 5 son las de
 dinero y van en ese orden: la 5 necesita saber qué es "una compra para su
@@ -58,12 +59,15 @@ Y en cada fase, el mismo camino, con los orquestadores:
    `lux-codigo` (y `lux-ui` en las fases que tocan pantallas de Lux) se
    activan solas.
 2. **Decisiones abiertas** con `superpowers:brainstorming`: se le preguntan al
-   dueño una por una, antes de escribir código. Ninguna cifra de negocio se
-   inventa (regla 4).
+   dueño una por una, **como opciones para seleccionar** (AskUserQuestion),
+   antes de escribir código. Mensajes cortos y precisos. Ninguna cifra de
+   negocio se inventa (regla 4).
 3. **Diseño** en `docs/superpowers/specs/AAAA-MM-DD-<tema>-design.md`.
 4. **Plan** con `superpowers:writing-plans`, en `docs/superpowers/plans/`.
-5. **Construcción** con `superpowers:subagent-driven-development`: un agente
-   por tarea y una revisión entre tareas. Las fases de backend se apoyan en
+5. **Construcción** con `superpowers:executing-plans`: **Claude construye en
+   el mismo chat, sin un agente por tarea** (pedido del dueño del 19/11/2026).
+   Agentes y revisiones solo cuando hagan falta: la revisión de seguridad del
+   paso 6 sí, y una revisión del conjunto al final. Las fases de backend se apoyan en
    `ingenieria-pro:ingenieria-pro`; las de diseño (6 y 7) en
    `disenio-web-pro:disenio-web-pro`, `frontend-design:frontend-design` y
    `ui-ux-pro-max:ui-ux-pro-max`.
@@ -87,19 +91,26 @@ Y en cada fase, el mismo camino, con los orquestadores:
   navegador ya manda.
 - Las fases 6 y 7 se salen del sistema visual de Lux **solo** en lo del
   revendedor (su catálogo, su carrito, su pedido, su panel). Las pantallas de
-  la tienda siguen con `lux-ui`.
+  la tienda siguen con `lux-ui`. La fase 8 se sale también, en la landing con
+  el catálogo de Lux, conservando solo los colores y la tipografía de la marca.
 
 ## Estado
 
 | # | Estado | Commit | SQL |
 |---|---|---|---|
 | 1 | Hecha y probada con sesión (19/11): reproducido en main, corregido en la rama | rama `fase-1-precio-sugerido` | — |
-| 2 | Pendiente (el dueño está comprando el dominio, 18/11) | | |
+| 2 | Construida en la rama (19/11), sin fusionar: falta que el dueño haga [sus pasos](fase-2-pasos-del-dueno.md) y probarla en Cloudflare. Diseño: `docs/superpowers/specs/2026-11-19-dominio-y-subdominios-design.md` | rama `fase-2-dominio` | #69 `esquema-dominio.sql` (por correr) |
 | 3 | Pendiente | | |
 | 4 | Pendiente | | |
 | 5 | Pendiente | | |
 | 6 | Pendiente | | |
 | 7 | Pendiente | | |
+| 8 | Pendiente (después de la 2) | | |
 
-El próximo `.sql` libre es el **#69** (el último corrido es
-`esquema-dama-caballero-revendedor.sql`, #68).
+El próximo `.sql` libre es el **#70** (el #69 es `esquema-dominio.sql`, de la
+fase 2; el último corrido, `esquema-dama-caballero-revendedor.sql`, #68).
+
+**Las direcciones cambiaron en la fase 2:** ya no hay `#/`. Lux en
+`luxbyemory.com`, el personal en `entrar.luxbyemory.com`, el panel del
+revendedor en `luxbyemory.com/rv` y su catálogo en `<usuario>.luxbyemory.com`.
+Donde los archivos de las fases 3 a 7 digan `/#/r/<usuario>` o `/#/rv`, léase así.
