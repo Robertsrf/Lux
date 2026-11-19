@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { grupoTrasSugerencia } from '../../src/lib/grupoSugerido.ts';
+import { claveDeSugerencia, grupoTrasSugerencia } from '../../src/lib/grupoSugerido.ts';
 import { leerCifra } from '../../src/lib/dinero.ts';
 
 // Lo que llega de admin_sugerir_precio, solo lo que mira la regla.
 const sug = (grupo_id, escalera = 'pieza') => ({ grupo_id, escalera });
 const estado = (cambios = {}) => ({
   grupo: '', quien: 'maquina', tipoCambiado: false, escalera: 'pieza',
-  costo: 12.5, hayPrecioPropio: false, ...cambios,
+  costo: 12.5, hayPrecioPropio: false, alDia: true, ...cambios,
 });
 
 test('la maquina sigue al costo: G3, luego G5, luego G3 otra vez', () => {
@@ -69,4 +69,19 @@ test('el precio propio se lee como el resto del sistema', () => {
   assert.equal(leerCifra('1.500,50'), 1500.5);
   assert.equal(leerCifra('12,5,0'), null);
   assert.equal(leerCifra('0'), null);
+});
+
+test("una sugerencia de otro costo no se aplica: se espera la del costo escrito", () => {
+  assert.equal(grupoTrasSugerencia(sug(5), estado({ alDia: false })), null);
+  // Tampoco cierra un cambio de tipo: ese espera la suya.
+  assert.equal(grupoTrasSugerencia(sug(40, "dije"), estado({ alDia: false, tipoCambiado: true, escalera: "dije" })), null);
+});
+
+test("la clave de una sugerencia es la de lo escrito", () => {
+  assert.equal(claveDeSugerencia("7", "12.50", "", false), claveDeSugerencia("7", "12.5", "", false));
+  assert.equal(claveDeSugerencia("", "", "", false), claveDeSugerencia("", "0", "", false));
+  assert.notEqual(claveDeSugerencia("7", "12.5", "", false), claveDeSugerencia("7", "1", "", false));
+  assert.notEqual(claveDeSugerencia("7", "12.5", "", false), claveDeSugerencia("7", "12.5", "", true));
+  assert.notEqual(claveDeSugerencia("7", "12.5", "", false), claveDeSugerencia("8", "12.5", "", false));
+  assert.notEqual(claveDeSugerencia("7", "12.5", "", false), claveDeSugerencia("7", "12.5", "50", false));
 });

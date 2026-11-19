@@ -1477,8 +1477,9 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   guardaba la respuesta que llegara; además ponía el grupo una sola vez, con
   la primera. La cadena y el grupo se quedaban con un costo viejo o a medio
   escribir, y "se arreglaba" cambiando el tipo a Dije y volviendo (reportado
-  por el dueño el 18/11/2026). Ahora cada petición lleva su número y solo
-  cuenta la última, el grupo sigue al costo hasta que el dueño lo elige
+  por el dueño el 18/11/2026). Ahora cada sugerencia lleva la clave de lo
+  que se pidió (lote, costo, margen, tipo) y solo mueve el grupo la de lo
+  escrito AHORA; el grupo sigue al costo hasta que el dueño lo elige
   (`lib/grupoSugerido.ts`) y un error se dice en vez de callarse.
 - **Escribir en `configuracion` ejecuta `claves_ofertas()`.** El `check` que
   deja vacías solo las diez cifras de las ofertas la llama en cada `insert` o

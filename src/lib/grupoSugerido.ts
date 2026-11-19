@@ -26,20 +26,35 @@ export interface EstadoGrupo {
   costo: number;
   /** El campo de precio propio no está vacío. */
   hayPrecioPropio: boolean;
+  /**
+   * La sugerencia es la de lo escrito AHORA (su clave es la del formulario).
+   * Mientras se escribe, la que hay es la del costo anterior: aplicarla
+   * pondría el grupo de otro costo, y si la siguiente falla se quedaba.
+   */
+  alDia: boolean;
+}
+
+/**
+ * Lo que identifica una sugerencia: lote, costo, margen y escalera, como
+ * los manda `pedirSugerencia`. "12.50" y "12.5" son el mismo costo.
+ */
+export function claveDeSugerencia(lote: string, costo: string, margen: string, esDije: boolean): string {
+  return `${lote || '-'}|${Number(costo || 0)}|${margen === '' ? '-' : Number(margen)}|${esDije ? 'dije' : 'pieza'}`;
 }
 
 /**
  * Qué grupo queda tras una sugerencia de `admin_sugerir_precio`.
  *
- * null: la sugerencia es de la otra escalera (llegó antes de cambiar el
- * tipo) y no se toca nada. Si no, el grupo y quién lo puso, que pueden
- * ser los mismos de antes.
+ * null: la sugerencia no es la de lo escrito ahora (otro costo, u otra
+ * escalera porque llegó antes de cambiar el tipo) y no se toca nada: se
+ * espera la que toca. Si no, el grupo y quién lo puso, que pueden ser los
+ * mismos de antes.
  */
 export function grupoTrasSugerencia(
   s: Pick<PrecioSugerido, 'grupo_id' | 'escalera'>,
   e: EstadoGrupo,
 ): { grupo: string; quien: QuienPusoGrupo } | null {
-  if ((s.escalera ?? 'pieza') !== e.escalera) return null;
+  if (!e.alDia || (s.escalera ?? 'pieza') !== e.escalera) return null;
   const sugerido = s.grupo_id ? String(s.grupo_id) : null;
   // Cambió el tipo: el grupo de la otra escalera no sirve, lo haya puesto
   // quien lo haya puesto. Sin grupo en la nueva (no hay escalera de dijes

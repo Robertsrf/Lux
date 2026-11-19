@@ -12,7 +12,7 @@ import type { FotoProcesada } from '../../lib/fotos';
 import { useCategorias, useGrupos, useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import type { LoteAdmin, ModeloAdmin, ParaQuien, PrecioSugerido } from '../../lib/tipos';
-import { grupoTrasSugerencia } from '../../lib/grupoSugerido';
+import { claveDeSugerencia, grupoTrasSugerencia } from '../../lib/grupoSugerido';
 import type { QuienPusoGrupo } from '../../lib/grupoSugerido';
 
 
@@ -137,6 +137,9 @@ function Formulario() {
   const [errorSugerencia, setErrorSugerencia] = useState<string | null>(null);
   // Cada petición de sugerencia lleva su número; solo cuenta la última.
   const ultimaPeticion = useRef(0);
+  // De qué lote, costo, margen y tipo es la sugerencia que hay: mientras se
+  // escribe es la de lo anterior, y esa no mueve el grupo.
+  const [claveSugerencia, setClaveSugerencia] = useState('');
   const [cargando, setCargando] = useState(!esNuevo);
   const [guardando, setGuardando] = useState(false);
   const [procesandoFoto, setProcesandoFoto] = useState(false);
@@ -352,6 +355,7 @@ function Formulario() {
   // incompleta hasta cambiar el tipo (reportado por el dueño el 18/11/2026).
   const pedirSugerencia = useCallback(async () => {
     const numero = ++ultimaPeticion.current;
+    const clave = claveDeSugerencia(form.lote_id, form.costo_unitario_usd, margenObjetivo, form.armado === 'dije');
     const { data, error: err } = await supabase.rpc('admin_sugerir_precio', {
       p_lote_id: form.lote_id ? Number(form.lote_id) : null,
       p_costo_usd: Number(form.costo_unitario_usd || 0),
@@ -366,6 +370,7 @@ function Formulario() {
       return;
     }
     setErrorSugerencia(null);
+    setClaveSugerencia(clave);
     setSugerencia(data as unknown as PrecioSugerido);
   }, [form.lote_id, form.costo_unitario_usd, margenObjetivo, form.armado]);
 
@@ -376,9 +381,13 @@ function Formulario() {
 
   // El grupo sigue al costo mientras lo ponga la máquina; el que elige el
   // dueño no se mueve. La regla entera vive en `grupoTrasSugerencia`.
+  const claveActual = claveDeSugerencia(form.lote_id, form.costo_unitario_usd, margenObjetivo, form.armado === 'dije');
+  // La sugerencia que corresponde a lo escrito ahora, o null mientras llega.
+  const sugerenciaAlDia = sugerencia && claveSugerencia === claveActual ? sugerencia : null;
   useEffect(() => {
     if (!sugerencia) return;
     const r = grupoTrasSugerencia(sugerencia, {
+      alDia: claveSugerencia === claveActual,
       grupo: form.grupo_precio_id,
       quien: quienGrupo,
       tipoCambiado,
@@ -391,12 +400,17 @@ function Formulario() {
     if (tipoCambiado) setTipoCambiado(false);
     if (r.quien !== quienGrupo) setQuienGrupo(r.quien);
     if (r.grupo !== form.grupo_precio_id) setForm((f) => ({ ...f, grupo_precio_id: r.grupo }));
-  }, [sugerencia, quienGrupo, tipoCambiado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd, form.armado]);
+  }, [sugerencia, claveSugerencia, claveActual, quienGrupo, tipoCambiado, form.grupo_precio_id, form.precio_override_usd, form.costo_unitario_usd, form.armado]);
 
-  /** El dueño elige el grupo: desde ahí la máquina no lo toca. */
+  /**
+   * El dueño elige el grupo: desde ahí la máquina no lo toca. Si acababa de
+   * cambiar el tipo, su elección cierra ese cambio: si no, la sugerencia de
+   * la escalera nueva, al llegar, se la reemplazaba.
+   */
   function elegirGrupo(valor: string) {
     cambiar('grupo_precio_id', valor);
     setQuienGrupo('dueno');
+    setTipoCambiado(false);
   }
 
   /**
@@ -867,43 +881,43 @@ function Formulario() {
               </Aviso>
             ) : null}
 
-            {sugerencia?.grupo_id ? (
-              <Aviso tono={sugerencia.grupo_alcanza ? 'exito' : 'alerta'}>
-                {sugerencia.grupo_alcanza ? (
+            {sugerenciaAlDia?.grupo_id ? (
+              <Aviso tono={sugerenciaAlDia.grupo_alcanza ? 'exito' : 'alerta'}>
+                {sugerenciaAlDia.grupo_alcanza ? (
                   <>
-                    Le toca el grupo <strong style={{ display: 'inline' }}>{sugerencia.grupo_nombre}</strong>
-                    {' '}({formatearBcv(sugerencia.grupo_precio_bcv)}), que deja
-                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)} de margen
+                    Le toca el grupo <strong style={{ display: 'inline' }}>{sugerenciaAlDia.grupo_nombre}</strong>
+                    {' '}({formatearBcv(sugerenciaAlDia.grupo_precio_bcv)}), que deja
+                    {' '}{formatearPorcentaje(sugerenciaAlDia.margen_resultante_pct)} de margen
                     {' '}ya contando la tienda. Se elige el grupo más barato que llegue
-                    {' '}al {formatearPorcentaje(sugerencia.margen_piso_pct)} de piso, para no
+                    {' '}al {formatearPorcentaje(sugerenciaAlDia.margen_piso_pct)} de piso, para no
                     {' '}inflar el precio por unos centavos.
-                    {String(sugerencia.grupo_id) !== form.grupo_precio_id ? (
+                    {String(sugerenciaAlDia.grupo_id) !== form.grupo_precio_id ? (
                       <>
                         {' '}
                         <button
                           type="button"
                           className="boton boton--secundario boton--pequeno"
-                          onClick={() => elegirGrupo(String(sugerencia.grupo_id))}
+                          onClick={() => elegirGrupo(String(sugerenciaAlDia.grupo_id))}
                         >
-                          Usar {sugerencia.grupo_nombre}
+                          Usar {sugerenciaAlDia.grupo_nombre}
                         </button>
                       </>
                     ) : null}
                   </>
                 ) : (
                   <>
-                    Ningun grupo llega a {formatearBcv(sugerencia.precio_sugerido_bcv)}. El más caro es
-                    {' '}{sugerencia.grupo_nombre} ({formatearBcv(sugerencia.grupo_precio_bcv)}), que dejaria
-                    {' '}{formatearPorcentaje(sugerencia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
+                    Ningun grupo llega a {formatearBcv(sugerenciaAlDia.precio_sugerido_bcv)}. El más caro es
+                    {' '}{sugerenciaAlDia.grupo_nombre} ({formatearBcv(sugerenciaAlDia.grupo_precio_bcv)}), que dejaria
+                    {' '}{formatearPorcentaje(sugerenciaAlDia.margen_resultante_pct)}. Crea un grupo mas alto o pon precio propio.
                   </>
                 )}
               </Aviso>
-            ) : sugerencia && form.armado === 'dije' ? (
+            ) : sugerenciaAlDia && form.armado === 'dije' ? (
               <Aviso tono="alerta">
                 Todavía no hay escalera de dijes. Cárgala en Grupos, con los precios que tú decidas: un dije
                 nunca se pone en un grupo de las piezas, que llevan lo de tienda.
               </Aviso>
-            ) : sugerencia ? (
+            ) : sugerenciaAlDia ? (
               <Aviso tono="alerta">
                 No hay grupos de precio cargados. Crea al menos uno para poder asignar precios.
               </Aviso>
