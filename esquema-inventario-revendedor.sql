@@ -56,7 +56,7 @@
 --     select * from revendedor_ajustes;                 -- permission denied
 --     select * from rv_inventario(1);                   -- permission denied
 --
--- Probado en PGlite con la instalación entera (prueba-72, 65
+-- Probado en PGlite con la instalación entera (prueba-72, 72
 -- comprobaciones; la del #71 sigue en 55 de 55).
 -- =====================================================================
 
@@ -394,7 +394,8 @@ begin
       from venta_items i where i.venta_id = new.id
      group by 1 having sum(i.cantidad) > 0
   loop
-    perform rv_inventario_alcanza(new.inventario_de, r.modelo_id, r.n);
+    -- La de antes: quitar la marca en el mismo cambio no salta el guardia.
+    perform rv_inventario_alcanza(old.inventario_de, r.modelo_id, r.n);
   end loop;
   return new;
 end;
@@ -405,7 +406,7 @@ drop trigger if exists venta_inventario_anular on ventas;
 create trigger venta_inventario_anular
   before update of anulada on ventas
   for each row
-  when (new.anulada and not old.anulada and new.inventario_de is not null)
+  when (new.anulada and not old.anulada and old.inventario_de is not null)
   execute function venta_inventario_anular();
 
 -- En una línea: bajar su cantidad (quitar) o una línea de nota de crédito.
@@ -531,12 +532,13 @@ begin
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'No elegiste ninguna pieza.';
   end if;
+  -- #72: el tope primero, antes de leer cada línea.
+  if jsonb_array_length(p_items) > 300 then
+    raise exception 'Son demasiadas piezas en un pedido.';
+  end if;
   if exists (select 1 from jsonb_array_elements(p_items) x
               where coalesce((x->>'cantidad')::int, 0) <= 0) then
     raise exception 'La cantidad de cada pieza tiene que ser mayor que cero.';
-  end if;
-  if jsonb_array_length(p_items) > 300 then
-    raise exception 'Son demasiadas piezas en un pedido.';
   end if;
 
   if v_ced is null then raise exception 'Falta la cédula.'; end if;
@@ -1277,11 +1279,14 @@ begin
          coalesce(m.familia_id, m.id), m.variante,
          (d.tienda + d.mias)::int,
          l.lista,
-         x.lux,
+         -- Lo que paga a Lux, solo de lo que está en su catálogo de la
+         -- tienda. Fuera de él (el piso no deja rebaja, o la tienda la
+         -- retiró) esa cifra sería el piso de margen: no sale.
+         case when x.en_catalogo then x.lux end,
          rv_minimo_clienta(l.lista),
          x.precio,
          rp.precio_usd,
-         x.precio - x.lux,
+         case when x.en_catalogo then x.precio - x.lux end,
          d.mias::int
     from d
     join modelos m on m.id = d.id
@@ -1291,6 +1296,9 @@ begin
    cross join lateral (
      select rv_precio_lux(m.id, v_desc) as lux,
             rv_precio_clienta(rp.precio_usd, l.lista) as precio
+   ) x0
+   cross join lateral (
+     select x0.lux, x0.precio, (m.activo and x0.lux < l.lista) as en_catalogo
    ) x
    where l.lista is not null
    order by m.categoria, m.nombre, m.variante;
@@ -1478,6 +1486,21 @@ begin
   select m.nombre || coalesce(' · ' || m.variante, '') into v_nombre from modelos m where m.id = p_modelo_id;
   if not found then
     raise exception 'Esa pieza no existe.';
+  end if;
+
+  -- Sumar, solo una pieza que alguna vez compró a Lux: si no, su catálogo
+  -- enseñaría (y vendería) piezas que nunca tuvo o que la tienda retiró.
+  select * into f from rv_inventario(v_id) i where i.modelo_id = p_modelo_id;
+  if p_cantidad > 0 and coalesce(f.compradas, 0) <= 0 then
+    raise exception 'Solo puedes sumar piezas que le compraste a Lux para tu inventario. Si te llegó una sin pasar por el sistema, pídele a la tienda que la registre.';
+  end if;
+  if p_cantidad > 0 and coalesce(f.tiene, 0) + p_cantidad > 9999 then
+    raise exception 'De una pieza, hasta 9.999 en tu inventario.';
+  end if;
+  -- Un tope de carga, no del negocio: la tabla no se borra.
+  if (select count(*) from revendedor_ajustes a
+       where a.revendedor_id = v_id and a.creado_en > now() - interval '1 day') >= 200 then
+    raise exception 'Ya hiciste muchas correcciones hoy. Sigue mañana, o escríbele a la tienda.';
   end if;
 
   if p_cantidad < 0 then

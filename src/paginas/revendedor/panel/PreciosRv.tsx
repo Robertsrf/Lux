@@ -185,7 +185,7 @@ export function PreciosRv() {
                 </div>
                 <div className="rv-precio__sale">
                   <span className="dato__etiqueta">Te sale</span>
-                  <div className="dato__valor">{formatearBcv(Number(p.precio_lux_usd))}</div>
+                  <div className="dato__valor">{p.precio_lux_usd !== null ? formatearBcv(Number(p.precio_lux_usd)) : 'Ya es tuya'}</div>
                 </div>
                 <div className={malo ? 'campo campo--con-error rv-precio__campo' : 'campo rv-precio__campo'}>
                   <label htmlFor={idCampo}>Tu precio · $ BCV</label>
@@ -202,7 +202,9 @@ export function PreciosRv() {
                   <span className={malo ? 'campo__error' : 'rv-precio__gana'} id={`${idCampo}-pista`}>
                     {malo
                       ? `No puede ser menos de ${formatearBcv(Number(p.minimo_usd))}.`
-                      : <>Ganas <strong>{formatearBcv(gananciaPorPieza(precio, Number(p.precio_lux_usd)))}</strong> ({gananciaPct(precio, Number(p.precio_lux_usd))} %)</>}
+                      : p.precio_lux_usd === null
+                        ? 'De tu inventario: esta solo se vende de lo tuyo.'
+                        : <>Ganas <strong>{formatearBcv(gananciaPorPieza(precio, Number(p.precio_lux_usd)))}</strong> ({gananciaPct(precio, Number(p.precio_lux_usd))} %)</>}
                   </span>
                 </div>
               </div>

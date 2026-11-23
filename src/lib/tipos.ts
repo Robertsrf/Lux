@@ -1391,15 +1391,15 @@ export interface PiezaRevendedor {
   disponible: number;
   /** La etiqueta de la tienda. */
   etiqueta_usd: number;
-  /** Lo que le paga a Lux. */
-  precio_lux_usd: number;
+  /** Lo que le paga a Lux. Null (#72): la pieza solo sale de su inventario. */
+  precio_lux_usd: number | null;
   /** Lo minimo que puede cobrar: la etiqueta mas diez centavos. */
   minimo_usd: number;
   /** Lo que cobra: el suyo, o el minimo. */
   precio_usd: number;
   /** El que puso el, si puso uno. */
   precio_propio: number | null;
-  ganancia_usd: number;
+  ganancia_usd: number | null;
   /** Las suyas libres, de su inventario (#72; sin él, no viene). `disponible` ya las suma. */
   mias?: number;
 }

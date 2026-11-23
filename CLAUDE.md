@@ -1478,7 +1478,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
       lo que pagó por cada unidad).
     - **"Mi inventario"** en su panel: cuántas, cuántas en pedidos, lo que
       pasó, y corregir **en las dos direcciones** (decisión del dueño) con
-      un motivo, nunca por debajo de lo apartado ni de cero.
+      un motivo, nunca por debajo de lo apartado ni de cero. Sumar, solo a
+      una pieza que alguna vez compró (ver Trampas).
     - **No es inventario de Lux**: no está en `existencias`, así que el
       conteo, el valor del inventario y el cierre no lo ven. El dueño lo ve
       en Revendedores y en Crédito.
@@ -1708,6 +1709,23 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   subdominio, `wrangler dev --local-upstream jadujoyas.luxbyemory.com`. Y la
   `compatibility_date` no puede pasar la que soporta la versión fijada de
   wrangler (falla al arrancar, no al publicar).
+
+- **Lo que el revendedor "paga a Lux" es el piso donde el piso manda.**
+  `rv_precio_lux` no baja de `piso_margen_de`: en una pieza cuyo piso pasa
+  la rebaja, lo que le sale ES el piso. Por eso su catálogo solo trae lo
+  que deja rebaja. En la primera versión del #72, `rv_piezas` enseñaba
+  también sus piezas propias con ese precio, y como él podía sumarse
+  cualquier pieza con un ajuste, leía el piso de todo el catálogo, una por
+  una (revisión de seguridad del 23/11/2026). Ahora `rv_piezas` no da ese
+  precio fuera de su catálogo de la tienda, y él solo suma piezas que
+  compró. **Toda pantalla nueva del revendedor que enseñe lo que paga a
+  Lux lo enseña solo de piezas donde `lux < etiqueta`.**
+- **Su inventario se puede apartar con pedidos falsos.** Cualquiera sin
+  sesión puede pedir lo suyo con cédulas inventadas y reportar un pago
+  falso: el pedido espera a que él lo confirme. Lo de la tienda lo acota
+  su tope; lo suyo no (no le debe nada a Lux). Aceptado como el tope por
+  cédula del catálogo de la tienda: él lo suelta con "no llegó" o
+  cancelando. Frenarlo de verdad pediría una puerta con servidor.
 
 ---
 

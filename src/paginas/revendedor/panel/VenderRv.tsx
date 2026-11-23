@@ -75,7 +75,11 @@ export function VenderRv() {
 
   const cuentas = useMemo(() => {
     const cobras = totalDeLineas(elegidas.map((e) => ({ precio: Number(e.pieza.precio_usd), cantidad: e.cantidad })));
-    const lux = totalDeLineas(elegidas.map((e) => ({ precio: Number(e.pieza.precio_lux_usd), cantidad: e.cantidad })));
+    // El pedido toma primero de su inventario (#72): eso no se le paga a Lux.
+    const lux = totalDeLineas(elegidas.map((e) => ({
+      precio: Number(e.pieza.precio_lux_usd ?? 0),
+      cantidad: Math.max(e.cantidad - (e.pieza.mias ?? 0), 0),
+    })));
     return { piezas: elegidas.reduce((n, e) => n + e.cantidad, 0), cobras, lux };
   }, [elegidas]);
 
@@ -185,8 +189,11 @@ export function VenderRv() {
                   <div className="linea-cobro__nombre">{nombreP}</div>
                   <div className="linea-cobro__precio">
                     A tu clienta <span className="rv-precio__cifra">{formatearBcv(Number(p.precio_usd))}</span>
-                    {' · '}te sale <span className="rv-precio__cifra">{formatearBcv(Number(p.precio_lux_usd))}</span>
+                    {p.precio_lux_usd !== null
+                      ? <>{' · '}te sale <span className="rv-precio__cifra">{formatearBcv(Number(p.precio_lux_usd))}</span></>
+                      : null}
                     {' · '}{p.disponible} {p.disponible === 1 ? 'libre' : 'libres'}
+                    {p.mias ? ` (${p.mias === p.disponible ? 'todas tuyas' : `${p.mias} tuyas`})` : ''}
                   </div>
                 </div>
                 <div className="contador">
