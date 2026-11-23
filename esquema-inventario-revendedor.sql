@@ -1127,3 +1127,390 @@ $fn$;
 
 revoke all on function rv_apartados(text) from public;
 grant execute on function rv_apartados(text) to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 6. SU CATÁLOGO: LO LIBRE DE LA TIENDA MÁS LO SUYO
+-- ---------------------------------------------------------------------
+
+-- La del #68: mismas columnas y misma firma (por eso basta `create or
+-- replace`). Lo nuevo: suma lo suyo libre, y una pieza suya sale aunque
+-- la tienda no la tenga, la haya retirado o el piso no deje rebaja. Su
+-- clienta no sabe de dónde sale cada unidad. Ninguna columna de costo,
+-- piso ni de lo que él le paga a Lux.
+create or replace function rv_catalogo_publico(p_usuario text)
+returns table (
+  id              bigint,
+  sku             text,
+  nombre          text,
+  categoria       text,
+  variantes_nota  text,
+  foto_path       text,
+  foto_thumb_path text,
+  precio_usd      numeric,
+  precio_bs       numeric,
+  disponible      int,
+  familia         bigint,
+  variante        text,
+  para            text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  with r as (
+    select rv.id, rv_descuento_de(rv.id) as descuento
+      from revendedores rv
+     where rv.usuario = lower(btrim(coalesce(p_usuario, ''))) and rv.activo
+  ), de_tienda as (
+    select p.id, p.disponible::int as n
+      from v_disponible_publico p
+     cross join r
+     where rv_precio_lux(p.id, r.descuento) < p.precio_usd
+  ), suyo as (
+    select i.modelo_id as id, i.libre as n
+      from r cross join lateral rv_inventario(r.id) i
+     where i.libre > 0
+  ), d as (
+    select x.id, sum(x.n)::int as n
+      from (select * from de_tienda union all select * from suyo) x
+     group by x.id
+  )
+  select m.id, m.sku, m.nombre, m.categoria, m.variantes_nota, m.foto_path, m.foto_thumb_path,
+         x.precio,
+         round(x.precio * t.tasa_bcv, 2),
+         d.n,
+         coalesce(m.familia_id, m.id),
+         m.variante,
+         m.para
+    from d
+    join modelos m on m.id = d.id
+   cross join r
+    left join grupos_precio g on g.id = m.grupo_precio_id
+    left join revendedor_precios rp on rp.revendedor_id = r.id and rp.modelo_id = m.id
+    left join lateral (select tasa_bcv from tasas where vigente limit 1) t on true
+   cross join lateral (
+     select rv_precio_clienta(rp.precio_usd, coalesce(m.precio_override_usd, g.precio_usd)) as precio
+   ) x
+   where coalesce(m.precio_override_usd, g.precio_usd) is not null;
+$fn$;
+
+revoke all on function rv_catalogo_publico(text) from public;
+grant execute on function rv_catalogo_publico(text) to anon, authenticated;
+
+-- Lo que ve en Vender y en Precios. Cambia lo que devuelve (`mias` al
+-- final): se borra y se crea en una transacción. `disponible` es lo de
+-- la tienda más lo suyo libre, así el navegador de antes pide bien.
+begin;
+
+drop function if exists rv_piezas(text);
+
+create function rv_piezas(p_sesion text)
+returns table (
+  id              bigint,
+  sku             text,
+  nombre          text,
+  categoria       text,
+  variantes_nota  text,
+  foto_path       text,
+  foto_thumb_path text,
+  familia         bigint,
+  variante        text,
+  disponible      int,
+  etiqueta_usd    numeric,
+  precio_lux_usd  numeric,
+  minimo_usd      numeric,
+  precio_usd      numeric,
+  precio_propio   numeric,
+  ganancia_usd    numeric,
+  -- Nueva (#72): las suyas libres.
+  mias            int
+)
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id   bigint := rv_de_sesion(p_sesion);
+  v_desc numeric := rv_descuento_de(v_id);
+begin
+  return query
+  with de_tienda as (
+    select p.id, p.disponible::int as n
+      from v_disponible_publico p
+     where rv_precio_lux(p.id, v_desc) < p.precio_usd
+  ), suyo as (
+    select i.modelo_id as id, greatest(i.libre, 0) as n
+      from rv_inventario(v_id) i
+     where i.tiene > 0
+  ), d as (
+    select coalesce(t.id, s.id) as id, coalesce(t.n, 0) as tienda, coalesce(s.n, 0) as mias
+      from de_tienda t full join suyo s on s.id = t.id
+  )
+  select m.id, m.sku, m.nombre, m.categoria, m.variantes_nota, m.foto_path, m.foto_thumb_path,
+         coalesce(m.familia_id, m.id), m.variante,
+         (d.tienda + d.mias)::int,
+         l.lista,
+         x.lux,
+         rv_minimo_clienta(l.lista),
+         x.precio,
+         rp.precio_usd,
+         x.precio - x.lux,
+         d.mias::int
+    from d
+    join modelos m on m.id = d.id
+    left join grupos_precio g on g.id = m.grupo_precio_id
+    left join revendedor_precios rp on rp.revendedor_id = v_id and rp.modelo_id = m.id
+   cross join lateral (select coalesce(m.precio_override_usd, g.precio_usd) as lista) l
+   cross join lateral (
+     select rv_precio_lux(m.id, v_desc) as lux,
+            rv_precio_clienta(rp.precio_usd, l.lista) as precio
+   ) x
+   where l.lista is not null
+   order by m.categoria, m.nombre, m.variante;
+end;
+$fn$;
+
+revoke all on function rv_piezas(text) from public;
+grant execute on function rv_piezas(text) to anon, authenticated;
+
+commit;
+
+-- La de esquema-revendedores.sql, misma firma. Lo nuevo: también le pone
+-- precio a una pieza suya que la tienda ya no vende o que no deja rebaja.
+create or replace function rv_fijar_precios(p_sesion text, p_precios jsonb)
+returns int
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id     bigint := rv_de_sesion(p_sesion);
+  v_desc   numeric := rv_descuento_de(v_id);
+  v_x      jsonb;
+  v_modelo bigint;
+  v_precio numeric;
+  v_lista  numeric;
+  v_activo boolean;
+  v_nombre text;
+  v_min    numeric;
+  v_n      int := 0;
+begin
+  if p_precios is null or jsonb_typeof(p_precios) <> 'array' then
+    raise exception 'No llegó ningún precio.';
+  end if;
+
+  for v_x in select * from jsonb_array_elements(p_precios) loop
+    v_modelo := (v_x->>'modelo_id')::bigint;
+    v_precio := nullif(v_x->>'precio_usd', '')::numeric;
+
+    if v_precio is null then
+      delete from revendedor_precios where revendedor_id = v_id and modelo_id = v_modelo;
+      v_n := v_n + 1;
+      continue;
+    end if;
+
+    select m.nombre || coalesce(' · ' || m.variante, ''), coalesce(m.precio_override_usd, g.precio_usd), m.activo
+      into v_nombre, v_lista, v_activo
+      from modelos m
+      left join grupos_precio g on g.id = m.grupo_precio_id
+     where m.id = v_modelo;
+    if not found or v_lista is null then
+      raise exception 'Una de las piezas ya no está en el catálogo.';
+    end if;
+    -- #72: en su catálogo está lo de la tienda que le deja rebaja, y lo suyo.
+    if not ((v_activo and rv_precio_lux(v_modelo, v_desc) < v_lista)
+            or exists (select 1 from rv_inventario(v_id) i where i.modelo_id = v_modelo and i.tiene > 0)) then
+      raise exception '"%" no está en tu catálogo.', v_nombre;
+    end if;
+
+    v_min := rv_minimo_clienta(v_lista);
+    if round(v_precio, 2) < v_min then
+      raise exception 'El precio de "%" no puede ser menor que $% BCV: el tuyo va siempre por encima del de la tienda.',
+        v_nombre, to_char(v_min, 'FM999G999G990D00');
+    end if;
+
+    insert into revendedor_precios (revendedor_id, modelo_id, precio_usd)
+    values (v_id, v_modelo, round(v_precio, 2))
+    on conflict (revendedor_id, modelo_id)
+    do update set precio_usd = excluded.precio_usd, actualizado_en = now();
+    v_n := v_n + 1;
+  end loop;
+
+  return v_n;
+end;
+$fn$;
+
+revoke all on function rv_fijar_precios(text, jsonb) from public;
+grant execute on function rv_fijar_precios(text, jsonb) to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 7. "MI INVENTARIO" EN SU PANEL
+-- ---------------------------------------------------------------------
+
+-- Cada pieza que tiene o tuvo: cuántas, cuántas en pedidos, cuántas
+-- libres, su precio y lo último que se movió. Nada de lo que paga a Lux.
+create or replace function rv_mi_inventario(p_sesion text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id bigint := rv_de_sesion(p_sesion);
+begin
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'modelo_id',       i.modelo_id,
+             'sku',             m.sku,
+             'nombre',          m.nombre,
+             'variante',        m.variante,
+             'categoria',       m.categoria,
+             'foto_thumb_path', m.foto_thumb_path,
+             'tiene',           i.tiene,
+             'apartadas',       i.apartadas,
+             'libre',           i.libre,
+             'compradas',       i.compradas,
+             'vendidas',        i.vendidas,
+             'precio_usd',      rv_precio_clienta(rp.precio_usd, coalesce(m.precio_override_usd, g.precio_usd)),
+             'movimientos',     coalesce((
+               select jsonb_agg(jsonb_build_object('fecha', mv.fecha, 'cantidad', mv.cantidad,
+                                                   'motivo', mv.motivo) order by mv.fecha desc)
+                 from (
+                   select * from (
+                     select v.fecha, i2.cantidad::int as cantidad,
+                            case when v.devolucion_de is not null then 'Devuelta a la tienda'
+                                 else 'Comprada a Lux' end as motivo
+                       from venta_items i2
+                       join ventas v on v.id = i2.venta_id
+                       left join ventas o on o.id = v.devolucion_de
+                      where coalesce(v.inventario_de, o.inventario_de) = v_id
+                        and i2.modelo_id = i.modelo_id and not v.anulada and i2.cantidad <> 0
+                     union all
+                     select a.creado_en, a.cantidad, a.motivo
+                       from revendedor_ajustes a
+                      where a.revendedor_id = v_id and a.modelo_id = i.modelo_id
+                     union all
+                     select ap.retirado_en, -ai.cantidad,
+                            'Vendida a ' || btrim(c.nombre || ' ' || coalesce(c.apellido, ''))
+                       from apartado_items ai
+                       join apartados ap on ap.id = ai.apartado_id
+                       join revendedor_clientes c on c.id = ap.cliente_id
+                      where ap.revendedor_id = v_id and ai.modelo_id = i.modelo_id
+                        and ai.de_su_inventario and ap.estado = 'retirado'
+                   ) todo
+                   order by 1 desc
+                   limit 10
+                 ) mv), '[]'::jsonb)
+           ) order by (i.tiene > 0) desc, m.nombre, m.variante)
+      from rv_inventario(v_id) i
+      join modelos m on m.id = i.modelo_id
+      left join grupos_precio g on g.id = m.grupo_precio_id
+      left join revendedor_precios rp on rp.revendedor_id = v_id and rp.modelo_id = m.id
+  ), '[]'::jsonb);
+end;
+$fn$;
+
+revoke all on function rv_mi_inventario(text) from public;
+grant execute on function rv_mi_inventario(text) to anon, authenticated;
+
+-- Corregir a mano, en las dos direcciones (decisión del dueño), con su
+-- motivo. Nunca por debajo de lo que tiene en pedidos ni de cero.
+create or replace function rv_ajustar_inventario(p_sesion text, p_modelo_id bigint, p_cantidad int, p_motivo text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id     bigint := rv_de_sesion(p_sesion);
+  v_motivo text := nullif(btrim(coalesce(p_motivo, '')), '');
+  v_nombre text;
+  v_libre  int;
+  f        record;
+begin
+  if coalesce(p_cantidad, 0) = 0 then
+    raise exception 'Di cuántas sumas o restas: la cantidad no puede ser cero.';
+  end if;
+  if abs(p_cantidad) > 999 then
+    raise exception 'De una vez, hasta 999 piezas.';
+  end if;
+  if v_motivo is null or length(v_motivo) < 2 then
+    raise exception 'Escribe por qué cambias tu inventario: queda anotado.';
+  end if;
+  if length(v_motivo) > 200 then
+    raise exception 'El motivo es muy largo: hasta 200 letras.';
+  end if;
+
+  -- La misma fila que bloquea sus pedidos: no se cruzan.
+  perform 1 from revendedores where id = v_id for update;
+
+  select m.nombre || coalesce(' · ' || m.variante, '') into v_nombre from modelos m where m.id = p_modelo_id;
+  if not found then
+    raise exception 'Esa pieza no existe.';
+  end if;
+
+  if p_cantidad < 0 then
+    v_libre := rv_libre_de(v_id, p_modelo_id);
+    if v_libre + p_cantidad < 0 then
+      raise exception 'De "%" tienes % libres (lo de tus pedidos abiertos no se quita): no puedes restar %.',
+        v_nombre, greatest(v_libre, 0), -p_cantidad;
+    end if;
+  end if;
+
+  insert into revendedor_ajustes (revendedor_id, modelo_id, cantidad, motivo, quien)
+  values (v_id, p_modelo_id, p_cantidad, v_motivo, 'revendedor');
+
+  select * into f from rv_inventario(v_id) i where i.modelo_id = p_modelo_id;
+  return jsonb_build_object('tiene', coalesce(f.tiene, 0), 'libre', coalesce(f.libre, 0));
+end;
+$fn$;
+
+revoke all on function rv_ajustar_inventario(text, bigint, int, text) from public;
+grant execute on function rv_ajustar_inventario(text, bigint, int, text) to anon, authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 8. EL RESPALDO GANA LOS AJUSTES (la del #65, misma firma)
+-- ---------------------------------------------------------------------
+
+create or replace function admin_respaldo(p_tabla text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_filas jsonb;
+begin
+  if not es_admin() then
+    raise exception 'Solo un administrador puede sacar un respaldo.';
+  end if;
+  if p_tabla not in ('modelos', 'lotes', 'venta_items',
+                     'abonos', 'abono_cambios', 'caja_movimientos',
+                     'revendedores', 'revendedor_precios', 'revendedor_clientes',
+                     'apartados', 'apartado_items', 'apartado_abonos',
+                     'por_llegar', 'reserva_armados',
+                     'landing_secciones', 'catalogo_miradas',
+                     'ofertas_casa', 'oferta_casa_items', 'seleccion_manual',
+                     'combos_rearmados', 'combos_semana', 'combo_semana_items',
+                     'ofertas_codigos', 'ofertas_codigo_items',
+                     'revendedor_ajustes') then
+    raise exception 'Esa tabla no esta en la lista del respaldo: %', p_tabla;
+  end if;
+  execute format('select coalesce(jsonb_agg(to_jsonb(t)), ''[]''::jsonb) from %I t', p_tabla)
+     into v_filas;
+  return v_filas;
+end;
+$fn$;
+
+revoke all on function admin_respaldo(text) from public, anon;
+grant execute on function admin_respaldo(text) to authenticated;
+
+notify pgrst, 'reload schema';

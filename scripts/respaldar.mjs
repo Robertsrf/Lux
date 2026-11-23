@@ -50,6 +50,8 @@ const POR_FUNCION = [
   'por_llegar',
   // Qué dije va en qué base, en cada pedido del catálogo (esquema-dijes.sql).
   'reserva_armados',
+  // Lo que cada revendedor corrige a mano en su inventario (#72).
+  'revendedor_ajustes',
 ];
 
 function leerEnv() {
