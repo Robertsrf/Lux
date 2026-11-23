@@ -4,7 +4,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Icono } from './Iconos';
 import type { NombreIcono } from './Iconos';
 
-export interface EnlaceNav { a: string; texto: string; icono: NombreIcono }
+export interface EnlaceNav {
+  a: string; texto: string; icono: NombreIcono;
+  /** Algo que pide atención en esa sección, dicho corto: "2 vencidos". */
+  aviso?: string | null;
+}
 
 /**
  * El armazón de una cara con sesión: la de la tienda (Disposicion) y el
@@ -64,6 +68,7 @@ export function Armazon({ enlaces, principales, marca, quien, alSalir, children 
     <NavLink key={e.a} to={e.a} end className={({ isActive }) => (isActive ? 'activo' : undefined)}>
       <Icono nombre={e.icono} />
       <span className="texto-nav">{e.texto}</span>
+      {e.aviso ? <span className="aviso-nav">{e.aviso}</span> : null}
     </NavLink>
   );
 
@@ -113,6 +118,9 @@ export function Armazon({ enlaces, principales, marca, quien, alSalir, children 
         >
           <Icono nombre="mas" />
           <span className="texto-nav">Más</span>
+          {enlaces.some((e) => e.aviso && !principales.includes(e.a))
+            ? <span className="aviso-nav aviso-nav--punto" aria-label="Hay algo que mirar" />
+            : null}
         </button>
       </nav>
 

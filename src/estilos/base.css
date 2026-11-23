@@ -152,6 +152,21 @@ button:disabled { cursor: not-allowed; }
 }
 .navegacion a.activo .icono { color: var(--oro-arena); }
 
+/* Lo que pide atención en una sección ("2 vencidos"). Error sobre crema:
+   6,05:1, medido. En "Más" del teléfono, solo un punto. */
+.aviso-nav {
+  margin-left: auto;
+  padding: 1px var(--e-2);
+  border-radius: 999px;
+  background: var(--crema); color: var(--error);
+  font-size: var(--t-12); font-weight: 600; letter-spacing: 0; text-transform: none; white-space: nowrap;
+}
+.aviso-nav--punto {
+  position: absolute; top: 6px; right: calc(50% - 18px);
+  width: 10px; height: 10px; padding: 0; margin: 0;
+  background: var(--error); box-shadow: 0 0 0 2px var(--crema);
+}
+
 .sesion {
   display: flex; align-items: center; gap: var(--e-3);
   padding: var(--e-3);
@@ -1053,6 +1068,7 @@ table.tabla tfoot td {
     color: color-mix(in srgb, var(--crema) 74%, transparent);
     text-decoration: none;
     transition: background var(--rapido), color var(--rapido);
+    position: relative;
   }
   .barra-nav a .texto-nav,
   .barra-nav__mas .texto-nav {

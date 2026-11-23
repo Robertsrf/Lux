@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Monograma, Wordmark } from './Marca';
 import { Armazon } from './Armazon';
@@ -6,6 +6,7 @@ import type { EnlaceNav } from './Armazon';
 import { Cargando, LimiteDeError } from './Piezas';
 import { useSesion } from '../hooks/useSesion';
 import { cerrarSesion } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 
 const ENLACES_ADMIN: EnlaceNav[] = [
   { a: '/admin/inventario', texto: 'Inventario', icono: 'inventario' },
@@ -15,6 +16,8 @@ const ENLACES_ADMIN: EnlaceNav[] = [
   // Lo que entra y lo que sale de la tienda. Se toca a diario, al anotar
   // cada gasto: va junto a lo del dia y no al fondo con las cuentas.
   { a: '/admin/caja',       texto: 'Caja',       icono: 'caja' },
+  // Quién le debe a la tienda; dice cuántos créditos vencieron.
+  { a: '/admin/credito',    texto: 'Crédito',    icono: 'clientes' },
   // Él también cierra el día y cuenta, y en Conteo revisa lo que no cuadró:
   // sin estas dos solo llegaba escribiendo la dirección.
   { a: '/venta/cierre',     texto: 'Cierre',     icono: 'cierre' },
@@ -89,8 +92,12 @@ export function Disposicion() {
      enseña el nombre de cada vista y cada función protegida. A la vendedora
      le seguía apareciendo el enlace y la llevaba a un rechazo: un callejón
      sin salida dentro de su propio menú. */
+  const vencidos = useCreditosVencidos(esAdmin);
   const todos: EnlaceNav[] = esAdmin
-    ? [...ENLACES_ADMIN, { a: '/verificacion', texto: 'Verificación', icono: 'verificacion' }]
+    ? [...ENLACES_ADMIN.map((e) => (e.a === '/admin/credito' && vencidos > 0
+        ? { ...e, aviso: `${vencidos} ${vencidos === 1 ? 'vencido' : 'vencidos'}` }
+        : e)),
+      { a: '/verificacion', texto: 'Verificación', icono: 'verificacion' }]
     : ENLACES_VENTA;
 
   return (
@@ -117,4 +124,27 @@ export function Disposicion() {
       </LimiteDeError>
     </Armazon>
   );
+}
+
+/**
+ * Cuántos créditos vencieron sin pagarse (`creditos_vencidos()`, #71), para
+ * el aviso del menú. Al entrar, al cambiar de pantalla y al volver a la
+ * pestaña. Sin el #71, o si falla, 0: el menú no depende de esto.
+ */
+function useCreditosVencidos(esAdmin: boolean): number {
+  const [n, setN] = useState(0);
+  const donde = useLocation();
+  useEffect(() => {
+    if (!esAdmin) { setN(0); return; }
+    let vigente = true;
+    const leer = async () => {
+      const { data, error } = await supabase.rpc('creditos_vencidos');
+      if (vigente) setN(error ? 0 : Number(data ?? 0));
+    };
+    void leer();
+    const alVolver = () => { if (document.visibilityState === 'visible') void leer(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { vigente = false; document.removeEventListener('visibilitychange', alVolver); };
+  }, [esAdmin, donde.pathname]);
+  return n;
 }

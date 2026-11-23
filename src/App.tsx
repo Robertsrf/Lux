@@ -63,6 +63,7 @@ const Clientes = lazy(() => import('./paginas/Clientes').then((m) => ({ default:
 const Revendedores = lazy(() => import('./paginas/admin/Revendedores').then((m) => ({ default: m.Revendedores })));
 const Vendedoras = lazy(() => import('./paginas/admin/Vendedoras').then((m) => ({ default: m.Vendedoras })));
 const Caja = lazy(() => import('./paginas/admin/Caja').then((m) => ({ default: m.Caja })));
+const Credito = lazy(() => import('./paginas/admin/Credito').then((m) => ({ default: m.Credito })));
 const CapacitacionRv = lazy(() => import('./paginas/admin/CapacitacionRv').then((m) => ({ default: m.CapacitacionRv })));
 const GuiaRevendedor = lazy(() => import('./paginas/publico/GuiaRevendedor').then((m) => ({ default: m.GuiaRevendedor })));
 // El panel del revendedor va aparte: lo abre el, de vez en cuando, y no
@@ -215,6 +216,7 @@ export function App() {
             <Route path="/admin/revendedores" element={soloAdmin(<Revendedores />)} />
             <Route path="/admin/vendedoras" element={soloAdmin(<Vendedoras />)} />
             <Route path="/admin/caja" element={soloAdmin(<Caja />)} />
+            <Route path="/admin/credito" element={soloAdmin(<Credito />)} />
             <Route path="/admin/capacitacion" element={soloAdmin(<CapacitacionRv />)} />
           </Route>
 
