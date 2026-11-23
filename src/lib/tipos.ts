@@ -1400,6 +1400,28 @@ export interface PiezaRevendedor {
   /** El que puso el, si puso uno. */
   precio_propio: number | null;
   ganancia_usd: number;
+  /** Las suyas libres, de su inventario (#72; sin él, no viene). `disponible` ya las suma. */
+  mias?: number;
+}
+
+/** rv_mi_inventario: cada pieza que tiene o tuvo en su inventario (#72). */
+export interface PiezaInventarioRv {
+  modelo_id: number;
+  sku: string;
+  nombre: string;
+  variante: string | null;
+  categoria: string;
+  foto_thumb_path: string | null;
+  tiene: number;
+  /** En pedidos suyos abiertos. */
+  apartadas: number;
+  libre: number;
+  compradas: number;
+  vendidas: number;
+  /** Lo que cobra a su clienta. */
+  precio_usd: number | null;
+  /** Los últimos diez: en positivo lo que entró, en negativo lo que salió. */
+  movimientos: { fecha: string; cantidad: number; motivo: string }[];
 }
 
 export type EstadoApartado = 'abierto' | 'vencido' | 'retirado' | 'cancelado';
@@ -1453,6 +1475,8 @@ export interface ApartadoRevendedor {
     precio_usd: number;
     /** Lo que le paga a Lux. */
     precio_lux_usd: number;
+    /** Sale de su inventario: no le debe nada a Lux (#72; sin él, no viene). */
+    de_su_inventario?: boolean;
   }[];
   /** Lo que su clienta le paga por todo. */
   total_usd: number;

@@ -230,13 +230,15 @@ function TarjetaPedido({ a, tasa, ahora, horasParaPagar, alTerminar, siSeCerro }
         {a.items.map((i) => {
           const foto = urlPublicaFoto(i.foto_thumb_path);
           return (
-            <div className="linea-cobro" key={i.modelo_id}>
+            <div className="linea-cobro" key={`${i.modelo_id}-${i.de_su_inventario ? 's' : 't'}`}>
               {foto ? <img className="linea-cobro__foto" src={foto} alt="" loading="lazy" /> : <span className="linea-cobro__foto" />}
               <div>
                 <div className="linea-cobro__nombre">{nombreConVariante(i.nombre, i.variante)}</div>
                 <div className="linea-cobro__precio">
                   A tu clienta <span className="rv-precio__cifra">{formatearBcv(Number(i.precio_usd))}</span>
-                  {' · '}te sale <span className="rv-precio__cifra">{formatearBcv(Number(i.precio_lux_usd))}</span>
+                  {i.de_su_inventario
+                    ? <>{' · '}de tu inventario: no le debes nada a Lux</>
+                    : <>{' · '}te sale <span className="rv-precio__cifra">{formatearBcv(Number(i.precio_lux_usd))}</span></>}
                 </div>
               </div>
               <span className="contador__valor" aria-label={`${i.cantidad} piezas`}>×{i.cantidad}</span>

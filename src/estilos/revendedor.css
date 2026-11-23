@@ -290,3 +290,7 @@
 /* Cargar un abono se abre al tocarlo: abierto en cada tarjeta, la lista de
    apartados medía tres pantallas en el teléfono. */
 .rv-abonar { margin-top: var(--e-4); }
+
+/* Mi inventario (#72): una línea que se abre para corregir o ver lo que
+   pasó crece hacia abajo; la foto y la cifra se quedan arriba. */
+.linea-cobro--abierta { align-items: start; }
