@@ -95,6 +95,11 @@ test('normalizar tira lo que no sirve y guarda lo que sí', () => {
     { plantilla: 'lookbook', principal: '#AABBCC', fondo: '#000000', letra: 'revista', esquinas: 'rectas', portada: 12, frase: 'Brillo' },
   );
   assert.deepEqual(normalizarTema({ portada: -3, frase: 'uno\ndos', principal: '#abc;}body{' }), {});
+  // Los invisibles que la base también rechaza (revisión de seguridad del 23/11/2026).
+  assert.deepEqual(normalizarTema({ frase: 'hola​mundo' }), {});
+  assert.deepEqual(normalizarTema({ frase: '‮odnum' }), {});
+  assert.deepEqual(normalizarTema({ portada: 1.5 }), {});
+  assert.deepEqual(normalizarTema({ frase: 'Joyas ✨ con ñ' }), { frase: 'Joyas ✨ con ñ' });
 });
 
 test('las variables de CSS solo llevan colores y medidas', () => {

@@ -170,7 +170,7 @@ function legibleSobre(color: string, fondo: string, ...otros: string[]): string 
 const PLANTILLA_IDS = PLANTILLAS.map((p) => p.id) as string[];
 const LETRA_IDS = LETRAS.map((l) => l.id) as string[];
 const ESQUINA_IDS = ESQUINAS.map((e) => e.id) as string[];
-const CONTROL = /[\u0000-\u001F\u007F-\u009F]/;
+const CONTROL = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/;
 
 /** Lo que llega de la base, otra vez por la lista: lo desconocido se cae. */
 export function normalizarTema(t: unknown): TemaGuardado {

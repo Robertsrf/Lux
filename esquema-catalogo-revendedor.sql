@@ -83,13 +83,15 @@ begin
       when 'esquinas' then
         if jsonb_typeof(v) <> 'string' or v #>> '{}' not in ('rectas', 'suaves', 'redondas') then return false; end if;
       when 'portada' then
-        if jsonb_typeof(v) <> 'number' or (v #>> '{}')::numeric <= 0
-           or (v #>> '{}')::numeric <> trunc((v #>> '{}')::numeric)
-           or (v #>> '{}')::numeric > 9223372036854775807 then return false; end if;
+        -- Escrito como entero: "1.0" o "1e3" no (después se lee como bigint).
+        if jsonb_typeof(v) <> 'number' or v #>> '{}' !~ '^[1-9][0-9]{0,17}$' then return false; end if;
       when 'frase' then
         if jsonb_typeof(v) <> 'string'
            or char_length(v #>> '{}') not between 1 and 90
-           or (v #>> '{}') ~ '[[:cntrl:]]' then return false; end if;
+           or (v #>> '{}') ~ '[[:cntrl:]]'
+           -- Los invisibles que [[:cntrl:]] no cubre: ancho cero, cambios
+           -- de dirección del texto, separadores de línea, la marca BOM.
+           or (v #>> '{}') ~ '[\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]' then return false; end if;
       else
         return false;
     end case;
@@ -98,10 +100,10 @@ begin
 end;
 $fn$;
 
--- Abierta: la ejecuta el `check` en cualquier `update` de revendedores.
--- Es pura y no lee nada.
-revoke all on function rv_tema_valido(jsonb) from public;
-grant execute on function rv_tema_valido(jsonb) to anon, authenticated;
+-- Cerrada: `revendedores` solo se escribe por funciones de definidor,
+-- así que el `check` corre con los permisos de su dueño. Nadie de afuera
+-- la necesita (revisión de seguridad del 23/11/2026).
+revoke all on function rv_tema_valido(jsonb) from public, anon, authenticated;
 
 alter table revendedores add column if not exists tema jsonb;
 alter table revendedores drop constraint if exists revendedores_tema_valido;
@@ -133,7 +135,7 @@ begin
   end if;
 
   if jsonb_typeof(t -> 'frase') = 'string' then
-    v_frase := btrim(t ->> 'frase');
+    v_frase := btrim(t ->> 'frase', E' \t\u00A0');
     t := case when v_frase = '' then t - 'frase' else jsonb_set(t, '{frase}', to_jsonb(v_frase)) end;
   end if;
 
@@ -269,7 +271,7 @@ begin
   select usuario into v_usuario from revendedores where id = v_id;
   -- El usuario solo tiene minúsculas, números y guiones: no rompe la
   -- expresión. La ruta la arma el servidor; esto es la red por si no.
-  if p_ruta is null or p_ruta !~ ('^revendedores/' || v_usuario || '/[0-9]{10,16}\.(webp|png|jpe?g)$') then
+  if p_ruta is null or v_usuario is null or p_ruta !~ ('^revendedores/' || v_usuario || '/[0-9]{10,16}\.(webp|png|jpe?g)$') then
     raise exception 'Esa ruta no sirve para el logo.';
   end if;
   update revendedores set logo_path = p_ruta where id = v_id;

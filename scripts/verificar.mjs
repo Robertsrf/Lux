@@ -1094,10 +1094,9 @@ async function main() {
     dice(temaP.error?.code === '28000', 'rv_guardar_tema() con un testigo falso, rechazada', temaP.error ? 'rechazada ' + temaP.error.code : 'RESPONDIO');
     const temaV = await V.rpc('admin_tema_revendedor', { p_revendedor: -1, p_tema: {} });
     dice(!!temaV.error, 'admin_tema_revendedor(): cerrada para ella', temaV.error ? 'rechazada ' + (temaV.error.code ?? '') : 'RESPONDIO');
-    const validoA = await A.rpc('rv_tema_valido', { p: { principal: 'red' } });
-    dice(!validoA.error && validoA.data === false, 'rv_tema_valido(): un color con nombre no sirve', validoA.error ? 'ERROR ' + validoA.error.code : String(validoA.data));
     for (const [quien, cliente] of [['sin sesion', P], ['ella', V], ['el dueno', A]]) {
       for (const [fn, args] of [
+        ['rv_tema_valido', { p: {} }],
         ['rv_usuario_para_logo', { p_sesion: 'x'.repeat(40) }],
         ['rv_poner_logo', { p_sesion: 'x'.repeat(40), p_ruta: 'revendedores/x/1763900000000.webp' }],
       ]) {
