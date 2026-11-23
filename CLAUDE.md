@@ -117,7 +117,9 @@ src/
                 catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
                 Filigrana (las líneas de oro de la vitrina que se dibujan),
                 SiluetaEscote (el busto de cada escote, a línea),
-                BuscadorCliente, RutaProtegida,
+                BuscadorCliente, RutaProtegida, DescuentoClienta (el
+                descuento fijo en la ficha de una clienta), FichaDeRevendedor
+                (enlaza un revendedor con su ficha de clienta),
                 VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
                 estante y "Cómo pedir": de los dos catálogos en línea),
                 LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
@@ -317,7 +319,8 @@ lo dice): sin una cifra, la oferta que depende de ella no sale. Ninguna la
 inventa el código.
 
 De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
-funciones): `revendedores` (con la huella de su código, nunca el código) ·
+funciones): `revendedores` (con la huella de su código, nunca el código, y
+`cliente_id`, su ficha en el maestro de clientas, desde el #70) ·
 `revendedor_sesiones` · `revendedor_precios` (el que él le pone a cada pieza) ·
 `revendedor_clientes` (sus clientas; entran al maestro de la tienda cuando se
 aprueba su pedido) · `apartados` (su pedido: `expira_en` es el plazo de la fase
@@ -357,7 +360,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_catalogo_base` | Las fórmulas del catálogo, con lo próximo dentro: de ella cuelgan `v_catalogo_venta` (sin lo próximo) y `v_catalogo_admin` (con todo) | nadie: la leen las otras vistas |
 | `v_proximamente` | Lo nuevo de un lote en camino: foto, nombre, precio. Sin cantidad, ubicación ni pisos. La leen el catálogo en línea, el PDF y la vitrina | cualquiera, sin sesión |
 | `v_por_llegar` | Lo que viene en cada lote, línea por línea: nueva o reposición (y cuántas hay ya), a dónde va, cuántas se esperan y cuántas llegaron | solo admin |
-| `v_clientes` | El maestro de clientes con su resumen de compras | vendedora y admin |
+| `v_clientes` | El maestro de clientes con su resumen de compras, su descuento fijo (`descuento_pct`) y qué revendedor ES esa clienta (`es_revendedor`; `revendedor` es de quién es clienta) | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
 | `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
 | `v_venta_cambios` | Lo mismo para una venta por verificar, con los totales en bolívares | vendedora y admin |
@@ -372,7 +375,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
 | `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo o revendedor) y quién | solo admin |
 | `v_apartados_revendedor` | Los pedidos de revendedores desde que él confirma: su fase, lo que le paga a Lux, lo pagado y lo que falta, la clienta (cédula y teléfono) y dónde está cada pieza; los aprobados hasta que se los lleva. Nada de lo que él cobra a su clienta | vendedora y admin |
-| `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes | solo admin |
+| `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes, y su ficha de clienta (`cliente_id`, `cliente_nombre`) | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
 | `v_caja` | Cada movimiento anotado en la caja, con quién lo anotó y, si se anuló, quién y por qué | solo admin |
 | `v_conteos` | Cada conteo de inventario: cuándo, qué ubicación, quién, cuántas piezas y cuántas faltaron o sobraron | vendedora y admin |
@@ -420,7 +423,10 @@ todavía no llega, con todas sus medidas y lo que se esperaba; nada de un lote
 que ya llegó, y si tiene historia no borra nada y lo dice) y
 `admin_fijar_para(modelos, para)` (dama, caballero o unisex, a familias
 enteras; la llaman el formulario después de `admin_guardar_modelo` y el
-selector de cada producto en el Inventario).
+selector de cada producto en el Inventario), `admin_descuento_cliente(cliente, %)`
+(el descuento fijo de una clienta; null o 0 lo quita) y
+`admin_enlazar_cliente_revendedor(revendedor, cliente)` (su ficha; null la
+suelta; una ficha es de un solo revendedor).
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -767,7 +773,21 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 - **Con tramo manda el tramo.** El regateo es para cerrar una venta de menos piezas
   que el primer tramo; desde ahí el precio a mano se ignora y se cobra el tramo.
   Cada línea guarda por qué salió más barata (`venta_items.motivo_rebaja`:
-  `regateo` o `tramo`), y `v_rebajas` se lo enseña al dueño en Reportes.
+  `regateo`, `tramo`, `revendedor`, `oferta` o `cliente`), y `v_rebajas` se lo
+  enseña al dueño en Reportes.
+- **La clienta con descuento fijo** (pedido del dueño del 18/11/2026, por
+  JaduJoyas; `esquema-descuento-clienta.sql`, #70). `clientes.descuento_pct`,
+  que pone SOLO el administrador en la ficha de la clienta
+  (`admin_descuento_cliente`; la vendedora lo lee). En el mostrador, al elegir
+  **su ficha** (`p_cliente_id`), `registrar_venta` y `apartar_en_tienda` cobran
+  cada pieza, dijes incluidos, a la etiqueta menos ese %, nunca bajo
+  `piso_margen_de`: le pasan a `partes_de_linea` el mayor entre el tramo de la
+  línea y el de la clienta, y si ganó el de ella el motivo es `cliente`
+  (`motivo_con_clienta`). Con tramo o código manda el mayor, no se suman; el
+  precio a mano se ignora. El carrito lo repite (`useCarrito(tasa, %)`) y el
+  cobro dice "Clienta con 20 % de descuento". Escrita como ficha nueva con su
+  cédula no hay descuento (el carrito no lo sabría). **No en el catálogo en
+  línea**: cualquiera que sepa su cédula se lo llevaría.
 - **Variantes.** Una cadena de 45 cm y otra de 60 cm son el mismo producto con dos
   opciones. Cada variante sigue siendo un modelo completo (SKU, existencia, grupo,
   costo, foto); las junta `modelos.familia_id` y las distingue `modelos.variante`.
@@ -1296,11 +1316,19 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 - **Los revendedores** (decisiones del dueño del 27/09/2026, en la cabecera de
   `esquema-revendedores.sql`). Solo quien él crea en Revendedores: no es para todo
   el mundo, y por eso no importa que salgan más baratos que el tramo del 15 %.
-  - **Lo que le sale:** la etiqueta menos `revendedor_descuento_pct` (25 %), nunca
+  - **Lo que le sale:** la etiqueta menos `revendedor_descuento_pct` (20 % desde el
+    23/11/2026; era 25 %), nunca
     por debajo de `piso_margen_de`, el piso del tramo, que ya trae mercancía a la
     brecha de hoy, flete, merma, empaque, la parte del mes de alquiler y sueldos y
     el margen mínimo. Las piezas donde el piso no deja rebaja no salen en su
-    catálogo. Puede tener un descuento propio (`revendedores.descuento_pct`).
+    catálogo. Puede tener un descuento propio (`revendedores.descuento_pct`),
+    **menor, nunca mayor que el general**: el general es el tope (decisión del
+    dueño del 23/11/2026). No se guarda uno mayor (disparador
+    `revendedor_descuento_tope`) y `rv_descuento_de` nunca da más que el
+    general, aunque el dueño lo baje después.
+  - **También es una clienta** (`revendedores.cliente_id`, se enlaza en
+    Revendedores): lo que compra en la tienda sale en su ficha. Su descuento de
+    clienta es otra cifra y va en su ficha.
   - **Lo que cobra:** lo pone él, nunca menos que la etiqueta más
     `revendedor_sobre_etiqueta_usd` ($0,10). No le hace la competencia a la tienda.
     Si la etiqueta sube por encima de su precio, manda el mínimo.
@@ -1366,7 +1394,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 358 comprobaciones con las dos sesiones (363 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 364 comprobaciones con las dos sesiones (369 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/

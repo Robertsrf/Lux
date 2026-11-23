@@ -112,6 +112,9 @@ const FUNCIONES_DE_OFERTAS = [
 
 /** Funciones que revelan costo. Tienen que rechazarla. */
 const FUNCIONES_CERRADAS = [
+  // El descuento de una clienta y su motivo, por dentro (#70).
+  ['descuento_de_clienta', { p_cliente_id: 1 }],
+  ['motivo_con_clienta', { p_motivo: 'tramo', p_tramo: 0, p_clienta: 20 }],
   ['costo_operativo_por_pieza', {}],
   ['costo_total_bcv', { p_costo_puesto_usd: 1 }],
   ['calcular_flete_unitario', { p_lote_id: 1 }],
@@ -181,7 +184,7 @@ async function main() {
   // clienta delante. Lo que hay que vigilar no es que lo vea, es que por
   // ahi no se cuele una cifra de costo — `v_cliente_compras` sale de
   // `venta_items`, que guarda el costo congelado de cada linea.
-  const cl = await V.from('v_clientes').select('id, nombre_completo, compras, servicio_vigente').limit(1);
+  const cl = await V.from('v_clientes').select('id, nombre_completo, compras, servicio_vigente, descuento_pct, es_revendedor').limit(1);
   dice(!cl.error, 'v_clientes, el maestro', cl.error ? 'ERROR ' + cl.error.code : 'responde');
   const hist = await V.from('v_cliente_compras').select('venta_id, nombre, cantidad, servicio_hasta').limit(1);
   dice(!hist.error, 'v_cliente_compras, el historico', hist.error ? 'ERROR ' + hist.error.code : 'responde');
@@ -946,6 +949,9 @@ async function main() {
     ['admin_guardar_cifra_oferta', { p_clave: 'seleccion_pct', p_valor: 5 }],
     // Dama, caballero o unisex (#67).
     ['admin_fijar_para', { p_modelos: [], p_para: 'dama' }],
+    // El descuento fijo de una clienta y el revendedor enlazado a su ficha (#70).
+    ['admin_descuento_cliente', { p_cliente_id: -1, p_pct: 20 }],
+    ['admin_enlazar_cliente_revendedor', { p_revendedor_id: -1, p_cliente_id: null }],
   ];
   for (const [fn, args] of ADMIN_OFERTAS) {
     const v = await V.rpc(fn, args);

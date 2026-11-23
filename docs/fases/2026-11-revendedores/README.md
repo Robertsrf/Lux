@@ -100,15 +100,15 @@ Y en cada fase, el mismo camino, con los orquestadores:
 |---|---|---|---|
 | 1 | Hecha y probada con sesión (19/11): reproducido en main, corregido en la rama | rama `fase-1-precio-sugerido` | — |
 | 2 | Hecha y publicada (23/11): luxbyemory.com en Cloudflare, github.io reenvía. Falta probar la tarjeta de WhatsApp con un revendedor real. Diseño: `docs/superpowers/specs/2026-11-19-dominio-y-subdominios-design.md` | fusionada en `main` | #69 `esquema-dominio.sql` (corrido) |
-| 3 | Pendiente | | |
+| 3 | Construida (23/11) en la rama `fase-3-descuento`: 20 % para revendedores (el general es el tope), clienta con descuento fijo en el mostrador, revendedor enlazado con su ficha. Diseño: `docs/superpowers/specs/2026-11-23-descuento-y-clienta-especial-design.md`. Falta correr el #70, publicar y `npm run verificar` | rama `fase-3-descuento` | #70 `esquema-descuento-clienta.sql` (por correr) |
 | 4 | Pendiente | | |
 | 5 | Pendiente | | |
 | 6 | Pendiente | | |
 | 7 | Pendiente | | |
 | 8 | Pendiente (después de la 2) | | |
 
-El próximo `.sql` libre es el **#70** (el último corrido, `esquema-dominio.sql`,
-#69, de la fase 2).
+El próximo `.sql` libre es el **#71** (#70, `esquema-descuento-clienta.sql`, de
+la fase 3).
 
 **Las direcciones cambiaron en la fase 2:** ya no hay `#/`. Lux en
 `luxbyemory.com`, el personal en `entrar.luxbyemory.com`, el panel del
