@@ -103,6 +103,8 @@ export const TEMAS_LISTOS: { id: PaletaRevendedor | 'cobalto' | 'durazno'; nombr
   { id: 'durazno', nombre: 'Durazno de noche', principal: '#F0B49E', fondo: '#1A1216' },
 ];
 
+const LUX = { principal: '#1F4045', fondo: '#F4EFE4' };
+const TIENDA = { id: 'tienda' as Plantilla, letra: 'moderna' as Letra, esquinas: 'suaves' as Esquinas, fondo: 'claro' as const };
 const FONDO_DE: Record<'claro' | 'oscuro', string> = { claro: '#FFFFFF', oscuro: '#1A1216' };
 const NEGRO = '#000000';
 const BLANCO = '#FFFFFF';
@@ -121,23 +123,26 @@ function hex([r, g, b]: [number, number, number]): string {
 }
 
 function luminancia(color: string): number {
-  const [r, g, b] = rgb(color).map((c) => {
+  const lineal = (c: number) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [r, g, b] = rgb(color);
+  return 0.2126 * lineal(r) + 0.7152 * lineal(g) + 0.0722 * lineal(b);
 }
 
 /** La razón de contraste de WCAG 2.x, de 1 a 21. */
 export function contraste(a: string, b: string): number {
-  const [x, y] = [luminancia(a), luminancia(b)].sort((m, n) => n - m);
-  return (x + 0.05) / (y + 0.05);
+  const la = luminancia(a);
+  const lb = luminancia(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
 /** `a` llevado hacia `b` en la proporción `t` (0: a, 1: b). */
 function mezclar(a: string, b: string, t: number): string {
-  const [x, y] = [rgb(a), rgb(b)];
-  return hex([0, 1, 2].map((i) => x[i] + (y[i] - x[i]) * t) as [number, number, number]);
+  const [x1, x2, x3] = rgb(a);
+  const [y1, y2, y3] = rgb(b);
+  return hex([x1 + (y1 - x1) * t, x2 + (y2 - x2) * t, x3 + (y3 - x3) * t]);
 }
 
 /** El extremo (negro o blanco) que más contraste da sobre `fondo`. */
@@ -150,8 +155,9 @@ function extremoSobre(fondo: string): string {
  * pasos de 2 %, hasta que se lea a 4,5:1 sobre todos. Siempre llega: el
  * negro o el blanco dan al menos 4,58 sobre cualquier color.
  */
-function legibleSobre(color: string, ...fondos: string[]): string {
-  const destino = extremoSobre(fondos[0]);
+function legibleSobre(color: string, fondo: string, ...otros: string[]): string {
+  const fondos = [fondo, ...otros];
+  const destino = extremoSobre(fondo);
   for (let t = 0; t <= 1.0001; t += 0.02) {
     const c = mezclar(color, destino, Math.min(t, 1));
     if (fondos.every((f) => contraste(c, f) >= MINIMO)) return c;
@@ -219,8 +225,8 @@ function colores(principal: string, fondo: string): ColoresRv {
  */
 export function temaResuelto(t: TemaGuardado | null | undefined, paleta: PaletaRevendedor | null | undefined): TemaResuelto {
   const n = normalizarTema(t);
-  const deLaPaleta = TEMAS_LISTOS.find((x) => x.id === paleta) ?? TEMAS_LISTOS[0];
-  const plantilla = PLANTILLAS.find((p) => p.id === n.plantilla) ?? PLANTILLAS[1];
+  const deLaPaleta = TEMAS_LISTOS.find((x) => x.id === paleta) ?? LUX;
+  const plantilla = PLANTILLAS.find((p) => p.id === n.plantilla) ?? TIENDA;
   const sinTema = Object.keys(n).length === 0;
   const fondo = n.fondo ?? (sinTema || !n.plantilla ? deLaPaleta.fondo : FONDO_DE[plantilla.fondo]);
   const principal = n.principal ?? deLaPaleta.principal;
@@ -278,5 +284,5 @@ export function elegirPortada<T extends { id: number; foto_path: string | null }
   if (elegida) return elegida;
   const conFoto = piezas.filter((p) => p.foto_path);
   if (conFoto.length === 0) return null;
-  return conFoto[Math.abs(Math.trunc(semilla)) % conFoto.length];
+  return conFoto[Math.abs(Math.trunc(semilla)) % conFoto.length] ?? null;
 }
