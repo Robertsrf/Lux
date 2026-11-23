@@ -309,6 +309,16 @@ export function GuiaRevendedor() {
       ),
     },
     {
+      id: 'inventario', titulo: 'Tu inventario', donde: 'En tu panel: Mi inventario',
+      contenido: (
+        <ol className="guia-rv__acciones">
+          <li>Si le compras piezas a Lux para revender, dile a la tienda que son "para tu inventario". Salen en tu catálogo con sus unidades, aunque la tienda se quede sin esa pieza.</li>
+          <li>Cuando tu clienta pide, se toma primero de lo tuyo: eso ya lo pagaste, así que no le debes nada a Lux por esas piezas ni esperas que la tienda apruebe.</li>
+          <li>Si vendes una en persona, se te daña o te llega una sin pasar por el sistema, toca "Corregir": resta o suma, y escribe por qué. Queda anotado.</li>
+        </ol>
+      ),
+    },
+    {
       id: 'clientas', titulo: 'Tus clientas', donde: 'En tu panel: Clientas',
       contenido: (
         <ol className="guia-rv__acciones">
@@ -329,7 +339,7 @@ export function GuiaRevendedor() {
   ];
 
   const preguntas: Pregunta[] = [
-    { p: '¿Tengo que comprar mercancía para empezar?', r: 'No. No compras nada por adelantado ni guardas inventario. Le pagas a Lux cada pedido cuando ya lo confirmaste, con el dinero de tu clienta.' },
+    { p: '¿Tengo que comprar mercancía para empezar?', r: 'No. No compras nada por adelantado. Le pagas a Lux cada pedido cuando ya lo confirmaste, con el dinero de tu clienta. Si quieres tener piezas en la mano, puedes comprarlas para tu inventario: salen en tu catálogo.' },
     { p: '¿Necesito un local?', r: 'No. Vendes con tu enlace: por WhatsApp, en tus estados, en tus redes o en persona. Las piezas las retiras en la tienda cuando ya están pagadas.' },
     { p: '¿Cuánto gano?', r: `La diferencia entre lo que cobras y lo que te sale. Cada pieza te sale ${c.descuento} menos que el precio de la tienda, y tú cobras al menos el precio de la tienda más ${c.sobre}. Prueba la calculadora de "Tu dinero".` },
     { p: '¿Puedo vender más barato que la tienda?', r: `No. Tu precio es siempre al menos el de la tienda más ${c.sobre}. Así no le haces la competencia a la tienda, y tus clientas no pagan menos por ir directo.` },

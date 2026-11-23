@@ -34,6 +34,30 @@
 -- 5. Su catálogo suma lo suyo libre a lo libre de la tienda; su panel gana
 --    "Mi inventario" (`rv_mi_inventario`, `rv_ajustar_inventario`), y el
 --    dueño lo ve en `v_inventario_revendedores`.
+--
+-- CAMBIAN, CON SU MISMA FIRMA: rv_crear_apartado, rv_confirmar_de,
+-- apartadas_de, aprobar_apartado, v_apartados_revendedor (mismas
+-- columnas), rv_resumen (la ganancia sin lo suyo), rv_apartados (cada
+-- línea dice `de_su_inventario`), rv_catalogo_publico (mismas columnas),
+-- rv_fijar_precios, admin_respaldo. `rv_piezas` gana `mias` al final
+-- (borrada y creada en una transacción). `vender_a_credito` gana
+-- `p_para_inventario` al final (una sola firma; la de nueve se borra).
+--
+-- DEBERÍA DAR (SQL Editor, después de correrlo)
+--   select count(*) from revendedor_ajustes;            -- 0
+--   select * from v_inventario_revendedores;            -- vacía (nadie compró aún)
+--   select count(*) from pg_proc where proname = 'vender_a_credito';   -- 1
+--   Una venta para su inventario de 3 piezas a la ficha de JaduJoyas:
+--   su catálogo enseña esas 3 más lo libre de la tienda, y si la tienda se
+--   queda en 0, la pieza sigue saliendo en su catálogo con 3.
+--   Un pedido de su clienta de 4 de esa pieza (3 suyas, 1 de la tienda):
+--   a Lux le debe solo 1 × lo que le sale.
+--   Como vendedora, esto TIENE QUE FALLAR:
+--     select * from revendedor_ajustes;                 -- permission denied
+--     select * from rv_inventario(1);                   -- permission denied
+--
+-- Probado en PGlite con la instalación entera (prueba-72, 65
+-- comprobaciones; la del #71 sigue en 55 de 55).
 -- =====================================================================
 
 

@@ -121,6 +121,8 @@ src/
                 descuento fijo en la ficha de una clienta), CreditoClienta
                 (sus días de crédito y su tope, en su ficha), FichaDeRevendedor
                 (enlaza un revendedor con su ficha de clienta),
+                InventarioDeRevendedor (lo que tiene en la mano, en
+                Revendedores y Crédito),
                 VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
                 estante y "Cómo pedir": de los dos catálogos en línea),
                 LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
@@ -173,6 +175,8 @@ src/
                 (/apartado/:token)         (sin sesión, como el catálogo)
                 EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
                 InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
+                InventarioRv ("Mi inventario": lo que compró para
+                revender, y corregirlo con un motivo),
                 ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
                                            (con SU código, no con Supabase)
     Vitrina (el escenario y el riel del QR; escenas: pieza, conjunto,
@@ -328,8 +332,11 @@ funciones): `revendedores` (con la huella de su código, nunca el código, y
 `revendedor_clientes` (sus clientas; entran al maestro de la tienda cuando se
 aprueba su pedido) · `apartados` (su pedido: `expira_en` es el plazo de la fase
 en que va) · `apartado_items` (los tres precios congelados: etiqueta, lo que
-paga a Lux y lo que cobra a su clienta) · `apartado_abonos` (lo que su clienta
-le paga a ÉL; lo que ella reporta es un aviso hasta que él lo confirma).
+paga a Lux y lo que cobra a su clienta; `de_su_inventario` si la línea sale
+de lo suyo, con `precio_lux_usd` en 0, #72) · `apartado_abonos` (lo que su
+clienta le paga a ÉL; lo que ella reporta es un aviso hasta que él lo
+confirma) · `revendedor_ajustes` (lo que él corrige a mano en su inventario,
+con signo y motivo; no se borra, #72).
 `reservas` y `reserva_items` guardan el precio congelado de cada pieza y ya no
 se escriben con ninguna sesión: solo por sus funciones.
 `reservas.apartado_pct` es el % mínimo con que se confirmó un apartado,
@@ -338,6 +345,9 @@ pagado sin anular baja de ahí, el pedido se suelta; si el dueño cambia el
 40 %, los que ya estaban no se sueltan solos.
 `apartados`, sus líneas y sus abonos no se borran, como las ventas.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
+`ventas.inventario_de` dice que la venta fue PARA EL INVENTARIO de un
+revendedor (#72): sus piezas salen en su catálogo. No es `revendedor_id`
+(esa saca la venta de la meta; esta cuenta, decisión del dueño).
 `ventas.credito_vence` dice que la venta es A CRÉDITO y hasta qué día (de
 Venezuela) tiene la clienta para pagarla (#71); `clientes.credito_dias` y
 `clientes.credito_tope_usd` son su permiso (solo `admin_fijar_credito`).
@@ -383,6 +393,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo, revendedor, oferta o cliente), quién vendió y a nombre de quién (`cliente_id`, `cliente`, desde el #70) | solo admin |
 | `v_apartados_revendedor` | Los pedidos de revendedores desde que él confirma: su fase, lo que le paga a Lux, lo pagado y lo que falta, la clienta (cédula y teléfono) y dónde está cada pieza; los aprobados hasta que se los lleva. Nada de lo que él cobra a su clienta | vendedora y admin |
 | `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes, y su ficha de clienta (`cliente_id`, `cliente_nombre`) | solo admin |
+| `v_inventario_revendedores` | Lo que cada revendedor tiene de lo que compró para revender, por pieza: cuántas, cuántas en pedidos de sus clientas y cuántas libres (#72) | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |
 | `v_caja` | Cada movimiento anotado en la caja, con quién lo anotó y, si se anuló, quién y por qué | solo admin |
 | `v_conteos` | Cada conteo de inventario: cuándo, qué ubicación, quién, cuántas piezas y cuántas faltaron o sobraron | vendedora y admin |
@@ -438,7 +449,10 @@ días, tope)` (0 o null en días quita el crédito y el tope) y
 `vender_a_credito(items, cliente, método, pago, referencia, verificado,
 extra, nota, códigos)` (de las dos caras; ver "El crédito") y
 `admin_anular_credito(venta, devolver, método, monto, motivo)` (la devolvió
-entera: con pagos, se dice qué pasa con el dinero).
+entera: con pagos, se dice qué pasa con el dinero) y
+`vender_para_inventario(...)` (los mismos argumentos que `registrar_venta`:
+la llama tal cual y le pone `inventario_de`; solo con la ficha de un
+revendedor; `vender_a_credito` gana `p_para_inventario` al final, #72).
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -587,8 +601,9 @@ Las del revendedor se llaman `rv_*` y reciben `p_sesion` delante: `rv_entrar`
 (código → testigo), `rv_salir`, `rv_resumen`, `rv_piezas`, `rv_fijar_precios`,
 `rv_apartados`, `rv_abonar`, `rv_cancelar_apartado`, `rv_clientes`,
 `rv_guardar_cliente`, `rv_ajustes`, `rv_confirmar`, `rv_revisar_pago`,
-`rv_pagar_lux`, `rv_vender` y `rv_datos_pago` (su pago móvil y sus días de
-crédito; aparte de `rv_ajustes` para que el navegador viejo no los borre).
+`rv_pagar_lux`, `rv_vender`, `rv_datos_pago` (su pago móvil y sus días de
+crédito; aparte de `rv_ajustes` para que el navegador viejo no los borre),
+`rv_mi_inventario` y `rv_ajustar_inventario` (#72).
 Todas empiezan por `rv_de_sesion(p_sesion)`,
 que dice quién es o lanza el error `28000`. Las de su catálogo no llevan testigo:
 `rv_perfil_publico`, `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
@@ -1433,6 +1448,40 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     disponible" sin nombrar a Lux. La tarjeta que enseñan WhatsApp y la pestaña
     es la suya (su nombre y su logo, "Joyas Lux by Emory" en pequeño): la pone
     `cloudflare/worker.js` leyendo `rv_perfil_publico`.
+  - **Su inventario** (pedido del dueño del 18/11/2026: "esas prendas en
+    crédito o compradas a nosotros tienen que estar disponibles con sus
+    unidades en su catálogo"; fase 5, #72, decidido el 23/11/2026). Lo que
+    le compra a Lux para revender es suyo y sale en su catálogo aunque la
+    tienda se quede sin la pieza, la retire o el piso no deje rebaja.
+    **No se guarda como un número**: `rv_inventario` (revocada, una sola
+    regla) suma las ventas `inventario_de` (sin anuladas, las notas de
+    crédito en negativo) y sus ajustes, y resta lo que vendió de lo suyo; lo
+    apartado son sus pedidos abiertos que no han vencido. Así anular, quitar
+    o devolver lo corrige solo.
+    - **Entra por una venta del mostrador** con su ficha elegida: el cobro
+      trae marcado "Para su inventario" (se desmarca si es para ella misma),
+      en Pagó todo, Dejar por verificar y A crédito; no en "Lo aparta".
+      **Cuenta para la meta** de la vendedora (no lleva `revendedor_id`).
+      Las piezas de los pedidos de sus clientas que Lux aprueba no entran:
+      ya tienen dueña.
+    - **Anular, quitar o devolver** (el "Devolver" de la ficha, decisión del
+      dueño) de una venta para su inventario, solo si él tiene esas piezas
+      LIBRES: si ya las vendió o están en un pedido, la base lo dice.
+    - **El pedido de su clienta toma primero de lo suyo** (ya lo pagó): cada
+      pieza se parte en una línea de lo suyo (`de_su_inventario`,
+      `precio_lux_usd` 0) y otra de la tienda. Lo suyo no aparta nada en la
+      tienda, no le debe nada a Lux ni pasa por la aprobación, y no cuenta
+      para su tope. Un pedido sin nada de la tienda se cierra al confirmarlo
+      (`retirado` y entregado, sin venta de Lux). Su clienta no sabe de
+      dónde sale cada unidad. El precio es el de Precios, con el mismo
+      mínimo. La ganancia del mes de su panel no cuenta lo suyo (no se sabe
+      lo que pagó por cada unidad).
+    - **"Mi inventario"** en su panel: cuántas, cuántas en pedidos, lo que
+      pasó, y corregir **en las dos direcciones** (decisión del dueño) con
+      un motivo, nunca por debajo de lo apartado ni de cero.
+    - **No es inventario de Lux**: no está en `existencias`, así que el
+      conteo, el valor del inventario y el cierre no lo ven. El dueño lo ve
+      en Revendedores y en Crédito.
   - **Su paleta:** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
     excepción a "ningún otro color", y no hay selector de color libre.
 
@@ -1441,7 +1490,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 382 comprobaciones con las dos sesiones (387 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 401 comprobaciones con las dos sesiones (407 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
