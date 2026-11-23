@@ -493,6 +493,18 @@ export function formatearEntero(valor: number | null | undefined): string {
   return NUM(0, 0).format(valor);
 }
 
+/**
+ * El día de hoy en Venezuela más `dias`, como 'AAAA-MM-DD': el vencimiento
+ * de una venta a crédito, con la misma cuenta que `vender_a_credito`. El
+ * día lo da Caracas, no el reloj del teléfono.
+ */
+export function fechaVenezuelaMas(dias: number, ahora: Date = new Date()): string {
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(ahora);
+  const [a, m, d] = hoy.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(a, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
 export function formatearFecha(iso: string | null | undefined): string {
   if (!iso) return '—';
   const fecha = new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso);

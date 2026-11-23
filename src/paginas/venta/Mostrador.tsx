@@ -4,7 +4,7 @@ import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
-  formatearFechaHora, formatearDescuento, formatearTasa, leerCifra, minimoParaApartar, porcentajeRebajado,
+  fechaVenezuelaMas, formatearFecha, formatearFechaHora, formatearDescuento, formatearTasa, leerCifra, minimoParaApartar, porcentajeRebajado,
   rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
@@ -22,7 +22,7 @@ import { Icono } from '../../componentes/Iconos';
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
 import { METODOS_EN_DOLARES, METODOS_EN_PERSONA, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
-import type { ClienteDeVenta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
+import type { ClienteDeVenta, CreditoDeClienta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 import type { VerOferta } from '../../lib/ofertasApi';
 import '../../estilos/codigo.css';
 
@@ -122,6 +122,35 @@ export function Mostrador() {
       const pct = Number((data as { descuento_pct: number | null } | null)?.descuento_pct ?? 0);
       setDescuentoClienta(pct > 0 ? pct : null);
       setEstadoDescuento('listo');
+    })();
+    return () => { vigente = false; };
+  }, [clienteId]);
+
+  /*
+    El crédito de la ficha elegida (esquema-credito.sql, #71): con días,
+    el cobro ofrece "A crédito". Sin el #71 la función no existe y no se
+    ofrece. Una ficha nueva no tiene crédito: el crédito es de una clienta
+    que el dueño ya conoce.
+  */
+  const [creditoClienta, setCreditoClienta] = useState<CreditoDeClienta | null>(null);
+  const [credito, setCredito] = useState(false);
+  useEffect(() => {
+    setCreditoClienta(null);
+    setCredito(false);
+    if (clienteId === null) return;
+    let vigente = true;
+    void (async () => {
+      const { data, error: err } = await supabase.rpc('credito_de_clienta', { p_cliente_id: clienteId });
+      const fila = ((data as CreditoDeClienta[] | null) ?? [])[0];
+      if (!vigente || err || !fila || fila.dias === null) return;
+      setCreditoClienta({
+        dias: Number(fila.dias),
+        tope_usd: fila.tope_usd === null ? null : Number(fila.tope_usd),
+        debe_bcv: Number(fila.debe_bcv),
+        queda_bcv: fila.queda_bcv === null ? null : Number(fila.queda_bcv),
+        vencidas: Number(fila.vencidas),
+        vencida_desde: fila.vencida_desde,
+      });
     })();
     return () => { vigente = false; };
   }, [clienteId]);
@@ -366,9 +395,57 @@ export function Mostrador() {
     }
   }
 
+  /**
+   * A crédito: se lleva las piezas hoy y paga hasta el día que le toca. Si
+   * paga algo ahora, ese pago va con la venta. `verificado`, como al apartar:
+   * quien cobra ya vio el pago (en efectivo o punto, siempre).
+   */
+  async function aCreditoAhora(verificado: boolean) {
+    if (!metodo || !cliente?.id) return;
+    const monto = leerCifra(abono);
+    const r = await carrito.venderACredito(cliente.id, {
+      metodo,
+      monto: monto !== null && monto > 0 ? monto : null,
+      referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
+      verificado,
+    });
+    if (r.ok) {
+      setExito(`Venta ${r.venta_id} a crédito a nombre de ${nombreCliente ?? 'la clienta'}. `
+        + `Debe ${formatearBcv(r.falta_bcv)}${tasa ? `, hoy ${formatearBs(bsDeBcv(r.falta_bcv, tasa.tasa_bcv))}` : ''}; `
+        + `paga hasta el ${formatearFecha(r.credito_vence)}. Queda en Pedidos, y ahí se carga cada pago.`);
+      await despuesDeCobrar();
+    }
+  }
+
+  /**
+   * Si es a crédito: lo que paga hoy (opcional), lo que quedará debiendo y
+   * si eso cabe en su tope. La base lo vuelve a mirar; esto es para que ella
+   * lo diga antes de tocar el botón.
+   */
+  function cuentaDelCredito() {
+    const totalBcv = carrito.totales.totalBcv;
+    if (!tasa || !metodo || totalBcv === null || !creditoClienta || creditoClienta.dias === null) return null;
+    const texto = abono.trim();
+    const monto = texto === '' ? 0 : leerCifra(texto);
+    const ilegible = monto === null || monto < 0;
+    const pagado = !ilegible && monto > 0 ? abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa) : null;
+    const { falta, pasa } = faltaTrasAbono(totalBcv, pagado?.bcv ?? 0);
+    const sobreTope = creditoClienta.queda_bcv !== null && falta > creditoClienta.queda_bcv + 0.005;
+    return {
+      ilegible,
+      falta,
+      faltaBs: bsDeBcv(falta, tasa.tasa_bcv),
+      pasa,
+      sobreTope,
+      vence: fechaVenezuelaMas(creditoClienta.dias),
+      valido: !ilegible && !pasa && falta > 0 && !sobreTope,
+    };
+  }
+
   async function despuesDeCobrar() {
     setReferencia('');
     setAparta(false);
+    setCredito(false);
     setAbono('');
     setExtraAbierto(false);
     setMetodo(null);
@@ -439,6 +516,7 @@ export function Mostrador() {
     const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente) && estadoDescuento === 'listo'
       && !carrito.cobrando && carrito.lineas.length > 0 && extraEnOrden;
     const previa = aparta ? cuentaDelApartado() : null;
+    const cuentaCredito = credito ? cuentaDelCredito() : null;
     // Un apartado de verdad: con la clienta, al menos el minimo, y menos
     // que el total (pagado entero es una venta, no un apartado). Y sin nada
     // fuera del catalogo: el apartado congela el precio pieza por pieza.
@@ -742,14 +820,75 @@ export function Mostrador() {
         {/* Se lo lleva o lo aparta. Apartar: paga al menos el minimo, la
             pieza se queda aqui y tiene unos dias para pagar lo demas; si no,
             pierde lo abonado. Lo demas se carga en Pedidos, abono por abono. */}
-        {metodo && reglaApartado ? (
-          <div className="metodos-pago cobro-parte" role="group" aria-label="Se lo lleva o lo aparta">
-            <button type="button" aria-pressed={!aparta} onClick={() => setAparta(false)}>
+        {/* A crédito: solo a una clienta que el dueño habilitó en su ficha.
+            Se lleva las piezas hoy y paga en sus días. */}
+        {metodo && (reglaApartado || creditoClienta) ? (
+          <div className="metodos-pago cobro-parte" role="group" aria-label="Se lo lleva, lo aparta o a crédito">
+            <button type="button" aria-pressed={!aparta && !credito} onClick={() => { setAparta(false); setCredito(false); }}>
               Pagó todo
             </button>
-            <button type="button" aria-pressed={aparta} onClick={() => setAparta(true)}>
-              Lo aparta
-            </button>
+            {reglaApartado ? (
+              <button type="button" aria-pressed={aparta} onClick={() => { setAparta(true); setCredito(false); }}>
+                Lo aparta
+              </button>
+            ) : null}
+            {creditoClienta ? (
+              <button type="button" aria-pressed={credito} onClick={() => { setCredito(true); setAparta(false); }}>
+                A crédito
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {metodo && credito && creditoClienta && creditoClienta.dias !== null ? (
+          <div style={{ marginTop: 'var(--e-4)' }}>
+            <p className="cobro-dolares">
+              Se lleva las piezas hoy y paga hasta el <strong>{formatearFecha(fechaVenezuelaMas(creditoClienta.dias))}</strong>
+              {' '}({creditoClienta.dias} {creditoClienta.dias === 1 ? 'día' : 'días'}).
+              {creditoClienta.debe_bcv > 0 ? <> Ya debe {formatearBcv(creditoClienta.debe_bcv)}.</> : null}
+              {creditoClienta.queda_bcv !== null ? <> Le quedan {formatearBcv(creditoClienta.queda_bcv)} de su tope.</> : null}
+            </p>
+            {creditoClienta.vencidas > 0 && creditoClienta.vencida_desde ? (
+              <Aviso tono="alerta" titulo="Tiene un crédito vencido">
+                {creditoClienta.vencidas === 1 ? 'Una venta suya venció' : `${creditoClienta.vencidas} ventas suyas vencieron`} el
+                {' '}{formatearFecha(creditoClienta.vencida_desde)} sin pagarse completa. Puedes venderle igual; recuérdale lo que debe.
+              </Aviso>
+            ) : null}
+            <Campo
+              etiqueta={enDolares ? 'Si paga algo hoy · $' : 'Si paga algo hoy · Bs'}
+              htmlFor="cobro-credito-abono"
+              pista={enDolares
+                ? 'Opcional. En dólares; se pasa a bolívares a la tasa Binance de hoy.'
+                : `Opcional. De ${formatearBs(t.totalBs)} que es el total.`}
+              error={cuentaCredito?.ilegible ? 'Escribe solo la cifra, por ejemplo 150 o 150,50.' : null}
+            >
+              <input
+                id="cobro-credito-abono"
+                inputMode="decimal"
+                autoComplete="off"
+                value={abono}
+                onChange={(e) => setAbono(e.target.value)}
+              />
+            </Campo>
+            {cuentaCredito && !cuentaCredito.ilegible ? (
+              cuentaCredito.pasa || cuentaCredito.falta === 0 ? (
+                <p className="campo__error" role="alert">
+                  {cuentaCredito.pasa
+                    ? `Eso es más que el total, ${formatearBs(t.totalBs)}.`
+                    : 'Eso ya es el total: toca "Pagó todo" y regístrala como venta.'}
+                </p>
+              ) : cuentaCredito.sobreTope ? (
+                <p className="campo__error" role="alert">
+                  Quedaría debiendo {formatearBcv(cuentaCredito.falta)} más y solo le quedan
+                  {' '}{formatearBcv(creditoClienta.queda_bcv ?? 0)} de su tope. Que pague una parte hoy, o lleva menos.
+                </p>
+              ) : (
+                <p className="cobro-dolares" aria-live="polite">
+                  Quedará debiendo <strong>{formatearBcv(cuentaCredito.falta)}</strong>, hoy <strong>{formatearBs(cuentaCredito.faltaBs)}</strong>.
+                  {' '}Queda en Pedidos, y ahí se carga cada pago.
+                </p>
+              )
+            ) : null}
           </div>
         ) : null}
 
@@ -781,7 +920,7 @@ export function Mostrador() {
         {metodo && PIDE_REFERENCIA.includes(metodo) ? (
           <div style={{ marginTop: 'var(--e-4)' }}>
             <Campo
-              etiqueta={aparta ? 'Referencia de este pago' : 'Referencia del pago'}
+              etiqueta={aparta || credito ? 'Referencia de este pago' : 'Referencia del pago'}
               htmlFor="cobro-referencia"
               pista="Opcional. Con ella se comprueba en el banco, ahora o desde Pedidos."
             >
@@ -818,7 +957,33 @@ export function Mostrador() {
           )
         ) : null}
 
-        {aparta ? (
+        {credito ? (
+          <div className="acciones">
+            <button
+              type="button"
+              className="boton boton--confirmar"
+              disabled={!listoParaCobrar || !cliente?.id || !cuentaCredito?.valido}
+              onClick={() => void aCreditoAhora(true)}
+            >
+              {carrito.cobrando ? 'Registrando' : 'Se lo lleva a crédito'}
+            </button>
+            {/* Lo que paga hoy por pago movil y todavia no se ve en el
+                banco: queda por verificar en Pedidos, como al apartar. */}
+            {!enPersona && (leerCifra(abono) ?? 0) > 0 ? (
+              <button
+                type="button"
+                className="boton boton--secundario"
+                disabled={!listoParaCobrar || !cliente?.id || !cuentaCredito?.valido}
+                onClick={() => void aCreditoAhora(false)}
+              >
+                A crédito, pago de hoy por verificar
+              </button>
+            ) : null}
+            <button type="button" className="boton boton--secundario" onClick={() => setPaso('venta')}>
+              Seguir agregando
+            </button>
+          </div>
+        ) : aparta ? (
           <div className="acciones">
             <button
               type="button"
@@ -873,7 +1038,7 @@ export function Mostrador() {
             </button>
           </div>
         )}
-        {listoParaCobrar && !aparta ? (
+        {listoParaCobrar && !aparta && !credito ? (
           <p className="campo__pista">
             "Dejar por verificar" registra la venta y la manda a Pedidos con tu nombre, para que
             tú u otra persona compruebe el pago después.

@@ -8,7 +8,7 @@ import type { Tasas } from '../lib/dinero';
 import { codigosQueAplican } from '../lib/ofertas';
 import type { CodigoOferta } from '../lib/ofertas';
 import type { VerOferta } from '../lib/ofertasApi';
-import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbicacion, TipoVenta, Tramo } from '../lib/tipos';
+import type { ClienteDeVenta, LineaCarrito, LineaCobro, MetodoPago, ModeloEnUbicacion, RespuestaCredito, TipoVenta, Tramo } from '../lib/tipos';
 
 /**
  * Carrito del mostrador. Vive solo en memoria: la venta se vuelve real
@@ -482,6 +482,53 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
   }, [lineas, tramos, totales, codigos]);
 
   /**
+   * A crédito (esquema-credito.sql, #71): la clienta se lleva las piezas hoy
+   * y paga en sus días. Lo mismo que `cobrar` (las piezas, lo de fuera del
+   * catálogo y los códigos), con SU ficha y, si paga algo hoy, ese pago. La
+   * base registra la venta por verificar y por partes, con su vencimiento,
+   * todo en una transacción.
+   */
+  const venderACredito = useCallback(async (
+    clienteId: number,
+    pago: { metodo: MetodoPago; monto: number | null; referencia?: string | null; verificado: boolean },
+  ) => {
+    if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
+    if (totales.extraIlegible || totales.extraSinNota) {
+      const texto = totales.extraIlegible
+        ? 'Lo que sumas fuera del catálogo no es una cifra: escribe solo el número, por ejemplo 150 o 150,50.'
+        : 'Falta decir qué es lo que sumas fuera del catálogo.';
+      setError(texto);
+      return { ok: false as const, error: texto };
+    }
+    setCobrando(true);
+    setError(null);
+
+    const { data, error: err } = await supabase.rpc('vender_a_credito', {
+      p_items: piezasParaLaBase(),
+      p_cliente_id: clienteId,
+      p_metodo: pago.metodo,
+      p_pago_monto: pago.monto,
+      p_pago_referencia: pago.referencia?.trim() || null,
+      p_pago_verificado: pago.verificado,
+      p_extra_bs: totales.extraBs > 0 ? totales.extraBs : null,
+      p_extra_nota: totales.extraBs > 0 ? extra.nota.trim() : null,
+      p_codigos: codigos.length > 0 ? codigos.map((c) => c.codigo) : null,
+    });
+
+    setCobrando(false);
+    if (err) {
+      const texto = mensajeDeError(err);
+      setError(texto);
+      return { ok: false as const, error: texto };
+    }
+    setLineas([]);
+    setExtra(SIN_EXTRA);
+    setCodigos([]);
+    const r = data as RespuestaCredito;
+    return { ok: true as const, ...r, falta_bcv: Number(r.falta_bcv) };
+  }, [lineas, tramos, totales, extra.nota, codigos]);
+
+  /**
    * Las piezas como las pide la base. Solo se manda lo que ELLA negoció, y
    * solo sin tramo. El descuento por cantidad no se manda: lo calcula la
    * base con su escalera, que es la única que manda. Mandarlo desde aquí
@@ -505,7 +552,7 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
   }
 
   return {
-    lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, cobrando, error,
+    lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, venderACredito, cobrando, error,
     extra, cambiarExtra, quitarExtra,
     codigos, agregarCodigo, quitarCodigo, avisoCodigo,
   };
