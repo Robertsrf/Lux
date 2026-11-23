@@ -77,6 +77,9 @@ export function Mostrador() {
   const textos = useTextos();
   // El descuento fijo de la clienta elegida (null: sin descuento, o sin el #70).
   const [descuentoClienta, setDescuentoClienta] = useState<number | null>(null);
+  // Mientras se lee, o si la lectura falló, no se cobra: el carrito diría un
+  // total y la base cobraría otro.
+  const [estadoDescuento, setEstadoDescuento] = useState<'listo' | 'cargando' | 'error'>('listo');
   const carrito = useCarrito(tasa, descuentoClienta);
   const visor = useVisorFoto();
   const navegar = useNavigate();
@@ -107,13 +110,18 @@ export function Mostrador() {
   const clienteId = cliente?.id ?? null;
   useEffect(() => {
     setDescuentoClienta(null);
-    if (clienteId === null) return;
+    if (clienteId === null) { setEstadoDescuento('listo'); return; }
+    setEstadoDescuento('cargando');
     let vigente = true;
     void (async () => {
       const { data, error: err } = await supabase.from('v_clientes').select('descuento_pct').eq('id', clienteId).maybeSingle();
-      if (!vigente || err) return;
+      if (!vigente) return;
+      // 42703: la columna no existe (falta el #70). Entonces no hay
+      // descuentos en la base tampoco, y se cobra como siempre.
+      if (err) { setEstadoDescuento(err.code === '42703' ? 'listo' : 'error'); return; }
       const pct = Number((data as { descuento_pct: number | null } | null)?.descuento_pct ?? 0);
       setDescuentoClienta(pct > 0 ? pct : null);
+      setEstadoDescuento('listo');
     })();
     return () => { vigente = false; };
   }, [clienteId]);
@@ -428,7 +436,7 @@ export function Mostrador() {
     // decir que es: si no, no se cobra todavia.
     const extraEnOrden = !t.extraIlegible && !t.extraSinNota;
     const conExtra = t.extraBs > 0 || t.extraIlegible;
-    const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente)
+    const listoParaCobrar = Boolean(metodo) && (Boolean(cliente) || sinCliente) && estadoDescuento === 'listo'
       && !carrito.cobrando && carrito.lineas.length > 0 && extraEnOrden;
     const previa = aparta ? cuentaDelApartado() : null;
     // Un apartado de verdad: con la clienta, al menos el minimo, y menos
@@ -695,6 +703,13 @@ export function Mostrador() {
           />
           {/* Lo dice con la cifra: es lo que ella le explica a la clienta. El
               mínimo de cada pieza no se nombra. */}
+          {estadoDescuento === 'error' ? (
+            <Aviso tono="error" titulo="No se pudo saber si tiene descuento">
+              Sin eso el total puede no ser el que se cobra. Toca «Cambiar» y elígela otra vez.
+            </Aviso>
+          ) : estadoDescuento === 'cargando' ? (
+            <p className="campo__pista">Mirando si tiene descuento…</p>
+          ) : null}
           {t.descuentoClienta !== null ? (
             <Aviso tono="exito" titulo={`Clienta con ${formatearDescuento(t.descuentoClienta)} de descuento`}>
               Ya está en el precio de cada pieza. Con el descuento por cantidad o un código manda el

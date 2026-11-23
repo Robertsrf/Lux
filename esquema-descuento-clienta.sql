@@ -41,7 +41,7 @@
 --   Como vendedora, esto TIENE QUE FALLAR:
 --     select admin_descuento_cliente(1, 20);   -- "Solo un administrador..."
 --
--- Probado en PGlite con la instalación entera (36 comprobaciones).
+-- Probado en PGlite con la instalación entera (37 comprobaciones).
 -- =====================================================================
 
 
@@ -49,7 +49,9 @@
 -- 1. EL 20 % DE LOS REVENDEDORES, Y EL GENERAL COMO TOPE
 -- ---------------------------------------------------------------------
 
-update configuracion set valor = 20 where clave = 'revendedor_descuento_pct';
+-- Solo si sigue en el 25 % de antes: correrlo otra vez no pisa el general
+-- que el dueño cambie después en Revendedores.
+update configuracion set valor = 20 where clave = 'revendedor_descuento_pct' and valor = 25;
 
 create or replace function rv_descuento_de(p_revendedor_id bigint)
 returns numeric

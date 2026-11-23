@@ -186,6 +186,12 @@ async function main() {
   // `venta_items`, que guarda el costo congelado de cada linea.
   const cl = await V.from('v_clientes').select('id, nombre_completo, compras, servicio_vigente, descuento_pct, es_revendedor').limit(1);
   dice(!cl.error, 'v_clientes, el maestro', cl.error ? 'ERROR ' + cl.error.code : 'responde');
+  // El maestro no se lee sin sesion, y nadie con sesion lo escribe en crudo:
+  // ahi esta el descuento fijo de cada clienta (#70).
+  const clP = await P.from('v_clientes').select('id').limit(1);
+  dice(clP.error?.code === '42501', 'v_clientes: sin sesion, cerrada', clP.error ? 'rechazada ' + clP.error.code : 'LA DEJO LEER');
+  const clV = await V.from('clientes').update({ descuento_pct: 50 }).eq('id', -1).select('id');
+  dice(clV.error?.code === '42501', 'clientes: ella no la escribe en crudo', clV.error ? 'rechazada ' + clV.error.code : 'LA DEJO ESCRIBIR');
   const hist = await V.from('v_cliente_compras').select('venta_id, nombre, cantidad, servicio_hasta').limit(1);
   dice(!hist.error, 'v_cliente_compras, el historico', hist.error ? 'ERROR ' + hist.error.code : 'responde');
   const fugaCli = await V.from('v_cliente_compras').select('costo_puesto_usd_snap').limit(1);
