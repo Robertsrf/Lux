@@ -256,8 +256,9 @@ miden en `rem`.
   tema (vuelve a su paleta).
 - `admin_tema_revendedor(p_revendedor, p_tema jsonb)`: lo mismo, del
   administrador (`if not es_admin() then raise`).
-- `rv_perfil_publico`, `rv_ver_apartado` y `rv_resumen` ganan `tema` al
-  final (el tema guardado, o null). Ninguna otra clave cambia.
+- `rv_perfil_publico` gana `tema` al final (el tema guardado, o null).
+  Ninguna otra clave cambia. El pedido y el panel ya saben el usuario y
+  lo piden ahí: `rv_ver_apartado` y `rv_resumen` no se tocan.
 - `rv_usuario_para_logo` y `rv_poner_logo`: revocadas a `public`, `anon` y
   `authenticated`; `grant execute ... to service_role`.
 - `paleta` y `rv_ajustes` no cambian: el navegador viejo sigue guardando
