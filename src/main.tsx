@@ -11,6 +11,7 @@ import './estilos/tokens.css';
 import './estilos/base.css';
 import { App } from './App';
 import { rutaDeHashViejo } from './lib/dominio';
+import { recordarSiEsDeLaTienda } from './lib/direccion';
 
 const raiz = document.getElementById('raiz');
 if (!raiz) throw new Error('Falta el contenedor #raiz en index.html');
@@ -41,6 +42,7 @@ if (enUnMarco) {
   */
   const viejo = rutaDeHashViejo(window.location.hash);
   if (viejo) window.history.replaceState(null, '', viejo);
+  recordarSiEsDeLaTienda();
 
   createRoot(raiz).render(
     <StrictMode>

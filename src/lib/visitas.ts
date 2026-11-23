@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { esDeLaTienda } from './direccion';
 
 /**
  * Las visitas al catálogo en línea (esquema-visitas-catalogo.sql).
@@ -40,7 +41,8 @@ export function visitante(): string {
 export function registrarVisita(): void {
   // Abrir el catálogo en desarrollo (npm run dev) lee la base de verdad:
   // sin esto, cada prueba contaba como una clienta.
-  if (import.meta.env.DEV) return;
+  // Ni el personal: un teléfono que llegó desde entrar. (lib/direccion.ts).
+  if (import.meta.env.DEV || esDeLaTienda()) return;
   void (async () => {
     try {
       await supabase.rpc('registrar_visita', { p_visitante: visitante() });

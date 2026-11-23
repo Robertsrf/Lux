@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { esDeLaTienda } from './direccion';
 import { visitante } from './visitas';
 import type { CodigoOferta, ComboAdmin, OfertaCasaAdmin, OfertasPublicas, OrigenOferta, PiezaOferta } from './ofertas';
 
@@ -98,7 +99,7 @@ export interface MiradaEnviada {
  * En desarrollo no cuenta (como las visitas).
  */
 export function registrarMiradas(miradas: MiradaEnviada[]): void {
-  if (import.meta.env.DEV || miradas.length === 0) return;
+  if (import.meta.env.DEV || esDeLaTienda() || miradas.length === 0) return;
   const url = import.meta.env.VITE_SUPABASE_URL;
   const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !anon) return;

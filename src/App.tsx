@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { destinoDeRuta } from './lib/dominio';
+import { conMarcaDeTienda, destinoDeRuta } from './lib/dominio';
 import { direcciones, lugarActual } from './lib/direccion';
 import { ProveedorSesion, useSesion } from './hooks/useSesion';
 import { RutaProtegida } from './componentes/RutaProtegida';
@@ -103,7 +103,10 @@ function PorDireccion({ children }: { children: React.ReactNode }) {
   const { pathname, search } = useLocation();
   const destino = destinoDeRuta(LUGAR, pathname + search, direcciones());
   if ('ir' in destino) {
-    return destino.ir.startsWith('/') ? <Navigate to={destino.ir} replace /> : <Salto a={destino.ir} />;
+    if (destino.ir.startsWith('/')) return <Navigate to={destino.ir} replace />;
+    // De entrar. solo se sale hacia la tienda, y quien sale es el personal:
+    // el salto lleva la marca para que sus visitas no cuenten.
+    return <Salto a={LUGAR.tipo === 'entrar' ? conMarcaDeTienda(destino.ir) : destino.ir} />;
   }
   return <>{children}</>;
 }

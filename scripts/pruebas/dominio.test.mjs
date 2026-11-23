@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   dondeEstoy, usuarioValido, USUARIOS_RESERVADOS, urlTienda, urlEntrar, urlRevendedor,
-  rutaDeHashViejo, destinoDeRuta, destinoDeApartado, usuarioDesdeNombre,
+  rutaDeHashViejo, destinoDeRuta, destinoDeApartado, usuarioDesdeNombre, conMarcaDeTienda, sinMarcaDeTienda,
 } from '../../src/lib/dominio.ts';
 
 const B = 'luxbyemory.com';
@@ -130,4 +130,15 @@ test('destinoDeRuta no arma una direccion con un usuario que no puede ser subdom
   for (const r of ['/r/x@evil.com', '/r/evil.com', '/r/entrar', '/r/a%2Fb']) {
     assert.deepEqual(destinoDeRuta(TIENDA, r, D), { ir: '/' }, r);
   }
+});
+
+test('conMarcaDeTienda marca el salto del personal a la tienda', () => {
+  assert.equal(conMarcaDeTienda('https://luxbyemory.com/vitrina'), 'https://luxbyemory.com/vitrina?lux_tienda=1');
+  assert.equal(conMarcaDeTienda('https://luxbyemory.com/?ver=todas'), 'https://luxbyemory.com/?ver=todas&lux_tienda=1');
+});
+
+test('sinMarcaDeTienda la lee y la quita sin tocar lo demas', () => {
+  assert.deepEqual(sinMarcaDeTienda('?ver=todas&lux_tienda=1'), { marcada: true, busqueda: '?ver=todas' });
+  assert.deepEqual(sinMarcaDeTienda('?lux_tienda=1'), { marcada: true, busqueda: '' });
+  assert.deepEqual(sinMarcaDeTienda('?ver=todas'), { marcada: false, busqueda: '?ver=todas' });
 });

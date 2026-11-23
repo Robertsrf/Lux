@@ -158,3 +158,27 @@ export function destinoDeApartado(lugar: Lugar, usuarioDelPedido: string | null,
   if (lugar.tipo === 'revendedor' && lugar.usuario === usuarioDelPedido) return null;
   return urlRevendedor(d, usuarioDelPedido, `/apartado/${token}`);
 }
+
+/*
+  EL PERSONAL NO CUENTA COMO VISITA. La sesión del personal vive en
+  entrar.luxbyemory.com; en luxbyemory.com entra como cualquiera, y la regla
+  "con sesión no cuenta" ya no lo reconoce. Cuando salta de entrar. a la
+  tienda (la vitrina, "Ver la landing"), el salto lleva esta marca, y la
+  tienda recuerda en ese teléfono que es de la tienda (lib/direccion.ts):
+  sus visitas y sus miradas no suman. Decisión del dueño, 23/11/2026.
+  El QR del catálogo PDF NO la lleva: lo escanean las clientas.
+*/
+const MARCA_TIENDA = 'lux_tienda';
+
+export function conMarcaDeTienda(url: string): string {
+  return `${url}${url.includes('?') ? '&' : '?'}${MARCA_TIENDA}=1`;
+}
+
+/** La búsqueda sin la marca, y si la traía. */
+export function sinMarcaDeTienda(busqueda: string): { marcada: boolean; busqueda: string } {
+  const p = new URLSearchParams(busqueda);
+  if (!p.has(MARCA_TIENDA)) return { marcada: false, busqueda };
+  p.delete(MARCA_TIENDA);
+  const resto = p.toString();
+  return { marcada: true, busqueda: resto ? `?${resto}` : '' };
+}

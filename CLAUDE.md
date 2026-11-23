@@ -1278,7 +1278,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   línea hoy, en 7 y en 30 días, y cuántos pedidos entraron por él. Una visita es
   un teléfono en un día; lo que abre la tienda con su sesión no cuenta. Es solo
   una cuenta: no guarda de quién, y no se le enseña a la clienta. Los catálogos
-  de los revendedores no cuentan aquí.
+  de los revendedores no cuentan aquí. **Con el dominio** (23/11/2026) la sesión
+  vive en `entrar.` y en `luxbyemory.com` el personal no la tiene: cuando salta
+  de `entrar.` a la tienda (la vitrina, "Ver la landing") el salto lleva
+  `?lux_tienda=1`, y ese teléfono queda marcado (`lux-de-la-tienda`,
+  `esDeLaTienda()` de `lib/direccion.ts`): sus visitas y sus miradas no suman.
+  El QR del catálogo PDF no la lleva: lo escanean las clientas.
 - **Clientes.** Cada venta puede quedar a nombre de una clienta del maestro, que se
   busca por cédula o por nombre. De ahí salen el histórico, la garantía (qué se llevó
   y cuándo) y los meses de lavado y abrillantado que le tocan por compra
