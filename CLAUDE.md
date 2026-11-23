@@ -436,7 +436,9 @@ selector de cada producto en el Inventario), `admin_descuento_cliente(cliente, %
 suelta; una ficha es de un solo revendedor), `admin_fijar_credito(cliente,
 días, tope)` (0 o null en días quita el crédito y el tope) y
 `vender_a_credito(items, cliente, método, pago, referencia, verificado,
-extra, nota, códigos)` (de las dos caras; ver "El crédito").
+extra, nota, códigos)` (de las dos caras; ver "El crédito") y
+`admin_anular_credito(venta, devolver, método, monto, motivo)` (la devolvió
+entera: con pagos, se dice qué pasa con el dinero).
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -816,12 +818,16 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   se cierra con "Pago verificado". Pagada entera no es crédito ("cóbralo como
   venta"). **El tope cuenta todo lo que debe** (`deuda_de_clienta`: sus ventas
   por partes abiertas, también las de antes) después del pago del día; si lo
-  pasa, no se vende. **Con un crédito vencido sí puede llevarse más**
+  pasa, no se vende; cuenta solo los pagos COMPROBADOS (`deuda_comprobada_de`):
+  un "ya te transferí" que no llega no hace sitio. **Con un crédito vencido sí puede llevarse más**
   (decisión del dueño): el mostrador solo avisa. **Anular y quitar una pieza
   de una venta a crédito son del administrador**: la pieza ya salió con la
   clienta, y la base no deja que otra sesión lo haga (disparadores
   `venta_credito_anular` y `venta_credito_quitar`; sin sesión, el SQL Editor
-  sí). Los pagos se cargan en Pedidos (las dos caras, "A crédito · vence
+  sí). Con pagos, ni él la anula a secas: `admin_anular_credito` pide decir si
+  el dinero se le devuelve (sale de la caja hoy, "Devolución") o se queda, y
+  deja `ventas.credito_cierre`; con eso `caja_flujo` sigue contando sus abonos
+  el día que llegaron, como en `admin_cerrar_pedido`. Los pagos se cargan en Pedidos (las dos caras, "A crédito · vence
   el…") y en **Crédito** (`/admin/credito`, `v_credito`), que agrupa por
   clienta, las vencidas primero. El menú dice "Crédito · 2 vencidos"
   (`creditos_vencidos()`). Lo que el mostrador enseña de ella sale de
@@ -1435,7 +1441,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 379 comprobaciones con las dos sesiones (384 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 382 comprobaciones con las dos sesiones (387 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/

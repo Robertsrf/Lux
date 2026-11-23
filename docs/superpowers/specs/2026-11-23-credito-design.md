@@ -89,7 +89,7 @@ se tocó en la fase 3, con el mismo resultado.
 
 ## La base (#71, `esquema-credito.sql`)
 
-- `clientes.credito_dias int` (null, o de 1 a 90) y `clientes.credito_tope_usd
+- `clientes.credito_dias int` (null, o de 1 a 365: solo freno de erratas) y `clientes.credito_tope_usd
   numeric(12,2)` (null o > 0). Solo los escribe `admin_fijar_credito(cliente,
   días, tope)` (null o 0 en días quita el crédito; en tope, sin tope).
 - `ventas.credito_vence date`.

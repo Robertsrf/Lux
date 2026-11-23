@@ -117,6 +117,7 @@ const FUNCIONES_CERRADAS = [
   ['motivo_con_clienta', { p_motivo: 'tramo', p_tramo: 0, p_clienta: 20 }],
   // Lo que debe una clienta, por dentro (#71): se lee por credito_de_clienta.
   ['deuda_de_clienta', { p_cliente_id: 1 }],
+  ['deuda_comprobada_de', { p_cliente_id: 1 }],
   ['costo_operativo_por_pieza', {}],
   ['costo_total_bcv', { p_costo_puesto_usd: 1 }],
   ['calcular_flete_unitario', { p_lote_id: 1 }],
@@ -962,6 +963,7 @@ async function main() {
     ['admin_enlazar_cliente_revendedor', { p_revendedor_id: -1, p_cliente_id: null }],
     // El crédito de una clienta (#71).
     ['admin_fijar_credito', { p_cliente_id: -1, p_dias: 10, p_tope_usd: null }],
+    ['admin_anular_credito', { p_venta_id: -1, p_devolver: false }],
   ];
   for (const [fn, args] of ADMIN_OFERTAS) {
     const v = await V.rpc(fn, args);

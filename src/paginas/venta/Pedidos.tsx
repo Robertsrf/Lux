@@ -352,8 +352,8 @@ function Falta({ bcv, tasa, listo }: { bcv: number; tasa: Tasas | null; listo: s
  * caja como "Devolución", el día de hoy) o se queda.
  */
 function CerrarConDinero({ rpc, argumentoId, id, pagadoBcv, tasa, alTerminar, texto }: {
-  rpc: 'admin_cerrar_pedido' | 'admin_cerrar_apartado';
-  argumentoId: 'p_reserva_id' | 'p_apartado_id';
+  rpc: 'admin_cerrar_pedido' | 'admin_cerrar_apartado' | 'admin_anular_credito';
+  argumentoId: 'p_reserva_id' | 'p_apartado_id' | 'p_venta_id';
   id: number;
   pagadoBcv: number;
   tasa: Tasas | null;
@@ -1370,7 +1370,7 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
     // Si ya abonó algo, se dice: las piezas vuelven, pero ese dinero está en
     // la cuenta de la tienda y hay que devolverlo o acordarlo con ella.
     const aviso = aCredito
-      ? `Es a crédito: las piezas vuelven a su ubicación. Hazlo solo si la clienta las trajo todas.${recibidoBs > 0 ? ` Ya abonó ${formatearBs(recibidoBs)}: hay que devolvérselo o acordarlo con ella.` : ''} ¿Anular?`
+      ? 'Es a crédito: las piezas vuelven a su ubicación. Hazlo solo si la clienta las trajo todas. ¿Anular?'
       : recibidoBs > 0
       ? `Ya abonó ${formatearBs(recibidoBs)}. Si la anulas, las piezas vuelven a su ubicación y ese dinero hay que devolvérselo o acordarlo con ella. ¿Anular?`
       : '¿El pago no llegó? La venta se anula y las piezas vuelven a su ubicación.';
@@ -1568,6 +1568,15 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
           <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
             No llegó el pago: anular
           </button>
+        ) : esAdmin && recibidoBs > 0 ? (
+          /* Con pagos: se dice qué pasa con el dinero, como al cancelar un
+             pedido con dinero. Sus pagos siguen en la caja el día que
+             llegaron; si se le devuelve, sale hoy como "Devolución". */
+          <CerrarConDinero
+            rpc="admin_anular_credito" argumentoId="p_venta_id" id={cabecera.venta_id}
+            pagadoBcv={Math.max(total - falta, 0)} tasa={tasa} alTerminar={alTerminar}
+            texto="Las devolvió todas: anular"
+          />
         ) : esAdmin ? (
           <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
             Las devolvió todas: anular

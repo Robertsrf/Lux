@@ -101,7 +101,7 @@ Y en cada fase, el mismo camino, con los orquestadores:
 | 1 | Hecha y probada con sesión (19/11): reproducido en main, corregido en la rama | rama `fase-1-precio-sugerido` | — |
 | 2 | Hecha y publicada (23/11): luxbyemory.com en Cloudflare, github.io reenvía. Falta probar la tarjeta de WhatsApp con un revendedor real. Diseño: `docs/superpowers/specs/2026-11-19-dominio-y-subdominios-design.md` | fusionada en `main` | #69 `esquema-dominio.sql` (corrido) |
 | 3 | Hecha y publicada (23/11): 20 % para revendedores (el general es el tope), clienta con descuento fijo en el mostrador, revendedor enlazado con su ficha, Reportes dice a nombre de quién salió cada rebaja. Diseño: `docs/superpowers/specs/2026-11-23-descuento-y-clienta-especial-design.md`. Falta `npm run verificar` (366) | `main` (1c3fbaf) | #70 `esquema-descuento-clienta.sql` (corrido) |
-| 4 | Construida (23/11) en la rama `fase-4-credito`: crédito en la ficha (días y tope), "A crédito" en el mostrador, Pedidos dice cuándo vence, Anular y Quitar a crédito solo el admin, pantalla Crédito y "N vencidos" en el menú. Diseño: `docs/superpowers/specs/2026-11-23-credito-design.md`. Falta correr el #71, publicar y `npm run verificar` (379) | `fase-4-credito` | #71 `esquema-credito.sql` (por correr) |
+| 4 | Construida (23/11) en la rama `fase-4-credito`: crédito en la ficha (días y tope), "A crédito" en el mostrador, Pedidos dice cuándo vence, Anular y Quitar a crédito solo el admin, pantalla Crédito y "N vencidos" en el menú. Diseño: `docs/superpowers/specs/2026-11-23-credito-design.md`. Falta correr el #71, publicar y `npm run verificar` (382) | `fase-4-credito` | #71 `esquema-credito.sql` (por correr) |
 | 5 | Pendiente | | |
 | 6 | Pendiente | | |
 | 7 | Pendiente | | |
