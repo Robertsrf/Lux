@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../componentes/Piezas';
 import { DescuentoClienta } from '../componentes/DescuentoClienta';
+import { CreditoClienta } from '../componentes/CreditoClienta';
 import { MiniaturaTocable } from '../componentes/MiniaturaTocable';
 import { VisorFoto, useVisorFoto } from '../componentes/VisorFoto';
 import type { FotoAmpliada } from '../componentes/VisorFoto';
@@ -281,6 +282,7 @@ function Ficha({ id }: { id: number | null }) {
         ) : null}
 
         <DescuentoClienta clienteId={c.id} esAdmin={esAdmin} />
+        <CreditoClienta clienteId={c.id} esAdmin={esAdmin} />
 
         <div className="panel">
           <span className="panel__titulo">En total</span>

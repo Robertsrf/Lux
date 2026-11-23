@@ -1233,6 +1233,52 @@ export interface ClienteDeVenta {
   telefono?: string | null;
 }
 
+/* ------------------------------------------------------------ crédito
+   Todo sale de esquema-credito.sql (#71). */
+
+/** credito_de_clienta(cliente): lo que el mostrador y la ficha enseñan. */
+export interface CreditoDeClienta {
+  /** Null: sin crédito. */
+  dias: number | null;
+  /** En $ BCV. Null: sin tope. */
+  tope_usd: number | null;
+  /** Lo que debe hoy, de todas sus ventas por partes abiertas, en $ BCV. */
+  debe_bcv: number;
+  /** Lo que le queda del tope. Null sin tope. */
+  queda_bcv: number | null;
+  vencidas: number;
+  /** El vencimiento más viejo de las vencidas ('AAAA-MM-DD'). */
+  vencida_desde: string | null;
+}
+
+/** v_credito: una venta por partes abierta con clienta (solo admin). */
+export interface VentaACredito {
+  venta_id: number;
+  fecha: string;
+  cliente_id: number;
+  cliente: string;
+  cedula: string | null;
+  telefono: string | null;
+  descuento_pct: number | null;
+  credito_dias: number | null;
+  credito_tope_usd: number | null;
+  total_bs: number;
+  total_bcv: number;
+  pagado_bcv: number;
+  falta_bcv: number;
+  /** Null: una venta por partes de antes, sin plazo. */
+  credito_vence: string | null;
+  vencida: boolean;
+  metodo: MetodoPago;
+}
+
+/** vender_a_credito: lo que responde. */
+export interface RespuestaCredito {
+  venta_id: number;
+  falta_bcv: number;
+  credito_vence: string;
+}
+
 /* ------------------------------------------------------------ revendedores
    Todo sale de esquema-revendedores.sql. El revendedor no tiene sesion de
    Supabase: lo suyo llega por las funciones `rv_*` con su testigo. */
