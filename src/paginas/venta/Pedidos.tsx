@@ -11,7 +11,7 @@ import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import {
   abonoEnBcv, bcvDesdeBs, binanceDesdeBs, bsDeBcv, centavoArriba, cuentaRegresiva, formatearBcv, formatearBinance, formatearBs,
-  formatearFecha, formatearFechaHora, formatearMonto, leerCifra, precioEnBs, restarCifras, sumarCifras, tiempoRestante, totalDeLineas,
+  fechaVenezuelaMas, formatearFecha, formatearFechaHora, formatearMonto, leerCifra, precioEnBs, restarCifras, sumarCifras, tiempoRestante, totalDeLineas,
 } from '../../lib/dinero';
 import type { Tasas } from '../../lib/dinero';
 import { nombreConVariante } from '../../lib/familias';
@@ -1351,7 +1351,11 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
   const recibidoBs = sumarCifras(abonos.filter((a) => !a.anulado_en).map((a) => Number(a.monto_bs)));
   // Quitar es para cuando se lleva menos de lo que se cobró. La última
   // pieza no se quita: eso es anular la venta, que ya tiene su botón.
-  const sePuedeQuitar = piezas > 1;
+  // A crédito (#71): la clienta se llevó las piezas. Quitar y anular las
+  // darían por vueltas a la vitrina: solo el administrador, cuando las trae.
+  const aCredito = Boolean(cabecera.credito_vence);
+  const vencida = aCredito && falta > 0 && (cabecera.credito_vence ?? '') < fechaVenezuelaMas(0);
+  const sePuedeQuitar = piezas > 1 && (!aCredito || esAdmin);
 
   async function verificar() {
     setTrabajando(true);
@@ -1365,7 +1369,9 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
   async function anular() {
     // Si ya abonó algo, se dice: las piezas vuelven, pero ese dinero está en
     // la cuenta de la tienda y hay que devolverlo o acordarlo con ella.
-    const aviso = recibidoBs > 0
+    const aviso = aCredito
+      ? `Es a crédito: las piezas vuelven a su ubicación. Hazlo solo si la clienta las trajo todas.${recibidoBs > 0 ? ` Ya abonó ${formatearBs(recibidoBs)}: hay que devolvérselo o acordarlo con ella.` : ''} ¿Anular?`
+      : recibidoBs > 0
       ? `Ya abonó ${formatearBs(recibidoBs)}. Si la anulas, las piezas vuelven a su ubicación y ese dinero hay que devolvérselo o acordarlo con ella. ¿Anular?`
       : '¿El pago no llegó? La venta se anula y las piezas vuelven a su ubicación.';
     if (!window.confirm(aviso)) return;
@@ -1395,7 +1401,13 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
             {formatearBs(cabecera.total_bs)} · {formatearBcv(cabecera.total_bcv)} · {formatearBinance(cabecera.total_binance)}
           </p>
         </div>
-        <span className="etiqueta etiqueta--alerta">{cabecera.pago_parcial ? 'Pago por partes' : 'Por verificar'}</span>
+        <span className={vencida ? 'etiqueta etiqueta--error' : 'etiqueta etiqueta--alerta'}>
+          {aCredito
+            ? (vencida
+              ? `Vencido desde el ${formatearFecha(cabecera.credito_vence)}`
+              : `A crédito · vence el ${formatearFecha(cabecera.credito_vence)}`)
+            : cabecera.pago_parcial ? 'Pago por partes' : 'Por verificar'}
+        </span>
       </div>
 
       {cabecera.pago_parcial ? (
@@ -1550,10 +1562,23 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
             {abonando ? 'No cargar pago' : 'Cargar un pago'}
           </button>
         ) : null}
-        <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
-          No llegó el pago: anular
-        </button>
+        {/* A crédito, la clienta ya tiene las piezas: anular las daría por
+            vueltas a la vitrina. Solo el administrador, cuando las trae. */}
+        {!aCredito ? (
+          <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
+            No llegó el pago: anular
+          </button>
+        ) : esAdmin ? (
+          <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
+            Las devolvió todas: anular
+          </button>
+        ) : null}
       </div>
+      {aCredito && !esAdmin ? (
+        <p className="campo__pista">
+          Es a crédito: la clienta ya tiene las piezas. Si devuelve alguna, avísale al administrador.
+        </p>
+      ) : null}
     </div>
   );
 }

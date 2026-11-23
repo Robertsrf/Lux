@@ -1125,6 +1125,10 @@ export interface LineaPorVerificar {
   oferta_codigo?: string | null;
   oferta_pct?: number | null;
   precio_sin_oferta_bs?: number | null;
+  /** A crédito (#71): el último día para pagarla ('AAAA-MM-DD'). Null o ausente: no es a crédito. */
+  credito_vence?: string | null;
+  /** La etiqueta de la línea en bolívares, a la tasa de la venta (#71). */
+  precio_lista_bs?: number | null;
 }
 
 /**
