@@ -141,8 +141,11 @@ export function CatalogoRevendedor() {
   }, []);
 
   useEffect(() => {
+    // Al salir vuelve el de antes, no "Lux by Emory": en un subdominio sin
+    // revendedor el Worker dejó "Catálogo de joyas" y Lux no se nombra.
+    const antes = document.title;
     if (perfil) document.title = `${perfil.catalogo_nombre} · Joyas Lux by Emory`;
-    return () => { document.title = 'Lux by Emory'; };
+    return () => { document.title = antes; };
   }, [perfil]);
 
   // El ícono de la pestaña es su logo, nunca el de Lux: su clienta lo ve
