@@ -75,7 +75,9 @@ export function Mostrador() {
   const { ubicaciones } = useUbicaciones();
   const { tasa } = useTasa();
   const textos = useTextos();
-  const carrito = useCarrito(tasa);
+  // El descuento fijo de la clienta elegida (null: sin descuento, o sin el #70).
+  const [descuentoClienta, setDescuentoClienta] = useState<number | null>(null);
+  const carrito = useCarrito(tasa, descuentoClienta);
   const visor = useVisorFoto();
   const navegar = useNavigate();
   const donde = useLocation();
@@ -95,6 +97,26 @@ export function Mostrador() {
   const [cliente, setCliente] = useState<ClienteDeVenta | null>(null);
   const [nombreCliente, setNombreCliente] = useState<string | null>(null);
   const [sinCliente, setSinCliente] = useState(false);
+
+  /*
+    Si la ficha elegida tiene un descuento fijo (lo pone el dueño en su
+    ficha), el carrito lo enseña ya en cada pieza. Se lee aparte: sin el
+    #70 la columna no existe, y entonces es como hoy, sin descuento. Una
+    ficha nueva no tiene descuento: la base tampoco se lo da.
+  */
+  const clienteId = cliente?.id ?? null;
+  useEffect(() => {
+    setDescuentoClienta(null);
+    if (clienteId === null) return;
+    let vigente = true;
+    void (async () => {
+      const { data, error: err } = await supabase.from('v_clientes').select('descuento_pct').eq('id', clienteId).maybeSingle();
+      if (!vigente || err) return;
+      const pct = Number((data as { descuento_pct: number | null } | null)?.descuento_pct ?? 0);
+      setDescuentoClienta(pct > 0 ? pct : null);
+    })();
+    return () => { vigente = false; };
+  }, [clienteId]);
   const [meta, setMeta] = useState<MetaVendedora | null>(null);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   // El producto que se esta moviendo de ubicacion, si hay uno.
@@ -401,7 +423,7 @@ export function Mostrador() {
     const enDolares = metodo !== null && METODOS_EN_DOLARES.includes(metodo);
     // Precios que ella escribio y que el tramo deja sin efecto. Se dice, no
     // se calla: si no, la clienta oye un precio y paga otro.
-    const rebajasIgnoradas = t.lineas.some((l) => l.en_tramo && l.precio_manual_usd !== null);
+    const rebajasIgnoradas = conTramo && t.lineas.some((l) => l.en_tramo && l.motivo !== 'cliente' && l.precio_manual_usd !== null);
     // Lo de fuera del catalogo, si se escribio, tiene que ser una cifra y
     // decir que es: si no, no se cobra todavia.
     const extraEnOrden = !t.extraIlegible && !t.extraSinNota;
@@ -428,6 +450,8 @@ export function Mostrador() {
                   la cifra delante, no de memoria. */}
               {conTramo
                 ? ` · ${formatearDescuento(t.descuento)} de descuento por cantidad, ahorra ${formatearBs(t.ahorroBs)}`
+                : t.lineasConClienta > 0 && t.descuentoClienta !== null
+                  ? ` · ${formatearDescuento(t.descuentoClienta)} de descuento de clienta, ahorra ${formatearBs(t.ahorroBs)}`
                 : t.regateoBs > 0
                   ? ` · rebajaste ${formatearBs(t.regateoBs)} para cerrar la venta`
                   : t.siguiente
@@ -520,7 +544,7 @@ export function Mostrador() {
                       <span>{formatearBs(l.precio_final_bs)} c/u</span>
                       {rebajada ? <s>{formatearBs(l.precio_lista_bs)}</s> : null}
                       <span className="rebaja__pista">
-                        {rebajada ? 'descuento por cantidad' : 'ya está en su mínimo'}
+                        {rebajada ? (l.motivo === 'cliente' ? 'descuento de clienta' : 'descuento por cantidad') : 'ya está en su mínimo'}
                       </span>
                     </div>
                   ) : admite ? (
@@ -669,6 +693,14 @@ export function Mostrador() {
             sinCliente={sinCliente}
             alSaltar={setSinCliente}
           />
+          {/* Lo dice con la cifra: es lo que ella le explica a la clienta. El
+              mínimo de cada pieza no se nombra. */}
+          {t.descuentoClienta !== null ? (
+            <Aviso tono="exito" titulo={`Clienta con ${formatearDescuento(t.descuentoClienta)} de descuento`}>
+              Ya está en el precio de cada pieza. Con el descuento por cantidad o un código manda el
+              mayor: no se suman. Lo rebajado a mano no cuenta.
+            </Aviso>
+          ) : null}
         </div>
 
         <h2>Como paga</h2>

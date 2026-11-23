@@ -104,7 +104,15 @@ function lineaDe(m: ModeloEnUbicacion, cantidad: number): LineaCarrito {
   };
 }
 
-export function useCarrito(tasa: Tasas | null) {
+/*
+  LA CLIENTA CON DESCUENTO FIJO (esquema-descuento-clienta.sql)
+  Si la vendedora elige la ficha de una clienta con descuento, cada pieza
+  sale a la etiqueta menos ese %, nunca bajo el piso de margen: la misma
+  cuenta del tramo (`precioConTramo`). Con tramo manda el mayor de los dos,
+  y con codigo, el mayor de los tres; no se suman. Lo cobra la base con la
+  ficha que se le manda (`p_cliente_id`), no con este numero.
+*/
+export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | null = null) {
   const [lineas, setLineas] = useState<LineaCarrito[]>([]);
   const [tramos, setTramos] = useState<Tramo[]>([]);
   const [cobrando, setCobrando] = useState(false);
@@ -242,6 +250,7 @@ export function useCarrito(tasa: Tasas | null) {
     const tramo = descuentosDeCarrito(tramos, lineas);
     const descuento = tramo.descuento;
     const tasaBcv = tasa?.tasa_bcv ?? null;
+    const clienta = descuentoClientaPct !== null && descuentoClientaPct > 0 ? descuentoClientaPct : null;
 
     // Los codigos: cuales valen con ESTE carrito, y cuantas unidades cubre cada uno.
     const delCarrito = new Map<number, number>();
@@ -256,7 +265,9 @@ export function useCarrito(tasa: Tasas | null) {
     const calculadas: LineaCobroConCodigo[] = lineas.map((l) => {
       let usd = l.precio_lista_usd;
       let motivo: LineaCobro['motivo'] = null;
-      const descuentoLinea = tramo.porModelo.get(l.modelo_id) ?? null;
+      const tramoLinea = tramo.porModelo.get(l.modelo_id) ?? null;
+      // El mayor entre el tramo de la linea y el de la clienta, como la base.
+      const descuentoLinea = clienta !== null && clienta > (tramoLinea ?? 0) ? clienta : tramoLinea;
 
       // Con codigo, en las unidades que cubre manda el mayor descuento entre
       // el tramo y la oferta (no se suman), y el precio a mano se ignora.
@@ -283,7 +294,7 @@ export function useCarrito(tasa: Tasas | null) {
 
       if (descuentoLinea) {
         usd = precioConTramo(l.precio_lista_usd, descuentoLinea, l.piso_tramo_usd);
-        if (usd < l.precio_lista_usd) motivo = 'tramo';
+        if (usd < l.precio_lista_usd) motivo = descuentoLinea === tramoLinea ? 'tramo' : 'cliente';
       } else if (cubiertas === 0 && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd) {
         usd = l.precio_manual_usd;
         motivo = 'regateo';
@@ -336,6 +347,10 @@ export function useCarrito(tasa: Tasas | null) {
       /** Hay monto pero no dice que es: la base no lo acepta sin eso. */
       extraSinNota: extraBs !== null && extra.nota.trim() === '',
       descuento,
+      /** El descuento fijo de la clienta elegida, si tiene. */
+      descuentoClienta: clienta,
+      /** Cuantas lineas cobran el descuento de la clienta (y no el tramo). */
+      lineasConClienta: calculadas.filter((l) => l.motivo === 'cliente').length,
       ahorroBs: lista - piezasBs,
       /** Lo que ella rebajo a mano, en bolivares. Cero con tramo. */
       regateoBs: deMonto(sumar(regateadas.map((l) => porCantidad(aMonto(l.precio_lista_bs - l.precio_final_bs), l.cantidad)))),
@@ -350,7 +365,7 @@ export function useCarrito(tasa: Tasas | null) {
         : 0,
       lineas: calculadas,
     };
-  }, [lineas, tramos, extra, codigos, tasa?.tasa_bcv, tasa?.tasa_venta]);
+  }, [lineas, tramos, extra, codigos, tasa?.tasa_bcv, tasa?.tasa_venta, descuentoClientaPct]);
 
   /*
     Un codigo vale con TODAS sus piezas, en su cantidad. Si ella quita una
@@ -477,11 +492,13 @@ export function useCarrito(tasa: Tasas | null) {
     // del tramo y se puede regatear como en una venta chica.
     const tramo = descuentosDeCarrito(tramos, lineas);
     // Con un codigo en la linea, el precio a mano se ignora (la base tambien).
+    // Y con el descuento de la clienta, como con el tramo.
+    const conClienta = descuentoClientaPct !== null && descuentoClientaPct > 0;
     return totales.lineas.map((l) => ({
       modelo_id: l.modelo_id,
       ubicacion_id: l.ubicacion_id,
       cantidad: l.cantidad,
-      precio_unitario_usd: l.cubiertas === 0 && !tramo.porModelo.get(l.modelo_id) && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
+      precio_unitario_usd: l.cubiertas === 0 && !conClienta && !tramo.porModelo.get(l.modelo_id) && l.precio_manual_usd !== null && l.precio_manual_usd < l.precio_lista_usd
         ? l.precio_manual_usd
         : null,
     }));

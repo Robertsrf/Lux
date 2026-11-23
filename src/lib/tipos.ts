@@ -416,8 +416,12 @@ export interface LineaCarrito {
 export interface LineaCobro extends LineaCarrito {
   precio_final_usd: number;
   precio_final_bs: number;
-  motivo: 'regateo' | 'tramo' | null;
-  /** El tramo le llega a esta linea (un dije sin su base, no): ahi no se regatea. */
+  /** 'cliente': el descuento fijo de la clienta, mayor que el tramo de la linea. */
+  motivo: 'regateo' | 'tramo' | 'cliente' | null;
+  /**
+   * Un descuento fijo le llega a esta linea, el tramo o el de la clienta
+   * (un dije sin su base no recibe el tramo): ahi no se regatea.
+   */
   en_tramo: boolean;
 }
 
