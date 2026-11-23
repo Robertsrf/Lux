@@ -99,7 +99,7 @@ Y en cada fase, el mismo camino, con los orquestadores:
 | # | Estado | Commit | SQL |
 |---|---|---|---|
 | 1 | Hecha y probada con sesión (19/11): reproducido en main, corregido en la rama | rama `fase-1-precio-sugerido` | — |
-| 2 | Construida en la rama (19/11), sin fusionar: falta que el dueño haga [sus pasos](fase-2-pasos-del-dueno.md) y probarla en Cloudflare. Diseño: `docs/superpowers/specs/2026-11-19-dominio-y-subdominios-design.md` | rama `fase-2-dominio` | #69 `esquema-dominio.sql` (por correr) |
+| 2 | Hecha y publicada (23/11): luxbyemory.com en Cloudflare, github.io reenvía. Falta probar la tarjeta de WhatsApp con un revendedor real. Diseño: `docs/superpowers/specs/2026-11-19-dominio-y-subdominios-design.md` | fusionada en `main` | #69 `esquema-dominio.sql` (corrido) |
 | 3 | Pendiente | | |
 | 4 | Pendiente | | |
 | 5 | Pendiente | | |
@@ -107,8 +107,8 @@ Y en cada fase, el mismo camino, con los orquestadores:
 | 7 | Pendiente | | |
 | 8 | Pendiente (después de la 2) | | |
 
-El próximo `.sql` libre es el **#70** (el #69 es `esquema-dominio.sql`, de la
-fase 2; el último corrido, `esquema-dama-caballero-revendedor.sql`, #68).
+El próximo `.sql` libre es el **#70** (el último corrido, `esquema-dominio.sql`,
+#69, de la fase 2).
 
 **Las direcciones cambiaron en la fase 2:** ya no hay `#/`. Lux en
 `luxbyemory.com`, el personal en `entrar.luxbyemory.com`, el panel del
