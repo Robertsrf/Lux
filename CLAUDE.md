@@ -1368,9 +1368,13 @@ npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare
 ```
 
 Publicar es hacer push a `main`: el flujo prueba, construye, publica en
-Cloudflare y, si salió, deja el reenvío de github.io. Para probar una rama
-en Cloudflare sin tocar github.io: Actions → "Desplegar a Cloudflare" → Run
-workflow sobre la rama.
+Cloudflare y, si salió y el dominio responde, deja el reenvío de github.io.
+**Cloudflare es una sola tienda**: otra rama solo se publica con "Run
+workflow" marcando `publicar_rama`, y lo que se publica ahí lo ven las
+clientas (primero el SQL que pida). Se usó una vez, para encender el dominio
+antes de fusionar la fase 2. Se publica desde una carpeta sin `package.json`
+(`publicar/`): así instalar wrangler no corre los scripts de las dependencias
+del sitio con el token de Cloudflare a la vista.
 
 `verificar` es obligatorio después de tocar **una vista, un permiso, una función o
 una política**. Si no hay terminal a mano, la pantalla **Verificación** hace setenta y dos

@@ -423,7 +423,7 @@ export function Revendedores() {
                 <div>
                   <div className="ficha-persona__nombre">{r.nombre}</div>
                   <div className="ficha-persona__dato">
-                    {[r.catalogo_nombre, `/r/${r.usuario}`, r.telefono, `desde el ${formatearFecha(r.creado_en)}`].filter(Boolean).join(' · ')}
+                    {[r.catalogo_nombre, enlaceCatalogoRv(r.usuario).replace(/^https?:\/\//, ''), r.telefono, `desde el ${formatearFecha(r.creado_en)}`].filter(Boolean).join(' · ')}
                   </div>
                 </div>
                 {!r.activo

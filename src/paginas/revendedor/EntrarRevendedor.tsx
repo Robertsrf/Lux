@@ -11,7 +11,7 @@ function conGuiones(texto: string): string {
 }
 
 /**
- * La puerta del panel de un revendedor: /#/rv/entrar.
+ * La puerta del panel de un revendedor: luxbyemory.com/rv/entrar.
  *
  * Un solo campo con el código que le dio Lux. No es la puerta de la tienda
  * a propósito: esa prueba el código contra las cuentas del personal, y un

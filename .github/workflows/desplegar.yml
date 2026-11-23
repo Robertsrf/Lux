@@ -5,25 +5,35 @@ name: Desplegar a Cloudflare
 # (wrangler.jsonc). GitHub Pages queda solo como reenvío de la dirección
 # vieja (robertsrf.github.io/Lux/#/...), que sale en imágenes publicadas.
 #
-# Un push a main publica las dos cosas. "Run workflow" sobre otra rama
-# publica solo en Cloudflare: así se prueba una rama sin tocar github.io.
+# Un push a main publica las dos cosas. Cloudflare es UNA sola tienda: lo
+# que se publica ahí es lo que ven las clientas. Por eso otra rama solo se
+# publica si al pedir "Run workflow" se marca "publicar_rama" (se usó una
+# vez, para poner en marcha el dominio antes de fusionar la fase 2), y
+# github.io nunca cambia desde otra rama.
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publicar_rama:
+        description: 'Publicar ESTA rama en la tienda de verdad (Cloudflare). Solo para poner en marcha algo antes de fusionar.'
+        type: boolean
+        default: false
 
+# Por trabajo, lo mínimo: construir corre `npm ci` con dependencias de
+# terceros, y no necesita poder escribir en Pages ni pedir identidad.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# Nunca se corta un despliegue a medias: el siguiente espera.
 concurrency:
   group: despliegue
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   construir:
+    if: github.ref == 'refs/heads/main' || inputs.publicar_rama
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +101,18 @@ jobs:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CUENTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # Se publica desde una carpeta con SOLO lo que el Worker necesita, sin
+      # package.json: la acción instala wrangler ahí con el token en su
+      # entorno, y en la raíz instalaría todas las dependencias del sitio
+      # (con sus scripts de instalación) viendo ese token.
+      - name: Preparar lo que se publica
+        run: |
+          mkdir -p publicar/cloudflare publicar/src/lib
+          cp wrangler.jsonc publicar/
+          cp cloudflare/*.js cloudflare/*.mjs publicar/cloudflare/
+          cp src/lib/dominio.ts publicar/src/lib/
+          mv dist publicar/dist
+
       # Fijada a un commit exacto, no a una etiqueta: esta acción recibe el
       # token de Cloudflare, y una etiqueta se puede mover. Se sube a mano.
       # wrangler también va fijado: una versión nueva no entra sin probarla.
@@ -99,18 +121,32 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4.157.0'
+          workingDirectory: publicar
           command: deploy --var SUPABASE_URL:${{ vars.VITE_SUPABASE_URL }} --var SUPABASE_ANON_KEY:${{ vars.VITE_SUPABASE_ANON_KEY }}
 
-  # El reenvío de github.io. Solo desde main y solo si Cloudflare publicó:
-  # nunca se manda a la gente a un dominio que no responde.
+  # El reenvío de github.io. Solo desde main, solo si Cloudflare publicó y
+  # solo si el dominio responde de verdad: nunca se manda a la gente a un
+  # dominio que no abre (por ejemplo, con el DNS a medio poner).
   reenvio:
     needs: cloudflare
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.despliegue.outputs.page_url }}
     steps:
+      - name: Comprobar que el dominio responde
+        run: |
+          for u in "https://$DOMINIO/" "https://entrar.$DOMINIO/"; do
+            curl -fsS --retry 3 --retry-delay 10 -o /dev/null "$u" || { echo "No responde $u: github.io se queda como estaba."; exit 1; }
+          done
+        env:
+          DOMINIO: ${{ vars.VITE_DOMINIO_BASE }}
+
       - uses: actions/checkout@v4
 
       # Pages hay que encenderlo UNA vez a mano en Settings > Pages > Source:

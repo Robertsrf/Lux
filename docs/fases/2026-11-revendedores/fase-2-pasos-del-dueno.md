@@ -70,7 +70,7 @@ variables** → **Actions**:
 ## 7. Avísame, y probamos sin tocar la tienda
 
 Dime "listo". Publico la rama `fase-2-dominio` en Cloudflare (**Actions** →
-**Desplegar a Cloudflare** → **Run workflow** → rama `fase-2-dominio`).
+**Desplegar a Cloudflare** → **Run workflow** → rama `fase-2-dominio`, con la casilla **publicar_rama** marcada).
 Eso **no** cambia `robertsrf.github.io`: la tienda sigue normal ahí.
 
 Se comprueba:

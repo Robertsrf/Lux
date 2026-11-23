@@ -34,7 +34,7 @@ const ENLACES: EnlaceNav[] = [
 const PRINCIPALES = ['/rv', '/rv/apartados', '/rv/vender'];
 
 /**
- * El panel de un revendedor: /#/rv. Su administrativo.
+ * El panel de un revendedor: luxbyemory.com/rv. Su administrativo.
  *
  * Mismo armazón que la tienda (barra lateral en escritorio, abajo en el
  * teléfono) y vestido con SU paleta: es su negocio. Lo que ve lo traen las

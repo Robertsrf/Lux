@@ -219,7 +219,7 @@ Cada push a `main` corre `.github/workflows/desplegar.yml`: pruebas, build,
 `wrangler deploy` y, solo si Cloudflare publicó, **GitHub Pages con el
 reenvío** (`reenvio-github/`): `robertsrf.github.io/Lux/#/<ruta>` lleva a
 `luxbyemory.com/<ruta>`. En **Settings → Pages**, source **GitHub Actions**.
-"Run workflow" sobre otra rama publica solo en Cloudflare.
+Otra rama solo se publica con "Run workflow" marcando `publicar_rama`, y va a la tienda de verdad (Cloudflare es una sola); github.io nunca cambia desde otra rama. Antes de pasar `github.io` a reenvío, el flujo comprueba que `luxbyemory.com` y `entrar.` respondan.
 
 Para probar los subdominios en local: `VITE_DOMINIO_BASE=lux.localhost npm run dev`
 y abre `lux.localhost:5173`, `entrar.lux.localhost:5173` o
