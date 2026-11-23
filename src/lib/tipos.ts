@@ -1310,6 +1310,8 @@ export interface PerfilRevendedor {
   horas_pago?: number | null;
   /** Lo minimo para apartar, en por ciento. */
   inicial_pct?: number | null;
+  /** Su tema (#73): plantilla, colores, letra, portada. Null: sale de `paleta`. */
+  tema?: unknown;
 }
 
 /**
