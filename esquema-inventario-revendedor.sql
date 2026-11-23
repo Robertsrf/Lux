@@ -339,10 +339,13 @@ security definer
 set search_path = public
 as $fn$
 declare
-  v_libre  int := rv_libre_de(p_revendedor_id, p_modelo_id);
+  v_libre  int;
   v_nombre text;
   v_rv     text;
 begin
+  -- La misma fila que bloquea su pedido: no se cruzan.
+  perform 1 from revendedores where id = p_revendedor_id for update;
+  v_libre := rv_libre_de(p_revendedor_id, p_modelo_id);
   if p_salen > 0 and v_libre < p_salen then
     select m.nombre || coalesce(' · ' || m.variante, '') into v_nombre from modelos m where m.id = p_modelo_id;
     select r.nombre into v_rv from revendedores r where r.id = p_revendedor_id;
@@ -449,3 +452,678 @@ select * from inventario_revendedores_admin();
 
 revoke all on v_inventario_revendedores from anon;
 grant select on v_inventario_revendedores to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 5. EL PEDIDO DE SU CLIENTA TOMA PRIMERO DE LO SUYO
+-- Las de esquema-revendedores-plazos.sql, mismas firmas; solo cambia lo
+-- marcado con #72.
+-- ---------------------------------------------------------------------
+
+create or replace function rv_crear_apartado(
+  p_revendedor_id bigint,
+  p_items         jsonb,
+  p_cedula        text,
+  p_nombre        text,
+  p_apellido      text,
+  p_telefono      text,
+  p_origen        text
+) returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  r           revendedores%rowtype;
+  v_cli       revendedor_clientes%rowtype;
+  v_ced       text := nullif(btrim(coalesce(p_cedula, '')), '');
+  v_nom       text := nullif(btrim(coalesce(p_nombre, '')), '');
+  v_ape       text := nullif(btrim(coalesce(p_apellido, '')), '');
+  v_tel       text := nullif(btrim(coalesce(p_telefono, '')), '');
+  v_desc      numeric;
+  v_horas     numeric;
+  v_linea     record;
+  v_lista     numeric;
+  v_lux       numeric;
+  v_precio    numeric;
+  v_nombre    text;
+  v_hay       int;
+  v_lineas    jsonb := '[]'::jsonb;
+  v_nuevo     numeric := 0;
+  v_tope      record;
+  v_id        bigint;
+  -- #72: lo suyo libre, por pieza, y cuánto sale de lo suyo y de la tienda.
+  v_suyas     jsonb;
+  v_activo    boolean;
+  v_suyo      int;
+  v_tienda    int;
+begin
+  -- La fila del revendedor, bloqueada: el tope y lo suyo, de a un pedido.
+  select * into r from revendedores where id = p_revendedor_id for update;
+  if not found or not r.activo then
+    raise exception 'Este catálogo no está disponible.';
+  end if;
+
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'No elegiste ninguna pieza.';
+  end if;
+  if exists (select 1 from jsonb_array_elements(p_items) x
+              where coalesce((x->>'cantidad')::int, 0) <= 0) then
+    raise exception 'La cantidad de cada pieza tiene que ser mayor que cero.';
+  end if;
+  if jsonb_array_length(p_items) > 300 then
+    raise exception 'Son demasiadas piezas en un pedido.';
+  end if;
+
+  if v_ced is null then raise exception 'Falta la cédula.'; end if;
+  if length(regexp_replace(v_ced, '[^0-9]', '', 'g')) < 6 then
+    raise exception 'Esa cédula está incompleta.';
+  end if;
+
+  select * into v_cli
+    from revendedor_clientes
+   where revendedor_id = r.id
+     and cedula_digitos = regexp_replace(v_ced, '[^0-9]', '', 'g');
+
+  if found then
+    v_nom := coalesce(v_nom, nullif(btrim(v_cli.nombre), ''));
+    v_ape := coalesce(v_ape, nullif(btrim(coalesce(v_cli.apellido, '')), ''));
+    if v_tel is null and length(regexp_replace(coalesce(v_cli.telefono, ''), '[^0-9]', '', 'g')) >= 10 then
+      v_tel := btrim(v_cli.telefono);
+    end if;
+  end if;
+
+  if v_nom is null then raise exception 'Falta el nombre.'; end if;
+  if v_ape is null then raise exception 'Falta el apellido.'; end if;
+  if v_tel is null then raise exception 'Falta el número de teléfono.'; end if;
+  if length(regexp_replace(v_tel, '[^0-9]', '', 'g')) < 10 then
+    raise exception 'Ese teléfono está incompleto. Escríbelo con el código, por ejemplo 0412 1234567.';
+  end if;
+
+  if v_cli.id is null then
+    insert into revendedor_clientes (revendedor_id, nombre, apellido, cedula, telefono)
+    values (r.id, v_nom, v_ape, v_ced, v_tel)
+    returning * into v_cli;
+  else
+    update revendedor_clientes
+       set apellido = coalesce(nullif(btrim(coalesce(apellido, '')), ''), v_ape),
+           telefono = case when length(regexp_replace(coalesce(telefono, ''), '[^0-9]', '', 'g')) >= 10
+                           then telefono else v_tel end
+     where id = v_cli.id;
+  end if;
+
+  v_horas := config_requerida('revendedor_horas_pago');
+  v_desc  := rv_descuento_de(r.id);
+
+  for v_linea in
+    select (x->>'modelo_id')::bigint as modelo_id
+      from jsonb_array_elements(p_items) x
+     group by 1
+     order by 1
+  loop
+    perform pg_advisory_xact_lock(v_linea.modelo_id);
+    perform 1 from existencias where modelo_id = v_linea.modelo_id for update;
+  end loop;
+
+  -- #72: lo suyo libre, una vez (con su fila bloqueada, nadie más lo toma).
+  -- Las que tiene (aunque estén apartadas): de esas se dice cuántas quedan.
+  select coalesce(jsonb_object_agg(i.modelo_id::text, greatest(i.libre, 0)), '{}'::jsonb)
+    into v_suyas
+    from rv_inventario(r.id) i
+   where i.tiene > 0;
+
+  for v_linea in
+    select (x->>'modelo_id')::bigint as modelo_id, sum((x->>'cantidad')::int)::int as cantidad
+      from jsonb_array_elements(p_items) x
+     group by 1
+     order by 1
+  loop
+    select m.nombre || coalesce(' · ' || m.variante, ''), coalesce(m.precio_override_usd, g.precio_usd), m.activo
+      into v_nombre, v_lista, v_activo
+      from modelos m
+      left join grupos_precio g on g.id = m.grupo_precio_id
+     where m.id = v_linea.modelo_id;
+    if not found or v_lista is null then
+      raise exception 'Una de las piezas que elegiste ya no está disponible.';
+    end if;
+
+    -- #72: primero de lo suyo, que ya pagó; lo que falte, de la tienda.
+    v_suyo   := least(coalesce((v_suyas->>v_linea.modelo_id::text)::int, 0), v_linea.cantidad);
+    v_tienda := v_linea.cantidad - v_suyo;
+
+    if v_tienda > 0 then
+      v_lux := case when v_activo then rv_precio_lux(v_linea.modelo_id, v_desc) end;
+      -- De la tienda solo lo que está en su catálogo (que el piso deje rebaja).
+      if v_lux is null or v_lux >= v_lista then
+        if not v_suyas ? v_linea.modelo_id::text then
+          raise exception '"%" no está en este catálogo.', v_nombre;
+        end if;
+        raise exception 'De "%" quedan % disponibles y pediste %.', v_nombre, v_suyo, v_linea.cantidad;
+      end if;
+
+      select coalesce(sum(e.cantidad), 0) - apartadas_de(v_linea.modelo_id)
+        into v_hay
+        from existencias e
+       where e.modelo_id = v_linea.modelo_id;
+      if v_tienda > v_hay then
+        raise exception 'De "%" quedan % disponibles y pediste %.', v_nombre, v_suyo + greatest(v_hay, 0), v_linea.cantidad;
+      end if;
+    end if;
+
+    select rv_precio_clienta(rp.precio_usd, v_lista)
+      into v_precio
+      from (select 1) uno
+      left join revendedor_precios rp on rp.revendedor_id = r.id and rp.modelo_id = v_linea.modelo_id;
+
+    if v_suyo > 0 then
+      v_lineas := v_lineas || jsonb_build_array(jsonb_build_object(
+        'modelo_id', v_linea.modelo_id, 'cantidad', v_suyo,
+        'lista', v_lista, 'lux', 0, 'precio', v_precio, 'suyo', true));
+    end if;
+    if v_tienda > 0 then
+      v_lineas := v_lineas || jsonb_build_array(jsonb_build_object(
+        'modelo_id', v_linea.modelo_id, 'cantidad', v_tienda,
+        'lista', v_lista, 'lux', v_lux, 'precio', v_precio, 'suyo', false));
+      v_nuevo := v_nuevo + v_lux * v_tienda;
+    end if;
+  end loop;
+
+  select * into v_tope from rv_tope(r.id);
+  if v_tope.usado_usd + v_nuevo > v_tope.tope_usd + 0.005 then
+    raise exception 'Por ahora no se pueden apartar más piezas en este catálogo. Escríbele a % para apartarlas.',
+      split_part(btrim(r.nombre), ' ', 1);
+  end if;
+
+  insert into apartados (revendedor_id, cliente_id, expira_en, plazo_pago_en, origen)
+  values (r.id, v_cli.id, now() + make_interval(hours => v_horas::int),
+          now() + make_interval(hours => v_horas::int), p_origen)
+  returning id into v_id;
+
+  insert into apartado_items (apartado_id, modelo_id, cantidad, precio_lista_usd, precio_lux_usd, precio_clienta_usd,
+                              de_su_inventario)
+  select v_id, l.modelo_id, l.cantidad, l.lista, l.lux, l.precio, l.suyo
+    from jsonb_to_recordset(v_lineas)
+      as l(modelo_id bigint, cantidad int, lista numeric, lux numeric, precio numeric, suyo boolean);
+
+  return v_id;
+end;
+$fn$;
+
+revoke all on function rv_crear_apartado(bigint, jsonb, text, text, text, text, text) from public, anon, authenticated;
+
+create or replace function rv_confirmar_de(p_revendedor_id bigint, p_apartado_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  a        apartados%rowtype;
+  r        revendedores%rowtype;
+  v_total  numeric;
+  v_pagado numeric;
+  v_minimo numeric;
+  v_horas  numeric;
+begin
+  select * into a from apartados where id = p_apartado_id and revendedor_id = p_revendedor_id for update;
+  if not found then
+    raise exception 'No encuentro ese pedido.';
+  end if;
+  if a.estado <> 'abierto' or a.cerrado_en is not null then
+    raise exception 'Ese pedido ya no está abierto.';
+  end if;
+  if a.confirmado_en is not null then
+    raise exception 'Ese pedido ya está confirmado.';
+  end if;
+  if a.expira_en <= now() then
+    raise exception 'Ese pedido ya venció: las piezas volvieron a la tienda.';
+  end if;
+  select * into r from revendedores where id = p_revendedor_id;
+
+  update apartado_abonos
+     set confirmado_en = now()
+   where apartado_id = a.id and anulado_en is null and confirmado_en is null;
+
+  select coalesce(sum(i.precio_clienta_usd * i.cantidad), 0) into v_total
+    from apartado_items i where i.apartado_id = a.id;
+  select coalesce(sum(b.monto_bcv), 0) into v_pagado
+    from apartado_abonos b where b.apartado_id = a.id and b.anulado_en is null;
+  v_minimo := v_total * config_requerida('apartado_inicial_pct') / 100;
+
+  if v_pagado < v_minimo - 0.005 then
+    raise exception 'Para confirmar, tu clienta tiene que haberte pagado al menos el % %%: $% BCV. Lleva $% BCV.',
+      to_char(config_requerida('apartado_inicial_pct'), 'FM990'),
+      to_char(v_minimo, 'FM999G999G990D00'), to_char(v_pagado, 'FM999G999G990D00');
+  end if;
+  if v_pagado < v_total - 0.005 and r.dias_credito is null then
+    raise exception 'Tu clienta no te pagó completo. Para darle crédito, pon tus días de crédito en "Mi catálogo".';
+  end if;
+
+  v_horas := config_requerida('revendedor_horas_para_pagar');
+  update apartados
+     set confirmado_en    = now(),
+         plazo_lux_en     = now() + make_interval(hours => v_horas::int),
+         vence_clienta_en = case when v_pagado < v_total - 0.005
+                                 then now() + make_interval(days => r.dias_credito) end
+   where id = a.id;
+
+  -- #72: sin nada de la tienda no hay nada que pagarle a Lux ni que
+  -- aprobar: es venta suya y las piezas ya las tiene él.
+  if not exists (select 1 from apartado_items i where i.apartado_id = a.id and not i.de_su_inventario) then
+    update apartados
+       set estado = 'retirado', retirado_en = now(), cerrado_en = now(),
+           entregado_en = now(), expira_en = 'infinity'
+     where id = a.id;
+    return;
+  end if;
+
+  perform apartado_al_dia(a.id);
+end;
+$fn$;
+
+revoke all on function rv_confirmar_de(bigint, bigint) from public, anon, authenticated;
+
+-- La de esquema-abonos-y-apartados.sql: las líneas de lo suyo no apartan nada en la tienda.
+create or replace function apartadas_de(p_modelo_id bigint)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select (
+    coalesce((select sum(ri.cantidad)
+                from reserva_items ri
+                join reservas r on r.id = ri.reserva_id
+               where ri.modelo_id = p_modelo_id
+                 and r.venta_id is null
+                 and r.cerrada_en is null
+                 and (   (r.estado = 'abierta' and r.expira_en > now())
+                      or (r.estado = 'confirmada'
+                          and (r.pagado_en is not null
+                               or r.vence_apartado_en is null
+                               or r.vence_apartado_en > now())))), 0)
+  + coalesce((select sum(ai.cantidad)
+                from apartado_items ai
+                join apartados a on a.id = ai.apartado_id
+               where ai.modelo_id = p_modelo_id
+                 and not ai.de_su_inventario   -- #72: lo suyo no aparta nada en la tienda
+                 and a.estado = 'abierto'
+                 and a.cerrado_en is null
+                 and a.expira_en > now()), 0)
+  )::int;
+$fn$;
+
+revoke all on function apartadas_de(bigint) from public;
+grant execute on function apartadas_de(bigint) to anon, authenticated;
+
+create or replace view v_apartados_revendedor
+with (security_invoker = off) as
+select
+  a.id,
+  a.creado_en,
+  a.expira_en,
+  a.revendedor_id,
+  r.nombre   as revendedor,
+  r.telefono as revendedor_telefono,
+  btrim(c.nombre || ' ' || coalesce(c.apellido, '')) as clienta,
+  x.piezas,
+  x.total_usd,
+  x.lista_usd,
+  x.items,
+  -- Nuevas.
+  rv_fase_de(a.id)                                                           as fase,
+  a.confirmado_en,
+  a.plazo_lux_en,
+  c.cedula                                                                   as clienta_cedula,
+  c.telefono                                                                 as clienta_telefono,
+  round(x.total_usd - greatest(saldo_padre_bcv(null, null, a.id), 0), 4)             as lux_pagado_bcv,
+  round(x.total_usd - greatest(saldo_padre_bcv(null, null, a.id, null, true), 0), 4) as lux_verificado_bcv,
+  greatest(round(saldo_padre_bcv(null, null, a.id), 4), 0)                   as lux_falta_bcv,
+  (select count(*) from abonos b
+    where b.apartado_id = a.id and b.anulado_en is null and b.verificado_en is null)::int as por_revisar,
+  a.venta_id,
+  a.entregado_en,
+  (a.cliente_maestro_id is not null
+   or exists (select 1 from clientes cl where cl.cedula_digitos = c.cedula_digitos)) as ya_es_clienta
+from apartados a
+join revendedores r on r.id = a.revendedor_id
+join revendedor_clientes c on c.id = a.cliente_id
+cross join lateral (
+  select sum(i.cantidad)::int                    as piezas,
+         sum(i.precio_lux_usd * i.cantidad)      as total_usd,
+         sum(i.precio_lista_usd * i.cantidad)    as lista_usd,
+         jsonb_agg(jsonb_build_object(
+           'modelo_id', i.modelo_id, 'sku', m.sku, 'nombre', m.nombre, 'variante', m.variante,
+           'foto_thumb_path', m.foto_thumb_path, 'cantidad', i.cantidad,
+           'precio_usd', i.precio_lux_usd,
+           'donde', (select string_agg(u.nombre, ' · ' order by e.cantidad desc, u.orden, u.id)
+                       from existencias e join ubicaciones u on u.id = e.ubicacion_id
+                      where e.modelo_id = i.modelo_id and e.cantidad > 0)
+         ) order by m.nombre) as items
+    from apartado_items i
+    join modelos m on m.id = i.modelo_id
+   where i.apartado_id = a.id
+     and not i.de_su_inventario   -- #72: la tienda ve solo lo suyo
+) x
+where es_personal()
+  and (   (a.estado = 'abierto' and a.cerrado_en is null and a.confirmado_en is not null
+           and (a.expira_en > now()
+                or exists (select 1 from abonos b where b.apartado_id = a.id and b.anulado_en is null)))
+       or (a.estado = 'retirado' and a.entregado_en is null and a.venta_id is not null));
+
+revoke all on v_apartados_revendedor from anon;
+grant select on v_apartados_revendedor to authenticated;
+
+create or replace function aprobar_apartado(p_apartado_id bigint)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  a        apartados%rowtype;
+  r        revendedores%rowtype;
+  c        revendedor_clientes%rowtype;
+  v_falta  numeric;
+  v_modelo bigint;
+  v_metodo metodo_pago;
+  v_ref    text;
+  v_cli    bigint;
+  v_lineas jsonb;
+  v_venta  bigint;
+begin
+  if not es_personal() then
+    raise exception 'Hay que iniciar sesión.';
+  end if;
+
+  select * into a from apartados where id = p_apartado_id for update;
+  if not found then
+    raise exception 'Ese pedido no existe.';
+  end if;
+  if a.estado <> 'abierto' or a.cerrado_en is not null then
+    raise exception 'Ese pedido ya no está abierto.';
+  end if;
+  if a.confirmado_en is null then
+    raise exception 'El revendedor todavía no confirmó el pago de su clienta.';
+  end if;
+
+  -- Lo que queda por revisar lo da por bueno quien aprueba: aprobar es
+  -- decir "lo vi en el banco".
+  update abonos
+     set verificado_en = now(), verificado_por = auth.uid()
+   where apartado_id = a.id and anulado_en is null and verificado_en is null;
+
+  v_falta := saldo_padre_bcv(null, null, a.id, null, true);
+  if v_falta >= 0.005 then
+    raise exception 'Todavía faltan $% BCV de lo que él le paga a Lux. Carga lo que falta y después aprueba.',
+      to_char(v_falta, 'FM999G999G990D00');
+  end if;
+
+  select * into r from revendedores where id = a.revendedor_id;
+  select * into c from revendedor_clientes where id = a.cliente_id;
+
+  for v_modelo in
+    select distinct modelo_id from apartado_items where apartado_id = a.id and not de_su_inventario order by 1
+  loop
+    perform pg_advisory_xact_lock(v_modelo);
+  end loop;
+
+  -- Se suelta: sus piezas cuentan como libres y se toman.
+  update apartados set cerrado_en = now() where id = a.id;
+
+  select b.metodo into v_metodo
+    from abonos b where b.apartado_id = a.id and b.anulado_en is null
+   order by b.monto_bcv desc, b.fecha desc limit 1;
+  select b.referencia into v_ref
+    from abonos b where b.apartado_id = a.id and b.anulado_en is null and b.referencia is not null
+   order by b.fecha desc limit 1;
+
+  v_cli := cliente_de_revendedor(a.id);
+
+  select jsonb_agg(jsonb_build_object(
+           'modelo_id', i.modelo_id, 'cantidad', i.cantidad,
+           'precio_usd', i.precio_lux_usd, 'precio_lista_usd', i.precio_lista_usd,
+           'motivo', case when i.precio_lux_usd < i.precio_lista_usd then 'revendedor' end) order by i.id)
+    into v_lineas
+    from apartado_items i where i.apartado_id = a.id and not i.de_su_inventario;   -- #72
+  if v_lineas is null then
+    raise exception 'Ese pedido no trae nada de la tienda.';
+  end if;
+
+  v_venta := vender_congelado(
+    'mayor', v_metodo, v_lineas, v_cli,
+    btrim(c.nombre || ' ' || coalesce(c.apellido, '')), c.telefono,
+    'Pedido #' || a.id || ' de ' || r.nombre,
+    auth.uid(), r.id, v_ref);
+
+  update abonos set venta_id = v_venta where apartado_id = a.id;
+
+  update apartados
+     set estado = 'retirado', retirado_en = now(), retirado_por = auth.uid(),
+         venta_id = v_venta, cliente_maestro_id = v_cli
+   where id = a.id;
+
+  return v_venta;
+end;
+$fn$;
+
+revoke all on function aprobar_apartado(bigint) from public, anon;
+grant execute on function aprobar_apartado(bigint) to authenticated;
+
+create or replace function rv_resumen(p_sesion text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id    bigint := rv_de_sesion(p_sesion);
+  r       revendedores%rowtype;
+  v_tope  record;
+  v_mes   jsonb;
+  v_meses jsonb;
+  v_cred  numeric;
+  v_fases jsonb;
+  v_vent  numeric;
+  v_venc  int;
+begin
+  select * into r from revendedores where id = v_id;
+  select * into v_tope from rv_tope(v_id);
+  select valor into v_vent from configuracion where clave = 'revendedor_dias_ventana';
+
+  select jsonb_build_object(
+           'piezas',    coalesce(sum(i.cantidad), 0),
+           'vendido_usd', coalesce(sum(i.precio_clienta_usd * i.cantidad), 0),
+           'pagado_usd',  coalesce(sum(i.precio_lux_usd * i.cantidad), 0),
+           -- #72: lo suyo no: no se sabe lo que pagó por cada unidad.
+           'ganancia_usd', coalesce(sum((i.precio_clienta_usd - i.precio_lux_usd) * i.cantidad)
+                                      filter (where not i.de_su_inventario), 0))
+    into v_mes
+    from apartados a
+    join apartado_items i on i.apartado_id = a.id
+   where a.revendedor_id = v_id and a.estado = 'retirado'
+     and a.retirado_en >= date_trunc('month', now());
+
+  select jsonb_agg(jsonb_build_object(
+           'mes', to_char(m.mes, 'YYYY-MM'),
+           'piezas', coalesce(x.piezas, 0),
+           'vendido_usd', coalesce(x.vendido, 0),
+           'ganancia_usd', coalesce(x.ganancia, 0)) order by m.mes)
+    into v_meses
+    from generate_series(date_trunc('month', now()) - interval '5 months',
+                         date_trunc('month', now()), interval '1 month') m(mes)
+    left join (
+      select date_trunc('month', a.retirado_en) as mes,
+             sum(i.cantidad) as piezas,
+             sum(i.precio_clienta_usd * i.cantidad) as vendido,
+             sum((i.precio_clienta_usd - i.precio_lux_usd) * i.cantidad)
+               filter (where not i.de_su_inventario) as ganancia
+        from apartados a
+        join apartado_items i on i.apartado_id = a.id
+       where a.revendedor_id = v_id and a.estado = 'retirado'
+         and a.retirado_en >= date_trunc('month', now()) - interval '5 months'
+       group by 1
+    ) x on x.mes = m.mes;
+
+  -- Lo que sus clientas le deben: pedidos confirmados vigentes y vendidos.
+  select coalesce(sum(rv_falta_de(a.id)), 0)
+    into v_cred
+    from apartados a
+   where a.revendedor_id = v_id
+     and (a.estado = 'retirado'
+          or (a.estado = 'abierto' and a.confirmado_en is not null and a.expira_en > now()));
+
+  select jsonb_object_agg(f.fase, f.n)
+    into v_fases
+    from (select rv_fase_de(a.id) as fase, count(*)::int as n
+            from apartados a
+           where a.revendedor_id = v_id
+             and (a.estado = 'abierto' or (a.estado = 'retirado' and a.entregado_en is null))
+           group by 1) f;
+
+  select count(*)::int into v_venc
+    from apartados a
+   where a.revendedor_id = v_id and a.estado = 'abierto' and a.confirmado_en is not null
+     and a.expira_en <= now()
+     and a.expira_en > now() - make_interval(days => greatest(coalesce(v_vent, 0), 0)::int);
+
+  return jsonb_build_object(
+    'usuario',          r.usuario,
+    'nombre',           r.nombre,
+    'catalogo_nombre',  coalesce(r.catalogo_nombre, r.nombre),
+    'catalogo_propio',  r.catalogo_nombre,
+    'telefono',         r.telefono,
+    'paleta',           r.paleta,
+    'logo_path',        r.logo_path,
+    'descuento_pct',    rv_descuento_de(v_id),
+    'sobre_etiqueta_usd', coalesce((select valor from configuracion where clave = 'revendedor_sobre_etiqueta_usd'), 0),
+    'dias_apartado',    0,
+    'vencidos_para_bajar', coalesce((select valor from configuracion where clave = 'revendedor_vencidos_para_bajar'), 0),
+    'dias_ventana',     coalesce(v_vent, 0),
+    'tope',             to_jsonb(v_tope),
+    'mes',              v_mes,
+    'meses',            v_meses,
+    'credito_usd',      round(v_cred, 2),
+    'abiertos',         (select count(*)::int from apartados a
+                          where a.revendedor_id = v_id and a.estado = 'abierto' and a.expira_en > now()),
+    'por_vencer',       coalesce((v_fases->>'por_pagar_lux')::int, 0),
+    'vencidos',         v_venc,
+    -- Nuevas.
+    'fases',            coalesce(v_fases, '{}'::jsonb),
+    'horas_pago',       (select valor from configuracion where clave = 'revendedor_horas_pago'),
+    'horas_para_pagar', (select valor from configuracion where clave = 'revendedor_horas_para_pagar'),
+    'inicial_pct',      (select valor from configuracion where clave = 'apartado_inicial_pct'),
+    'dias_credito',     r.dias_credito,
+    'pago_movil_cedula',   r.pago_movil_cedula,
+    'pago_movil_telefono', r.pago_movil_telefono,
+    'pago_movil_banco',    r.pago_movil_banco);
+end;
+$fn$;
+
+revoke all on function rv_resumen(text) from public;
+grant execute on function rv_resumen(text) to anon, authenticated;
+
+create or replace function rv_apartados(p_sesion text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $fn$
+declare
+  v_id bigint := rv_de_sesion(p_sesion);
+begin
+  return coalesce((
+    select jsonb_agg(fila order by orden, clave)
+      from (
+        select case when a.estado = 'abierto' and a.expira_en > now() then 0
+                    when a.estado = 'retirado' and (a.entregado_en is null or rv_falta_de(a.id) > 0) then 1
+                    else 2 end as orden,
+               -- Lo que espera que alguien confirme (plazo infinito) va arriba:
+               -- es lo que pide atención.
+               case when a.estado = 'abierto' and a.expira_en > now()
+                    then extract(epoch from case when a.expira_en = 'infinity' then a.creado_en else a.expira_en end)
+                    else -extract(epoch from coalesce(a.retirado_en, a.cancelado_en, least(a.expira_en, now()))) end as clave,
+               jsonb_build_object(
+                 'id',          a.id,
+                 'token',       a.token,
+                 'estado',      case when a.estado = 'abierto' and a.expira_en <= now() then 'vencido' else a.estado end,
+                 'creado_en',   a.creado_en,
+                 'expira_en',   case when a.expira_en = 'infinity' then null else a.expira_en end,
+                 'retirado_en', a.retirado_en,
+                 'cancelado_en', a.cancelado_en,
+                 'motivo',      a.motivo,
+                 'cliente',     jsonb_build_object('id', c.id, 'nombre', c.nombre, 'apellido', c.apellido,
+                                                   'telefono', c.telefono, 'cedula', c.cedula),
+                 'items',       (select jsonb_agg(jsonb_build_object(
+                                          'modelo_id', i.modelo_id, 'sku', m.sku, 'nombre', m.nombre,
+                                          'variante', m.variante, 'foto_thumb_path', m.foto_thumb_path,
+                                          'cantidad', i.cantidad,
+                                          'precio_usd', i.precio_clienta_usd,
+                                          'precio_lux_usd', i.precio_lux_usd,
+                                          'de_su_inventario', i.de_su_inventario) order by m.nombre, i.de_su_inventario desc)
+                                   from apartado_items i join modelos m on m.id = i.modelo_id
+                                  where i.apartado_id = a.id),
+                 'total_usd',   t.cliente,
+                 'lux_usd',     t.lux,
+                 'abonado_usd', coalesce((select sum(b.monto_bcv) from apartado_abonos b
+                                           where b.apartado_id = a.id and b.anulado_en is null), 0),
+                 'falta_usd',   rv_falta_de(a.id),
+                 'abonos',      coalesce((select jsonb_agg(jsonb_build_object(
+                                          'id', b.id, 'fecha', b.fecha, 'metodo', b.metodo, 'monto_bs', b.monto_bs,
+                                          'monto_usd', b.monto_usd, 'monto_bcv', round(b.monto_bcv, 4),
+                                          'referencia', b.referencia, 'origen', b.origen,
+                                          'pago_cedula', b.pago_cedula, 'pago_telefono', b.pago_telefono,
+                                          'estado', case when b.anulado_en is not null then 'no_llego'
+                                                         when b.confirmado_en is not null then 'recibido'
+                                                         else 'por_revisar' end,
+                                          'falta_despues_bcv', s.falta_despues_bcv) order by b.fecha, b.id)
+                                            from apartado_abonos b
+                                            join apartado_abonos_saldo s on s.id = b.id
+                                           where b.apartado_id = a.id), '[]'::jsonb),
+                 -- Nuevas.
+                 'fase',          rv_fase_de(a.id),
+                 'origen',        a.origen,
+                 'reportado_en',  a.reportado_en,
+                 'confirmado_en', a.confirmado_en,
+                 'plazo_lux_en',  a.plazo_lux_en,
+                 'vence_clienta_en', a.vence_clienta_en,
+                 'entregado_en',  a.entregado_en,
+                 'minimo_usd',    round(t.cliente * (select valor from configuracion where clave = 'apartado_inicial_pct') / 100, 4),
+                 'lux_pagado_usd',    round(t.lux - greatest(saldo_padre_bcv(null, null, a.id), 0), 4),
+                 'lux_verificado_usd', round(t.lux - greatest(saldo_padre_bcv(null, null, a.id, null, true), 0), 4),
+                 'lux_falta_usd',     greatest(round(saldo_padre_bcv(null, null, a.id), 4), 0),
+                 'pagos_lux',     coalesce((select jsonb_agg(jsonb_build_object(
+                                          'id', x.id, 'fecha', x.fecha, 'metodo', x.metodo,
+                                          'monto_bs', x.monto_bs, 'monto_usd', x.monto_usd,
+                                          'monto_bcv', round(x.monto_bcv, 4), 'referencia', x.referencia,
+                                          'estado', case when x.anulado_en is not null then 'no_llego'
+                                                         when x.verificado_en is not null then 'recibido'
+                                                         else 'por_revisar' end,
+                                          'falta_despues_bcv', xs.falta_despues_bcv) order by x.fecha, x.id)
+                                            from abonos x
+                                            join abonos_saldo xs on xs.id = x.id
+                                           where x.apartado_id = a.id), '[]'::jsonb)
+               ) as fila
+          from apartados a
+          join revendedor_clientes c on c.id = a.cliente_id
+          cross join lateral (
+            select coalesce(sum(i.precio_clienta_usd * i.cantidad), 0) as cliente,
+                   coalesce(sum(i.precio_lux_usd * i.cantidad), 0)     as lux
+              from apartado_items i where i.apartado_id = a.id
+          ) t
+         where a.revendedor_id = v_id
+           and ((a.estado = 'abierto' and a.expira_en > now())
+                or (a.estado = 'retirado' and (a.entregado_en is null or rv_falta_de(a.id) > 0))
+                or coalesce(a.retirado_en, a.cancelado_en, least(a.expira_en, now())) > now() - interval '120 days')
+         order by 1, 2
+         limit 300
+      ) x
+  ), '[]'::jsonb);
+end;
+$fn$;
+
+revoke all on function rv_apartados(text) from public;
+grant execute on function rv_apartados(text) to anon, authenticated;
