@@ -1219,6 +1219,9 @@ export interface Rebaja {
   rebaja_pct: number;
   /** Null en las ventas anteriores a que se guardara el motivo. */
   motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | 'oferta' | 'cliente' | null;
+  /** A nombre de quién salió (desde el #70; sin él, no viene). */
+  cliente_id?: number | null;
+  cliente?: string | null;
 }
 
 /** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */

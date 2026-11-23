@@ -373,7 +373,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
 | `v_tasas` | El histórico de tasas con el nombre de quien fijó cada una | vendedora y admin |
-| `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo o revendedor) y quién | solo admin |
+| `v_rebajas` | Cada pieza vendida por debajo de su etiqueta: cuánto, por qué (regateo, tramo, revendedor, oferta o cliente), quién vendió y a nombre de quién (`cliente_id`, `cliente`, desde el #70) | solo admin |
 | `v_apartados_revendedor` | Los pedidos de revendedores desde que él confirma: su fase, lo que le paga a Lux, lo pagado y lo que falta, la clienta (cédula y teléfono) y dónde está cada pieza; los aprobados hasta que se los lleva. Nada de lo que él cobra a su clienta | vendedora y admin |
 | `v_revendedores` | Cómo va cada revendedor: su nivel, su tope, lo apartado, lo que pagó en el mes, y su ficha de clienta (`cliente_id`, `cliente_nombre`) | solo admin |
 | `v_vendedoras` | Cómo va cada vendedora del local: sus piezas de hoy y del mes, en $ BCV, y su última venta. Sin lo que retiran los revendedores | solo admin |

@@ -76,7 +76,10 @@ carrito); cambiar la firma de `precio_de_linea` (la llaman cinco funciones).
   clienta; `revendedor` sigue diciendo de quién es clienta).
 - `registrar_venta` y `apartar_en_tienda`: misma firma, con la regla de arriba.
 - `motivo_rebaja` de `venta_items` y `motivo_sin_oferta` de `venta_items` y
-  `reserva_items` aceptan `'cliente'`. `v_rebajas` lo enseña sin cambiar.
+  `reserva_items` aceptan `'cliente'`. `v_rebajas` lo enseña y gana al final `cliente_id` y `cliente`
+  (decidido el 23/11, tras la revisión: la vendedora podría elegir la ficha de
+  la clienta especial para otra persona, y así el dueño ve a nombre de quién
+  salió cada rebaja en Reportes).
 - `admin_fusionar_clientes` lleva también el enlace del revendedor y, si la
   que se queda no tiene descuento, el de la que se va.
 

@@ -20,7 +20,8 @@
 --    %, nunca por debajo del piso de margen: la misma cuenta del tramo
 --    (`precio_de_linea`). Con tramo o con código manda el mayor; no se
 --    suman. Con él, el precio a mano se ignora, como con el tramo. La
---    línea dice `motivo_rebaja = 'cliente'` y `v_rebajas` la enseña.
+--    línea dice `motivo_rebaja = 'cliente'` y `v_rebajas` la enseña, con
+--    `cliente_id` y `cliente` al final: a nombre de quién salió cada una.
 --    `registrar_venta` y `apartar_en_tienda` (mismas firmas) lo aplican;
 --    el catálogo en línea no (cualquiera que sepa su cédula se lo
 --    llevaría). Si la vendedora escribe la cédula como ficha nueva, no hay
@@ -41,7 +42,7 @@
 --   Como vendedora, esto TIENE QUE FALLAR:
 --     select admin_descuento_cliente(1, 20);   -- "Solo un administrador..."
 --
--- Probado en PGlite con la instalación entera (37 comprobaciones).
+-- Probado en PGlite con la instalación entera (38 comprobaciones).
 -- =====================================================================
 
 
@@ -365,6 +366,47 @@ where es_admin();
 
 revoke all on v_revendedores from anon;
 grant select on v_revendedores to authenticated;
+
+
+-- La de esquema-quitar-por-verificar.sql, con a quién se le hizo cada
+-- rebaja (al final). Pedido del dueño del 23/11/2026: una vendedora puede
+-- elegir la ficha de una clienta con descuento para otra persona, y así se
+-- ve en Reportes a nombre de quién salió cada una.
+create or replace view v_rebajas
+with (security_invoker = off) as
+select
+  v.id                                  as venta_id,
+  v.fecha,
+  v.usuario_id,
+  p.nombre                              as vendedora,
+  i.modelo_id,
+  m.sku,
+  m.nombre,
+  m.variante,
+  i.cantidad,
+  i.precio_lista_usd,
+  i.precio_unitario_usd,
+  round(i.precio_lista_usd * v.tasa_bcv_usada, 2)                       as precio_lista_bs,
+  i.precio_unitario_bs,
+  round((i.precio_lista_usd - i.precio_unitario_usd) * i.cantidad, 4)   as rebaja_usd,
+  round((1 - i.precio_unitario_usd / i.precio_lista_usd) * 100, 2)      as rebaja_pct,
+  i.motivo_rebaja,
+  v.cliente_id,
+  coalesce(c.nombre_completo, v.cliente_nombre)                         as cliente
+from venta_items i
+join ventas v   on v.id = i.venta_id
+join modelos m  on m.id = i.modelo_id
+left join perfiles p on p.id = v.usuario_id
+left join clientes c on c.id = v.cliente_id
+where not v.anulada
+  and v.devolucion_de is null
+  and i.cantidad > 0
+  and i.precio_lista_usd > 0
+  and i.precio_unitario_usd < i.precio_lista_usd
+  and es_admin();
+
+revoke all on v_rebajas from anon;
+grant select on v_rebajas to authenticated;
 
 
 -- ---------------------------------------------------------------------

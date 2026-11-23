@@ -179,7 +179,10 @@ export function Reportes() {
         usd: deMonto(sumar(filas.map((x) => aMonto(x.rebaja_usd)))),
       };
     };
-    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), oferta: de('oferta'), cliente: de('cliente'), sinDato: de(null) };
+    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), oferta: de('oferta'), cliente: de('cliente'), sinDato: de(null),
+      // A quiénes se les hizo el descuento de clienta, para revisarlo.
+      clientas: [...new Set(rebajas.filter((x) => x.motivo_rebaja === 'cliente').map((x) => x.cliente ?? 'sin ficha'))],
+    };
   }, [rebajas]);
 
   const dormidos = useMemo(
@@ -470,7 +473,7 @@ export function Reportes() {
                 <span className="dato__etiqueta">Clientas con descuento</span>
                 <div className="tablero__cifra">{formatearBcv(resumenRebajas.cliente.usd)}</div>
                 <div className="tablero__meta">
-                  {resumenRebajas.cliente.piezas} pieza{resumenRebajas.cliente.piezas === 1 ? '' : 's'} · su descuento fijo
+                  {resumenRebajas.cliente.piezas} pieza{resumenRebajas.cliente.piezas === 1 ? '' : 's'} · a {resumenRebajas.clientas.join(', ')}
                 </div>
               </div>
             ) : null}
@@ -513,7 +516,12 @@ export function Reportes() {
                       <div className="celda-nombre">{nombreConVariante(x.nombre, x.variante)}</div>
                       <div className="celda-nota">{x.sku} · venta {x.venta_id}</div>
                     </td>
-                    <td className="util">{x.vendedora ?? '—'}</td>
+                    <td className="util">
+                      {x.vendedora ?? '—'}
+                      {/* A nombre de quién salió: el descuento de una clienta se
+                          revisa por aquí (desde el #70). */}
+                      {x.cliente ? <div className="celda-nota">a {x.cliente}</div> : null}
+                    </td>
                     <td className="util">{x.motivo_rebaja ? MOTIVO[x.motivo_rebaja] : 'Sin dato'}</td>
                     <td className="num">{x.cantidad}</td>
                     <td className="num">{formatearBs(x.precio_lista_bs)}</td>
