@@ -1081,6 +1081,32 @@ async function main() {
     }
   }
 
+  /*
+    EL CATÁLOGO DEL REVENDEDOR (#73, esquema-catalogo-revendedor.sql).
+    Su tema lo guarda él con su testigo; las dos funciones del logo solo
+    las ejecuta la función de servidor, con la llave maestra: ni sin
+    sesión ni con la de la tienda.
+  */
+  {
+    const perfilP = await P.rpc('rv_perfil_publico', { p_usuario: 'nadie-con-este-usuario' });
+    dice(!perfilP.error, 'rv_perfil_publico() sin sesion (#73)', perfilP.error ? 'ERROR ' + perfilP.error.code : 'responde');
+    const temaP = await P.rpc('rv_guardar_tema', { p_sesion: 'x'.repeat(40), p_tema: {} });
+    dice(temaP.error?.code === '28000', 'rv_guardar_tema() con un testigo falso, rechazada', temaP.error ? 'rechazada ' + temaP.error.code : 'RESPONDIO');
+    const temaV = await V.rpc('admin_tema_revendedor', { p_revendedor: -1, p_tema: {} });
+    dice(!!temaV.error, 'admin_tema_revendedor(): cerrada para ella', temaV.error ? 'rechazada ' + (temaV.error.code ?? '') : 'RESPONDIO');
+    const validoA = await A.rpc('rv_tema_valido', { p: { principal: 'red' } });
+    dice(!validoA.error && validoA.data === false, 'rv_tema_valido(): un color con nombre no sirve', validoA.error ? 'ERROR ' + validoA.error.code : String(validoA.data));
+    for (const [quien, cliente] of [['sin sesion', P], ['ella', V], ['el dueno', A]]) {
+      for (const [fn, args] of [
+        ['rv_usuario_para_logo', { p_sesion: 'x'.repeat(40) }],
+        ['rv_poner_logo', { p_sesion: 'x'.repeat(40), p_ruta: 'revendedores/x/1763900000000.webp' }],
+      ]) {
+        const { error } = await cliente.rpc(fn, args);
+        dice(error?.code === '42501', `${fn}(): ${quien}, cerrada`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+      }
+    }
+  }
+
   // Con el código de un revendedor de prueba (LUX_REVENDEDOR en el entorno),
   // se entra como él y se mira lo que ve. Sin la variable, se salta.
   if (process.env.LUX_REVENDEDOR) {
