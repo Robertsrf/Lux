@@ -40,6 +40,10 @@ Y desde el 30/09/2026, **el apartado**: toda clienta puede apartar pagando una p
 (el 40 %) y terminar de pagar en 15 días, abono por abono con su referencia; si no
 termina, lo abonado se queda. En el mostrador reemplazó a vender a crédito.
 
+Y desde el 23/11/2026, **el crédito**, solo para la clienta que el dueño habilita
+en su ficha (con sus días y, si quiere, un tope): se lleva las piezas hoy y paga
+en sus días. Lo vende cualquier vendedora; el dueño ve quién debe en Crédito.
+
 Y desde el 20/10/2026, **el lote en camino**: el dueño carga un lote antes de que
 llegue (productos nuevos y más piezas de los que ya vende) sin que nada salga a la
 venta, y cuando llega revisa lo que vino y lo libera. Mientras tanto, para la

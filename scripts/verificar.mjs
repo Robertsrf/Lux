@@ -115,6 +115,8 @@ const FUNCIONES_CERRADAS = [
   // El descuento de una clienta y su motivo, por dentro (#70).
   ['descuento_de_clienta', { p_cliente_id: 1 }],
   ['motivo_con_clienta', { p_motivo: 'tramo', p_tramo: 0, p_clienta: 20 }],
+  // Lo que debe una clienta, por dentro (#71): se lee por credito_de_clienta.
+  ['deuda_de_clienta', { p_cliente_id: 1 }],
   ['costo_operativo_por_pieza', {}],
   ['costo_total_bcv', { p_costo_puesto_usd: 1 }],
   ['calcular_flete_unitario', { p_lote_id: 1 }],
@@ -958,6 +960,8 @@ async function main() {
     // El descuento fijo de una clienta y el revendedor enlazado a su ficha (#70).
     ['admin_descuento_cliente', { p_cliente_id: -1, p_pct: 20 }],
     ['admin_enlazar_cliente_revendedor', { p_revendedor_id: -1, p_cliente_id: null }],
+    // El crédito de una clienta (#71).
+    ['admin_fijar_credito', { p_cliente_id: -1, p_dias: 10, p_tope_usd: null }],
   ];
   for (const [fn, args] of ADMIN_OFERTAS) {
     const v = await V.rpc(fn, args);
@@ -972,6 +976,8 @@ async function main() {
   const VISTAS_OFERTAS = [
     'v_ofertas', 'v_ofertas_mes', 'v_miradas', 'v_landing_admin', 'v_seleccion_admin',
     'v_ofertas_casa_admin', 'v_combos_admin',
+    // Quién le debe a la tienda (#71).
+    'v_credito',
   ];
   for (const vista of VISTAS_OFERTAS) {
     const v = await V.from(vista).select('*').limit(1);
@@ -981,6 +987,27 @@ async function main() {
     const a = await A.from(vista).select('*').limit(1);
     dice(!a.error, `${vista}: el dueno la lee`, a.error ? 'ERROR ' + a.error.code : 'responde');
   }
+
+  // El crédito (#71). El número de vencidos es del dueño: ella recibe 0.
+  const vencV = await V.rpc('creditos_vencidos');
+  dice(!vencV.error && Number(vencV.data) === 0, 'creditos_vencidos(): a ella, 0', vencV.error ? 'ERROR ' + vencV.error.code : String(vencV.data));
+  const vencP = await P.rpc('creditos_vencidos');
+  dice(vencP.error?.code === '42501', 'creditos_vencidos() sin sesion, rechazada', vencP.error ? 'rechazada ' + vencP.error.code : 'RESPONDIO');
+  const vencA = await A.rpc('creditos_vencidos');
+  dice(!vencA.error && Number.isFinite(Number(vencA.data)), 'creditos_vencidos(): el dueno lo lee', vencA.error ? 'ERROR ' + vencA.error.code : String(vencA.data));
+  // Lo que el mostrador enseña de una clienta: ella sí, sin sesión no.
+  const credV = await V.rpc('credito_de_clienta', { p_cliente_id: -1 });
+  dice(!credV.error, 'credito_de_clienta(): ella la lee', credV.error ? 'ERROR ' + credV.error.code : 'responde');
+  const credP = await P.rpc('credito_de_clienta', { p_cliente_id: -1 });
+  dice(credP.error?.code === '42501', 'credito_de_clienta() sin sesion, rechazada', credP.error ? 'rechazada ' + credP.error.code : 'RESPONDIO');
+  // Vender a crédito: sin sesión, nunca. Ella sí (con una ficha que no
+  // existe, para no vender nada de verdad).
+  const aCredP = await P.rpc('vender_a_credito', { p_items: [], p_cliente_id: -1, p_metodo: 'pago_movil' });
+  dice(aCredP.error?.code === '42501', 'vender_a_credito() sin sesion, rechazada', aCredP.error ? 'rechazada ' + aCredP.error.code : 'RESPONDIO');
+  const aCredV = await V.rpc('vender_a_credito', { p_items: [], p_cliente_id: -1, p_metodo: 'pago_movil' });
+  dice(!!aCredV.error && /ficha/i.test(aCredV.error.message), 'vender_a_credito(): ella llega, sin vender nada', aCredV.error ? aCredV.error.message : 'VENDIO');
+  const cliCred = await V.from('v_clientes').select('credito_dias, credito_tope_usd').limit(1);
+  dice(!cliCred.error, 'v_clientes: ella ve el crédito de la clienta', cliCred.error ? 'ERROR ' + cliCred.error.code : 'responde');
 
   // Las funciones de adentro de las ofertas no las llama nadie a mano (a
   // ella ya la rechaza FUNCIONES_CERRADAS).

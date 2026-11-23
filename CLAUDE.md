@@ -118,7 +118,8 @@ src/
                 Filigrana (las líneas de oro de la vitrina que se dibujan),
                 SiluetaEscote (el busto de cada escote, a línea),
                 BuscadorCliente, RutaProtegida, DescuentoClienta (el
-                descuento fijo en la ficha de una clienta), FichaDeRevendedor
+                descuento fijo en la ficha de una clienta), CreditoClienta
+                (sus días de crédito y su tope, en su ficha), FichaDeRevendedor
                 (enlaza un revendedor con su ficha de clienta),
                 VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
                 estante y "Cómo pedir": de los dos catálogos en línea),
@@ -136,6 +137,8 @@ src/
                 "Revisar y liberar"; liberado, lo que llegó), Grupos, Tramos,
                 Costos, Inversiones, Reportes, Textos, Revendedores, Vendedoras,
                 Caja (lo que entra y lo que sale, día por día y mes por mes),
+                Credito (/admin/credito: quién le debe a la tienda, venta por
+                venta, con sus pagos y "Cargar un pago"),
                 Landing (/admin/landing: Secciones, Ofertas y Resultados;
                 con admin/landing/: secciones, ofertas y resultados),
                 CapacitacionRv ("Capacitación revendedores": el enlace de la guía
@@ -335,6 +338,9 @@ pagado sin anular baja de ahí, el pedido se suelta; si el dueño cambia el
 40 %, los que ya estaban no se sueltan solos.
 `apartados`, sus líneas y sus abonos no se borran, como las ventas.
 `ventas.revendedor_id` dice qué venta fue a un revendedor.
+`ventas.credito_vence` dice que la venta es A CRÉDITO y hasta qué día (de
+Venezuela) tiene la clienta para pagarla (#71); `clientes.credito_dias` y
+`clientes.credito_tope_usd` son su permiso (solo `admin_fijar_credito`).
 `ventas.extra_bs` y `ventas.extra_nota` son lo que se sumó al cobro fuera del
 catálogo (un dije) y qué era; ya va dentro de `total_bs`.
 `ventas.devolucion_de` dice que esa "venta" es una NOTA DE CRÉDITO de otra:
@@ -360,7 +366,7 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_catalogo_base` | Las fórmulas del catálogo, con lo próximo dentro: de ella cuelgan `v_catalogo_venta` (sin lo próximo) y `v_catalogo_admin` (con todo) | nadie: la leen las otras vistas |
 | `v_proximamente` | Lo nuevo de un lote en camino: foto, nombre, precio. Sin cantidad, ubicación ni pisos. La leen el catálogo en línea, el PDF y la vitrina | cualquiera, sin sesión |
 | `v_por_llegar` | Lo que viene en cada lote, línea por línea: nueva o reposición (y cuántas hay ya), a dónde va, cuántas se esperan y cuántas llegaron | solo admin |
-| `v_clientes` | El maestro de clientes con su resumen de compras, su descuento fijo (`descuento_pct`) y qué revendedor ES esa clienta (`es_revendedor`; `revendedor` es de quién es clienta) | vendedora y admin |
+| `v_clientes` | El maestro de clientes con su resumen de compras, su descuento fijo (`descuento_pct`), qué revendedor ES esa clienta (`es_revendedor`; `revendedor` es de quién es clienta) y su crédito (`credito_dias`, `credito_tope_usd`) | vendedora y admin |
 | `v_cliente_compras` | Qué se llevó cada clienta y cuándo, con cuántas devolvió de cada línea (las notas de crédito no salen como compra) | vendedora y admin |
 | `v_pedido_cambios` | Lo que se quitó de cada pedido: cuántas había y cuántas quedaron, el total antes y después, qué pasó con el dinero, quién y por qué | vendedora y admin |
 | `v_venta_cambios` | Lo mismo para una venta por verificar, con los totales en bolívares | vendedora y admin |
@@ -368,7 +374,8 @@ verificada, ninguna línea baja a cero, ni desde el SQL Editor.
 | `v_pedido_vendedora` | Los pedidos del catálogo y los apartados del mostrador que siguen abiertos, con dónde está cada pieza, su fase, lo pagado, lo verificado y lo que falta; y los vencidos con dinero, para archivarlos | vendedora y admin |
 | `v_abonos_detalle` | Cada abono con su padre, si se verificó, si no llegó, si se corrigió y lo que faltaba después de él | vendedora y admin |
 | `v_abono_cambios` | Lo que decía un abono antes de cada corrección, quién la hizo y por qué | vendedora y admin |
-| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia, lo sumado fuera del catálogo y, si es por partes, cuánto falta | vendedora y admin |
+| `v_ventas_por_verificar` | Las ventas cobradas sin comprobar el pago: quién vendió, cómo pagó, la referencia, lo sumado fuera del catálogo y, si es por partes, cuánto falta; y al final (#71) `credito_vence` y la etiqueta de cada línea (`precio_lista_bs`) | vendedora y admin |
+| `v_credito` | Cada venta por partes abierta con clienta (a crédito, o de antes sin plazo): la clienta, su descuento y su crédito, total, pagado, lo que falta (`falta_bcv_de`), cuándo vence y si venció | solo admin |
 | `v_abonos` | Cada abono de una venta por partes: cuándo, cómo, cuánto, la referencia y quién lo cargó | vendedora y admin |
 | `v_existencia_libre` | Por pieza y ubicación: lo que hay, lo apartado por pedidos y lo libre | vendedora y admin |
 | `v_plan_ventas` | Cuántas piezas hay que vender: lo que deja cada pieza contra los gastos fijos | solo admin |
@@ -426,7 +433,10 @@ enteras; la llaman el formulario después de `admin_guardar_modelo` y el
 selector de cada producto en el Inventario), `admin_descuento_cliente(cliente, %)`
 (el descuento fijo de una clienta; null o 0 lo quita) y
 `admin_enlazar_cliente_revendedor(revendedor, cliente)` (su ficha; null la
-suelta; una ficha es de un solo revendedor).
+suelta; una ficha es de un solo revendedor), `admin_fijar_credito(cliente,
+días, tope)` (0 o null en días quita el crédito y el tope) y
+`vender_a_credito(items, cliente, método, pago, referencia, verificado,
+extra, nota, códigos)` (de las dos caras; ver "El crédito").
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -788,6 +798,35 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   cobro dice "Clienta con 20 % de descuento". Escrita como ficha nueva con su
   cédula no hay descuento (el carrito no lo sabría). **No en el catálogo en
   línea**: cualquiera que sepa su cédula se lo llevaría.
+- **El crédito** (pedido del dueño del 18/11/2026, por JaduJoyas; decidido el
+  23/11/2026, `esquema-credito.sql`, #71). La clienta se lleva las piezas HOY
+  y paga en sus días: lo contrario del apartado. Es un permiso de la clienta,
+  no de la venta: `clientes.credito_dias` y, si el dueño quiere,
+  `credito_tope_usd` (lo máximo que puede deber a la vez, en $ BCV), que pone
+  SOLO él en su ficha (`admin_fijar_credito`); ninguna cifra en el código.
+  **Lo vende cualquier vendedora**, en el cobro del mostrador, con "A crédito"
+  junto a "Pagó todo" y "Lo aparta", solo al elegir SU ficha (escrita como
+  ficha nueva, no). **Una venta a crédito ES una venta por partes por
+  verificar** con `ventas.credito_vence` (hoy en Venezuela más sus días):
+  `vender_a_credito` llama a `registrar_venta` tal cual (precio, tramo,
+  descuento de clienta y códigos de siempre), la deja `pago_parcial` y carga
+  el pago del día, si lo hay, con `abonar_venta`; todo en una transacción.
+  Por eso la caja cuenta cada abono el día que llega y no la venta, Reportes
+  y la meta la cuentan vendida ese día, lo que falta sale de `falta_bcv_de` y
+  se cierra con "Pago verificado". Pagada entera no es crédito ("cóbralo como
+  venta"). **El tope cuenta todo lo que debe** (`deuda_de_clienta`: sus ventas
+  por partes abiertas, también las de antes) después del pago del día; si lo
+  pasa, no se vende. **Con un crédito vencido sí puede llevarse más**
+  (decisión del dueño): el mostrador solo avisa. **Anular y quitar una pieza
+  de una venta a crédito son del administrador**: la pieza ya salió con la
+  clienta, y la base no deja que otra sesión lo haga (disparadores
+  `venta_credito_anular` y `venta_credito_quitar`; sin sesión, el SQL Editor
+  sí). Los pagos se cargan en Pedidos (las dos caras, "A crédito · vence
+  el…") y en **Crédito** (`/admin/credito`, `v_credito`), que agrupa por
+  clienta, las vencidas primero. El menú dice "Crédito · 2 vencidos"
+  (`creditos_vencidos()`). Lo que el mostrador enseña de ella sale de
+  `credito_de_clienta`. **No en el panel del revendedor**: sus pedidos
+  siguen pagándose a Lux en 24 horas.
 - **Variantes.** Una cadena de 45 cm y otra de 60 cm son el mismo producto con dos
   opciones. Cada variante sigue siendo un modelo completo (SKU, existencia, grupo,
   costo, foto); las junta `modelos.familia_id` y las distingue `modelos.variante`.
@@ -1076,7 +1115,9 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   Si no termina a tiempo, **lo abonado no se devuelve** y las piezas vuelven a
   la venta solas. Vale en el catálogo (la clienta reporta sus pagos desde su
   enlace, `reportar_abono`) y en el mostrador, donde **reemplazó a "Pagó una
-  parte"**: ya no se vende a crédito (la pieza se llevaba debiendo); con
+  parte"**: ya no se vende a crédito a cualquiera (la pieza se llevaba
+  debiendo; desde el #71 solo a la clienta que el dueño habilita, ver "El
+  crédito"); con
   "Lo aparta" la pieza se queda (`apartar_en_tienda`). Las ventas por partes
   que ya existían siguen recibiendo abonos hasta pagarse.
   - **El pedido aparta, los abonos lo pagan, la venta nace al entregar.** Los
@@ -1394,7 +1435,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 366 comprobaciones con las dos sesiones (371 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 379 comprobaciones con las dos sesiones (384 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
