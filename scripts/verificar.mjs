@@ -1036,6 +1036,51 @@ async function main() {
       t.error ? 'ERROR ' + t.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : 'limpio');
   }
 
+  /*
+    EL INVENTARIO DEL REVENDEDOR (#72, esquema-inventario-revendedor.sql).
+    Su inventario se calcula por dentro (`rv_inventario`, revocada a todos);
+    sus ajustes no se leen en crudo; el dueño lo ve por su vista y él por
+    `rv_mi_inventario`, con su testigo. Vender para su inventario es de la
+    tienda, nunca sin sesión.
+  */
+  console.log('\nEL INVENTARIO DEL REVENDEDOR');
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.from('revendedor_ajustes').select('*').limit(1);
+    dice(error?.code === '42501', `revendedor_ajustes: ${quien} no la lee en crudo`, error ? 'rechazada ' + error.code : 'LA DEJO LEER');
+  }
+  const INVENTARIO_CERRADAS = [
+    ['rv_inventario', { p_revendedor_id: -1 }],
+    ['rv_libre_de', { p_revendedor_id: -1, p_modelo_id: -1 }],
+    ['rv_inventario_alcanza', { p_revendedor_id: -1, p_modelo_id: -1, p_salen: 0 }],
+  ];
+  for (const [fn, args] of INVENTARIO_CERRADAS) {
+    for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+      const { error } = await S.rpc(fn, args);
+      dice(error?.code === '42501', `${fn}(): ${quien}, cerrada`, error ? 'rechazada ' + (error.code ?? '') : 'RESPONDIO');
+    }
+  }
+  {
+    const v = await V.from('v_inventario_revendedores').select('*').limit(1);
+    dice(!v.error && (v.data?.length ?? 0) === 0, 'v_inventario_revendedores: ella la ve vacia', v.error ? 'ERROR ' + v.error.code : (v.data?.length ?? 0) + ' filas');
+    const p = await P.from('v_inventario_revendedores').select('*').limit(1);
+    dice(p.error?.code === '42501', 'v_inventario_revendedores: sin sesion, cerrada', p.error ? 'rechazada ' + p.error.code : 'LA DEJO LEER');
+    const a = await A.from('v_inventario_revendedores').select('*').limit(50);
+    const deCosto = [...new Set((a.data ?? []).flatMap((f) => Object.keys(f)).filter((c) => claveDeCosto.test(c)))];
+    dice(!a.error && deCosto.length === 0, 'v_inventario_revendedores: el dueno la lee, sin costo',
+      a.error ? 'ERROR ' + a.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : 'limpio');
+    const vpP = await P.rpc('vender_para_inventario', { p_tipo: 'detal', p_metodo: 'efectivo_bs', p_items: [] });
+    dice(vpP.error?.code === '42501', 'vender_para_inventario() sin sesion, rechazada', vpP.error ? 'rechazada ' + vpP.error.code : 'RESPONDIO');
+    const vpV = await V.rpc('vender_para_inventario', { p_tipo: 'detal', p_metodo: 'efectivo_bs', p_items: [], p_cliente_id: -1 });
+    dice(!!vpV.error && /revendedor/i.test(vpV.error.message), 'vender_para_inventario(): ella llega, sin vender nada', vpV.error ? vpV.error.message : 'VENDIO');
+    for (const [fn, args] of [
+      ['rv_mi_inventario', { p_sesion: 'x'.repeat(40) }],
+      ['rv_ajustar_inventario', { p_sesion: 'x'.repeat(40), p_modelo_id: -1, p_cantidad: 1, p_motivo: 'prueba' }],
+    ]) {
+      const { error } = await P.rpc(fn, args);
+      dice(error?.code === '28000', `${fn}() con un testigo falso, rechazada`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+    }
+  }
+
   // Con el código de un revendedor de prueba (LUX_REVENDEDOR en el entorno),
   // se entra como él y se mira lo que ve. Sin la variable, se salta.
   if (process.env.LUX_REVENDEDOR) {
@@ -1057,6 +1102,12 @@ async function main() {
       const deCostoPed = [...new Set(clavesPed.filter((c) => /costo|piso|margen|operativo/.test(c)))];
       dice(!ped.error && deCostoPed.length === 0, 'rv_apartados() sin costo, piso ni margen',
         ped.error ? 'ERROR ' + ped.error.code : deCostoPed.length ? 'TRAE ' + deCostoPed.join(', ') : 'limpio');
+      // Su inventario (#72): lo suyo, sin costo ni lo que paga a Lux.
+      const mi = await R.rpc('rv_mi_inventario', { p_sesion: s });
+      const clavesMi = [...new Set((mi.data ?? []).flatMap((x) => Object.keys(x)))];
+      const deCostoMi = clavesMi.filter((c) => /costo|piso|margen|operativo|lux/.test(c));
+      dice(!mi.error && deCostoMi.length === 0, 'rv_mi_inventario() sin costo ni lo de Lux',
+        mi.error ? 'ERROR ' + mi.error.code : deCostoMi.length ? 'TRAE ' + deCostoMi.join(', ') : 'limpio');
       const ajeno = await R.from('v_catalogo_venta').select('id').limit(1);
       dice(!!ajeno.error || (ajeno.data?.length ?? 0) === 0, 'el revendedor no lee el catalogo de venta',
         ajeno.error ? 'rechazada ' + ajeno.error.code : (ajeno.data?.length ?? 0) + ' filas');
