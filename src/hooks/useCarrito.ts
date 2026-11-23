@@ -401,6 +401,9 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
     // Por verificar: la venta se registra (la pieza sale) y queda en
     // Pedidos hasta que alguien compruebe el pago.
     pago?: { porVerificar?: boolean; referencia?: string | null },
+    // Para el inventario de un revendedor (#72): la misma venta, que además
+    // sale en su catálogo. La base comprueba que la ficha sea la suya.
+    paraInventario = false,
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     if (totales.extraIlegible || totales.extraSinNota) {
@@ -413,7 +416,7 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
     setCobrando(true);
     setError(null);
 
-    const { data, error: err } = await supabase.rpc('registrar_venta', {
+    const { data, error: err } = await supabase.rpc(paraInventario ? 'vender_para_inventario' : 'registrar_venta', {
       p_tipo: tipo,
       p_metodo: metodo,
       p_items: piezasParaLaBase(),
@@ -491,6 +494,7 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
   const venderACredito = useCallback(async (
     clienteId: number,
     pago: { metodo: MetodoPago; monto: number | null; referencia?: string | null; verificado: boolean },
+    paraInventario = false,
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     if (totales.extraIlegible || totales.extraSinNota) {
@@ -513,6 +517,8 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
       p_extra_bs: totales.extraBs > 0 ? totales.extraBs : null,
       p_extra_nota: totales.extraBs > 0 ? extra.nota.trim() : null,
       p_codigos: codigos.length > 0 ? codigos.map((c) => c.codigo) : null,
+      // Solo si va a su inventario: sin el #72 se sigue vendiendo a crédito.
+      ...(paraInventario ? { p_para_inventario: true } : {}),
     });
 
     setCobrando(false);

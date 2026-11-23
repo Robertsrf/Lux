@@ -154,6 +154,32 @@ export function Mostrador() {
     })();
     return () => { vigente = false; };
   }, [clienteId]);
+
+  /*
+    Si la ficha elegida es la de un revendedor (#70), lo que compra puede ir
+    a su inventario y salir en su catálogo (#72): el cobro trae marcado
+    "Para su inventario", y se desmarca si es para ella misma. Sin el #72
+    la vista no existe y la casilla no sale.
+  */
+  const [revendedorDeFicha, setRevendedorDeFicha] = useState<string | null>(null);
+  const [paraInventario, setParaInventario] = useState(true);
+  useEffect(() => {
+    setRevendedorDeFicha(null);
+    setParaInventario(true);
+    if (clienteId === null) return;
+    let vigente = true;
+    void (async () => {
+      const { data, error: err } = await supabase.from('v_clientes').select('es_revendedor').eq('id', clienteId).maybeSingle();
+      const nombre = (data as { es_revendedor: string | null } | null)?.es_revendedor ?? null;
+      if (!vigente || err || !nombre) return;
+      const hay = await supabase.from('v_inventario_revendedores').select('revendedor_id').limit(1);
+      if (!vigente || hay.error) return;
+      setRevendedorDeFicha(nombre);
+    })();
+    return () => { vigente = false; };
+  }, [clienteId]);
+  const alInventario = revendedorDeFicha !== null && paraInventario;
+
   const [meta, setMeta] = useState<MetaVendedora | null>(null);
   const [familiaAbierta, setFamiliaAbierta] = useState<number | null>(null);
   // El producto que se esta moviendo de ubicacion, si hay uno.
@@ -361,13 +387,14 @@ export function Mostrador() {
     const r = await carrito.cobrar(metodo, 'detal', cliente, {
       porVerificar,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
-    });
+    }, alInventario);
     if (r.ok) {
       const quien = cliente && nombreCliente ? ` a nombre de ${nombreCliente}` : '';
       const fuera = extraBs > 0 ? ` Lleva ${formatearBs(extraBs)} fuera del catálogo.` : '';
+      const inventario = alInventario ? ' Las piezas entran a su inventario y salen en su catálogo.' : '';
       setExito((porVerificar
         ? `Venta ${r.ventaId}${quien} registrada y enviada a Pedidos por verificar el pago.`
-        : `Venta registrada${quien}. Numero ${r.ventaId}.`) + fuera);
+        : `Venta registrada${quien}. Numero ${r.ventaId}.`) + fuera + inventario);
       await despuesDeCobrar();
     }
   }
@@ -408,11 +435,12 @@ export function Mostrador() {
       monto: monto !== null && monto > 0 ? monto : null,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
       verificado,
-    });
+    }, alInventario);
     if (r.ok) {
       setExito(`Venta ${r.venta_id} a crédito a nombre de ${nombreCliente ?? 'la clienta'}. `
         + `Debe ${formatearBcv(r.falta_bcv)}${tasa ? `, hoy ${formatearBs(bsDeBcv(r.falta_bcv, tasa.tasa_bcv))}` : ''}; `
-        + `paga hasta el ${formatearFecha(r.credito_vence)}. Queda en Pedidos, y ahí se carga cada pago.`);
+        + `paga hasta el ${formatearFecha(r.credito_vence)}. Queda en Pedidos, y ahí se carga cada pago.`
+        + (alInventario ? ' Las piezas entran a su inventario y salen en su catálogo.' : ''));
       await despuesDeCobrar();
     }
   }
@@ -838,6 +866,20 @@ export function Mostrador() {
               </button>
             ) : null}
           </div>
+        ) : null}
+
+        {/* Para el inventario de un revendedor (#72): no se aparta para su
+            inventario, se le vende. */}
+        {metodo && revendedorDeFicha && !aparta ? (
+          <label className="casilla" htmlFor="cobro-inventario">
+            <input
+              id="cobro-inventario"
+              type="checkbox"
+              checked={paraInventario}
+              onChange={(e) => setParaInventario(e.target.checked)}
+            />
+            Para su inventario: sale en el catálogo de {revendedorDeFicha}
+          </label>
         ) : null}
 
         {metodo && credito && creditoClienta && creditoClienta.dias !== null ? (
