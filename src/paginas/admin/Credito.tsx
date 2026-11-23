@@ -14,6 +14,7 @@ import {
 } from '../../lib/dinero';
 import { nombreConVariante } from '../../lib/familias';
 import type { AbonoDetalle, LineaPorVerificar, VentaACredito } from '../../lib/tipos';
+import { InventarioDeRevendedor } from '../../componentes/InventarioDeRevendedor';
 
 /** Lo que debe una clienta: sus ventas a crédito y por partes abiertas. */
 interface DeudaDeClienta {
@@ -219,6 +220,7 @@ export function Credito() {
             {abiertaEsta ? (
               <>
                 <p><Link to={`/clientes/${d.cliente_id}`}>Ver su ficha</Link></p>
+                <InventarioDeRevendedor clienteId={d.cliente_id} />
                 {d.ventas.map((v) => (
                   <VentaDeCredito
                     key={v.venta_id}

@@ -9,6 +9,7 @@ import {
   PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, porQueNoSirveUsuario, usuarioDesdeNombre,
 } from '../../lib/revendedor';
 import type { PaletaRevendedor, RevendedorAdmin } from '../../lib/tipos';
+import { InventarioDeRevendedor } from '../../componentes/InventarioDeRevendedor';
 import '../../estilos/revendedor.css';
 
 /* Las reglas del programa: claves de `configuracion` que siembra
@@ -476,6 +477,7 @@ export function Revendedores() {
                   alCambiar={(texto) => { setAviso(texto); void cargar(); }}
                 />
               ) : null}
+              <InventarioDeRevendedor revendedorId={r.id} />
               <div className="acciones">
                 <button type="button" className="boton boton--secundario" onClick={() => editar(r)}>Editar</button>
                 <button type="button" className="boton boton--secundario" onClick={() => void codigoNuevo(r)}>Código nuevo</button>
