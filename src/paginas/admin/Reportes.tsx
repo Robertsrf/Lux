@@ -15,7 +15,7 @@ import type {
   ValorCategoriaFila, ValorInventario, VentaPorDia,
 } from '../../lib/tipos';
 
-const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad', revendedor: 'Revendedor', oferta: 'Con código' };
+const MOTIVO: Record<string, string> = { regateo: 'Regateo', tramo: 'Por cantidad', revendedor: 'Revendedor', oferta: 'Con código', cliente: 'Clienta con descuento' };
 
 /** El primer día del mes en el reloj de la tienda, como lo guarda `v_ofertas_mes`. */
 function primerDiaDelMes(): string {
@@ -179,7 +179,7 @@ export function Reportes() {
         usd: deMonto(sumar(filas.map((x) => aMonto(x.rebaja_usd)))),
       };
     };
-    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), oferta: de('oferta'), sinDato: de(null) };
+    return { regateo: de('regateo'), tramo: de('tramo'), revendedor: de('revendedor'), oferta: de('oferta'), cliente: de('cliente'), sinDato: de(null) };
   }, [rebajas]);
 
   const dormidos = useMemo(
@@ -460,6 +460,17 @@ export function Reportes() {
                 <div className="tablero__cifra">{formatearBcv(resumenRebajas.revendedor.usd)}</div>
                 <div className="tablero__meta">
                   {resumenRebajas.revendedor.piezas} pieza{resumenRebajas.revendedor.piezas === 1 ? '' : 's'} · su descuento al retirar
+                </div>
+              </div>
+            ) : null}
+            {/* Lo que se llevó el descuento fijo de una clienta (lo pone el
+                dueño en su ficha). */}
+            {resumenRebajas.cliente.piezas > 0 ? (
+              <div className="tablero__celda">
+                <span className="dato__etiqueta">Clientas con descuento</span>
+                <div className="tablero__cifra">{formatearBcv(resumenRebajas.cliente.usd)}</div>
+                <div className="tablero__meta">
+                  {resumenRebajas.cliente.piezas} pieza{resumenRebajas.cliente.piezas === 1 ? '' : 's'} · su descuento fijo
                 </div>
               </div>
             ) : null}

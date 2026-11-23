@@ -1218,7 +1218,7 @@ export interface Rebaja {
   rebaja_usd: number;
   rebaja_pct: number;
   /** Null en las ventas anteriores a que se guardara el motivo. */
-  motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | 'oferta' | null;
+  motivo_rebaja: 'regateo' | 'tramo' | 'revendedor' | 'oferta' | 'cliente' | null;
 }
 
 /** Lo que el mostrador manda al cobrar: una ficha del maestro o una nueva. */
@@ -1504,6 +1504,9 @@ export interface RevendedorAdmin {
   pagado_mes_usd: number;
   clientas: number;
   ultima_actividad: string | null;
+  /** Su ficha en el maestro de clientas (desde el #70; sin él, no viene). */
+  cliente_id?: number | null;
+  cliente_nombre?: string | null;
 }
 
 /** v_apartados_revendedor: lo que se retira en la tienda, con lo que el paga. */

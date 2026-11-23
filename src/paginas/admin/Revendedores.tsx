@@ -4,6 +4,7 @@ import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { formatearBcv, formatearEntero, formatearFecha, formatearMonto, leerCifra } from '../../lib/dinero';
 import { subirLogoRevendedor, urlPublicaFoto } from '../../lib/fotos';
 import { copiarTexto } from '../../componentes/PagoMovil';
+import { FichaDeRevendedor } from '../../componentes/FichaDeRevendedor';
 import {
   PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, porQueNoSirveUsuario, usuarioDesdeNombre,
 } from '../../lib/revendedor';
@@ -146,7 +147,15 @@ export function Revendedores() {
     const tope = numero(form.tope);
     if ((form.descuento.trim() !== '' && descuento === null) || (form.tope.trim() !== '' && tope === null)) {
       setGuardando(false);
-      setErrorForm('El descuento y el tope van en números, por ejemplo 25 o 150,50. Vacíos, vale el de la tienda.');
+      setErrorForm('El descuento y el tope van en números, por ejemplo 20 o 150,50. Vacíos, vale el de la tienda.');
+      return;
+    }
+    // El general es también el tope: uno propio puede ser menor, nunca
+    // mayor (la base lo rechaza igual; aquí se dice antes).
+    const general = leerCifra(reglasGuardadas.revendedor_descuento_pct ?? '', { cero: true });
+    if (descuento !== null && general !== null && descuento > general) {
+      setGuardando(false);
+      setErrorForm(`El descuento propio no puede pasar del general, ${formatearEntero(general)} %. Déjalo vacío para darle el general.`);
       return;
     }
     const { data, error: err } = await supabase.rpc('admin_guardar_revendedor', {
@@ -368,7 +377,7 @@ export function Revendedores() {
           </fieldset>
 
           <div className="fila" style={{ marginTop: 'var(--e-5)' }}>
-            <Campo etiqueta="Descuento propio · %" htmlFor="rv-desc" pista={`Vacío: el general, ${reglasGuardadas.revendedor_descuento_pct ?? '—'} %.`}>
+            <Campo etiqueta="Descuento propio · %" htmlFor="rv-desc" pista={`Vacío: el general, ${reglasGuardadas.revendedor_descuento_pct ?? '—'} %. Puede ser menor, nunca mayor.`}>
               <input id="rv-desc" inputMode="decimal" value={form.descuento} onChange={(e) => cambiar('descuento', e.target.value)} autoComplete="off" />
             </Campo>
             <Campo etiqueta="Tope a mano · $ BCV" htmlFor="rv-tope" pista="Vacío: el de su nivel. Para alguien de mucha confianza.">
@@ -459,6 +468,14 @@ export function Revendedores() {
                   : '.'}
                 {r.notas ? ` ${r.notas}` : ''}
               </p>
+              {r.cliente_id !== undefined ? (
+                <FichaDeRevendedor
+                  revendedorId={r.id}
+                  clienteId={r.cliente_id ?? null}
+                  clienteNombre={r.cliente_nombre ?? null}
+                  alCambiar={(texto) => { setAviso(texto); void cargar(); }}
+                />
+              ) : null}
               <div className="acciones">
                 <button type="button" className="boton boton--secundario" onClick={() => editar(r)}>Editar</button>
                 <button type="button" className="boton boton--secundario" onClick={() => void codigoNuevo(r)}>Código nuevo</button>

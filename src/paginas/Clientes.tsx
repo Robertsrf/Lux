@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../componentes/Piezas';
+import { DescuentoClienta } from '../componentes/DescuentoClienta';
 import { MiniaturaTocable } from '../componentes/MiniaturaTocable';
 import { VisorFoto, useVisorFoto } from '../componentes/VisorFoto';
 import type { FotoAmpliada } from '../componentes/VisorFoto';
@@ -278,6 +279,8 @@ function Ficha({ id }: { id: number | null }) {
         {meses ? (
           <p className="campo__pista">Cada compra trae {meses} {meses === 1 ? 'mes' : 'meses'} desde el día que se la llevó.</p>
         ) : null}
+
+        <DescuentoClienta clienteId={c.id} esAdmin={esAdmin} />
 
         <div className="panel">
           <span className="panel__titulo">En total</span>
