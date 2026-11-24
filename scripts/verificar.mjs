@@ -126,6 +126,8 @@ const FUNCIONES_CERRADAS = [
   // por partida y el plan de ventas. Revocadas a todos.
   ['gastos_fijos_partidas', {}],
   ['plan_ventas', {}],
+  // Las tasas de un día, por dentro de la cuenta del flujo (#75).
+  ['tasas_del_dia', { p_dia: '2026-01-01' }],
   ...FUNCIONES_DE_OFERTAS,
 ];
 
@@ -588,6 +590,16 @@ async function main() {
   }
   const flujo = await A.rpc('caja_flujo', { p_desde: hoy, p_hasta: hoy });
   dice(!!flujo.error, 'caja_flujo() cerrada hasta para el dueno', flujo.error ? 'rechazada ' + flujo.error.code : 'RESPONDIO');
+  // La cuenta del flujo (#75): la regla, cerrada a todos; la puerta, solo el dueño.
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.rpc('flujo_negocio', {});
+    dice(!!error, `flujo_negocio(): cerrada para ${quien}`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+  }
+  for (const [quien, S, abre] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { data, error } = await S.rpc('admin_flujo', {});
+    dice(abre ? !error && Array.isArray(data) : !!error, `admin_flujo(): ${quien}`,
+      error ? (abre ? 'ERROR ' + error.message : 'rechazada') : (data?.length ?? 0) + ' fila(s)');
+  }
   const anotar = (S) => S.rpc('admin_anotar_caja', {
     p_tipo: 'salida', p_fecha: null, p_categoria: 'otro_gasto', p_concepto: 'verificar',
     p_metodo: 'efectivo_bs', p_monto: 0, p_referencia: null,
