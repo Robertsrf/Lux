@@ -5,7 +5,6 @@ import type { EnlaceNav } from '../../componentes/Armazon';
 import { Aviso, LimiteDeError } from '../../componentes/Piezas';
 import { urlPublicaFoto } from '../../lib/fotos';
 import { SesionRvCerrada, leerSesionRv, rpcRv, salirRevendedor } from '../../lib/revendedor';
-import { useTemaRv } from '../../hooks/useTemaRv';
 import type { ResumenRevendedor } from '../../lib/tipos';
 import { ContextoRv } from './contexto';
 import type { ContextoPanelRv } from './contexto';
@@ -16,7 +15,9 @@ import { PreciosRv } from './panel/PreciosRv';
 import { MiCatalogoRv } from './panel/MiCatalogoRv';
 import { VenderRv } from './panel/VenderRv';
 import { InventarioRv } from './panel/InventarioRv';
+import { useTemaPanel } from './panel/temaPanel';
 import '../../estilos/revendedor.css';
+import './panel/panel-rv.css';
 
 const ENLACES: EnlaceNav[] = [
   { a: '/rv',           texto: 'Inicio',      icono: 'dia' },
@@ -39,7 +40,7 @@ const PRINCIPALES = ['/rv', '/rv/apartados', '/rv/vender'];
  * El panel de un revendedor: luxbyemory.com/rv. Su administrativo.
  *
  * Mismo armazón que la tienda (barra lateral en escritorio, abajo en el
- * teléfono) y vestido con SU paleta: es su negocio. Lo que ve lo traen las
+ * teléfono) y vestido con el tema de SU catálogo: es su negocio. Lo que ve lo traen las
  * funciones `rv_*` con su testigo; para la base es alguien sin sesión.
  */
 export function PanelRevendedor() {
@@ -49,7 +50,8 @@ export function PanelRevendedor() {
   const [resumen, setResumen] = useState<ResumenRevendedor | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useTemaRv(resumen?.paleta);
+  // Su panel se viste con el tema de su catálogo (fase 7), no con Lux.
+  useTemaPanel(resumen?.tema, resumen?.paleta);
 
   const siSeCerro = useCallback((e: unknown) => {
     if (!(e instanceof SesionRvCerrada)) return false;

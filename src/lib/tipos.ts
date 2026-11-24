@@ -1377,6 +1377,11 @@ export interface ResumenRevendedor extends PerfilRevendedor {
   fases?: Partial<Record<FaseRv, number>>;
   horas_pago?: number | null;
   horas_para_pagar?: number | null;
+  /* Desde esquema-panel-revendedor.sql (#74). */
+  /** El tema de su catálogo (fase 6): su panel se viste con él. */
+  tema?: unknown;
+  /** El plazo más próximo de lo que le debe a Lux; null si no debe nada. */
+  vence_lux_en?: string | null;
 }
 
 /** rv_piezas: en cuanto le sale cada pieza y en cuanto la vende. */

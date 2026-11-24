@@ -142,14 +142,14 @@ export function contraste(a: string, b: string): number {
 }
 
 /** `a` llevado hacia `b` en la proporción `t` (0: a, 1: b). */
-function mezclar(a: string, b: string, t: number): string {
+export function mezclar(a: string, b: string, t: number): string {
   const [x1, x2, x3] = rgb(a);
   const [y1, y2, y3] = rgb(b);
   return hex([x1 + (y1 - x1) * t, x2 + (y2 - x2) * t, x3 + (y3 - x3) * t]);
 }
 
 /** El extremo (negro o blanco) que más contraste da sobre `fondo`. */
-function extremoSobre(fondo: string): string {
+export function extremoSobre(fondo: string): string {
   return contraste(NEGRO, fondo) >= contraste(BLANCO, fondo) ? NEGRO : BLANCO;
 }
 
@@ -158,7 +158,7 @@ function extremoSobre(fondo: string): string {
  * pasos de 2 %, hasta que se lea a 4,5:1 sobre todos. Siempre llega: el
  * negro o el blanco dan al menos 4,58 sobre cualquier color.
  */
-function legibleSobre(color: string, fondo: string, ...otros: string[]): string {
+export function legibleSobre(color: string, fondo: string, ...otros: string[]): string {
   const fondos = [fondo, ...otros];
   const destino = extremoSobre(fondo);
   for (let t = 0; t <= 1.0001; t += 0.02) {
