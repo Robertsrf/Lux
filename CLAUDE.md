@@ -83,7 +83,6 @@ src/
   hooks/        useSesion, useTasa, useCatalogos, useCarrito, useClientes,
                 useInventario (pagina por PRODUCTO: una familia nunca queda
                 partida entre dos páginas), useTextos, useFrases, useConsejos,
-                useTemaRv (viste la página con la paleta de un revendedor),
                 useReglasPedido (el mínimo del apartado, sus días y los
                 minutos de un pedido, de `reglas_pedido()`; null sin el #61),
                 useFotosGrandes (la foto grande de piezas que solo traen su
@@ -187,11 +186,17 @@ src/
                 Revendedores); ApartadoPublico (/apartado/:token, con su
                 tema)                      (sin sesión, como el catálogo)
                 EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
-                InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
+                InicioRv (lo urgente primero, cada cosa con su botón),
+                ApartadosRv ("Pedidos", por fase), VenderRv (Vender en
+                tres pasos, Piezas → Clienta → Cobro, con barra fija; sus
+                piezas en vender/: cuentas.ts, la lógica pura y probada,
+                PasoPiezas, PasoClienta, PasoCobro, BarraVender, Listo),
                 InventarioRv ("Mi inventario": lo que compró para
                 revender, y corregirlo con un motivo),
                 ClientesRv, PreciosRv, MiCatalogoRv (su pago móvil, su
-                logo y su tema)
+                logo y su tema), temaPanel.ts (el panel se viste con el
+                tema de su catálogo: deriva los tokens de Lux, medidos a
+                4,5:1) y panel-rv.css (densidad táctil)
                                            (con SU código, no con Supabase)
     Vitrina (el escenario y el riel del QR; escenas: pieza, conjunto,
     colección, para regalar, de cerca, frase, escote, así de fácil y
@@ -618,10 +623,15 @@ Solo actúa sobre perfiles `vendedora`. Su receta de contraseña es la de
 `contrasenaDesdePin()` (`src/lib/auth.ts`): si cambia una, cambia la otra.
 
 Las del revendedor se llaman `rv_*` y reciben `p_sesion` delante: `rv_entrar`
-(código → testigo), `rv_salir`, `rv_resumen`, `rv_piezas`, `rv_fijar_precios`,
+(código → testigo), `rv_salir`, `rv_resumen` (con `tema` y `vence_lux_en`
+al final desde el #74: su panel se viste con su tema y su Inicio dice
+cuándo vence lo que le debe a Lux), `rv_piezas`, `rv_fijar_precios`,
 `rv_apartados`, `rv_abonar`, `rv_cancelar_apartado`, `rv_clientes`,
 `rv_guardar_cliente`, `rv_ajustes`, `rv_confirmar`, `rv_revisar_pago`,
-`rv_pagar_lux`, `rv_vender`, `rv_datos_pago` (su pago móvil y sus días de
+`rv_pagar_lux`, `rv_vender` (con `p_cliente_id` al final desde el #74: la
+clienta que eligió de su lista, que tiene que ser suya; desde su panel la
+cédula y el apellido son opcionales y reconoce a una suya por su teléfono,
+los 10 últimos dígitos), `rv_datos_pago` (su pago móvil y sus días de
 crédito; aparte de `rv_ajustes` para que el navegador viejo no los borre),
 `rv_mi_inventario` y `rv_ajustar_inventario` (#72) y `rv_guardar_tema`
 (#73: su tema; la portada tiene que ser de su catálogo; null vuelve a su
@@ -1534,15 +1544,34 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     El pedido va en una hoja (cédula y "Apartar" sin salir), con "Letra
     grande". El pedido de su clienta se viste con su tema, no con su
     plantilla. Su logo lo sube él (`logo-revendedor`) o el dueño, como antes.
-  - **Su paleta (la del panel):** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
-    excepción a "ningún otro color", y no hay selector de color libre.
+  - **Su panel** (fase 7, #74, decidido el 24/11/2026). **Se viste con el
+    tema de su catálogo**, fuera del sistema de Lux: `temaPanel.ts` deriva
+    de sus colores los tokens de tokens.css que usan el Armazón, las Piezas
+    y las tablas, y los pone en `<html>` mientras el panel está abierto.
+    Lo que en Lux es el verde (la barra, el botón principal) es su color
+    llevado hasta que se lea como letra y aguante la crema al 62 % encima;
+    cada texto se mide contra todos los fondos donde cae (lo prueba
+    `tema-panel.test.mjs`, con amarillo sobre blanco y rosa sobre negro).
+    Densidad táctil (48 px, 17 px; 18 px en Vender). Las seis paletas de
+    `estilos/revendedor.css` ya no visten el panel: quedan como muestras y
+    como el tema de quien no tiene uno. **Vender en tres pasos** (Piezas →
+    Clienta → Cobro) con el total siempre abajo: lo suyo primero, un toque
+    suma; su clienta de la lista con un toque o una nueva con **nombre y
+    teléfono: desde su panel la cédula nunca es obligatoria** (el catálogo
+    de su clienta sí la pide: ahí es como se la reconoce sin sesión); al
+    aprobar, una clienta sin cédula entra al maestro una sola vez
+    (`cliente_de_revendedor` busca la ficha de un pedido suyo anterior). El
+    carrito vive en el teléfono (`lux-rv-vender-v1`) y el paso en la ruta
+    (`?paso=2`), así "atrás" vuelve un paso. **Inicio dice lo urgente
+    primero**: pagos por confirmar, lo que debe a Lux y cuándo vence,
+    aprobados por retirar y lo que le deben.
 
 ---
 
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 413 comprobaciones con las dos sesiones (419 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 414 comprobaciones con las dos sesiones (421 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, el tema del revendedor y su logo, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
@@ -1607,6 +1636,12 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   corría 355 px de lado en el teléfono (Lookbook, fase 6). Ni la captura de
   Edge sin ventana lo enseña: esa ventana no baja de ~500 px de ancho, hay
   que emularla (CDP `Emulation.setDeviceMetricsOverride`).
+- **base.css le pone a todo `input` el ancho y el alto de un campo de texto.**
+  Un radio sin estilo propio sale como una caja vacía de 360 px, y uno
+  escondido con `position: absolute` sin contenedor `relative` corre la
+  página de lado: el editor del tema de la fase 6 hacía las dos cosas (Mi
+  catálogo medía 603 px en un teléfono de 360) y nadie lo vio hasta mirarlo
+  en la fase 7. Un radio lleva su `width`/`height` y su contenedor.
 - **base.css de Lux le pone su letra a `h1`–`h3`.** Una pantalla fuera del
   sistema de Lux (el catálogo del revendedor) lo deshace con
   `.rvc :where(h1, h2, h3...)`: con `:where`, cualquier clase suya gana.

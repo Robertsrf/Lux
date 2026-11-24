@@ -174,7 +174,7 @@ export function GuiaRevendedor() {
           <ol className="guia-rv__acciones">
             <li>Abre el enlace de tu panel: <span className="guia-rv__url">{enlacePanelRv()}</span></li>
             <li>Escribe tu código y toca "Entrar a mi panel".</li>
-            <li>Listo: estás en Inicio. Abajo (o a un lado, en la computadora) está el menú: Inicio, Pedidos, Vender, Clientas, Mis precios y Mi catálogo.</li>
+            <li>Listo: estás en Inicio. Abajo (o a un lado, en la computadora) está el menú: Inicio, Pedidos y Vender, y en "Más" Mi inventario, Clientas, Mis precios y Mi catálogo. Tu panel se viste con los colores de tu catálogo.</li>
           </ol>
           <p className="guia-rv__nota">
             Truco: en el menú del navegador toca "Agregar a pantalla de inicio". Así tu panel queda en tu teléfono
@@ -302,9 +302,11 @@ export function GuiaRevendedor() {
       id: 'vender', titulo: 'Vende tú mismo', donde: 'En tu panel: Vender',
       contenido: (
         <ol className="guia-rv__acciones">
-          <li>Si una clienta te pide en persona o por mensaje, arma el pedido tú: busca las piezas y súmalas.</li>
-          <li>En "Para quién" escribe su cédula. Si ya es tu clienta, la reconoce.</li>
-          <li>En "¿Ya te pagó?" dices si ya tienes el pago en la mano: entonces el pedido nace confirmado. Si no, le mandas su enlace para que te pague.</li>
+          <li>Si una clienta te pide en persona o por mensaje, arma el pedido tú en tres pasos. Abajo siempre ves cuántas piezas van y el total.</li>
+          <li>1. Piezas: toca la foto de cada pieza para sumarla. Lo tuyo sale primero ("Tuyas"); toca "Todas" para ver lo de la tienda. Toca "Seguir".</li>
+          <li>2. Clienta: toca una de tus clientas, o escribe una "Clienta nueva" con su nombre y su teléfono. La cédula es opcional (está en "Más datos"). Si el teléfono ya es de una tuya, te pregunta "¿Es ella?".</li>
+          <li>3. Cobro: "Pagó todo" (el monto ya viene puesto; solo eliges cómo te pagó), "Una parte" (si le das crédito) o "Todavía no". Toca "Hacer y confirmar" o "Hacer el pedido".</li>
+          <li>Al final te dice qué sigue: "Pagarle a Lux", o "Mandarle su enlace por WhatsApp" para que te pague. Si todas las piezas eran tuyas, queda anotada y no le debes nada a Lux.</li>
         </ol>
       ),
     },
@@ -331,7 +333,8 @@ export function GuiaRevendedor() {
       id: 'mes', titulo: 'Mira cómo vas', donde: 'En tu panel: Inicio',
       contenido: (
         <ol className="guia-rv__acciones">
-          <li>Inicio te dice cuánto ganaste en el mes, cuántas piezas vendiste y cuánto le pagaste a Lux.</li>
+          <li>Arriba, Inicio te dice lo que espera por ti, cada cosa con su botón: pagos de tus clientas por confirmar, lo que le debes a Lux y cuándo vence, lo aprobado por retirar y lo que te deben. Debajo, "Vender" y "Mandar mi catálogo".</li>
+          <li>Después, cuánto ganaste en el mes, cuántas piezas vendiste y cuánto le pagaste a Lux.</li>
           <li>Y tu tope: cuánto tienes apartado ahora, cuánto te queda y cuánto te falta para subir de nivel.</li>
         </ol>
       ),

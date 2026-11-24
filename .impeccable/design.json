@@ -653,7 +653,7 @@
       },
       {
         "name": "La regla de la paleta del revendedor",
-        "body": "La única excepción a \"ningún otro color\": el catálogo y el panel de un revendedor pueden llevar una de seis paletas (lux, noche, vino, grafito, ciruela, oliva), cada una con los mismos papeles que la de Lux y cada par de texto medido a 4,5:1. No hay selector de color libre, y debajo de su nombre siempre dice \"Joyas Lux by Emory\".",
+        "body": "Desde las fases 6 y 7, el catálogo y el panel de un revendedor van con SU tema, fuera del sistema de Lux: color libre de principal y fondo, medido al dibujar (tema.ts y panel/temaPanel.ts derivan cada texto a 4,5:1 contra todos sus fondos). Las seis paletas (lux, noche, vino, grafito, ciruela, oliva) quedan como temas listos y como el tema de quien no tiene uno. Debajo de su nombre siempre dice \"Joyas Lux by Emory\".",
         "section": "colors"
       },
       {
