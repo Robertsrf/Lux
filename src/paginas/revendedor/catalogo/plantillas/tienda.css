@@ -1,0 +1,57 @@
+/* Tienda: el buscador a la vista, tipos con foto, cuadrícula de tarjetas. */
+
+.rvc--tienda .rvc-ti-cabecera { background: var(--rvc-superficie); border-bottom: 1px solid var(--rvc-linea); border-radius: 0 0 calc(var(--rvc-radio) + 8px) calc(var(--rvc-radio) + 8px); }
+.rvc--tienda .rvc-ti-cabecera__interior { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding-top: 16px; padding-bottom: 16px; align-items: center; }
+.rvc--tienda .rvc-ti-cabecera__interior > .rvc-buscador { grid-column: 1 / -1; }
+.rvc--tienda .rvc-ti-marca { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.rvc--tienda .rvc-ti-marca__texto { display: flex; flex-direction: column; min-width: 0; }
+.rvc--tienda .rvc-ti-marca__nombre { font-family: var(--rvc-letra-titulos); font-weight: 700; font-size: 1.5em; line-height: 1.1; overflow-wrap: anywhere; }
+.rvc--tienda .rvc-ti-marca__frase { color: var(--rvc-texto-suave); font-size: 0.9em; }
+.rvc--tienda .rvc-ti-cabecera__acciones { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+@media (max-width: 560px) {
+  .rvc--tienda .rvc-ti-cabecera__interior { grid-template-columns: 1fr; }
+  .rvc--tienda .rvc-ti-cabecera__acciones { flex-direction: row; justify-content: space-between; align-items: center; }
+}
+@media (min-width: 900px) {
+  .rvc--tienda .rvc-ti-cabecera__interior { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .rvc--tienda .rvc-ti-cabecera__interior > .rvc-buscador { grid-column: 2; grid-row: 1; flex-direction: row; align-items: center; }
+  .rvc--tienda .rvc-ti-cabecera__interior > .rvc-buscador .rvc-segmentos { flex: none; }
+}
+
+.rvc--tienda .rvc-ti-cuerpo { display: flex; flex-direction: column; gap: 20px; padding-top: 18px; }
+.rvc--tienda .rvc-ti-tipos { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+.rvc--tienda .rvc-ti-tipo {
+  flex: none; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0; font: inherit; font-size: 0.85em; font-weight: 700; color: var(--rvc-texto);
+  background: none; border: 0; cursor: pointer;
+}
+.rvc--tienda .rvc-ti-tipo img, .rvc--tienda .rvc-ti-tipo__sin-foto {
+  width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--rvc-superficie);
+  display: flex; align-items: center; justify-content: center; font-size: 1.4em; border: 2px solid transparent;
+}
+.rvc--tienda .rvc-ti-tipo[aria-pressed="true"] img { border-color: var(--rvc-acento); }
+.rvc--tienda .rvc-ti-tipo__cuantas { display: none; }
+.rvc--tienda .rvc-ti-piezas { display: flex; flex-direction: column; gap: 28px; min-width: 0; flex: 1; }
+.rvc--tienda .rvc-ti-estante { display: flex; flex-direction: column; gap: 12px; }
+.rvc--tienda .rvc-ti-estante__cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rvc--tienda .rvc-titulo { font-weight: 700; font-size: 1.4em; }
+.rvc--tienda .rvc-tarjeta { background: var(--rvc-superficie); border-radius: var(--rvc-radio); overflow: hidden; border: 1px solid var(--rvc-linea); }
+.rvc--tienda .rvc-tarjeta__foto { border-radius: 0; }
+.rvc--tienda .rvc-tarjeta__cuerpo { padding: 10px 12px 12px; }
+.rvc--tienda .rvc-precio { flex-direction: column; font-family: var(--rvc-letra-titulos); font-size: 1.05em; }
+
+@media (min-width: 900px) {
+  .rvc--tienda .rvc-ti-cuerpo { flex-direction: row; align-items: flex-start; }
+  .rvc--tienda .rvc-ti-lado { flex: none; width: 240px; position: sticky; top: 16px; }
+  .rvc--tienda .rvc-ti-tipos { flex-direction: column; gap: 4px; overflow: visible; padding: 10px; background: var(--rvc-superficie); border-radius: var(--rvc-radio); border: 1px solid var(--rvc-linea); }
+  .rvc--tienda .rvc-ti-tipo { width: 100%; flex-direction: row; gap: 12px; min-height: 52px; padding: 0 8px; border-radius: var(--rvc-radio-boton); text-align: left; font-size: 0.95em; }
+  .rvc--tienda .rvc-ti-tipo[aria-pressed="true"] { background: var(--rvc-fondo); }
+  .rvc--tienda .rvc-ti-tipo img, .rvc--tienda .rvc-ti-tipo__sin-foto { width: 40px; height: 40px; font-size: 1em; }
+  .rvc--tienda .rvc-ti-tipo__nombre { flex: 1; }
+  .rvc--tienda .rvc-ti-tipo__cuantas { display: inline; color: var(--rvc-texto-suave); font-weight: 500; }
+}
+
+/* Un estante de cuatro llena su fila: con el menú al lado caben cuatro. */
+@media (min-width: 900px) {
+  .rvc--tienda .rvc-ti-estante .rvc-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+}

@@ -149,6 +149,9 @@ export async function subirLogoRevendedor(usuario: string, archivo: File): Promi
 /** El bucket es publico de lectura: las fotos van al catalogo (Fase 3). */
 export function urlPublicaFoto(ruta: string | null | undefined): string | null {
   if (!ruta) return null;
+  // Solo en desarrollo: los logos de muestra del catálogo del revendedor
+  // (catalogo/demo.ts) vienen dibujados. En el sitio publicado no existe.
+  if (import.meta.env.DEV && ruta.startsWith('data:image/svg+xml')) return ruta;
   return supabase.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl;
 }
 

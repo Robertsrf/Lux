@@ -22,10 +22,21 @@
   -webkit-text-size-adjust: 100%;
 }
 html.letra-grande .rvc { font-size: 1.1875rem; }
+/* base.css de Lux le pone su letra y su color a h1-h3: aquí no. Con
+   :where(), para que cualquier clase de abajo gane. */
+.rvc :where(h1, h2, h3, h4, p, ul, button, input) {
+  font-family: inherit; color: inherit; letter-spacing: normal; text-transform: none; font-weight: inherit;
+}
+.rvc :where(h1, h2, h3, h4) { font-size: inherit; line-height: 1.2; margin: 0; }
+.rvc-dialogo :where(h1, h2, h3, h4, p, ul, button, input) { font-family: inherit; color: inherit; letter-spacing: normal; text-transform: none; }
 .rvc *, .rvc *::before, .rvc *::after { box-sizing: border-box; }
 .rvc img { max-width: 100%; display: block; }
 .rvc :focus-visible { outline: 3px solid var(--rvc-acento); outline-offset: 2px; }
 
+/* Lo que lee el lector de pantalla y no se ve. Su caja (.rvc-tarjeta y las
+   filas que se deslizan) es `position: relative`: si no, se escapaba de una
+   fila con scroll y la página entera se corría de lado. */
+.rvc-tarjeta, .rvc-fichas, .rvc-segmentos, .rvc-contador { position: relative; }
 .rvc-oculto {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
@@ -259,4 +270,10 @@ html.letra-grande .rvc { font-size: 1.1875rem; }
 
 @media (prefers-reduced-motion: reduce) {
   .rvc *, .rvc-dialogo { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Los tipos en el buscador: una sola fila que se desliza en el teléfono. */
+@media (max-width: 719px) {
+  .rvc-buscador .rvc-fichas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .rvc-buscador .rvc-ficha { flex: none; }
 }

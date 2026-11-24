@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../../lib/supabase';
+import type { FuenteCatalogoRv } from './fuente';
 import { totalDeLineas } from '../../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../../lib/fotos';
 import { agruparPorFamilia, conFoto, porCategoria } from '../../../lib/familias';
@@ -8,7 +9,7 @@ import { armar, paresVigentes } from '../../../lib/armados';
 import type { ParArmado } from '../../../lib/armados';
 import { enlaceCatalogoRv } from '../../../lib/revendedor';
 import { enlaceWhatsAppA } from '../../../lib/enlaces';
-import { paraDeRuta, paraQueVe, type Para } from '../../../componentes/ElegirPara';
+import { paraDeRuta, type Para } from '../../../componentes/ElegirPara';
 import { TUS_DATOS_VACIOS, datosParaReservar } from '../../../componentes/TusDatos';
 import type { EstadoTusDatos } from '../../../componentes/TusDatos';
 import { useLetraGrande } from '../../../hooks/useLetraGrande';
@@ -17,7 +18,6 @@ import { elegirPortada, normalizarTema, temaResuelto } from './tema';
 import { cargarLetras } from './letras';
 import type { CatalogoRv } from './tipos';
 
-const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, familia, variante';
 /** Cuántas piezas trae de una vez. Si llega al tope, se dice. */
 const LIMITE = 400;
 /** En la lista, de cuántas en cuántas familias se enseñan. */
@@ -32,7 +32,7 @@ const DE_A = 24;
  * que no tiene ni costo, ni piso, ni lo que él le paga a Lux, ni dónde está
  * la pieza en la tienda.
  */
-export function useCatalogoRv(usuario: string): CatalogoRv {
+export function useCatalogoRv(usuario: string, fuente: FuenteCatalogoRv): CatalogoRv {
   const navegar = useNavigate();
   const [perfil, setPerfil] = useState<PerfilRevendedor | null>(null);
   const [perfilListo, setPerfilListo] = useState(false);
@@ -94,21 +94,15 @@ export function useCatalogoRv(usuario: string): CatalogoRv {
   // desaparecer a las demás.
   useEffect(() => {
     void (async () => {
-      const [p, c] = await Promise.all([
-        supabase.rpc('rv_perfil_publico', { p_usuario: usuario }),
-        supabase.rpc('rv_catalogo_publico', { p_usuario: usuario }).select('categoria'),
-      ]);
+      const [p, c] = await Promise.all([fuente.perfil(), fuente.categorias()]);
       // Dos consultas, dos errores mirados.
       const fallo = p.error ?? c.error ?? null;
-      if (fallo) setError(mensajeDeError(fallo));
-      setPerfil((p.data as PerfilRevendedor | null) ?? null);
-      const lista = ((c.data as { categoria: string | null }[] | null) ?? [])
-        .map((x) => x.categoria?.trim())
-        .filter((x): x is string => !!x);
-      setCategorias([...new Set(lista)].sort((a, b) => a.localeCompare(b, 'es')));
+      if (fallo) setError(fallo);
+      setPerfil(p.data);
+      setCategorias(c.data);
       setPerfilListo(true);
     })();
-  }, [usuario]);
+  }, [fuente]);
 
   // Sus letras, cuando se sabe su tema. Si fallan, queda el respaldo.
   useEffect(() => { if (perfil) void cargarLetras(tema); }, [perfil, tema]);
@@ -117,19 +111,10 @@ export function useCatalogoRv(usuario: string): CatalogoRv {
   // llega, su clienta sigue pidiendo; solo no sale "Agrégale un dije".
   useEffect(() => {
     void (async () => {
-      const { data, error: err } = await supabase
-        .from('v_disponible_publico')
-        .select('id, armado')
-        .not('armado', 'is', null)
-        .limit(2000);
-      if (err) return;
-      const mapa = new Map<number, 'dije' | 'base'>();
-      for (const f of (data as { id: number; armado: 'dije' | 'base' | null }[] | null) ?? []) {
-        if (f.armado) mapa.set(f.id, f.armado);
-      }
-      setTipos(mapa);
+      const mapa = await fuente.armados();
+      if (mapa) setTipos(mapa);
     })();
-  }, []);
+  }, [fuente]);
 
   useEffect(() => {
     // Al salir vuelve el de antes, no "Lux by Emory": en un subdominio sin
@@ -152,22 +137,9 @@ export function useCatalogoRv(usuario: string): CatalogoRv {
     setCargandoFilas(true);
     // Una respuesta que llega después de otra consulta ya es vieja: se tira.
     const mio = ++turno.current;
-    let consulta = supabase
-      .rpc('rv_catalogo_publico', { p_usuario: usuario })
-      .select(COLUMNAS)
-      .order('categoria', { ascending: true })
-      .order('nombre', { ascending: true })
-      .limit(LIMITE);
-    if (categoria) consulta = consulta.eq('categoria', categoria);
-    if (para) consulta = consulta.in('para', paraQueVe(para));
-    if (texto.trim()) {
-      const t = texto.trim().replace(/[%,()"\\:]/g, ' ');
-      consulta = consulta.or(`nombre.ilike.%${t}%,categoria.ilike.%${t}%,variante.ilike.%${t}%`);
-    }
-    const { data, error: err } = await consulta;
+    const { data: filas, error: err } = await fuente.piezas({ categoria, para, texto }, LIMITE);
     if (mio !== turno.current) return;
-    if (err) setError(mensajeDeError(err));
-    const filas = (data as unknown as ModeloRevendedor[] | null) ?? [];
+    if (err) setError(err);
     setModelos(filas);
     setPorId((antes) => {
       const copia = new Map(antes);
@@ -177,7 +149,7 @@ export function useCatalogoRv(usuario: string): CatalogoRv {
     setCargadoPara(`${categoria ?? ''}|${texto.trim()}|${para ?? ''}`);
     setVisibles(DE_A);
     setCargandoFilas(false);
-  }, [usuario, texto, categoria, para]);
+  }, [fuente, texto, categoria, para]);
 
   useEffect(() => {
     const t = setTimeout(() => void cargar(), texto ? 300 : 0);
@@ -244,23 +216,15 @@ export function useCatalogoRv(usuario: string): CatalogoRv {
   const cargarDijes = useCallback(async () => {
     if (dijes !== null) return;
     const ids = [...tipos].filter(([, t]) => t === 'dije').map(([id]) => id);
-    const { data, error: err } = ids.length === 0
-      ? { data: [], error: null }
-      : await supabase
-        .rpc('rv_catalogo_publico', { p_usuario: usuario })
-        .select(COLUMNAS)
-        .in('id', ids)
-        .order('nombre', { ascending: true })
-        .limit(LIMITE);
-    if (err) { setError('No se pudieron traer los dijes: ' + mensajeDeError(err)); return; }
-    const filas = (data as unknown as ModeloRevendedor[] | null) ?? [];
+    const { data: filas, error: err } = await fuente.dijes(ids, LIMITE);
+    if (err) { setError('No se pudieron traer los dijes: ' + err); return; }
     setPorId((antes) => {
       const copia = new Map(antes);
       for (const f of filas) copia.set(f.id, f);
       return copia;
     });
     setDijes(filas);
-  }, [dijes, tipos, usuario]);
+  }, [dijes, tipos, fuente]);
 
   const armarCon = useCallback((baseId: number, dijeId: number): string | null => {
     const hecho = armar(seleccion, pares, baseId, dijeId, (id) => porId.get(id)?.disponible ?? 0);
