@@ -1,6 +1,6 @@
 import { supabase, mensajeDeError } from '../../../lib/supabase';
 import { paraQueVe } from '../../../componentes/ElegirPara';
-import type { ModeloRevendedor, PerfilRevendedor } from '../../../lib/tipos';
+import type { ApartadoPublico, ModeloRevendedor, PerfilRevendedor } from '../../../lib/tipos';
 import { COLUMNAS } from './fuente';
 import type { FuenteCatalogoRv } from './fuente';
 
@@ -84,6 +84,25 @@ export function fuenteDemo(q: URLSearchParams): FuenteCatalogoRv {
     async dijes(ids, limite) {
       const { filas, error } = await traer();
       return { data: filas.filter((f) => ids.includes(f.id)).sort(porNombre).slice(0, limite), error };
+    },
+  };
+}
+
+/** Un pedido de muestra de su clienta, esperando el pago (`/apartado/x?demo=1`). */
+export async function apartadoDemo(q: URLSearchParams): Promise<{ apartado: ApartadoPublico; tema: unknown }> {
+  const perfil = (await fuenteDemo(q).perfil()).data!;
+  const piezas = (await fuenteDemo(q).piezas({ categoria: null, para: null, texto: '' }, 3)).data;
+  const items = piezas.map((m) => ({ nombre: m.nombre, variante: m.variante, foto_thumb_path: m.foto_thumb_path, cantidad: 1, precio_usd: Number(m.precio_usd ?? 0) }));
+  const total = items.reduce((s, i) => s + i.precio_usd, 0);
+  return {
+    tema: perfil.tema,
+    apartado: {
+      usuario: 'muestra', catalogo_nombre: perfil.catalogo_nombre, revendedor: 'Jadu', telefono: perfil.telefono,
+      paleta: 'lux', logo_path: perfil.logo_path, estado: 'abierto', creado_en: new Date().toISOString(),
+      expira_en: new Date(Date.now() + 2 * 3600_000).toISOString(), clienta: 'María G.', items,
+      total_usd: total, falta_usd: total, fase: 'esperando_pago', confirmado_en: null, vence_clienta_en: null,
+      pago_movil_cedula: perfil.pago_movil_cedula, pago_movil_telefono: perfil.pago_movil_telefono,
+      pago_movil_banco: perfil.pago_movil_banco, dias_credito: 7, inicial_pct: 40, minimo_usd: Math.round(total * 40) / 100, abonos: [],
     },
   };
 }

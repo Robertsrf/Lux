@@ -238,9 +238,10 @@ html.letra-grande .rvc { font-size: 1.1875rem; }
 .rvc-pedido__acciones { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .rvc-pedido__acciones .rvc-enlace { align-self: center; }
 
-/* La parte de la cédula es de la tienda (TusDatos): se viste con el tema
-   aquí, redefiniendo los tokens que leen sus clases, solo dentro de él. */
-.rvc .tus-datos {
+/* Lo que viene de la tienda (TusDatos en la hoja; avisos, pago móvil y
+   reportar el pago en el pedido de su clienta) se viste con el tema aquí,
+   redefiniendo los tokens que leen sus clases, solo dentro de ellos. */
+.rvc .tus-datos, .rvc-con-lux {
   --texto: var(--rvc-texto); --texto-fuerte: var(--rvc-texto); --texto-secundario: var(--rvc-texto-suave);
   --tinta: var(--rvc-texto); --salvia-texto: var(--rvc-texto-suave); --salvia: var(--rvc-linea);
   --verde-profundo: var(--rvc-boton); --crema: var(--rvc-sobre-boton); --blanco: var(--rvc-superficie);
@@ -254,9 +255,16 @@ html.letra-grande .rvc { font-size: 1.1875rem; }
   --anillo-foco: 0 0 0 3px var(--rvc-acento);
   color: var(--rvc-texto);
 }
-.rvc .tus-datos input, .rvc .tus-datos select { color: var(--rvc-texto); background: var(--rvc-superficie); border-color: var(--rvc-linea); }
-.rvc .tus-datos .boton { text-transform: none; letter-spacing: 0; box-shadow: none; }
-.rvc .tus-datos .boton--secundario { color: var(--rvc-texto); background: transparent; border-color: var(--rvc-linea); }
+.rvc :is(.tus-datos, .rvc-con-lux) :is(input, select, textarea) { color: var(--rvc-texto); background: var(--rvc-superficie); border-color: var(--rvc-linea); }
+.rvc :is(.tus-datos, .rvc-con-lux) .boton { text-transform: none; letter-spacing: 0; box-shadow: none; }
+.rvc :is(.tus-datos, .rvc-con-lux) .boton--secundario { color: var(--rvc-texto); background: transparent; border-color: var(--rvc-linea); }
+.rvc-con-lux :where(h1, h2) { font-family: var(--rvc-letra-titulos); font-weight: 500; }
+.rvc-con-lux h1 { font-size: 1.9em; line-height: 1.1; }
+.rvc-con-lux h2 { font-size: 1.35em; margin: 1.2em 0 0.4em; }
+
+/* El pedido de su clienta: su marca arriba. */
+.rvc-apartado__cabecera { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; padding-bottom: 8px; }
+.rvc-apartado__fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 
 /* ------------------------------------------------ contacto y pie */
 .rvc-contacto {
