@@ -8,11 +8,12 @@
    medido. Por eso no hay selector de color libre, hay seis paletas.
 
    CÓMO SE APLICA
-   La clase va en <html> (useTemaRv), no en un contenedor: así también se
-   visten el fondo del body, la hoja de elegir variante y el visor, que
-   cuelgan de la raíz. Cada paleta cambia los PRIMITIVOS (--verde-profundo,
-   --oro-arena, --crema...) y `.tema-rv` vuelve a derivar aquí los tokens
-   que tokens.css deriva en :root. Sin eso, --texto seguiría valiendo el
+   Hasta la fase 7 la clase iba en <html> y vestía su panel; desde el #74
+   el panel se viste con el tema de su catálogo (panel/temaPanel.ts) y la
+   clase solo va en las muestras de las paletas (Revendedores, la guía).
+   Cada paleta cambia los PRIMITIVOS (--verde-profundo, --oro-arena,
+   --crema...) y `.tema-rv` vuelve a derivar aquí los tokens que
+   tokens.css deriva en :root. Sin eso, --texto seguiría valiendo el
    verde de Lux: una variable que usa otra se resuelve donde se declara.
 
    LO MEDIDO, peor par de cada una (texto sobre fondo real):

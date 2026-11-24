@@ -1,312 +1,204 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Aviso, Campo, Cargando, Vacio } from '../../../componentes/Piezas';
-import {
-  abonoEnBcv, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBs, leerCifra, minimoParaApartar, precioEnBs, totalDeLineas,
-} from '../../../lib/dinero';
-import { urlPublicaFoto } from '../../../lib/fotos';
-import { nombreConVariante } from '../../../lib/familias';
-import { enlaceApartado, enlaceWhatsApp, rpcRv } from '../../../lib/revendedor';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Aviso, Cargando } from '../../../componentes/Piezas';
+import { leerCifra, precioEnBs } from '../../../lib/dinero';
+import { rpcRv } from '../../../lib/revendedor';
 import { useTasa } from '../../../hooks/useTasa';
-import { METODOS_EN_DOLARES, METODOS_PAGO, PIDE_REFERENCIA } from '../../../lib/tipos';
-import type { ClienteRevendedor, MetodoPago, PiezaRevendedor } from '../../../lib/tipos';
+import { PIDE_REFERENCIA } from '../../../lib/tipos';
+import type { ClienteRevendedor, PiezaRevendedor } from '../../../lib/tipos';
 import { textoDeError, usePanelRv } from '../contexto';
+import { conciliarCarrito, cuentasDe, faltaParaSeguir } from './vender/cuentas';
+import type { EstadoVender } from './vender/cuentas';
+import { PasoPiezas } from './vender/PasoPiezas';
+import { PasoClienta } from './vender/PasoClienta';
+import { PasoCobro } from './vender/PasoCobro';
+import { BarraVender } from './vender/BarraVender';
+import { Listo } from './vender/Listo';
+import type { VentaHecha } from './vender/Listo';
+import './vender/vender.css';
 
-const soloDigitos = (s: string) => s.replace(/\D/g, '');
+const CLAVE = 'lux-rv-vender-v1';
+const PASOS = ['Piezas', 'Clienta', 'Cobro'] as const;
+const vacio = (): EstadoVender => ({
+  carrito: new Map(), clientaId: null, nueva: { nombre: '', telefono: '', apellido: '', cedula: '' },
+  cobro: null, metodo: 'pago_movil', monto: '', referencia: '',
+});
+
+/** Lo que dejó a medias en este teléfono (cambió de pantalla o recargó). */
+function leerGuardado(): EstadoVender {
+  try {
+    const g = JSON.parse(window.sessionStorage.getItem(CLAVE) ?? 'null') as (Partial<EstadoVender> & { carrito?: unknown }) | null;
+    if (!g || typeof g !== 'object') return vacio();
+    const lineas = Array.isArray(g.carrito) ? g.carrito : [];
+    const carrito = new Map<number, number>(
+      lineas.filter((x): x is [number, number] => Array.isArray(x) && Number.isInteger(x[0]) && Number.isInteger(x[1]) && x[1] > 0),
+    );
+    return { ...vacio(), ...g, nueva: { ...vacio().nueva, ...(g.nueva ?? {}) }, carrito };
+  } catch {
+    return vacio();
+  }
+}
+function guardar(e: EstadoVender | null) {
+  try {
+    if (e) window.sessionStorage.setItem(CLAVE, JSON.stringify({ ...e, carrito: [...e.carrito] }));
+    else window.sessionStorage.removeItem(CLAVE);
+  } catch { /* sin almacenamiento: el carrito vive mientras la pantalla esté abierta */ }
+}
 
 /**
- * Vender desde su panel: él arma el pedido para una clienta suya, con sus
- * precios. Es el mismo pedido que ella haría desde el catálogo, y aparta
- * igual de lo libre de la tienda.
- *
- * Si ya le pagó (en la mano o en su banco), lo anota aquí y el pedido
- * queda confirmado de una vez: desde ahí corre su día para pagarle a Lux.
- * Si no, espera las horas de siempre y él le manda el enlace para pagar.
+ * Vender desde su panel, en tres pasos (fase 7): piezas → clienta → cobro,
+ * con el total siempre a la vista. Es el mismo pedido que su clienta haría
+ * desde su catálogo (`rv_vender`): toma primero de lo suyo y aparta lo
+ * demás de la tienda. El paso va en la ruta, así "atrás" vuelve un paso.
  */
 export function VenderRv() {
   const { siSeCerro, recargar, resumen } = usePanelRv();
   const { tasa } = useTasa();
+  const [params, setParams] = useSearchParams();
   const [piezas, setPiezas] = useState<PiezaRevendedor[]>([]);
   const [clientas, setClientas] = useState<ClienteRevendedor[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [texto, setTexto] = useState('');
-  const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
-  const [cedula, setCedula] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [pago, setPago] = useState(false);
-  const [metodo, setMetodo] = useState<MetodoPago>('pago_movil');
-  const [monto, setMonto] = useState('');
-  const [referencia, setReferencia] = useState('');
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [estado, setEstado] = useState<EstadoVender>(leerGuardado);
   const [guardando, setGuardando] = useState(false);
-  const [hecho, setHecho] = useState<{ token: string; fase: string; clienta: string; telefono: string } | null>(null);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+  const [hecho, setHecho] = useState<VentaHecha | null>(null);
+  const enviando = useRef(false);
+  const concilio = useRef(false);
 
   const cargar = useCallback(async () => {
     try {
-      const [p, c] = await Promise.all([
-        rpcRv<PiezaRevendedor[]>('rv_piezas'),
-        rpcRv<ClienteRevendedor[]>('rv_clientes'),
-      ]);
+      const [p, c] = await Promise.all([rpcRv<PiezaRevendedor[]>('rv_piezas'), rpcRv<ClienteRevendedor[]>('rv_clientes')]);
       setPiezas(p ?? []);
       setClientas(c ?? []);
-      setError(null);
+      setErrorCarga(null);
     } catch (e) {
-      if (!siSeCerro(e)) setError(textoDeError(e));
+      if (!siSeCerro(e)) setErrorCarga(textoDeError(e));
     }
     setCargando(false);
   }, [siSeCerro]);
-
   useEffect(() => { void cargar(); }, [cargar]);
+  useEffect(() => { if (!hecho) guardar(estado); }, [estado, hecho]);
 
-  const visibles = useMemo(() => {
-    const t = texto.trim().toLowerCase();
-    const lista = t
-      ? piezas.filter((p) => `${p.nombre} ${p.variante ?? ''} ${p.sku} ${p.categoria}`.toLowerCase().includes(t))
-      : piezas;
-    return lista.slice(0, 60);
-  }, [piezas, texto]);
+  // El carrito guardado, contra lo que hay ahora: una vez, con las piezas ya traídas.
+  useEffect(() => {
+    if (cargando || errorCarga || concilio.current) return;
+    concilio.current = true;
+    const r = conciliarCarrito(piezas, estado.carrito);
+    if (!r.quitadas.length && !r.bajadas.length) return;
+    setEstado((e) => ({ ...e, carrito: r.carrito }));
+    setAviso([
+      r.quitadas.length ? `Ya no están libres: ${r.quitadas.join(', ')}.` : '',
+      r.bajadas.length ? `Quedan menos de las que tenías: ${r.bajadas.join(', ')}.` : '',
+    ].join(' ').trim());
+  }, [cargando, errorCarga, piezas, estado.carrito]);
 
-  const elegidas = useMemo(
-    () => piezas.filter((p) => (seleccion.get(p.id) ?? 0) > 0).map((p) => ({ pieza: p, cantidad: seleccion.get(p.id) ?? 0 })),
-    [piezas, seleccion],
-  );
-
-  const cuentas = useMemo(() => {
-    const cobras = totalDeLineas(elegidas.map((e) => ({ precio: Number(e.pieza.precio_usd), cantidad: e.cantidad })));
-    // El pedido toma primero de su inventario (#72): eso no se le paga a Lux.
-    const lux = totalDeLineas(elegidas.map((e) => ({
-      precio: Number(e.pieza.precio_lux_usd ?? 0),
-      cantidad: Math.max(e.cantidad - (e.pieza.mias ?? 0), 0),
-    })));
-    return { piezas: elegidas.reduce((n, e) => n + e.cantidad, 0), cobras, lux };
-  }, [elegidas]);
-
-  // Su clienta, si la cédula ya está entre las suyas.
-  const suya = useMemo(() => {
-    const d = soloDigitos(cedula);
-    return d.length >= 6 ? clientas.find((c) => soloDigitos(c.cedula ?? '') === d) ?? null : null;
-  }, [cedula, clientas]);
+  const cuentas = useMemo(() => cuentasDe(piezas, estado.carrito), [piezas, estado.carrito]);
+  const elegida = useMemo(() => clientas.find((c) => c.id === estado.clientaId) ?? null, [clientas, estado.clientaId]);
+  const pedido = Number(params.get('paso'));
+  const paso: 1 | 2 | 3 = cuentas.piezas === 0 ? 1 : pedido === 2 ? 2 : pedido === 3 ? 3 : 1;
+  const reglas = { dias_credito: resumen?.dias_credito, inicial_pct: resumen?.inicial_pct };
+  const falta = faltaParaSeguir(paso, estado, reglas, tasa, cuentas.cobras, elegida);
+  // "?paso=2" sin piezas vuelve a la ruta del paso 1 (si no, sumar una pieza saltaría de paso).
+  useEffect(() => {
+    if (!cargando && cuentas.piezas === 0 && params.get('paso')) setParams({}, { replace: true });
+  }, [cargando, cuentas.piezas, params, setParams]);
 
   if (cargando) return <Cargando texto="Buscando tus piezas" />;
 
-  const pct = Number(resumen?.inicial_pct ?? 0);
-  const daCredito = Boolean(resumen?.dias_credito);
-  const minimo = daCredito && pct > 0 ? minimoParaApartar(cuentas.cobras, pct) : cuentas.cobras;
-  const enDolares = METODOS_EN_DOLARES.includes(metodo);
-  const valor = leerCifra(monto) ?? NaN;
-  const pagado = pago && tasa && valor > 0 ? abonoEnBcv(valor, enDolares, tasa) : null;
-  const tras = pagado ? faltaTrasAbono(cuentas.cobras, pagado.bcv) : null;
-  const llegaAlMinimo = !pago || (pagado !== null && pagado.bcv >= minimo - 0.005 && !tras?.pasa);
-  const datosClienta = suya
-    ? Boolean(suya.nombre) && (Boolean(suya.apellido) || Boolean(apellido.trim())) && (soloDigitos(suya.telefono ?? '').length >= 10 || soloDigitos(telefono).length >= 10)
-    : Boolean(nombre.trim() && apellido.trim() && soloDigitos(telefono).length >= 10);
-  const listo = cuentas.piezas > 0 && soloDigitos(cedula).length >= 6 && datosClienta && llegaAlMinimo && !guardando;
-
-  function cambiar(id: number, cantidad: number) {
-    setSeleccion((s) => {
-      const nueva = new Map(s);
-      if (cantidad <= 0) nueva.delete(id); else nueva.set(id, cantidad);
-      return nueva;
-    });
-  }
+  const cambiar = (cambio: Partial<EstadoVender>) => { setEstado((e) => ({ ...e, ...cambio })); setErrorEnvio(null); };
+  const cambiarCarrito = (id: number, n: number) => setEstado((e) => {
+    const carrito = new Map(e.carrito);
+    if (n <= 0) carrito.delete(id); else carrito.set(id, n);
+    // Con otro total, lo que pagó se vuelve a elegir.
+    return { ...e, carrito, ...(e.cobro === 'todo' || e.cobro === 'parte' ? { cobro: null, monto: '' } : {}) };
+  });
+  const irA = (n: 1 | 2 | 3) => {
+    setParams(n === 1 ? {} : { paso: String(n) });
+    window.scrollTo(0, 0);
+  };
+  const venderOtra = () => {
+    guardar(null);
+    setEstado(vacio());
+    setHecho(null);
+    setParams({}, { replace: true });
+  };
 
   async function vender() {
+    if (enviando.current) return;
+    enviando.current = true;
     setGuardando(true);
-    setError(null);
+    setErrorEnvio(null);
+    const pago = estado.cobro === 'todo' || estado.cobro === 'parte';
+    const telefono = elegida ? (estado.nueva.telefono.trim() || elegida.telefono || '') : estado.nueva.telefono.trim();
     try {
       const r = await rpcRv<{ id: number; token: string; fase: string }>('rv_vender', {
-        p_items: elegidas.map((e) => ({ modelo_id: e.pieza.id, cantidad: e.cantidad })),
-        p_cedula: cedula.trim(),
-        p_nombre: suya ? null : nombre.trim(),
-        p_apellido: suya && suya.apellido ? null : apellido.trim() || null,
-        p_telefono: suya && soloDigitos(suya.telefono ?? '').length >= 10 ? null : telefono.trim() || null,
-        p_pago: pago ? { metodo, monto: valor, referencia: PIDE_REFERENCIA.includes(metodo) ? referencia.trim() || null : null } : null,
+        p_items: [...estado.carrito].map(([modelo_id, cantidad]) => ({ modelo_id, cantidad })),
+        p_cedula: elegida ? null : estado.nueva.cedula.trim() || null,
+        p_nombre: elegida ? null : estado.nueva.nombre.trim(),
+        p_apellido: elegida ? null : estado.nueva.apellido.trim() || null,
+        p_telefono: elegida ? estado.nueva.telefono.trim() || null : telefono,
+        p_pago: pago ? {
+          metodo: estado.metodo,
+          monto: leerCifra(estado.monto),
+          referencia: PIDE_REFERENCIA.includes(estado.metodo) ? estado.referencia.trim() || null : null,
+        } : null,
+        p_cliente_id: elegida?.id ?? null,
       });
+      guardar(null);
       setHecho({
-        token: r.token, fase: r.fase,
-        clienta: suya?.nombre ?? nombre.trim(),
-        telefono: suya?.telefono ?? telefono.trim(),
+        token: r.token, fase: r.fase, telefono, lux: cuentas.lux, cobro: estado.cobro ?? 'no',
+        clienta: elegida?.nombre ?? estado.nueva.nombre.trim(),
       });
-      setSeleccion(new Map());
-      setCedula(''); setNombre(''); setApellido(''); setTelefono('');
-      setPago(false); setMonto(''); setReferencia('');
+      setEstado(vacio());
       void recargar();
       void cargar();
     } catch (e) {
-      if (!siSeCerro(e)) setError(textoDeError(e));
+      if (!siSeCerro(e)) setErrorEnvio(textoDeError(e));
     }
+    enviando.current = false;
     setGuardando(false);
   }
 
-  return (
-    <div className="pagina">
-      <div className="encabezado-pagina">
-        <div>
-          <h1>Vender</h1>
-          <p>Arma un pedido para una clienta tuya, con tus precios. Las piezas se apartan en la tienda.</p>
-        </div>
-      </div>
+  if (hecho) {
+    return <div className="pagina vrv"><Listo hecho={hecho} resumen={resumen} alVenderOtra={venderOtra} /></div>;
+  }
 
-      {error ? <Aviso tono="error" titulo="No se hizo el pedido">{error}</Aviso> : null}
-      {hecho ? (
-        <Aviso tono="exito" titulo="Pedido hecho">
-          {hecho.fase === 'por_pagar_lux'
-            ? 'Quedó confirmado: págale a Lux desde Pedidos antes de que se venza tu plazo.'
-            : `Sus piezas quedan apartadas ${resumen?.horas_pago ?? ''} horas mientras te paga. Mándale su enlace para que vea cómo pagarte.`}
-          <span className="acciones" style={{ marginTop: 'var(--e-3)' }}>
-            <a
-              className="boton boton--secundario boton--pequeno"
-              href={enlaceWhatsApp(hecho.telefono, `Hola ${hecho.clienta}, aquí está tu pedido: ${enlaceApartado(hecho.token, resumen?.usuario)}`)}
-              target="_blank" rel="noopener noreferrer"
-            >
-              Mandarle su enlace
-            </a>
-            <Link className="boton boton--secundario boton--pequeno" to="/rv/apartados">Ver mis pedidos</Link>
-          </span>
+  const boton = paso < 3 ? 'Seguir' : estado.cobro === 'todo' || estado.cobro === 'parte' ? 'Hacer y confirmar' : 'Hacer el pedido';
+  return (
+    <div className="pagina vrv">
+      <h1 className="visualmente-oculto">Vender</h1>
+      <ol className="vrv-pasos">
+        {PASOS.map((nombre, i) => {
+          const n = (i + 1) as 1 | 2 | 3;
+          if (n < paso) return <li key={nombre}><button type="button" onClick={() => irA(n)}>{n}. {nombre}</button></li>;
+          return <li key={nombre} aria-current={n === paso ? 'step' : undefined}><span>{n}. {nombre}</span></li>;
+        })}
+      </ol>
+      {errorCarga ? <Aviso tono="error" titulo="No llegaron tus piezas">{errorCarga}</Aviso> : null}
+      {aviso ? <Aviso tono="alerta" titulo="Tu pedido cambió">{aviso}</Aviso> : null}
+      {errorEnvio ? (
+        <Aviso tono="error" titulo="No se hizo el pedido">
+          {errorEnvio} Lo que escribiste sigue aquí.
+          <span className="acciones"><button type="button" className="boton boton--secundario boton--pequeno" disabled={guardando} onClick={() => void vender()}>Intentar otra vez</button></span>
         </Aviso>
       ) : null}
 
-      <h2 className="seccion-titulo">Piezas</h2>
-      <Campo etiqueta="Buscar" htmlFor="vender-buscar">
-        <input id="vender-buscar" type="search" autoComplete="off" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Cadena, anillo, choker..." />
-      </Campo>
-      {visibles.length === 0 ? (
-        <Vacio titulo={piezas.length === 0 ? 'No hay piezas en tu catálogo ahora' : 'Nada con ese nombre'}>
-          <p>{piezas.length === 0 ? 'Cuando la tienda tenga piezas libres, salen aquí.' : 'Prueba con otra palabra.'}</p>
-        </Vacio>
-      ) : (
-        <div className="lineas-cobro">
-          {visibles.map((p) => {
-            const foto = urlPublicaFoto(p.foto_thumb_path);
-            const cantidad = seleccion.get(p.id) ?? 0;
-            const nombreP = nombreConVariante(p.nombre, p.variante);
-            return (
-              <div className="linea-cobro" key={p.id}>
-                {foto ? <img className="linea-cobro__foto" src={foto} alt="" loading="lazy" /> : <span className="linea-cobro__foto" />}
-                <div>
-                  <div className="linea-cobro__nombre">{nombreP}</div>
-                  <div className="linea-cobro__precio">
-                    A tu clienta <span className="rv-precio__cifra">{formatearBcv(Number(p.precio_usd))}</span>
-                    {p.precio_lux_usd !== null
-                      ? <>{' · '}te sale <span className="rv-precio__cifra">{formatearBcv(Number(p.precio_lux_usd))}</span></>
-                      : null}
-                    {' · '}{p.disponible} {p.disponible === 1 ? 'libre' : 'libres'}
-                    {p.mias ? ` (${p.mias === p.disponible ? 'todas tuyas' : `${p.mias} tuyas`})` : ''}
-                  </div>
-                </div>
-                <div className="contador">
-                  <button type="button" aria-label={`Quitar una de ${nombreP}`} disabled={cantidad === 0} onClick={() => cambiar(p.id, cantidad - 1)}>&minus;</button>
-                  <span className="contador__valor">{cantidad}</span>
-                  <button type="button" aria-label={`Agregar una de ${nombreP}`} disabled={cantidad >= p.disponible} onClick={() => cambiar(p.id, cantidad + 1)}>+</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {cuentas.piezas > 0 ? (
-        <div className="total-cobro">
-          <div>
-            <span className="util secundario">{cuentas.piezas} {cuentas.piezas === 1 ? 'pieza' : 'piezas'}</span>
-            <div className="campo__pista">
-              Le pagas a Lux {formatearBcv(cuentas.lux)} · ganas {formatearBcv(cuentas.cobras - cuentas.lux)}
-            </div>
-          </div>
-          <div>
-            <div className="total-cobro__cifra">{formatearBs(precioEnBs(cuentas.cobras, tasa))}</div>
-            <div className="total-cobro__cifra">{formatearBcv(cuentas.cobras)}</div>
-          </div>
-        </div>
+      {paso === 1 ? <PasoPiezas piezas={piezas} carrito={estado.carrito} alCambiar={cambiarCarrito} /> : null}
+      {paso === 2 ? <PasoClienta clientas={clientas} estado={estado} elegida={elegida} alCambiar={cambiar} /> : null}
+      {paso === 3 ? (
+        <PasoCobro
+          estado={estado} total={cuentas.cobras} lux={cuentas.lux} todasTuyas={cuentas.todasTuyas}
+          tasa={tasa} resumen={resumen} alCambiar={cambiar}
+        />
       ) : null}
 
-      <h2 className="seccion-titulo">Para quién</h2>
-      <div className="panel">
-        <Campo etiqueta="Su cédula" htmlFor="vender-cedula" pista="Con ella la reconoces si ya te compró, y entra a la tienda cuando se apruebe.">
-          <input id="vender-cedula" inputMode="numeric" autoComplete="off" value={cedula} onChange={(e) => setCedula(e.target.value)} />
-        </Campo>
-        {suya ? (
-          <p className="prosa">
-            Es <strong>{[suya.nombre, suya.apellido].filter(Boolean).join(' ')}</strong>{suya.telefono ? `, ${suya.telefono}` : ''}.
-          </p>
-        ) : null}
-        {!suya || !suya.apellido ? (
-          <div className="fila">
-            {!suya ? (
-              <Campo etiqueta="Nombre" htmlFor="vender-nombre">
-                <input id="vender-nombre" autoComplete="off" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-              </Campo>
-            ) : null}
-            <Campo etiqueta="Apellido" htmlFor="vender-apellido">
-              <input id="vender-apellido" autoComplete="off" value={apellido} onChange={(e) => setApellido(e.target.value)} />
-            </Campo>
-          </div>
-        ) : null}
-        {!suya || soloDigitos(suya.telefono ?? '').length < 10 ? (
-          <Campo etiqueta="Teléfono" htmlFor="vender-telefono">
-            <input id="vender-telefono" type="tel" autoComplete="off" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-          </Campo>
-        ) : null}
-      </div>
-
-      <h2 className="seccion-titulo">¿Ya te pagó?</h2>
-      <div className="metodos-pago" role="group" aria-label="Ya te pagó">
-        <button type="button" aria-pressed={!pago} onClick={() => setPago(false)}>Todavía no</button>
-        <button type="button" aria-pressed={pago} onClick={() => setPago(true)}>Ya me pagó</button>
-      </div>
-      {!pago ? (
-        <p className="campo__pista">
-          Sus piezas quedan apartadas {resumen?.horas_pago ?? ''} horas. Le mandas su enlace, ahí ve tus datos de pago y te avisa.
-        </p>
-      ) : (
-        <div className="panel" style={{ marginTop: 'var(--e-4)' }}>
-          <div className="fila">
-            <div className="campo">
-              <label htmlFor="vender-metodo">Cómo te pagó</label>
-              <select id="vender-metodo" value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
-                {METODOS_PAGO.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
-              </select>
-            </div>
-            <Campo etiqueta={enDolares ? 'Cuánto · $' : 'Cuánto · Bs'} htmlFor="vender-monto">
-              <input id="vender-monto" inputMode="decimal" autoComplete="off" value={monto} onChange={(e) => setMonto(e.target.value)} />
-            </Campo>
-          </div>
-          {PIDE_REFERENCIA.includes(metodo) ? (
-            <Campo etiqueta="Referencia" htmlFor="vender-ref">
-              <input id="vender-ref" inputMode="numeric" autoComplete="off" value={referencia} onChange={(e) => setReferencia(e.target.value)} />
-            </Campo>
-          ) : null}
-          <p className="campo__pista" aria-live="polite">
-            {cuentas.piezas === 0
-              ? 'Elige primero las piezas.'
-              : tras?.pasa
-                ? 'Es más que el total.'
-                : !llegaAlMinimo && tasa
-                  ? daCredito
-                    ? `Para confirmar tiene que pagarte al menos ${formatearBcv(minimo)}, hoy ${formatearBs(bsDeBcv(minimo, tasa.tasa_bcv))}.`
-                    : `No tienes días de crédito: tiene que pagarte el total, ${formatearBcv(cuentas.cobras)}.`
-                  : tras && tras.falta > 0
-                    ? `Te quedará debiendo ${formatearBcv(tras.falta)}, y tiene ${resumen?.dias_credito ?? ''} días para pagarte.`
-                    : 'Queda pagado. El pedido se confirma de una vez.'}
-          </p>
-        </div>
-      )}
-
-      <div className="acciones">
-        <button type="button" className="boton boton--confirmar" disabled={!listo} onClick={() => void vender()}>
-          {guardando ? 'Guardando' : pago ? 'Hacer y confirmar el pedido' : 'Hacer el pedido'}
-        </button>
-      </div>
-      {!listo && !guardando ? (
-        <p className="campo__pista">
-          {cuentas.piezas === 0 ? 'Falta elegir las piezas.'
-            : soloDigitos(cedula).length < 6 ? 'Falta su cédula.'
-              : !datosClienta ? 'Faltan sus datos: nombre, apellido y teléfono con el código.'
-                : 'Revisa cuánto te pagó.'}
-        </p>
-      ) : null}
+      <BarraVender
+        piezas={cuentas.piezas} total={cuentas.cobras} totalBs={precioEnBs(cuentas.cobras, tasa)}
+        boton={boton} falta={falta} guardando={guardando}
+        alSeguir={() => (paso < 3 ? irA((paso + 1) as 2 | 3) : void vender())}
+      />
     </div>
   );
 }

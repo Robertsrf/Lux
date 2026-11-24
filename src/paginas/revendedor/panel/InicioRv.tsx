@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Aviso, Ayuda, Cargando } from '../../../componentes/Piezas';
+import { Ayuda, Cargando } from '../../../componentes/Piezas';
 import { Progreso } from '../../../componentes/Progreso';
 import { CompartirCatalogo } from '../../../componentes/CompartirCatalogo';
-import { bsDeBcv, formatearBcv, formatearBs, formatearEntero, formatearMonto, formatearPorcentaje } from '../../../lib/dinero';
-import { enlaceCatalogoRv } from '../../../lib/revendedor';
+import {
+  bsDeBcv, formatearBcv, formatearBs, formatearEntero, formatearFechaHora, formatearMonto, formatearPorcentaje,
+} from '../../../lib/dinero';
+import { enlaceCatalogoRv, enlaceWhatsApp } from '../../../lib/revendedor';
 import { useTasa } from '../../../hooks/useTasa';
 import type { ResumenRevendedor } from '../../../lib/tipos';
 import { usePanelRv } from '../contexto';
@@ -29,9 +31,10 @@ function fraseNivel(r: ResumenRevendedor): string {
 }
 
 /**
- * Lo que ve al entrar. La cifra que manda es lo que ganó en el mes: lo que
- * cobró a sus clientas por lo que ya retiró, menos lo que le pagó a Lux.
- * Al lado, lo que le deben. Debajo, su tope, su enlace y sus meses.
+ * Lo que ve al entrar. Arriba, lo que espera algo de él, cada cosa con su
+ * botón (fase 7), y Vender. Después, lo que ganó en el mes: lo que cobró a
+ * sus clientas por lo que ya retiró, menos lo que le pagó a Lux. Debajo,
+ * su tope, su enlace y sus meses.
  */
 export function InicioRv() {
   const { resumen } = usePanelRv();
@@ -45,6 +48,35 @@ export function InicioRv() {
   const mes = resumen.mes;
   const credito = Number(resumen.credito_usd);
   const fases = resumen.fases ?? {};
+  const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
+  const urgentes: { clave: string; titulo: string; texto?: string; a: string; boton: string }[] = [];
+  if (fases.por_confirmar) {
+    urgentes.push({
+      clave: 'confirmar', a: '/rv/apartados', boton: 'Revisar',
+      titulo: `${fases.por_confirmar} ${plural(fases.por_confirmar, 'pago de tu clienta', 'pagos de tus clientas')} por confirmar`,
+      texto: 'Sus piezas siguen apartadas hasta que lo confirmes.',
+    });
+  }
+  if (fases.por_pagar_lux) {
+    urgentes.push({
+      clave: 'lux', a: '/rv/apartados', boton: 'Pagarle a Lux',
+      titulo: `${fases.por_pagar_lux} ${plural(fases.por_pagar_lux, 'pedido', 'pedidos')} por pagarle a Lux`,
+      texto: resumen.vence_lux_en ? `El primero vence el ${formatearFechaHora(resumen.vence_lux_en)}` : 'Antes de que se venza tu plazo.',
+    });
+  }
+  if (fases.vendido) {
+    urgentes.push({
+      clave: 'retirar', a: '/rv/apartados', boton: 'Ver pedidos',
+      titulo: `${fases.vendido} ${plural(fases.vendido, 'aprobado', 'aprobados')}, por retirar en la tienda`,
+    });
+  }
+  if (credito > 0) {
+    urgentes.push({
+      clave: 'deben', a: '/rv/apartados?ver=deben', boton: 'Cargar lo que te pagan',
+      titulo: `Te deben ${formatearBcv(credito)}`,
+      texto: tasa ? `Hoy son ${formatearBs(bsDeBcv(credito, tasa.tasa_bcv))}.` : undefined,
+    });
+  }
 
   return (
     <div className="pagina">
@@ -55,17 +87,31 @@ export function InicioRv() {
         </div>
       </div>
 
-      {/* Lo que espera algo de él, en una frase y con el enlace. */}
-      {(fases.por_confirmar ?? 0) + (fases.por_pagar_lux ?? 0) + (fases.vendido ?? 0) > 0 ? (
-        <Aviso tono="alerta" titulo="Tienes pedidos que esperan por ti">
-          {[
-            fases.por_confirmar ? `${fases.por_confirmar} con un pago de tu clienta por confirmar` : null,
-            fases.por_pagar_lux ? `${fases.por_pagar_lux} por pagarle a Lux antes de que se venza tu plazo` : null,
-            fases.vendido ? `${fases.vendido} aprobado${fases.vendido === 1 ? '' : 's'}, por retirar en la tienda` : null,
-          ].filter(Boolean).join('; ')}.
-          {' '}<Link to="/rv/apartados">Ver pedidos</Link>
-        </Aviso>
+      {/* Lo que espera algo de él, primero y cada cosa con su botón (fase 7). */}
+      {urgentes.length > 0 ? (
+        <ul className="rv-urgente" aria-label="Lo que espera por ti">
+          {urgentes.map((u) => (
+            <li key={u.clave} className="rv-urgente__tarjeta">
+              <div>
+                <div className="rv-urgente__titulo">{u.titulo}</div>
+                {u.texto ? <div className="rv-urgente__texto">{u.texto}</div> : null}
+              </div>
+              <Link className="boton boton--pequeno" to={u.a}>{u.boton}</Link>
+            </li>
+          ))}
+        </ul>
       ) : null}
+
+      <div className="rv-inicio-acciones">
+        <Link className="boton rv-inicio-acciones__vender" to="/rv/vender">Vender</Link>
+        <a
+          className="boton boton--secundario"
+          href={enlaceWhatsApp(null, `Hola, te comparto mi catálogo de joyas. Aparta las que te gusten desde aquí: ${enlaceCatalogoRv(resumen.usuario)}`)}
+          target="_blank" rel="noopener noreferrer"
+        >
+          Mandar mi catálogo
+        </a>
+      </div>
 
       <section className="tarjeta plan" aria-label="Este mes">
         <div className="plan__cifras">
@@ -151,7 +197,8 @@ export function InicioRv() {
           <li>
             Tu clienta pide desde tu catálogo (o vendes tú desde <Link to="/rv/vender">Vender</Link>) y las piezas
             quedan apartadas {formatearEntero(resumen.horas_pago ?? 0)} horas mientras te paga a ti, a tu pago móvil.
-            Cuando te avisa que pagó, siguen apartadas hasta que tú lo confirmes.
+            Cuando te avisa que pagó, siguen apartadas hasta que tú lo confirmes. Desde Vender basta su nombre y su
+            teléfono: la cédula es opcional.
           </li>
           <li>
             {resumen.dias_credito

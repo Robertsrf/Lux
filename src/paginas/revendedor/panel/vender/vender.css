@@ -1,0 +1,134 @@
+/* =====================================================================
+   Vender desde el panel del revendedor (fase 7): tres pasos y una barra
+   fija. Los colores salen de su tema (temaPanel.ts): aquí solo tokens.
+   Controles de 48 px como mínimo; texto base de 18 px en el teléfono.
+   ===================================================================== */
+
+.vrv { --texto-base: 18px; font-size: var(--texto-base); padding-bottom: calc(var(--e-8) + 120px); }
+@media (max-width: 899px) {
+  .vrv { padding-bottom: calc(var(--e-7) + 76px + 128px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Los pasos: los de atrás se tocan para volver. */
+.vrv-pasos {
+  display: flex; gap: var(--e-2); list-style: none; margin: 0 0 var(--e-5); padding: 0;
+  font-size: var(--t-14); font-weight: 500;
+}
+.vrv-pasos li { flex: 1 1 0; }
+.vrv-pasos li > * {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  min-height: 44px; padding: 0 var(--e-2);
+  border-radius: var(--radio-pill); border: 1px solid var(--linea);
+  color: var(--texto-secundario); background: transparent;
+  font: inherit; text-align: center;
+}
+.vrv-pasos li[aria-current='step'] > * { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+.vrv-pasos button { cursor: pointer; color: var(--texto); text-decoration: underline; text-underline-offset: 3px; }
+
+.vrv-titulo { font-size: var(--t-28); margin: 0 0 var(--e-4); }
+.vrv-subtitulo { font-size: var(--t-20); margin: var(--e-6) 0 var(--e-3); }
+.vrv-nota { margin: var(--e-4) 0 0; color: var(--texto-secundario); }
+
+/* Grupos de botones que se eligen (Tuyas · Todas, el cobro, el método). */
+.vrv-ver, .vrv-opciones, .vrv-metodos { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.vrv-ver button, .vrv-opciones button, .vrv-metodos button {
+  min-height: 48px; padding: 0 var(--e-4);
+  font: inherit; font-size: var(--t-16); font-weight: 500;
+  color: var(--texto); background: var(--superficie);
+  border: 1px solid var(--salvia); border-radius: var(--radio-pill);
+  cursor: pointer;
+}
+.vrv-ver button[aria-pressed='true'], .vrv-opciones button[aria-pressed='true'], .vrv-metodos button[aria-pressed='true'] {
+  background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema);
+}
+.vrv-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.vrv-opciones button { min-height: 64px; font-size: var(--t-20); border-radius: var(--radio-md); }
+.vrv-metodos { margin-bottom: var(--e-4); }
+.vrv-metodos button { min-height: 48px; font-size: var(--t-14); padding: 0 var(--e-3); }
+.vrv-pago { margin-top: var(--e-4); }
+
+/* Buscar: siempre arriba, en el mismo sitio. */
+.vrv-buscar { display: flex; flex-wrap: wrap; gap: var(--e-3); align-items: center; margin-bottom: var(--e-4); }
+.vrv-buscar input, .vrv-buscar__campo { flex: 1 1 220px; min-height: 52px; font-size: var(--t-16); width: 100%; }
+.vrv-buscar__campo { margin-bottom: var(--e-3); }
+
+/* ① Piezas: fotos grandes, dos por fila en el teléfono. */
+.vrv-piezas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--e-3); }
+.vrv-pieza {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--superficie); border: 1px solid var(--linea-suave);
+  border-radius: var(--radio-md); overflow: hidden;
+  box-shadow: var(--sombra-1);
+}
+.vrv-pieza--elegida { border-color: var(--verde-profundo); box-shadow: 0 0 0 2px var(--verde-profundo); }
+.vrv-pieza__toque {
+  display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto;
+  padding: 0 0 var(--e-3); border: 0; background: none; text-align: left;
+  font: inherit; color: var(--texto); cursor: pointer;
+}
+.vrv-pieza__toque:disabled { cursor: default; }
+.vrv-pieza__toque:focus-visible { outline-offset: -3px; }
+.vrv-pieza__foto { position: relative; display: block; aspect-ratio: 1; background: var(--panel-hondo); margin-bottom: var(--e-2); }
+.vrv-pieza__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vrv-pieza__tuyas, .vrv-pieza__lleva {
+  position: absolute; top: var(--e-2);
+  padding: 2px var(--e-2); border-radius: var(--radio-pill);
+  font-size: var(--t-14); font-weight: 600;
+  background: var(--verde-profundo); color: var(--crema);
+}
+.vrv-pieza__tuyas { left: var(--e-2); }
+.vrv-pieza__lleva { right: var(--e-2); min-width: 28px; text-align: center; background: var(--oro-arena); color: var(--tinta); }
+.vrv-pieza__nombre, .vrv-pieza__precio, .vrv-pieza__dato { padding: 0 var(--e-3); }
+.vrv-pieza__nombre { font-size: var(--t-16); line-height: 1.25; overflow-wrap: anywhere; }
+.vrv-pieza__precio { font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; font-variant-numeric: tabular-nums; }
+.vrv-pieza__dato { font-size: var(--t-14); color: var(--texto-secundario); font-variant-numeric: tabular-nums; }
+.vrv-pieza .contador--tarjeta { padding: 0 var(--e-2) var(--e-2); }
+.vrv-pieza .contador--tarjeta button { width: 48px; height: 48px; }
+
+/* ② Clienta. */
+.vrv-clientas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.vrv-clientas button {
+  display: flex; flex-direction: column; align-items: flex-start; width: 100%;
+  min-height: 56px; padding: var(--e-2) var(--e-4);
+  font: inherit; text-align: left; color: var(--texto); cursor: pointer;
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio);
+}
+.vrv-clientas button:hover { border-color: var(--salvia); }
+.vrv-clientas__nombre { font-weight: 600; overflow-wrap: anywhere; }
+.vrv-clientas__dato, .vrv-elegida__dato { font-size: var(--t-14); color: var(--texto-secundario); }
+.vrv-elegida {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); flex-wrap: wrap;
+  padding: var(--e-4); margin-bottom: var(--e-4);
+  background: var(--superficie); border: 2px solid var(--verde-profundo); border-radius: var(--radio-md);
+}
+.vrv-elegida > div { min-width: 0; }
+.vrv-elegida__nombre { font-size: var(--t-20); font-weight: 600; overflow-wrap: anywhere; }
+.vrv-parece {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3);
+  padding: var(--e-3); margin-bottom: var(--hueco-campos);
+  background: var(--verde-suave); border-radius: var(--radio);
+}
+
+/* ③ Cobro: lo que le debe a Lux, antes del botón. */
+.vrv-resumen-lux { margin: var(--e-5) 0 0; font-size: var(--t-16); }
+.vrv-resumen-lux strong { font-variant-numeric: tabular-nums; }
+
+/* La barra fija: aquí puede tener dos renglones (lo que falta y el total). */
+.vrv-barra { flex-wrap: wrap; border-radius: var(--radio-lg); row-gap: var(--e-2); }
+.vrv-barra__falta {
+  flex: 1 0 100%; margin: 0;
+  font-size: var(--t-14); line-height: 1.3;
+  color: color-mix(in srgb, var(--crema) 88%, transparent);
+}
+.vrv-barra__total {
+  display: flex; flex-wrap: wrap; column-gap: var(--e-3);
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+
+/* Listo. */
+.vrv-listo { max-width: 560px; margin: var(--e-6) auto; text-align: center; }
+.vrv-listo__titulo { font-size: var(--t-40); margin: 0 0 var(--e-3); }
+.vrv-listo__texto { font-size: var(--t-20); margin: 0 0 var(--e-6); }
+.vrv-listo__acciones { display: grid; gap: var(--e-3); }
+.vrv-listo__acciones .boton { min-height: 56px; width: 100%; }
