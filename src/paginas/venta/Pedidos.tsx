@@ -1349,6 +1349,10 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
   const falta = Number(cabecera.falta_bcv ?? 0);
   const total = Number(cabecera.total_bcv ?? 0);
   const recibidoBs = sumarCifras(abonos.filter((a) => !a.anulado_en).map((a) => Number(a.monto_bs)));
+  // #75: con un pago que ya llegó, la venta no se anula a secas (su dinero
+  // saldría de la caja de su día). La anula el administrador diciendo si
+  // se devuelve o se queda; la vendedora se lo avisa.
+  const conPagoQueLlego = abonos.some((a) => !a.anulado_en && a.verificado_en);
   // Quitar es para cuando se lleva menos de lo que se cobró. La última
   // pieza no se quita: eso es anular la venta, que ya tiene su botón.
   // A crédito (#71): la clienta se llevó las piezas. Quitar y anular las
@@ -1564,10 +1568,17 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
         ) : null}
         {/* A crédito, la clienta ya tiene las piezas: anular las daría por
             vueltas a la vitrina. Solo el administrador, cuando las trae. */}
-        {!aCredito ? (
+        {!aCredito && !conPagoQueLlego ? (
           <button type="button" className="boton boton--peligro" disabled={trabajando} onClick={() => void anular()}>
             No llegó el pago: anular
           </button>
+        ) : !aCredito && !esAdmin ? null
+        : !aCredito ? (
+          <CerrarConDinero
+            rpc="admin_anular_credito" argumentoId="p_venta_id" id={cabecera.venta_id}
+            pagadoBcv={Math.max(total - falta, 0)} tasa={tasa} alTerminar={alTerminar}
+            texto="Anular con sus pagos"
+          />
         ) : esAdmin && recibidoBs > 0 ? (
           /* Con pagos: se dice qué pasa con el dinero, como al cancelar un
              pedido con dinero. Sus pagos siguen en la caja el día que
@@ -1586,6 +1597,10 @@ function VentaPorVerificar({ cabecera, items, codigo, abonos, cambios, tasa, esA
       {aCredito && !esAdmin ? (
         <p className="campo__pista">
           Es a crédito: la clienta ya tiene las piezas. Si devuelve alguna, avísale al administrador.
+        </p>
+      ) : !aCredito && conPagoQueLlego && !esAdmin ? (
+        <p className="campo__pista">
+          Ya llegó un pago de esta venta: si hay que anularla, avísale al administrador.
         </p>
       ) : null}
     </div>
