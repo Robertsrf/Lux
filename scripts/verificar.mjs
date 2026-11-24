@@ -517,6 +517,12 @@ async function main() {
     const { error } = await P.rpc(fn, { p_sesion: 'f'.repeat(64), ...args });
     dice(!!error && error.code === '28000', `${fn}() con un testigo inventado`, error ? 'rechazada ' + error.code : 'LO DEJO PASAR');
   }
+  // #74: una sola rv_vender, la que recibe la clienta de su lista (con dos,
+  // PostgREST no sabría cuál llamar y respondería PGRST203).
+  {
+    const { error } = await P.rpc('rv_vender', { p_sesion: 'f'.repeat(64), p_items: [], p_cedula: null, p_cliente_id: -1 });
+    dice(!!error && error.code === '28000', 'rv_vender() con p_cliente_id: una sola firma', error ? 'responde ' + error.code : 'LO DEJO PASAR');
+  }
   // El mostrador lee el minimo y los dias del apartado.
   const reglaV = await V.from('configuracion').select('clave, valor').in('clave', ['apartado_inicial_pct', 'apartado_dias']);
   dice(!reglaV.error && (reglaV.data?.length ?? 0) === 2, 'ella lee las cifras del apartado',
@@ -1121,6 +1127,12 @@ async function main() {
         piezas.error ? 'ERROR ' + piezas.error.code : deCosto.length ? 'TRAE ' + deCosto.join(', ') : claves.length + ' columnas');
       const res = await R.rpc('rv_resumen', { p_sesion: s });
       dice(!res.error && res.data?.tope, 'rv_resumen(), su panel', res.error ? 'ERROR ' + res.error.code : 'responde');
+      // #74: trae su tema y cuándo vence lo que debe a Lux; nada de costo.
+      const clavesRes = Object.keys(res.data ?? {});
+      const deCostoRes = clavesRes.filter((c) => /costo|piso|margen|operativo/.test(c));
+      dice(!res.error && 'tema' in (res.data ?? {}) && 'vence_lux_en' in (res.data ?? {}) && deCostoRes.length === 0,
+        'rv_resumen() con tema y vence_lux_en, sin costo',
+        res.error ? 'ERROR ' + res.error.code : deCostoRes.length ? 'TRAE ' + deCostoRes.join(', ') : clavesRes.length + ' claves');
       // Sus pedidos traen lo que le paga a Lux (es suyo), pero nada de costo.
       const ped = await R.rpc('rv_apartados', { p_sesion: s });
       const clavesPed = (ped.data ?? []).flatMap((a) => Object.keys(a));
