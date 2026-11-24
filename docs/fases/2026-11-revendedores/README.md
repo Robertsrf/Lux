@@ -39,7 +39,12 @@ empezar en frío.
 | 5 | El inventario propio del revendedor | [fase-5-inventario-del-revendedor.md](fase-5-inventario-del-revendedor.md) | Sí | 3, 4 |
 | 6 | El catálogo y el carrito del revendedor, rediseñados | [fase-6-catalogo-del-revendedor.md](fase-6-catalogo-del-revendedor.md) | Algo (su tema) | 2, 5 |
 | 7 | El panel del revendedor, y Vender fácil | [fase-7-panel-del-revendedor.md](fase-7-panel-del-revendedor.md) | Poco | 5, 6 |
-| 8 | La landing con el catálogo de Lux, rehecha | [fase-8-landing-de-lux.md](fase-8-landing-de-lux.md) | No (en principio) | 2 |
+| 8 | Auditoría de las cuentas | [fase-8-auditoria-de-cuentas.md](fase-8-auditoria-de-cuentas.md) | Solo si sale un error | — |
+| 9 | El administrativo, rehecho | [fase-9-administrativo.md](fase-9-administrativo.md) | Según la 8 | 8 |
+| 10 | La landing, el catálogo y el pedido de Lux, rehechos | [fase-10-landing-catalogo-y-pedido.md](fase-10-landing-catalogo-y-pedido.md) | Quizá (las secciones) | 2 |
+
+La 8, 9 y 10 nacieron el 24/11/2026: el dueño amplió la vieja fase 8 (la
+landing) a "absolutamente todo", con una auditoría de las cuentas primero.
 
 La 1 y la 2 no dependen de nada y se pueden hacer ya. La 3, 4 y 5 son las de
 dinero y van en ese orden: la 5 necesita saber qué es "una compra para su
@@ -91,7 +96,7 @@ Y en cada fase, el mismo camino, con los orquestadores:
   navegador ya manda.
 - Las fases 6 y 7 se salen del sistema visual de Lux **solo** en lo del
   revendedor (su catálogo, su carrito, su pedido, su panel). Las pantallas de
-  la tienda siguen con `lux-ui`. La fase 8 se sale también, en la landing con
+  la tienda siguen con `lux-ui`. Las fases 9 y 10 se salen también, en el administrativo y en la landing con
   el catálogo de Lux, conservando solo los colores y la tipografía de la marca.
 
 ## Estado
@@ -105,9 +110,11 @@ Y en cada fase, el mismo camino, con los orquestadores:
 | 5 | Hecha y publicada (23/11): el inventario del revendedor se calcula de sus ventas "para su inventario" (casilla en el cobro del mostrador, también a crédito), sus ajustes y lo que vende; su catálogo lo suma a lo de la tienda; el pedido de su clienta toma primero de lo suyo (no le debe nada a Lux); "Mi inventario" en su panel; el dueño lo ve en Revendedores y Crédito. Diseño: `docs/superpowers/specs/2026-11-23-inventario-del-revendedor-design.md`. Falta `npm run verificar` (401) | `main` (fusionada de `fase-5-inventario`) | #72 `esquema-inventario-revendedor.sql` (corrido) |
 | 6 | Hecha y publicada (23/11): su catálogo fuera del sistema de Lux, en tres plantillas (Editorial, Tienda, Lookbook) sobre un solo cerebro; su tema (color libre medido a 4,5:1, cinco letras, esquinas, portada y frase) lo cambian él y el dueño; su logo lo sube él (función `logo-revendedor`); el pedido en una hoja y "Letra grande"; el pedido de su clienta con su tema. Diseño: `docs/superpowers/specs/2026-11-23-catalogo-del-revendedor-design.md`; maquetas: https://claude.ai/artifact/XWhL9jpTLmPN3qiYfra8K8. Falta publicar `logo-revendedor` (sin ella, Mi catálogo dice que le mande el logo a Lux) y `npm run verificar` (413) | `main` (fusionada de `fase-6-catalogo`) | #73 `esquema-catalogo-revendedor.sql` (corrido) |
 | 7 | Hecha y publicada (24/11): Vender en tres pasos (Piezas → Clienta → Cobro) con barra fija, la cédula de su clienta opcional desde el panel (nombre y teléfono), Inicio con lo urgente primero, el panel entero vestido con el tema de su catálogo; arreglado el editor del tema (se salía de lado). Diseño: `docs/superpowers/specs/2026-11-24-panel-del-revendedor-design.md`. Falta: probar una venta contra la base con un revendedor real y `npm run verificar` (414) | `main` (fusionada de `fase-7-panel`) | #74 `esquema-panel-revendedor.sql` (corrido) |
-| 8 | Pendiente (después de la 2) | | |
+| 8 | Hecha (24/11): informe `docs/auditoria/2026-11-24-cuentas.md` (2 errores arreglados: el día cortado en UTC y anular una venta por partes con dinero que llegó; 6 cosas que se entienden mal, para la 9) y la cuenta del flujo `flujo_negocio`/`admin_flujo` (salió, entró, queda en Bs, $ Binance y $ BCV). Diseño: `docs/superpowers/specs/2026-11-24-auditoria-de-cuentas-design.md`. Publicada (24/11). Falta `npm run verificar` (421) | `main` (fusionada de `fase-8-auditoria`) | #75 `esquema-cuentas-del-flujo.sql` (corrido) |
+| 9 | Pendiente (después de la 8) | | |
+| 10 | Pendiente (después de la 9) | | |
 
-El próximo `.sql` libre es el **#75** (#74, `esquema-panel-revendedor.sql`, de la fase 7).
+El próximo `.sql` libre es el **#76** (#75, `esquema-cuentas-del-flujo.sql`, de la fase 8).
 
 **Las direcciones cambiaron en la fase 2:** ya no hay `#/`. Lux en
 `luxbyemory.com`, el personal en `entrar.luxbyemory.com`, el panel del

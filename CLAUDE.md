@@ -614,7 +614,27 @@ ventas cobradas completas por su total, las ventas por partes abono por abono y
 lo anotado en la caja, sin anuladas, con los días cortados en la hora de
 Venezuela. Revocada a todos; la leen `admin_caja_por_metodo`,
 `admin_caja_por_dia` y `admin_caja_por_categoria`, que rechazan a quien no sea
-administrador.
+administrador. Desde el #75 trae también `binance` al final (cada fila en
+dólares Binance, a la tasa de su día).
+
+`flujo_negocio(desde, hasta)` es la cuenta del flujo (fase 8, #75): lo que
+SALIÓ (mercancía y exhibidores de Lotes con su flete, mobiliario de
+Inversiones, las salidas de la Caja por categoría), lo que ENTRÓ (lo de
+`caja_flujo`, que llama y no copia) y lo que QUEDA (dinero, mercancía a lo que
+costó, en camino, sin rastro y a la etiqueta de hoy, lo abonado de pedidos sin
+entregar en negativo, lo que te deben y "si se vende todo"), en Bs, $ Binance
+y $ BCV. Cada movimiento con las tasas de SU día (`tasas_del_dia`: la última
+cargada ese día o antes; antes de toda tasa, la más antigua); lo de un lote,
+con su `tasa_binance_compra` y el día más temprano entre su llegada y cuándo se
+cargó. Lo de "hoy" (la etiqueta, lo que te deben), con la tasa vigente. Revocada
+a todos; `admin_flujo` la envuelve para el administrador. Los lotes se anotan
+SOLO en Lotes (decisión del dueño): si uno se anota también en la Caja como
+"Mercancía", sale dos veces.
+
+**El día y el mes son los de Venezuela** (#75): toda cuenta que corte "hoy" o
+"este mes" usa `hoy_ve()`, `dia_ve(momento)` e `inicio_mes_ve()`, nunca
+`current_date`, `fecha::date` ni `date_trunc('month', now())`: la base corre en
+UTC y desde las 8 de la noche de Venezuela eso ya es mañana (ver Trampas).
 
 Las cuentas de las vendedoras del local no se tocan desde SQL: las crea, pausa y
 les cambia el PIN la función de servidor `supabase/functions/vendedoras`, con la
@@ -1128,7 +1148,10 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   y las piezas vuelven. Si pagó solo una parte, "Cargar un pago" (`abonar_venta`,
   de las dos caras): el primer abono la vuelve una venta por partes y la caja
   cuenta lo que de verdad llegó, no el total que se anotó. Anular una venta ya
-  verificada sigue siendo del administrador. **El administrador también vende**: Mostrador y Pedidos están en
+  verificada sigue siendo del administrador, y también una por partes con un
+  pago ya comprobado (#75): "Anular con sus pagos" (`admin_anular_credito`, que
+  vale para toda venta por partes) dice si el dinero se devuelve o se queda;
+  antes la anulaba cualquiera y el dinero que llegó salía de la caja. **El administrador también vende**: Mostrador y Pedidos están en
   su menú, y también cierra y cuenta: Cierre y Conteo (desde el 28/10/2026;
   antes solo llegaba escribiendo la dirección).
 - **Lo de fuera del catálogo** (pedido del dueño del 02/10/2026). Al cobrar, las
@@ -1571,7 +1594,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 414 comprobaciones con las dos sesiones (421 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 421 comprobaciones con las dos sesiones (428 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, el tema del revendedor y su logo, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
@@ -1608,6 +1631,14 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   $ Binance, e Inversiones restaba lo invertido a la tasa de hoy menos lo vendido a
   la tasa de cada venta. Antes de restar, las dos partes en la misma moneda y a la
   misma tasa.
+- **La base corre en UTC.** `current_date`, `v.fecha::date` y
+  `date_trunc('month', now())` cortan el día cuatro horas antes que Venezuela:
+  desde las 8 de la noche, "hoy" ya era mañana. Reportes por día, "Mi día", la
+  meta, Vendedoras y "El mes" lo hacían, y la Caja no: una venta de las 22:30
+  salía en días distintos en Reportes y en la Caja. Visto en la auditoría del
+  24/11/2026 (#75). Se corta con `hoy_ve()`, `dia_ve()` e `inicio_mes_ve()`.
+  Quedan con la fecha del servidor `tasas.fecha` y `conteos.fecha` (el cuadre
+  compara la misma fecha con la misma, y es coherente).
 
 - **`v_venta_ubicacion.cantidad` es lo libre, no lo que hay.** Para mover piezas o
   contar el inventario físico se usa `existencia`. Confundirlas es mover solo lo
