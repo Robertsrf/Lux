@@ -190,8 +190,8 @@ export function GuiaRevendedor() {
           <ol className="guia-rv__acciones">
             <li><strong>Nombre del catálogo:</strong> como quieres que lo vean tus clientas, por ejemplo "Joyas de María".</li>
             <li><strong>Tu WhatsApp:</strong> a este número te escriben tus clientas desde tu catálogo.</li>
-            <li><strong>Colores:</strong> eliges uno de los seis. Tu catálogo y tu panel se visten con ellos.</li>
-            <li><strong>Tu logo:</strong> si tienes, mándaselo a Lux por WhatsApp y lo sube tal como es.</li>
+            <li><strong>Cómo se ve:</strong> eliges la plantilla (Editorial, Tienda o Lookbook), los colores (unos listos o los tuyos: si uno no se lee, te lo dice), la letra de los títulos, la pieza de la portada y tu frase.</li>
+            <li><strong>Tu logo:</strong> si tienes, lo subes ahí mismo (JPG, PNG o WebP) y sale grande, tal como es, arriba de tu catálogo.</li>
             <li><strong>Cómo te pagan:</strong> los datos de tu pago móvil (cédula, teléfono y banco). Tus clientas los ven en tu catálogo y en su pedido, con un botón para copiarlos.</li>
             <li><strong>Días de crédito:</strong> si quieres darle tiempo a tus clientas para terminar de pagar. Vacío: te pagan todo antes de que confirmes.</li>
           </ol>
@@ -352,7 +352,7 @@ export function GuiaRevendedor() {
     { p: '¿Puedo dar crédito a mis clientas?', r: `Sí. En Mi catálogo pones cuántos días les das. Te pagan al menos el ${c.inicial} para confirmar, y lo demás en esos días. Tú vas cargando cada pago.` },
     { p: '¿Dónde retiro las piezas?', r: `En ${dondeRetirar}, cuando el pedido dice "Aprobado". Si tienes dudas del horario, escríbele a la tienda.` },
     { p: '¿Perdí mi código, qué hago?', r: 'Escríbele a Lux y te da uno nuevo. El viejo deja de servir, así nadie más puede entrar con él.' },
-    { p: '¿Puedo cambiar el nombre y los colores de mi catálogo?', r: 'Sí, cuando quieras, en Mi catálogo. El logo lo sube Lux: mándaselo por WhatsApp.' },
+    { p: '¿Puedo cambiar el nombre y los colores de mi catálogo?', r: 'Sí, cuando quieras, en Mi catálogo: el nombre, la plantilla, los colores, la letra, la portada y tu logo.' },
     { p: '¿Otro revendedor puede ver mis pedidos o mis clientas?', r: 'No. Cada revendedor tiene su catálogo, su panel y su código. Nadie ve lo tuyo.' },
     { p: '¿Cómo subo de nivel?', r: 'Vendiendo y pagando a tiempo. Cada nivel te deja tener más apartado a la vez. En "Tu tope y tus niveles" está cuánto hace falta para cada uno.' },
     { p: '¿Por qué una pieza no sale en mi catálogo?', r: 'Porque la tienda ya no tiene libre, o porque en esa pieza no queda rebaja para ti: ningún precio baja de su mínimo.' },

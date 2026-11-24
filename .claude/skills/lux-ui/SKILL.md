@@ -105,7 +105,10 @@ Estados funcionales que la paleta no cubre. Manténlos apagados, nunca saturados
 
 Ningún otro color. Si necesitas uno nuevo, no lo necesitas.
 
-### La única excepción: el catálogo de un revendedor
+### La única excepción: el revendedor
+
+**Esta skill NO se aplica a `src/paginas/revendedor/catalogo/`** (su catálogo, su pedido en una hoja y el pedido de su clienta, fase 6): ahí manda su tema (`tema.ts`, variables `--rvc-*`), con tres plantillas, color libre y cinco letras, por decisión del dueño del 18/11/2026. Lo único que se conserva de aquí es el contraste: 4,5:1 medido, que `tema.ts` garantiza al dibujar. Lo de abajo sigue valiendo para su PANEL.
+
 
 El catálogo y el panel de un revendedor son SUYOS, y el dueño decidió (septiembre
 de 2026) que pueda vestirlos con otra paleta. No hay selector de color libre: hay

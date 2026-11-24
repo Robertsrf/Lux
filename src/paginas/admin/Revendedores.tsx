@@ -8,7 +8,11 @@ import { FichaDeRevendedor } from '../../componentes/FichaDeRevendedor';
 import {
   PALETAS, claseTema, enlaceCatalogoRv, enlacePanelRv, enlaceWhatsApp, porQueNoSirveUsuario, usuarioDesdeNombre,
 } from '../../lib/revendedor';
-import type { PaletaRevendedor, RevendedorAdmin } from '../../lib/tipos';
+import type { PaletaRevendedor, PerfilRevendedor, RevendedorAdmin } from '../../lib/tipos';
+import { EditorTemaRv } from '../revendedor/catalogo/EditorTemaRv';
+import type { PiezaParaPortada } from '../revendedor/catalogo/EditorTemaRv';
+import { normalizarTema } from '../revendedor/catalogo/tema';
+import type { TemaGuardado } from '../revendedor/catalogo/tema';
 import { InventarioDeRevendedor } from '../../componentes/InventarioDeRevendedor';
 import '../../estilos/revendedor.css';
 
@@ -87,6 +91,10 @@ export function Revendedores() {
   const [errorForm, setErrorForm] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  // Su tema (#73): plantilla, colores, letra, portada. Solo de uno que ya existe.
+  const [tema, setTema] = useState<TemaGuardado>({});
+  const [temaTocado, setTemaTocado] = useState(false);
+  const [piezasRv, setPiezasRv] = useState<PiezaParaPortada[] | null>(null);
   const [codigo, setCodigo] = useState<{ nombre: string; usuario: string; telefono: string | null; codigo: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [enlaceCopiado, setEnlaceCopiado] = useState<boolean | null>(null);
@@ -133,7 +141,19 @@ export function Revendedores() {
       tope: r.tope_manual_usd === null ? '' : String(Number(r.tope_manual_usd)),
       notas: r.notas ?? '', activo: r.activo,
     });
+    setTema({});
+    setTemaTocado(false);
+    setPiezasRv(null);
     window.scrollTo({ top: 0 });
+    // Lo mismo que lee su catálogo: su tema y sus piezas, para la portada.
+    void (async () => {
+      const [p, c] = await Promise.all([
+        supabase.rpc('rv_perfil_publico', { p_usuario: r.usuario }),
+        supabase.rpc('rv_catalogo_publico', { p_usuario: r.usuario }).select('id, nombre, variante, foto_thumb_path').limit(400),
+      ]);
+      setTema(normalizarTema((p.data as PerfilRevendedor | null)?.tema));
+      setPiezasRv((c.data as PiezaParaPortada[] | null) ?? []);
+    })();
   }
 
   async function guardar() {
@@ -173,8 +193,21 @@ export function Revendedores() {
       p_activo: form.activo,
       p_notas: form.notas,
     });
+    if (err) { setGuardando(false); setErrorForm(mensajeDeError(err)); return; }
+    // Su tema va aparte (admin_tema_revendedor): si falla, lo demás ya quedó.
+    if (form.id && temaTocado) {
+      const limpio = normalizarTema(tema);
+      const { error: errTema } = await supabase.rpc('admin_tema_revendedor', {
+        p_revendedor: form.id, p_tema: Object.keys(limpio).length ? limpio : null,
+      });
+      if (errTema) {
+        setGuardando(false);
+        setErrorForm(`Lo demás quedó guardado, pero la plantilla y los colores no: ${mensajeDeError(errTema)}`);
+        void cargar();
+        return;
+      }
+    }
     setGuardando(false);
-    if (err) { setErrorForm(mensajeDeError(err)); return; }
     const r = data as { id: number; codigo: string | null };
     if (r.codigo) setCodigo({ nombre: form.nombre, usuario: form.usuario, telefono: form.telefono || null, codigo: r.codigo });
     setAviso(form.id ? `${form.nombre} guardado.` : null);
@@ -363,19 +396,33 @@ export function Revendedores() {
             </div>
           ) : null}
 
-          <fieldset className="paletas" style={{ marginTop: 'var(--e-5)' }}>
-            <legend>Colores de su catálogo</legend>
-            {PALETAS.map((p) => (
-              <label key={p.id} className={`paleta ${claseTema(p.id)}`}>
-                <input type="radio" name="rv-paleta" value={p.id} checked={form.paleta === p.id} onChange={() => cambiar('paleta', p.id)} />
-                <span className="paleta__muestra" aria-hidden="true">
-                  <span className="paleta__ancla"><span className="paleta__acento" /></span>
-                  <span className="paleta__papel" />
-                </span>
-                <span className="paleta__nombre">{p.nombre}</span>
-              </label>
-            ))}
-          </fieldset>
+          {form.id ? (
+            <section style={{ marginTop: 'var(--e-5)' }} aria-label="Cómo se ve su catálogo">
+              <h3>Cómo se ve su catálogo</h3>
+              <p className="campo__pista">Él también lo cambia desde su panel. Se guarda con el botón Guardar de abajo.</p>
+              <EditorTemaRv
+                valor={tema}
+                alCambiar={(t) => { setTema(t); setTemaTocado(true); }}
+                piezas={piezasRv}
+                paleta={form.paleta}
+                alElegirPaleta={(p) => cambiar('paleta', p)}
+              />
+            </section>
+          ) : (
+            <fieldset className="paletas" style={{ marginTop: 'var(--e-5)' }}>
+              <legend>Colores de su catálogo</legend>
+              {PALETAS.map((p) => (
+                <label key={p.id} className={`paleta ${claseTema(p.id)}`}>
+                  <input type="radio" name="rv-paleta" value={p.id} checked={form.paleta === p.id} onChange={() => cambiar('paleta', p.id)} />
+                  <span className="paleta__muestra" aria-hidden="true">
+                    <span className="paleta__ancla"><span className="paleta__acento" /></span>
+                    <span className="paleta__papel" />
+                  </span>
+                  <span className="paleta__nombre">{p.nombre}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
 
           <div className="fila" style={{ marginTop: 'var(--e-5)' }}>
             <Campo etiqueta="Descuento propio · %" htmlFor="rv-desc" pista={`Vacío: el general, ${reglasGuardadas.revendedor_descuento_pct ?? '—'} %. Puede ser menor, nunca mayor.`}>

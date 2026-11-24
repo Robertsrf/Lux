@@ -171,13 +171,27 @@ src/
                 TusCodigos, Completalo (la pareja y "Complétalo"),
                 VentanaOferta (el código para guardar) y PiezasOferta
                                            (sin sesión)
-    revendedor/ CatalogoRevendedor (/r/:usuario), ApartadoPublico
-                (/apartado/:token)         (sin sesión, como el catálogo)
+    revendedor/ catalogo/ (su catálogo, /r/:usuario o su subdominio,
+                FUERA del sistema visual de Lux, fase 6): CatalogoRv (la
+                ruta: aplica su tema y monta su plantilla), useCatalogoRv
+                (el cerebro: toda la lógica, no dibuja), fuente.ts (de
+                dónde saca los datos; en desarrollo `?demo=1` usa demo.ts,
+                un revendedor de muestra que no llega al build), tema.ts
+                (normalizar, contraste a 4,5:1, colores derivados, temas
+                listos), letras.ts (las cinco letras de títulos y la de
+                texto de cada plantilla, `import()` al pedirlas),
+                plantillas/ (Editorial, Tienda, Lookbook, cada una con su
+                CSS), piezas/ (Marca, Buscador, Tarjeta, Ficha, el pedido
+                en una hoja, la línea de Lux), catalogo-rv.css,
+                EditorTemaRv (el editor del tema, de su panel y de
+                Revendedores); ApartadoPublico (/apartado/:token, con su
+                tema)                      (sin sesión, como el catálogo)
                 EntrarRevendedor (/rv/entrar), Panel (/rv) con panel/
                 InicioRv, ApartadosRv ("Pedidos", por fase), VenderRv,
                 InventarioRv ("Mi inventario": lo que compró para
                 revender, y corregirlo con un motivo),
-                ClientesRv, PreciosRv, MiCatalogoRv (con su pago móvil)
+                ClientesRv, PreciosRv, MiCatalogoRv (su pago móvil, su
+                logo y su tema)
                                            (con SU código, no con Supabase)
     Vitrina (el escenario y el riel del QR; escenas: pieza, conjunto,
     colección, para regalar, de cerca, frase, escote, así de fácil y
@@ -187,7 +201,8 @@ src/
     en su página al final), Entrar,
     Verificacion                           (las de las dos caras)
   estilos/      tokens.css (paleta), base.css, vitrina.css, impresion.css,
-                revendedor.css (las seis paletas de su catálogo, medidas),
+                revendedor.css (las seis paletas de su panel, medidas; su
+                catálogo tiene su propio CSS en revendedor/catalogo/),
                 guia-revendedor.css (la guía pública),
                 landing.css (la landing y sus ofertas), panel-landing.css,
                 codigo.css (la pantalla Código)
@@ -196,6 +211,10 @@ public/landing/ las fotos de la landing, en dos anchos (1600 y 800 px); las
 supabase/functions/vendedoras   crea, pausa y cambia el PIN de las vendedoras
                 del local con la llave maestra, en el servidor de Supabase.
                 Se publica aparte (INSTALACION.md, 3.1); no va en el build.
+supabase/functions/logo-revendedor   el revendedor sube su logo desde su
+                panel: mira su testigo, que sea WebP, PNG o JPEG de menos de
+                300 KB (reglas.ts) y lo guarda con la llave maestra
+                (INSTALACION.md, 3.2).
 wrangler.jsonc  Cloudflare: sirve dist/ (cualquier ruta → index.html), los
                 dominios y el comodín *.luxbyemory.com
 cloudflare/     worker.js (solo cambia la tarjeta de vista previa en el
@@ -327,7 +346,8 @@ inventa el código.
 
 De los revendedores, todas revocadas a `anon` y `authenticated` (se tocan por sus
 funciones): `revendedores` (con la huella de su código, nunca el código, y
-`cliente_id`, su ficha en el maestro de clientas, desde el #70) ·
+`cliente_id`, su ficha en el maestro de clientas, desde el #70, y `tema`,
+cómo se ve su catálogo, desde el #73, con `check (rv_tema_valido(tema))`) ·
 `revendedor_sesiones` · `revendedor_precios` (el que él le pone a cada pieza) ·
 `revendedor_clientes` (sus clientas; entran al maestro de la tienda cuando se
 aprueba su pedido) · `apartados` (su pedido: `expira_en` es el plazo de la fase
@@ -603,10 +623,21 @@ Las del revendedor se llaman `rv_*` y reciben `p_sesion` delante: `rv_entrar`
 `rv_guardar_cliente`, `rv_ajustes`, `rv_confirmar`, `rv_revisar_pago`,
 `rv_pagar_lux`, `rv_vender`, `rv_datos_pago` (su pago móvil y sus días de
 crédito; aparte de `rv_ajustes` para que el navegador viejo no los borre),
-`rv_mi_inventario` y `rv_ajustar_inventario` (#72).
+`rv_mi_inventario` y `rv_ajustar_inventario` (#72) y `rv_guardar_tema`
+(#73: su tema; la portada tiene que ser de su catálogo; null vuelve a su
+paleta). El dueño lo cambia con `admin_tema_revendedor(revendedor, tema)`.
+La regla del tema es UNA, `rv_tema_valido` (revocada a todos: el `check`
+corre dentro de funciones de definidor): solo siete claves, colores
+`#rrggbb`, letra, plantilla y esquinas de su lista, portada un entero
+escrito como entero, frase de 1 a 90 sin controles ni invisibles (ancho
+cero, cambios de dirección). El logo desde su panel lo guardan
+`rv_usuario_para_logo` y `rv_poner_logo` (la ruta tiene que ser
+`revendedores/<su usuario>/<número>.webp|png|jpg`), que SOLO ejecuta
+`service_role`: las llama la función de servidor `logo-revendedor`.
 Todas empiezan por `rv_de_sesion(p_sesion)`,
 que dice quién es o lanza el error `28000`. Las de su catálogo no llevan testigo:
-`rv_perfil_publico`, `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
+`rv_perfil_publico` (con `tema` al final desde el #73; de ahí lo leen
+también el pedido de su clienta y su panel), `rv_catalogo_publico`, `rv_buscar_cliente` (enmascarada,
 con las mismas claves que `buscar_cliente_publico`), `rv_apartar`,
 `rv_ver_apartado` y `rv_reportar_pago` (su clienta le avisa que pagó). Y
 `rv_programa()`, la de la guía pública: las cifras del programa desde
@@ -1483,7 +1514,27 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     - **No es inventario de Lux**: no está en `existencias`, así que el
       conteo, el valor del inventario y el cierre no lo ven. El dueño lo ve
       en Revendedores y en Crédito.
-  - **Su paleta:** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
+  - **Su catálogo es de su marca** (fase 6, #73, decidido el 23/11/2026).
+    Fuera del sistema visual de Lux: su logo grande arriba, Lux solo en el
+    pie y en la ficha de cada pieza con un texto exacto («Joyería
+    hipoalergénica Lux by Emory · acero 316L, titanio y baño de oro 18K ·
+    certificada SGS», `TEXTO_LUX`), ningún contacto de Lux. **Un cerebro,
+    tres caras**: `useCatalogoRv` tiene toda la lógica de antes y cada
+    plantilla (Editorial, Tienda, Lookbook) solo dibuja; una plantilla nueva
+    es otro archivo y un valor más en `rv_tema_valido`. Su **tema**
+    (`revendedores.tema`: plantilla, color principal y de fondo, letra de
+    títulos de una lista de cinco, esquinas, pieza de portada y frase de 1 a
+    90 letras) lo cambian él (Mi catálogo, `rv_guardar_tema`) y el dueño
+    (Revendedores, `admin_tema_revendedor`); sin tema sale la plantilla
+    Tienda con los colores de su paleta. **Color libre, medido al dibujar**:
+    `tema.ts` deriva texto, botón, acento, error y éxito para que todo se lea
+    a 4,5:1 sea cual sea el color guardado (lo prueban los seis temas listos
+    y colores feos), y el panel avisa antes de guardar. La portada es una
+    pieza de SU catálogo (si se agota, otra al azar, fija durante la visita).
+    El pedido va en una hoja (cédula y "Apartar" sin salir), con "Letra
+    grande". El pedido de su clienta se viste con su tema, no con su
+    plantilla. Su logo lo sube él (`logo-revendedor`) o el dueño, como antes.
+  - **Su paleta (la del panel):** seis, medidas a 4,5:1 en `estilos/revendedor.css`. Es la única
     excepción a "ningún otro color", y no hay selector de color libre.
 
 ---
@@ -1491,8 +1542,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 401 comprobaciones con las dos sesiones (407 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
-npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, la tarjeta y el reenvío, y los guiones de scripts/
+npm run verificar     # 413 comprobaciones con las dos sesiones (419 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, el tema del revendedor y su logo, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
 ```
@@ -1549,6 +1600,16 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
 - **Si lanzas N consultas, miras N errores.** El catálogo público miraba solo la
   primera, y los tramos fallaron en silencio durante semanas: ninguna clienta al
   mayor recibió su descuento y la página se veía perfecta.
+- **Un texto oculto se escapa de una fila con scroll.** El texto para el
+  lector de pantalla (`position: absolute`) dentro de una fila que se
+  desliza de lado (`overflow-x: auto`) no se recorta si la fila no es
+  `position: relative`: se ubica respecto a la página, y la página entera se
+  corría 355 px de lado en el teléfono (Lookbook, fase 6). Ni la captura de
+  Edge sin ventana lo enseña: esa ventana no baja de ~500 px de ancho, hay
+  que emularla (CDP `Emulation.setDeviceMetricsOverride`).
+- **base.css de Lux le pone su letra a `h1`–`h3`.** Una pantalla fuera del
+  sistema de Lux (el catálogo del revendedor) lo deshace con
+  `.rvc :where(h1, h2, h3...)`: con `:where`, cualquier clase suya gana.
 - **Los heredoc de Bash se comen las barras invertidas.** Para editar código con
   `\d`, la herramienta de edición, no un heredoc.
 - **Una variable de CSS que usa otra se resuelve donde se declara.** `--texto` vale

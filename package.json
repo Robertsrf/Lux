@@ -15,9 +15,17 @@
     "pruebas": "node --test \"scripts/pruebas/*.test.mjs\""
   },
   "dependencies": {
+    "@fontsource/bodoni-moda": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/eb-garamond": "^5.2.5",
+    "@fontsource/figtree": "^5.3.0",
     "@fontsource/fraunces": "^5.2.5",
     "@fontsource/jost": "^5.2.5",
+    "@fontsource/manrope": "^5.3.0",
+    "@fontsource/marcellus": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "@fontsource/outfit": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
     "@supabase/supabase-js": "^2.115.0",
     "browser-image-compression": "^2.0.2",
     "react": "^19.1.1",

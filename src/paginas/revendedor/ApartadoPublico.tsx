@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
@@ -11,8 +12,12 @@ import { enlaceApartado, enlaceWhatsApp } from '../../lib/revendedor';
 import { destinoDeApartado } from '../../lib/dominio';
 import { direcciones, lugarActual, rutaDelCatalogoRv } from '../../lib/direccion';
 import { useTasa } from '../../hooks/useTasa';
-import { useTemaRv } from '../../hooks/useTemaRv';
-import type { ApartadoPublico as Apartado } from '../../lib/tipos';
+import { useLetraGrande } from '../../hooks/useLetraGrande';
+import { normalizarTema, temaResuelto, variablesCss } from './catalogo/tema';
+import { cargarLetras } from './catalogo/letras';
+import { PieLux } from './catalogo/piezas/Comunes';
+import './catalogo/catalogo-rv.css';
+import type { ApartadoPublico as Apartado, PerfilRevendedor } from '../../lib/tipos';
 import '../../estilos/revendedor.css';
 
 /**
@@ -25,6 +30,11 @@ import '../../estilos/revendedor.css';
  * Aquí le paga a ÉL: sus datos de pago móvil para copiar y el formulario
  * para avisarle que ya pagó. Mientras él no lo confirme, sus piezas siguen
  * apartadas.
+ *
+ * Se viste con SU tema (fase 6): su logo grande, sus colores, su letra. No
+ * con su plantilla: es una página de pagar, igual en las tres. Sus piezas
+ * (avisos, pago móvil, reportar el pago) son las de la tienda, vestidas
+ * con el tema por `.rvc-con-lux` (catalogo-rv.css).
  */
 export function ApartadoPublico() {
   const { token } = useParams();
@@ -34,11 +44,41 @@ export function ApartadoPublico() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ahora, setAhora] = useState(Date.now());
+  const [temaDemo, setTemaDemo] = useState<unknown>(null);
 
-  useTemaRv(apartado?.paleta);
+  // Su tema sale de su perfil (#73). Sin él (o si falla), su paleta.
+  const [temaGuardado, setTemaGuardado] = useState<unknown>(null);
+  const usuarioRv = apartado?.usuario ?? null;
+  useEffect(() => {
+    if (!usuarioRv) return;
+    if (import.meta.env.DEV && temaDemo) { setTemaGuardado(temaDemo); return; }
+    void (async () => {
+      const { data } = await supabase.rpc('rv_perfil_publico', { p_usuario: usuarioRv });
+      setTemaGuardado((data as PerfilRevendedor | null)?.tema ?? null);
+    })();
+  }, [usuarioRv, temaDemo]);
+  const tema = useMemo(() => temaResuelto(normalizarTema(temaGuardado), apartado?.paleta), [temaGuardado, apartado?.paleta]);
+  const estilo = useMemo(() => variablesCss(tema) as CSSProperties, [tema]);
+  useEffect(() => { if (apartado) void cargarLetras(tema); }, [apartado, tema]);
+  useEffect(() => {
+    if (!apartado) return;
+    const antes = document.body.style.background;
+    document.body.style.background = tema.colores.fondo;
+    return () => { document.body.style.background = antes; };
+  }, [apartado, tema]);
+  const { grande, alternar } = useLetraGrande();
 
   const cargar = useCallback(async () => {
     if (!token) return;
+    // Solo en desarrollo: un pedido de muestra (catalogo/demo.ts), para verlo con cualquier tema.
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo')) {
+      const m = await import('./catalogo/demo');
+      const d = await m.apartadoDemo(new URLSearchParams(window.location.search));
+      setApartado(d.apartado);
+      setTemaDemo(d.tema);
+      setCargando(false);
+      return;
+    }
     const { data, error: err } = await supabase.rpc('rv_ver_apartado', { p_token: token });
     if (err) setError(mensajeDeError(err));
     setApartado((data as Apartado | null) ?? null);
@@ -54,7 +94,7 @@ export function ApartadoPublico() {
 
   // El pedido vive en el subdominio de SU revendedor: abierto desde el de
   // Lux o desde el de otro, salta allá. Nunca bajo el nombre de otro.
-  const salto = apartado && token ? destinoDeApartado(lugarActual(), apartado.usuario, token, direcciones()) : null;
+  const salto = apartado && token && !(import.meta.env.DEV && apartado.usuario === 'muestra') ? destinoDeApartado(lugarActual(), apartado.usuario, token, direcciones()) : null;
   useEffect(() => { if (salto) window.location.replace(salto); }, [salto]);
 
   if (cargando || salto) return <Cargando texto="Buscando tu pedido" />;
@@ -86,21 +126,20 @@ export function ApartadoPublico() {
   const mensajePago = `Hola ${quien}, ya te pagué mi pedido. Lo reporté aquí: ${enlaceApartado(token ?? '', apartado.usuario)}`;
 
   return (
-    <>
-      <header className="barra barra--publica">
-        <div className="barra__interior">
-          <div className="rv-marca">
-            {logo ? <img className="rv-marca__logo" src={logo} alt="" /> : null}
-            <div className="rv-marca__texto">
-              <span className="rv-marca__nombre">{apartado.catalogo_nombre}</span>
-              <span className="rv-marca__de">Joyas Lux by Emory</span>
-            </div>
-          </div>
-          <Link to={rutaDelCatalogoRv(apartado.usuario)} className="sesion__quien">Ver el catálogo</Link>
+    <div className={`rvc rvc--${tema.plantilla} rvc-apartado`} style={estilo}>
+      <header className="rvc-interior rvc-apartado__cabecera">
+        <div className="rvc-apartado__fila">
+          <Link to={rutaDelCatalogoRv(apartado.usuario)} className="rvc-enlace">← Ver el catálogo</Link>
+          <button type="button" className="rvc-boton rvc-boton--claro rvc-boton--chico" aria-pressed={grande} onClick={alternar}>
+            <span aria-hidden="true">Aa</span> Letra grande
+          </button>
+        </div>
+        <div className="rvc-marca rvc-marca--centro">
+          {logo ? <img className="rvc-marca__logo" src={logo} alt={apartado.catalogo_nombre} /> : <span className="rvc-marca__nombre">{apartado.catalogo_nombre}</span>}
         </div>
       </header>
 
-      <div className="pagina pagina--angosta mostrador">
+      <div className="pagina pagina--angosta mostrador rvc-con-lux">
         <div className="encabezado-pagina">
           <div>
             <h1>Tu pedido</h1>
@@ -229,7 +268,8 @@ export function ApartadoPublico() {
             </a>
           </div>
         ) : null}
+        <footer className="rvc-pie"><PieLux /></footer>
       </div>
-    </>
+    </div>
   );
 }

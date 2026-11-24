@@ -1,0 +1,287 @@
+/* =====================================================================
+   El catálogo de un revendedor — base común de las tres plantillas.
+
+   FUERA DEL SISTEMA VISUAL DE LUX (decisión del dueño del 18/11/2026):
+   su catálogo es de su marca. Nada aquí usa tokens ni clases de Lux;
+   todo sale de las variables `--rvc-*` que pone tema.ts, donde cada par
+   de texto ya viene medido a 4,5:1 con el color que él elija.
+
+   Las letras van en `em` sobre `.rvc`: "Letra grande" sube el tamaño de
+   `.rvc` y todo crece con él. Objetivos táctiles de 44 px o más.
+   ===================================================================== */
+
+.rvc {
+  --rvc-hueco: clamp(16px, 4vw, 32px);
+  --rvc-ancho: 1200px;
+  min-height: 100vh;
+  background: var(--rvc-fondo);
+  color: var(--rvc-texto);
+  font-family: var(--rvc-letra-texto);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+html.letra-grande .rvc { font-size: 1.1875rem; }
+/* base.css de Lux le pone su letra y su color a h1-h3: aquí no. Con
+   :where(), para que cualquier clase de abajo gane. */
+.rvc :where(h1, h2, h3, h4, p, ul, button, input) {
+  font-family: inherit; color: inherit; letter-spacing: normal; text-transform: none; font-weight: inherit;
+}
+.rvc :where(h1, h2, h3, h4) { font-size: inherit; line-height: 1.2; margin: 0; }
+.rvc-dialogo :where(h1, h2, h3, h4, p, ul, button, input) { font-family: inherit; color: inherit; letter-spacing: normal; text-transform: none; }
+.rvc *, .rvc *::before, .rvc *::after { box-sizing: border-box; }
+.rvc img { max-width: 100%; display: block; }
+.rvc :focus-visible { outline: 3px solid var(--rvc-acento); outline-offset: 2px; }
+
+/* Lo que lee el lector de pantalla y no se ve. Su caja (.rvc-tarjeta y las
+   filas que se deslizan) es `position: relative`: si no, se escapaba de una
+   fila con scroll y la página entera se corría de lado. */
+.rvc-tarjeta, .rvc-fichas, .rvc-segmentos, .rvc-contador { position: relative; }
+.rvc-oculto {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+.rvc-interior {
+  width: 100%; max-width: var(--rvc-ancho); margin: 0 auto;
+  padding-left: max(var(--rvc-hueco), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--rvc-hueco), env(safe-area-inset-right, 0px));
+}
+
+.rvc-titulo {
+  margin: 0; font-family: var(--rvc-letra-titulos); font-weight: 500;
+  font-size: 1.6em; line-height: 1.15; text-wrap: balance; color: var(--rvc-texto);
+}
+.rvc-titulo:focus { outline: none; }
+.rvc-etiqueta { margin: 0; font-size: 0.875em; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rvc-texto-suave); }
+.rvc-nota { margin: 0; font-size: 0.875em; color: var(--rvc-texto-suave); }
+
+/* ------------------------------------------------------------- botones */
+.rvc-boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4em;
+  min-height: 48px; padding: 0 1.2em;
+  font: inherit; font-weight: 700; font-size: 0.95em; line-height: 1.2; text-align: center;
+  color: var(--rvc-sobre-boton); background: var(--rvc-boton);
+  border: 1px solid var(--rvc-borde-boton); border-radius: var(--rvc-radio-boton);
+  text-decoration: none; cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+.rvc-boton:hover:not(:disabled) { filter: brightness(1.08); }
+.rvc-boton:active:not(:disabled) { transform: scale(0.98); }
+.rvc-boton:disabled { opacity: 0.45; cursor: not-allowed; }
+.rvc-boton--claro { color: var(--rvc-texto); background: transparent; border-color: var(--rvc-linea); }
+.rvc-boton--hecho { color: var(--rvc-texto); background: var(--rvc-superficie); border-color: var(--rvc-acento); }
+.rvc-boton--chico { min-height: 44px; padding: 0 0.9em; font-size: 0.875em; }
+.rvc-boton--ancho { width: 100%; }
+
+.rvc-enlace {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0;
+  font: inherit; font-weight: 600; color: var(--rvc-acento);
+  background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.rvc-enlace--fuerte { font-weight: 700; text-decoration: none; }
+
+/* ----------------------------------------------- campos y segmentos */
+.rvc-campo {
+  width: 100%; min-height: 52px; padding: 0 1em;
+  font: inherit; color: var(--rvc-texto); background: var(--rvc-superficie);
+  border: 1px solid var(--rvc-linea); border-radius: var(--rvc-radio-boton);
+}
+.rvc-campo::placeholder { color: var(--rvc-texto-suave); opacity: 1; }
+
+.rvc-buscador { display: flex; flex-direction: column; gap: 10px; }
+.rvc-segmentos { display: flex; gap: 6px; }
+.rvc-segmento {
+  flex: 1; min-height: 44px; padding: 0 0.6em;
+  font: inherit; font-weight: 700; font-size: 0.95em; color: var(--rvc-texto);
+  background: transparent; border: 1px solid var(--rvc-linea); border-radius: var(--rvc-radio-boton); cursor: pointer;
+}
+.rvc-segmento[aria-pressed="true"] { color: var(--rvc-sobre-boton); background: var(--rvc-boton); border-color: var(--rvc-borde-boton); }
+
+.rvc-fichas { display: flex; flex-wrap: wrap; gap: 8px; }
+.rvc-ficha {
+  min-height: 44px; min-width: 44px; padding: 0 0.9em;
+  font: inherit; font-weight: 600; font-size: 0.9em; color: var(--rvc-texto);
+  background: var(--rvc-superficie); border: 1px solid var(--rvc-linea); border-radius: var(--rvc-radio-boton); cursor: pointer;
+}
+.rvc-ficha[aria-pressed="true"] { color: var(--rvc-sobre-boton); background: var(--rvc-boton); border-color: var(--rvc-borde-boton); }
+
+/* --------------------------------------------------------------- marca */
+.rvc-marca { margin: 0; display: flex; align-items: center; min-width: 0; }
+.rvc-marca--centro { justify-content: center; text-align: center; }
+.rvc-marca__logo { height: clamp(64px, 22vw, 112px); width: auto; max-width: min(80vw, 420px); object-fit: contain; }
+.rvc-marca--lado .rvc-marca__logo { height: clamp(56px, 16vw, 84px); max-width: min(55vw, 300px); }
+.rvc-marca__nombre {
+  font-family: var(--rvc-letra-titulos); font-weight: 500; line-height: 1.05;
+  font-size: clamp(1.9em, 8vw, 3.4em); color: var(--rvc-texto);
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+.rvc-marca--lado .rvc-marca__nombre { font-size: clamp(1.5em, 6vw, 2.2em); }
+
+/* ------------------------------------------------------------- tarjeta */
+.rvc-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (min-width: 720px) { .rvc-rejilla { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 20px; } }
+
+.rvc-tarjeta { display: flex; flex-direction: column; min-width: 0; }
+.rvc-tarjeta__foto {
+  display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden;
+  background: var(--rvc-superficie); border: 0; border-radius: var(--rvc-radio); cursor: zoom-in;
+}
+.rvc-tarjeta__foto img { width: 100%; height: 100%; object-fit: cover; }
+.rvc-tarjeta__sin-foto {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+  font-family: var(--rvc-letra-titulos); font-size: 2.4em; color: var(--rvc-texto-suave);
+}
+.rvc-tarjeta__cuerpo { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; flex: 1; }
+.rvc-tarjeta__cuerpo > :last-child { margin-top: auto; }
+.rvc-tarjeta__nombre { margin: 0; font-size: 1em; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+
+.rvc-precio { display: flex; flex-wrap: wrap; column-gap: 0.5em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rvc-precio__desde { font-weight: 500; color: var(--rvc-texto-suave); }
+.rvc-precio--grande { margin: 0; font-size: 1.25em; }
+
+.rvc-contador {
+  display: inline-flex; align-items: center; justify-content: space-between; min-height: 48px;
+  border: 1px solid var(--rvc-acento); border-radius: var(--rvc-radio-boton); color: var(--rvc-texto);
+}
+.rvc-contador button {
+  width: 48px; height: 46px; font: inherit; font-size: 1.3em; font-weight: 700;
+  color: var(--rvc-acento); background: none; border: 0; cursor: pointer;
+}
+.rvc-contador button:disabled { opacity: 0.35; cursor: not-allowed; }
+.rvc-contador > span { min-width: 1.5em; text-align: center; font-weight: 700; }
+
+/* ------------------------------------------------- lista, vacío, avisos */
+.rvc-lista { display: flex; flex-direction: column; gap: 16px; }
+.rvc-lista__cabeza { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.rvc-ver-mas { align-self: center; }
+.rvc-cargando { margin: 2em 0; text-align: center; color: var(--rvc-texto-suave); }
+.rvc-vacio { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 2.5em 1em; text-align: center; }
+.rvc-vacio__titulo { margin: 0; font-family: var(--rvc-letra-titulos); font-size: 1.4em; font-weight: 500; }
+.rvc-vacio p { margin: 0; color: var(--rvc-texto-suave); }
+
+.rvc-error {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0; padding: 10px 14px; color: var(--rvc-error);
+  background: var(--rvc-superficie); border: 1px solid var(--rvc-error); border-radius: var(--rvc-radio);
+}
+.rvc-aviso { margin: 0; padding: 10px 14px; color: var(--rvc-exito); background: var(--rvc-superficie); border: 1px solid var(--rvc-exito); border-radius: var(--rvc-radio); }
+
+/* --------------------------------------------- la barra del pedido */
+.rvc-barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  color: var(--rvc-texto); background: var(--rvc-superficie);
+  border-top: 1px solid var(--rvc-linea);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.12);
+}
+.rvc-barra__resumen { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rvc-barra__piezas { font-size: 0.875em; color: var(--rvc-texto-suave); }
+.rvc-barra__total { font-weight: 800; font-size: 1.15em; font-variant-numeric: tabular-nums; }
+.rvc--con-barra { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+/* -------------------------------------------------------------- hojas */
+.rvc-dialogo {
+  width: 100%; max-width: 100%; max-height: 92dvh; margin: auto auto 0; padding: 0;
+  color: var(--rvc-texto); background: var(--rvc-fondo);
+  border: 0; border-radius: calc(var(--rvc-radio) + 10px) calc(var(--rvc-radio) + 10px) 0 0;
+  font-family: var(--rvc-letra-texto);
+}
+.rvc-dialogo::backdrop { background: rgba(10, 10, 14, 0.55); }
+.rvc-dialogo[open] { animation: rvc-sube 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes rvc-sube { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.rvc-dialogo__caja { padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+@media (min-width: 720px) {
+  .rvc-dialogo { max-width: 640px; margin: auto; border-radius: calc(var(--rvc-radio) + 10px); max-height: 88vh; }
+  .rvc-dialogo--ficha { max-width: 920px; }
+}
+
+.rvc-ficha-pieza { display: flex; flex-direction: column; gap: 14px; }
+.rvc-ficha-pieza__barra { display: flex; justify-content: space-between; gap: 8px; }
+.rvc-ficha-pieza__pasar { display: flex; gap: 8px; }
+.rvc-ficha-pieza__foto { aspect-ratio: 1; overflow: hidden; border-radius: var(--rvc-radio); background: var(--rvc-superficie); }
+.rvc-ficha-pieza__foto img { width: 100%; height: 100%; object-fit: cover; }
+.rvc-ficha-pieza__datos { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rvc-ficha-pieza__tipo { font-size: 0.875em; font-weight: 700; color: var(--rvc-acento); letter-spacing: 0.04em; text-transform: uppercase; }
+.rvc-ficha-pieza__acciones { display: flex; flex-direction: column; gap: 8px; }
+@media (min-width: 720px) {
+  .rvc-ficha-pieza { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; }
+  .rvc-ficha-pieza__barra { grid-column: 1 / -1; }
+}
+.rvc-medidas { display: flex; flex-direction: column; gap: 8px; }
+.rvc-medidas__grupo { display: flex; flex-direction: column; gap: 6px; }
+.rvc-medidas__nombre { font-weight: 700; }
+
+.rvc-dijes { display: flex; flex-direction: column; gap: 8px; }
+.rvc-dijes__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.rvc-dije { display: flex; align-items: center; gap: 10px; }
+.rvc-dije img, .rvc-dije__sin-foto { flex: none; width: 52px; height: 52px; object-fit: cover; border-radius: var(--rvc-radio); background: var(--rvc-superficie); }
+.rvc-dije__nombre { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.rvc-pedido { display: flex; flex-direction: column; gap: 16px; }
+.rvc-pedido__cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rvc-pedido__lineas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rvc-linea { display: flex; align-items: center; gap: 10px; }
+.rvc-linea__foto { flex: none; width: 56px; height: 56px; object-fit: cover; border-radius: var(--rvc-radio); background: var(--rvc-superficie); }
+.rvc-linea__datos { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rvc-linea__nombre { font-weight: 700; overflow-wrap: anywhere; }
+.rvc-linea .rvc-contador { min-height: 44px; }
+.rvc-linea .rvc-contador button { width: 42px; height: 42px; }
+.rvc-total {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+  padding: 14px 16px; background: var(--rvc-superficie); border-radius: var(--rvc-radio); font-weight: 700;
+}
+.rvc-total__cifras { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.rvc-total__cifra { font-size: 1.2em; font-weight: 800; }
+.rvc-pedido__datos { display: flex; flex-direction: column; gap: 8px; }
+.rvc-pedido__acciones { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.rvc-pedido__acciones .rvc-enlace { align-self: center; }
+
+/* Lo que viene de la tienda (TusDatos en la hoja; avisos, pago móvil y
+   reportar el pago en el pedido de su clienta) se viste con el tema aquí,
+   redefiniendo los tokens que leen sus clases, solo dentro de ellos. */
+.rvc .tus-datos, .rvc-con-lux {
+  --texto: var(--rvc-texto); --texto-fuerte: var(--rvc-texto); --texto-secundario: var(--rvc-texto-suave);
+  --tinta: var(--rvc-texto); --salvia-texto: var(--rvc-texto-suave); --salvia: var(--rvc-linea);
+  --verde-profundo: var(--rvc-boton); --crema: var(--rvc-sobre-boton); --blanco: var(--rvc-superficie);
+  --linea: var(--rvc-linea); --linea-suave: var(--rvc-linea);
+  --panel: var(--rvc-superficie); --panel-hondo: var(--rvc-superficie); --superficie: var(--rvc-superficie); --verde-suave: var(--rvc-superficie);
+  --papel: var(--rvc-fondo);
+  --fuente-ui: var(--rvc-letra-texto); --fuente-prosa: var(--rvc-letra-texto); --fuente-display: var(--rvc-letra-titulos);
+  --radio: var(--rvc-radio); --radio-md: var(--rvc-radio); --radio-lg: var(--rvc-radio); --radio-pill: var(--rvc-radio-boton);
+  --error: var(--rvc-error); --exito: var(--rvc-exito); --alerta: var(--rvc-texto); --alerta-texto: var(--rvc-texto);
+  --oro-arena: var(--rvc-acento);
+  --anillo-foco: 0 0 0 3px var(--rvc-acento);
+  color: var(--rvc-texto);
+}
+.rvc :is(.tus-datos, .rvc-con-lux) :is(input, select, textarea) { color: var(--rvc-texto); background: var(--rvc-superficie); border-color: var(--rvc-linea); }
+.rvc :is(.tus-datos, .rvc-con-lux) .boton { text-transform: none; letter-spacing: 0; box-shadow: none; }
+.rvc :is(.tus-datos, .rvc-con-lux) .boton--secundario { color: var(--rvc-texto); background: transparent; border-color: var(--rvc-linea); }
+.rvc-con-lux :where(h1, h2) { font-family: var(--rvc-letra-titulos); font-weight: 500; }
+.rvc-con-lux h1 { font-size: 1.9em; line-height: 1.1; }
+.rvc-con-lux h2 { font-size: 1.35em; margin: 1.2em 0 0.4em; }
+
+/* El pedido de su clienta: su marca arriba. */
+.rvc-apartado__cabecera { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; padding-bottom: 8px; }
+.rvc-apartado__fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* ------------------------------------------------ contacto y pie */
+.rvc-contacto {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  margin-top: 32px; padding: 20px; background: var(--rvc-superficie); border-radius: var(--rvc-radio);
+}
+.rvc-contacto__texto { margin: 0; }
+.rvc-pie { display: flex; flex-direction: column; gap: 6px; padding: 28px 0 24px; margin-top: 24px; border-top: 1px solid var(--rvc-linea); }
+.rvc-pie__nombre { font-family: var(--rvc-letra-titulos); font-size: 1.2em; }
+.rvc-lux { margin: 0; font-size: 0.8125em; color: var(--rvc-texto-suave); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rvc *, .rvc-dialogo { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Los tipos en el buscador: una sola fila que se desliza en el teléfono. */
+@media (max-width: 719px) {
+  .rvc-buscador .rvc-fichas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .rvc-buscador .rvc-ficha { flex: none; }
+}

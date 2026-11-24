@@ -1,0 +1,45 @@
+/* Lookbook: la marca al centro, una portada alta, filas que se deslizan. */
+
+.rvc--lookbook .rvc-lb-cabecera { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 64px; padding-bottom: 20px; text-align: center; }
+.rvc--lookbook .rvc-lb-cabecera__acciones { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 max(var(--rvc-hueco), env(safe-area-inset-left, 0px)); }
+.rvc--lookbook .rvc-lb-nombre { font-family: var(--rvc-letra-titulos); font-size: 1.5em; letter-spacing: 0.14em; text-transform: uppercase; overflow-wrap: anywhere; }
+.rvc--lookbook .rvc-marca__nombre { letter-spacing: 0.08em; }
+
+.rvc--lookbook .rvc-lb-portada { display: flex; flex-direction: column; }
+.rvc--lookbook .rvc-lb-portada__foto { width: 100%; aspect-ratio: 4 / 5; max-height: 70vh; object-fit: cover; border-radius: var(--rvc-radio) var(--rvc-radio) 0 0; }
+.rvc--lookbook .rvc-lb-portada__banda {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding: 22px 20px 24px; background: var(--rvc-superficie); border-radius: 0 0 var(--rvc-radio) var(--rvc-radio);
+}
+.rvc--lookbook .rvc-lb-portada__foto + .rvc-lb-portada__banda { border-top: 0; }
+.rvc--lookbook .rvc-lb-portada__banda:first-child { border-radius: var(--rvc-radio); }
+.rvc--lookbook .rvc-lb-portada__tipo { font-size: 0.85em; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rvc-acento); }
+.rvc--lookbook .rvc-lb-portada__frase { margin: 0; font-family: var(--rvc-letra-titulos); font-weight: 400; font-size: clamp(1.8em, 7vw, 3.2em); line-height: 1.05; text-wrap: balance; }
+@media (min-width: 900px) {
+  .rvc--lookbook .rvc-lb-portada { flex-direction: row; }
+  .rvc--lookbook .rvc-lb-portada__foto { flex: 1 1 58%; min-width: 0; aspect-ratio: 4 / 3; max-height: none; border-radius: var(--rvc-radio) 0 0 var(--rvc-radio); }
+  .rvc--lookbook .rvc-lb-portada__banda { flex: 1 1 42%; justify-content: center; padding: 40px; border-radius: 0 var(--rvc-radio) var(--rvc-radio) 0; }
+}
+
+.rvc--lookbook .rvc-lb-buscar { padding-top: 20px; padding-bottom: 8px; }
+.rvc--lookbook .rvc-segmento, .rvc--lookbook .rvc-ficha { border-radius: 999px; }
+
+.rvc--lookbook .rvc-lb-piezas { display: flex; flex-direction: column; gap: 32px; padding-top: 16px; }
+.rvc--lookbook .rvc-lb-estante { display: flex; flex-direction: column; gap: 12px; }
+.rvc--lookbook .rvc-lb-estante__cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rvc--lookbook .rvc-titulo { font-weight: 400; font-size: 1.7em; }
+.rvc--lookbook .rvc-lb-fila {
+  position: relative; display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 0 max(var(--rvc-hueco), env(safe-area-inset-left, 0px)) 6px;
+  scroll-padding-left: max(var(--rvc-hueco), env(safe-area-inset-left, 0px));
+}
+.rvc--lookbook .rvc-lb-fila::-webkit-scrollbar { display: none; }
+.rvc--lookbook .rvc-tarjeta--fila { flex: none; width: min(62vw, 240px); scroll-snap-align: start; }
+.rvc--lookbook .rvc-tarjeta--fila .rvc-tarjeta__foto { aspect-ratio: 4 / 5; }
+@media (min-width: 900px) {
+  .rvc--lookbook .rvc-lb-fila {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible;
+    max-width: var(--rvc-ancho); margin: 0 auto; width: 100%; padding: 0 var(--rvc-hueco);
+  }
+  .rvc--lookbook .rvc-tarjeta--fila { width: auto; }
+}

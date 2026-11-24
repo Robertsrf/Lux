@@ -33,7 +33,7 @@ import { Catalogo as CatalogoPublico } from './paginas/publico/Catalogo';
 import { Reserva } from './paginas/publico/Reserva';
 // El catalogo de un revendedor y el apartado de su clienta tambien son una
 // puerta que llega por WhatsApp, con datos moviles: viajan contados.
-import { CatalogoRevendedor } from './paginas/revendedor/CatalogoRevendedor';
+import { CatalogoRv } from './paginas/revendedor/catalogo/CatalogoRv';
 import { ApartadoPublico } from './paginas/revendedor/ApartadoPublico';
 
 import { Mostrador } from './paginas/venta/Mostrador';
@@ -138,7 +138,7 @@ export function App() {
               sesion. Su panel, con SU codigo: para la base no tiene sesion
               de Supabase (ver esquema-revendedores.sql), asi que no pasa
               por RutaProtegida ni por la sesion de la tienda. */}
-          <Route path="/r/:usuario" element={<CatalogoRevendedor />} />
+          <Route path="/r/:usuario" element={<CatalogoRv />} />
           <Route path="/apartado/:token" element={<ApartadoPublico />} />
           {/* La guia para quien quiere ser revendedor: publica, como el
               catalogo. La manda el dueno desde "Capacitacion revendedores". */}
@@ -222,7 +222,7 @@ export function App() {
 
           <Route
             path="/"
-            element={raiz === 'catalogo' ? <CatalogoPublico /> : raiz === 'revendedor' ? <CatalogoRevendedor /> : <Inicio />}
+            element={raiz === 'catalogo' ? <CatalogoPublico /> : raiz === 'revendedor' ? <CatalogoRv /> : <Inicio />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

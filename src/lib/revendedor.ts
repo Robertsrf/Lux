@@ -2,6 +2,7 @@ import { supabase, mensajeDeError } from './supabase';
 import type { PaletaRevendedor } from './tipos';
 import { USUARIOS_RESERVADOS, urlRevendedor, urlTienda, usuarioValido } from './dominio';
 import { direcciones } from './direccion';
+import { achicarLogo } from './fotos';
 
 /*
   EL REVENDEDOR NO TIENE SESIÓN DE SUPABASE
@@ -79,6 +80,31 @@ export async function rpcRv<T>(funcion: string, argumentos: Record<string, unkno
     throw new Error(mensajeDeError(error));
   }
   return data as T;
+}
+
+/**
+ * Su logo, desde su panel (#73). Sin sesión de Supabase no puede escribir
+ * en el almacén: lo sube la función de servidor `logo-revendedor`, que
+ * comprueba su testigo. Devuelve la ruta guardada.
+ */
+export async function subirMiLogo(archivo: File): Promise<string> {
+  const s = leerSesionRv();
+  if (!s) throw new SesionRvCerrada('Entra con tu código.');
+  const logo = await achicarLogo(archivo);
+  const cuerpo = new FormData();
+  cuerpo.append('sesion', s.sesion);
+  cuerpo.append('archivo', new File([logo], 'logo.webp', { type: 'image/webp' }));
+  const { data, error } = await supabase.functions.invoke('logo-revendedor', { body: cuerpo });
+  if (error) {
+    const respuesta = (error as { context?: Response }).context;
+    if (respuesta?.status === 401) { borrarSesionRv(); throw new SesionRvCerrada('Tu sesión se cerró. Entra otra vez con tu código.'); }
+    // Sin la función publicada (o sin red), lo de siempre: mandárselo a Lux.
+    if (!respuesta || typeof respuesta.json !== 'function' || respuesta.status === 404) throw new Error('Todavía no se puede subir desde aquí: mándale tu logo a Lux por WhatsApp.');
+    let dicho: string | null = null;
+    try { dicho = ((await respuesta.json()) as { error?: string }).error ?? null; } catch { /* sin cuerpo */ }
+    throw new Error(dicho ?? 'No se pudo subir el logo. Prueba otra vez.');
+  }
+  return (data as { ruta: string }).ruta;
 }
 
 /* ------------------------------------------------------------------ enlaces */

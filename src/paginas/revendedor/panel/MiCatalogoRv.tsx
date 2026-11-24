@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Aviso, Campo, Cargando } from '../../../componentes/Piezas';
+import { supabase } from '../../../lib/supabase';
 import { urlPublicaFoto } from '../../../lib/fotos';
-import { PALETAS, claseTema, enlaceCatalogoRv, rpcRv } from '../../../lib/revendedor';
-import type { PaletaRevendedor } from '../../../lib/tipos';
+import { enlaceCatalogoRv, rpcRv, subirMiLogo } from '../../../lib/revendedor';
+import type { PaletaRevendedor, PerfilRevendedor } from '../../../lib/tipos';
+import { EditorTemaRv } from '../catalogo/EditorTemaRv';
+import type { PiezaParaPortada } from '../catalogo/EditorTemaRv';
+import { normalizarTema } from '../catalogo/tema';
+import type { TemaGuardado } from '../catalogo/tema';
 import { textoDeError, usePanelRv } from '../contexto';
 
 /**
- * Cómo se ve su catálogo: el nombre, su WhatsApp y la paleta.
+ * Cómo se ve su catálogo (fase 6, #73): el nombre, su WhatsApp, su logo y
+ * su tema (plantilla, colores, letra, esquinas, portada y frase).
  *
- * Seis paletas y no un selector de color: cada una está medida a 4,5:1 en
- * cada par de texto (estilos/revendedor.css). Un color libre haría un
- * catálogo que no se lee con el sol del mediodía, y el catálogo sigue
- * diciendo "Joyas Lux by Emory".
+ * Color libre, con el contraste medido: tema.ts ajusta las letras al
+ * dibujar para que todo se lea a 4,5:1, y aquí se le dice antes de guardar.
+ * Los seis colores de antes quedan como "listos para usar".
  *
- * El logo lo sube Lux: sin sesión de Supabase él no puede escribir en el
- * almacén de fotos, y así tampoco se cuela una imagen de 8 MB.
+ * El logo lo sube él (función de servidor `logo-revendedor`, que mira su
+ * testigo y que sea una imagen de menos de 300 KB); sin la función
+ * publicada, se lo sigue mandando a Lux.
  */
 export function MiCatalogoRv() {
   const { resumen, recargar, siSeCerro } = usePanelRv();
@@ -28,6 +34,9 @@ export function MiCatalogoRv() {
   const [pmBanco, setPmBanco] = useState('');
   const [dias, setDias] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
+  const [tema, setTema] = useState<TemaGuardado>({});
+  const [piezas, setPiezas] = useState<PiezaParaPortada[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -44,6 +53,15 @@ export function MiCatalogoRv() {
     setPmBanco(resumen.pago_movil_banco ?? '');
     setDias(resumen.dias_credito ? String(resumen.dias_credito) : '');
     setLleno(true);
+    // Su tema y sus piezas (para la portada), de lo mismo que lee su catálogo.
+    void (async () => {
+      const [p, c] = await Promise.all([
+        supabase.rpc('rv_perfil_publico', { p_usuario: resumen.usuario }),
+        supabase.rpc('rv_catalogo_publico', { p_usuario: resumen.usuario }).select('id, nombre, variante, foto_thumb_path').limit(400),
+      ]);
+      setTema(normalizarTema((p.data as PerfilRevendedor | null)?.tema));
+      setPiezas((c.data as PiezaParaPortada[] | null) ?? []);
+    })();
   }, [resumen, lleno]);
 
   if (!resumen) return <Cargando texto="Abriendo tu catálogo" />;
@@ -61,12 +79,36 @@ export function MiCatalogoRv() {
       await rpcRv('rv_datos_pago', {
         p_cedula: pmCedula, p_telefono: pmTelefono, p_banco: pmBanco, p_dias_credito: diasNumero,
       });
-      await recargar();
+    } catch (e) {
+      if (!siSeCerro(e)) setError(textoDeError(e));
+      setGuardando(false);
+      return;
+    }
+    // El tema va aparte: si falla, lo demás ya quedó guardado.
+    try {
+      const limpio = normalizarTema(tema);
+      await rpcRv('rv_guardar_tema', { p_tema: Object.keys(limpio).length ? limpio : null });
       setAviso('Guardado. Así se ve tu catálogo desde ahora.');
+    } catch (e) {
+      if (!siSeCerro(e)) setError(`Lo demás quedó guardado, pero la plantilla y los colores no: ${textoDeError(e)}`);
+    }
+    await recargar();
+    setGuardando(false);
+  }
+
+  async function subirLogo(archivo: File | undefined) {
+    if (!archivo) return;
+    setSubiendo(true);
+    setError(null);
+    setAviso(null);
+    try {
+      await subirMiLogo(archivo);
+      await recargar();
+      setAviso('Listo: tu logo ya sale en tu catálogo.');
     } catch (e) {
       if (!siSeCerro(e)) setError(textoDeError(e));
     }
-    setGuardando(false);
+    setSubiendo(false);
   }
 
   const logo = urlPublicaFoto(resumen.logo_path);
@@ -95,26 +137,15 @@ export function MiCatalogoRv() {
           </Campo>
         </div>
 
-        <fieldset className="paletas" style={{ marginTop: 'var(--e-6)' }}>
-          <legend>Colores</legend>
-          {PALETAS.map((p) => (
-            <label key={p.id} className={`paleta ${claseTema(p.id)}`}>
-              <input type="radio" name="paleta" value={p.id} checked={paleta === p.id} onChange={() => setPaleta(p.id)} />
-              <span className="paleta__muestra" aria-hidden="true">
-                <span className="paleta__ancla"><span className="paleta__acento" /></span>
-                <span className="paleta__papel" />
-              </span>
-              <span className="paleta__nombre">{p.nombre}</span>
-            </label>
-          ))}
-        </fieldset>
+        <h2 className="seccion-titulo">Cómo se ve</h2>
+        <EditorTemaRv valor={tema} alCambiar={setTema} piezas={piezas} paleta={paleta} alElegirPaleta={setPaleta} />
 
         <div className="panel">
           <span className="panel__titulo">Tu logo</span>
           {logo ? <img className="rv-marca__logo rv-marca__logo--muestra" src={logo} alt="Tu logo" /> : null}
-          <p className="campo__pista">
-            {logo ? 'Para cambiarlo, mándale el nuevo a Lux por WhatsApp.' : 'Mándale tu logo a Lux por WhatsApp y lo sube a tu catálogo tal como es, sin recortarlo. Mejor con fondo transparente.'}
-          </p>
+          <Campo etiqueta={logo ? 'Cambiar tu logo' : 'Subir tu logo'} htmlFor="mc-logo" pista={subiendo ? 'Subiendo tu logo…' : 'JPG, PNG o WebP. Sale tal como es, sin recortarlo; mejor con fondo transparente.'}>
+            <input id="mc-logo" type="file" accept="image/png,image/jpeg,image/webp" disabled={subiendo} onChange={(e) => void subirLogo(e.target.files?.[0])} />
+          </Campo>
         </div>
       </div>
 
@@ -145,7 +176,7 @@ export function MiCatalogoRv() {
       </div>
 
       <div className="acciones">
-        <button type="button" className="boton boton--confirmar" disabled={guardando || diasMal} onClick={() => void guardar()}>
+        <button type="button" className="boton boton--confirmar" disabled={guardando || subiendo || diasMal} onClick={() => void guardar()}>
           {guardando ? 'Guardando' : 'Guardar'}
         </button>
       </div>
