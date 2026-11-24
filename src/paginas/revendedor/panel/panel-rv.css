@@ -31,3 +31,21 @@ html.rv-panel {
 .rv-panel h1,
 .rv-panel h2,
 .rv-panel h3 { font-family: var(--fuente-display); }
+
+/* Inicio: lo que espera algo de él, primero, cada cosa con su botón. */
+.rv-urgente { list-style: none; margin: 0 0 var(--e-5); padding: 0; display: grid; gap: var(--e-3); }
+.rv-urgente__tarjeta {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); flex-wrap: wrap;
+  padding: var(--e-4);
+  background: var(--superficie);
+  border: 1px solid var(--linea); border-left: 6px solid var(--verde-profundo);
+  border-radius: var(--radio-md);
+}
+.rv-urgente__tarjeta > div { flex: 1 1 200px; min-width: 0; }
+.rv-urgente__titulo { font-size: var(--t-16); font-weight: 600; color: var(--texto-fuerte); }
+.rv-urgente__texto { font-size: var(--t-14); color: var(--texto-secundario); }
+.rv-urgente__tarjeta .boton { min-height: 48px; }
+
+.rv-inicio-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-3); margin-bottom: var(--e-6); }
+.rv-inicio-acciones .boton { min-height: 56px; width: 100%; }
+.rv-inicio-acciones__vender { font-size: var(--t-16); }
