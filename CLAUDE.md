@@ -631,6 +631,14 @@ a todos; `admin_flujo` la envuelve para el administrador. Los lotes se anotan
 SOLO en Lotes (decisión del dueño): si uno se anota también en la Caja como
 "Mercancía", sale dos veces.
 
+`sin_rastro_por_lote()` (#76, revocada a todos) parte por lote, en $ Binance,
+la misma regla de `mercancia_sin_rastro`: la suma de sus renglones es esa cifra
+(lo prueba PGlite). `admin_sin_rastro_lotes()` la envuelve; la lee el Flujo.
+`admin_inicio()` (#76, solo administrador) es el Inicio: un json de nueve
+cifras que solo CUENTA sobre las vistas de siempre (`v_ventas_por_verificar`,
+`v_abonos_detalle`, `v_pedido_vendedora`, `v_apartados_revendedor`,
+`v_credito`, `v_conteos`); no copia ninguna regla.
+
 **El día y el mes son los de Venezuela** (#75): toda cuenta que corte "hoy" o
 "este mes" usa `hoy_ve()`, `dia_ve(momento)` e `inicio_mes_ve()`, nunca
 `current_date`, `fecha::date` ni `date_trunc('month', now())`: la base corre en
@@ -1594,7 +1602,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 421 comprobaciones con las dos sesiones (428 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 430 comprobaciones con las dos sesiones (437 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, el tema del revendedor y su logo, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/
