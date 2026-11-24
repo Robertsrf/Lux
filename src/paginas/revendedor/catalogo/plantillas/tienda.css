@@ -3,8 +3,11 @@
 .rvc--tienda .rvc-ti-cabecera { background: var(--rvc-superficie); border-bottom: 1px solid var(--rvc-linea); border-radius: 0 0 calc(var(--rvc-radio) + 8px) calc(var(--rvc-radio) + 8px); }
 .rvc--tienda .rvc-ti-cabecera__interior { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding-top: 16px; padding-bottom: 16px; align-items: center; }
 .rvc--tienda .rvc-ti-cabecera__interior > .rvc-buscador { grid-column: 1 / -1; }
-.rvc--tienda .rvc-ti-marca { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.rvc--tienda .rvc-ti-marca__texto { display: flex; flex-direction: column; min-width: 0; }
+/* Un logo muy ancho no se monta sobre el nombre: si no caben, el nombre baja. */
+.rvc--tienda .rvc-ti-marca { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; min-width: 0; }
+.rvc--tienda .rvc-ti-marca .rvc-marca { flex: none; max-width: 100%; }
+.rvc--tienda .rvc-ti-marca .rvc-marca__logo { max-width: 100%; }
+.rvc--tienda .rvc-ti-marca__texto { display: flex; flex-direction: column; flex: 1 1 170px; min-width: 0; }
 .rvc--tienda .rvc-ti-marca__nombre { font-family: var(--rvc-letra-titulos); font-weight: 700; font-size: 1.5em; line-height: 1.1; overflow-wrap: anywhere; }
 .rvc--tienda .rvc-ti-marca__frase { color: var(--rvc-texto-suave); font-size: 0.9em; }
 .rvc--tienda .rvc-ti-cabecera__acciones { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }

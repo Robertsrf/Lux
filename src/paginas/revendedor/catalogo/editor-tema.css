@@ -1,0 +1,60 @@
+/* El editor del tema de un revendedor (su panel y Revendedores). Vive en
+   pantallas con el aspecto del panel; aquí solo lo propio del editor. */
+
+.editor-tema { display: flex; flex-direction: column; gap: var(--e-5); }
+.editor-tema__grupo { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--e-3); min-width: 0; }
+.editor-tema__grupo > legend { font-weight: 600; margin-bottom: var(--e-2); }
+
+.editor-tema__plantillas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e-3); }
+.editor-tema__plantilla { display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.editor-tema__plantilla input { position: absolute; opacity: 0; pointer-events: none; }
+.editor-tema__dibujo {
+  display: grid; gap: 4px; aspect-ratio: 3 / 4; padding: 8px;
+  border: 2px solid var(--linea); border-radius: var(--radio-md); background: var(--blanco);
+}
+.editor-tema__plantilla input:checked + .editor-tema__dibujo { border-color: var(--texto); box-shadow: var(--anillo-foco); }
+.editor-tema__plantilla input:focus-visible + .editor-tema__dibujo { outline: 3px solid var(--texto); outline-offset: 2px; }
+.editor-tema__dibujo > span { background: var(--linea); border-radius: 2px; }
+.editor-tema__dibujo--editorial { grid-template-rows: 1fr 2fr 1fr; }
+.editor-tema__dibujo--tienda { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.editor-tema__dibujo--tienda > span:first-child { grid-column: 1 / -1; }
+.editor-tema__dibujo--lookbook { background: #1A1216; grid-template-rows: 2fr 1fr 1fr; }
+.editor-tema__dibujo--lookbook > span { background: #5A4650; }
+.editor-tema__nombre { font-weight: 600; }
+.editor-tema__para { font-size: var(--t-12); color: var(--texto-secundario); }
+
+.editor-tema__listos { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.editor-tema__listo {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px 0 6px;
+  font: inherit; color: var(--texto); background: var(--blanco); border: 1px solid var(--linea); border-radius: 999px; cursor: pointer;
+}
+.editor-tema__listo[aria-pressed="true"] { border-color: var(--texto); box-shadow: var(--anillo-foco); }
+.editor-tema__listo-muestra { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--linea); }
+
+.editor-tema__color { display: flex; align-items: center; gap: 8px; }
+.editor-tema__color input[type="color"] { flex: none; width: 48px; height: 44px; padding: 2px; border: 1px solid var(--linea); border-radius: var(--radio-md); background: var(--blanco); }
+.editor-tema__color input:not([type="color"]) { flex: 1; min-width: 0; text-transform: uppercase; }
+.editor-tema__aviso { margin: 0; padding: var(--e-3); border: 1px solid var(--alerta); border-radius: var(--radio-md); color: var(--texto-fuerte); background: var(--panel); }
+
+.editor-tema__letras { display: flex; flex-direction: column; gap: var(--e-2); }
+.editor-tema__letra { display: flex; align-items: center; gap: var(--e-3); min-height: 48px; padding: 0 var(--e-3); border: 1px solid var(--linea); border-radius: var(--radio-md); cursor: pointer; }
+.editor-tema__letra-muestra { flex: 1; font-size: 1.25rem; min-width: 0; }
+
+.editor-tema__esquina { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.editor-tema__esquina-muestra { width: 32px; height: 32px; background: var(--linea); }
+.editor-tema__esquina-muestra--suaves { border-radius: 8px; }
+.editor-tema__esquina-muestra--redondas { border-radius: 16px; }
+
+.editor-tema__piezas { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--e-2); }
+.editor-tema__pieza { display: flex; flex-direction: column; gap: 4px; padding: 6px; font: inherit; font-size: var(--t-12); text-align: left; color: var(--texto); background: var(--blanco); border: 1px solid var(--linea); border-radius: var(--radio-md); cursor: pointer; }
+.editor-tema__pieza[aria-pressed="true"] { border-color: var(--texto); }
+.editor-tema__pieza img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; }
+
+/* La muestra se pinta con el tema de verdad (variables --rvc-*). */
+.editor-tema__muestra {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px;
+  background: var(--rvc-fondo); color: var(--rvc-texto); border-radius: var(--rvc-radio); border: 1px solid var(--rvc-linea);
+}
+.editor-tema__muestra-titulo { font-family: var(--rvc-letra-titulos); font-size: 1.5rem; line-height: 1.15; color: var(--rvc-acento); }
+.editor-tema__muestra-texto { color: var(--rvc-texto-suave); }
+.editor-tema__muestra-boton { padding: 10px 18px; font-weight: 700; color: var(--rvc-sobre-boton); background: var(--rvc-boton); border: 1px solid var(--rvc-borde-boton); border-radius: var(--rvc-radio-boton); }
