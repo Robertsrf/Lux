@@ -4,7 +4,7 @@ import type { CatalogoRv } from '../tipos';
 import { BotonLetra, Buscador, Contacto, Escribeme, Marca, Pie } from '../piezas/Comunes';
 import { Cargando, Lista, SinPiezas } from '../piezas/Lista';
 import { Tarjeta } from '../piezas/Tarjeta';
-import { Capas, ErrorArriba, frase } from './Comun';
+import { Capas, ErrorArriba, fotoPortada, frase } from './Comun';
 
 const POR_ESTANTE = 4;
 
@@ -15,6 +15,8 @@ const POR_ESTANTE = 4;
  */
 export function Tienda({ c }: { c: CatalogoRv }) {
   const conLogo = Boolean(urlPublicaFoto(c.perfil?.logo_path));
+  const foto = fotoPortada(c, '120px');
+  const tipoPortada = c.portada?.categoria ?? null;
   const tipos = (
     <nav className="rvc-ti-tipos" aria-label="Tipos de joya">
       {c.tiposConFoto.map((t) => (
@@ -37,7 +39,6 @@ export function Tienda({ c }: { c: CatalogoRv }) {
             <Marca c={c} variante="lado" />
             <div className="rvc-ti-marca__texto">
               {conLogo ? <span className="rvc-ti-marca__nombre" aria-hidden="true">{c.perfil?.catalogo_nombre}</span> : null}
-              <span className="rvc-ti-marca__frase">{frase(c)}</span>
             </div>
           </div>
           <div className="rvc-ti-cabecera__acciones">
@@ -47,6 +48,18 @@ export function Tienda({ c }: { c: CatalogoRv }) {
           <Buscador c={c} conTipos={false} />
         </div>
       </header>
+
+      {!c.enLista ? (
+        <section className="rvc-interior rvc-ti-portada">
+          {foto ? <img className="rvc-ti-portada__foto" src={foto.src} srcSet={foto.srcSet} sizes={foto.sizes} alt={c.portada?.nombre ?? ''} /> : null}
+          <div className="rvc-ti-portada__texto">
+            <h2 className="rvc-ti-portada__frase">{frase(c)}</h2>
+            {tipoPortada ? (
+              <button type="button" className="rvc-enlace rvc-enlace--fuerte" onClick={() => c.setCategoria(tipoPortada)}>Ver {nombreDeTipo(tipoPortada).toLowerCase()} →</button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <div className="rvc-interior rvc-ti-cuerpo">
         {!c.enLista && c.tiposConFoto.length > 0 ? <aside className="rvc-ti-lado">{tipos}</aside> : null}

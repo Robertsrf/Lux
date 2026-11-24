@@ -58,3 +58,13 @@
 @media (min-width: 900px) {
   .rvc--tienda .rvc-ti-estante .rvc-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 }
+
+/* La franja de portada: la pieza que él eligió, pequeña, con su frase. */
+.rvc--tienda .rvc-ti-portada { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.rvc--tienda .rvc-ti-portada__foto { flex: none; width: 92px; height: 92px; object-fit: cover; border-radius: var(--rvc-radio); }
+.rvc--tienda .rvc-ti-portada__texto { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.rvc--tienda .rvc-ti-portada__frase { margin: 0; font-family: var(--rvc-letra-titulos); font-weight: 700; font-size: 1.35em; line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+@media (min-width: 900px) {
+  .rvc--tienda .rvc-ti-portada__foto { width: 120px; height: 120px; }
+  .rvc--tienda .rvc-ti-portada__frase { font-size: 1.7em; }
+}
