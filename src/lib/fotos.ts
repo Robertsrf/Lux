@@ -130,20 +130,28 @@ export async function subirFoto(sku: string, foto: FotoProcesada): Promise<Rutas
  * pesa menos que una sola miniatura del catálogo.
  */
 export async function subirLogoRevendedor(usuario: string, archivo: File): Promise<string> {
-  if (!archivo.type.startsWith('image/')) {
-    throw new Error('Ese archivo no es una imagen. Sube el logo en JPG, PNG o WebP.');
-  }
-  const imageCompression = await compresor();
-  const logo = await imageCompression(archivo, {
-    fileType: 'image/webp', initialQuality: 0.85, ...TRABAJADOR,
-    maxWidthOrHeight: 400, maxSizeMB: 0.06,
-  });
+  const logo = await achicarLogo(archivo);
   const ruta = `revendedores/${usuario.replace(/[^a-z0-9-]/g, '_')}/${Date.now()}.webp`;
   const subida = await supabase.storage.from(BUCKET).upload(ruta, logo, {
     contentType: 'image/webp', upsert: false, cacheControl: '31536000',
   });
   if (subida.error) throw subida.error;
   return ruta;
+}
+
+/**
+ * Un logo achicado: WebP de 400 px de lado y unos 60 KB. Lo usan el dueño
+ * (Revendedores) y el revendedor desde su panel (función logo-revendedor).
+ */
+export async function achicarLogo(archivo: File): Promise<Blob> {
+  if (!archivo.type.startsWith('image/')) {
+    throw new Error('Ese archivo no es una imagen. Sube el logo en JPG, PNG o WebP.');
+  }
+  const imageCompression = await compresor();
+  return imageCompression(archivo, {
+    fileType: 'image/webp', initialQuality: 0.85, ...TRABAJADOR,
+    maxWidthOrHeight: 400, maxSizeMB: 0.06,
+  });
 }
 
 /** El bucket es publico de lectura: las fotos van al catalogo (Fase 3). */

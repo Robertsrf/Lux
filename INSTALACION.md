@@ -161,6 +161,26 @@ visitantes sin sesión con la llave de su propio panel (ver la cabecera de
 `esquema-revendedores.sql`). No crees nunca una cuenta de Supabase para un
 revendedor: con sesión vería todo lo que ve la vendedora.
 
+### 3.2 La función de servidor `logo-revendedor`
+
+Desde el #73 el revendedor sube su logo desde su panel (Mi catálogo). Él no
+tiene sesión de Supabase y el almacén de fotos es solo del administrador, así
+que lo sube `supabase/functions/logo-revendedor/` con la llave maestra: mira su
+testigo (`rv_usuario_para_logo`), que sea WebP, PNG o JPEG de menos de 300 KB
+por sus primeros bytes, lo guarda en `fotos/revendedores/<usuario>/` y apunta
+la ruta con `rv_poner_logo`. Corre primero el #73. Se publica **una vez** (y
+otra cada vez que cambie la carpeta):
+
+```bash
+npx supabase functions deploy logo-revendedor --use-api
+```
+
+Son dos archivos (`index.ts` y `reglas.ts`): por el panel hay que crear los
+dos en la misma función. Deja activado "Verify JWT" (el panel manda la llave
+pública; quien es lo dice su testigo). Sin publicarla, Mi catálogo dice
+"Todavía no se puede subir desde aquí: mándale tu logo a Lux por WhatsApp" y
+el dueño lo sigue subiendo en Revendedores, como antes.
+
 ## 4. El bucket de fotos
 
 **Storage → New bucket** llamado `modelos`, **público**. Las fotos del catálogo
