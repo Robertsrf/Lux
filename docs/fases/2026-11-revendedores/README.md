@@ -103,11 +103,11 @@ Y en cada fase, el mismo camino, con los orquestadores:
 | 3 | Hecha y publicada (23/11): 20 % para revendedores (el general es el tope), clienta con descuento fijo en el mostrador, revendedor enlazado con su ficha, Reportes dice a nombre de quién salió cada rebaja. Diseño: `docs/superpowers/specs/2026-11-23-descuento-y-clienta-especial-design.md`. Falta `npm run verificar` (366) | `main` (1c3fbaf) | #70 `esquema-descuento-clienta.sql` (corrido) |
 | 4 | Hecha y publicada (23/11): crédito en la ficha (días y tope), "A crédito" en el mostrador, Pedidos dice cuándo vence, Anular y Quitar a crédito solo el admin, pantalla Crédito y "N vencidos" en el menú. Diseño: `docs/superpowers/specs/2026-11-23-credito-design.md`. Falta `npm run verificar` (382) y darle el crédito a JaduJoyas en su ficha | `main` (fusionada de `fase-4-credito`) | #71 `esquema-credito.sql` (corrido) |
 | 5 | Hecha y publicada (23/11): el inventario del revendedor se calcula de sus ventas "para su inventario" (casilla en el cobro del mostrador, también a crédito), sus ajustes y lo que vende; su catálogo lo suma a lo de la tienda; el pedido de su clienta toma primero de lo suyo (no le debe nada a Lux); "Mi inventario" en su panel; el dueño lo ve en Revendedores y Crédito. Diseño: `docs/superpowers/specs/2026-11-23-inventario-del-revendedor-design.md`. Falta `npm run verificar` (401) | `main` (fusionada de `fase-5-inventario`) | #72 `esquema-inventario-revendedor.sql` (corrido) |
-| 6 | Pendiente | | |
+| 6 | Construida (23/11), sin publicar: su catálogo fuera del sistema de Lux, en tres plantillas (Editorial, Tienda, Lookbook) sobre un solo cerebro; su tema (color libre medido a 4,5:1, cinco letras, esquinas, portada y frase) lo cambian él y el dueño; su logo lo sube él (función `logo-revendedor`); el pedido en una hoja y "Letra grande"; el pedido de su clienta con su tema. Diseño: `docs/superpowers/specs/2026-11-23-catalogo-del-revendedor-design.md`; maquetas: https://claude.ai/artifact/XWhL9jpTLmPN3qiYfra8K8. Falta correr el #73, publicar `logo-revendedor` y `npm run verificar` (413) | rama `fase-6-catalogo` | #73 `esquema-catalogo-revendedor.sql` (sin correr) |
 | 7 | Pendiente | | |
 | 8 | Pendiente (después de la 2) | | |
 
-El próximo `.sql` libre es el **#73** (#72, `esquema-inventario-revendedor.sql`, de la fase 5).
+El próximo `.sql` libre es el **#74** (#73, `esquema-catalogo-revendedor.sql`, de la fase 6).
 
 **Las direcciones cambiaron en la fase 2:** ya no hay `#/`. Lux en
 `luxbyemory.com`, el personal en `entrar.luxbyemory.com`, el panel del
