@@ -592,3 +592,324 @@ begin
                                                  else 'anulada con sus pagos' end));
 end;
 $fn$;
+
+
+
+-- ---------------------------------------------------------------------
+-- 3. LA CUENTA DEL FLUJO
+-- ---------------------------------------------------------------------
+
+-- caja_flujo: la del #71, con `binance` al final (lo de cada fila en
+-- dólares Binance, a la tasa de su día: los bolívares entre la tasa
+-- Binance de la fila; en la venta, su total_usd, que es esa misma cuenta).
+-- Cambia lo que devuelve, así que se borra y se crea. Sus tres lectoras
+-- (admin_caja_por_*) nombran sus columnas: no cambian. Ninguna vista la usa.
+drop function if exists caja_flujo(date, date);
+create function caja_flujo(p_desde date, p_hasta date)
+returns table (
+  fecha         date,
+  metodo        metodo_pago,
+  tipo          text,
+  origen        text,
+  categoria     text,
+  bs            numeric,
+  usd           numeric,
+  bcv           numeric,
+  por_verificar boolean,
+  binance       numeric
+)
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  with r as (
+    select (p_desde::timestamp at time zone 'America/Caracas')       as desde,
+           ((p_hasta + 1)::timestamp at time zone 'America/Caracas') as hasta
+  )
+  select (v.fecha at time zone 'America/Caracas')::date,
+         v.metodo,
+         'entrada',
+         'venta',
+         null::text,
+         v.total_bs,
+         case when metodo_en_dolares(v.metodo) then v.total_usd end,
+         v.total_bs / nullif(v.tasa_bcv_usada, 0),
+         v.por_verificar,
+         v.total_usd
+    from ventas v, r
+   where not v.anulada
+     and not v.pago_parcial
+     and v.devolucion_de is null
+     and v.fecha >= r.desde and v.fecha < r.hasta
+  union all
+  select (a.fecha at time zone 'America/Caracas')::date,
+         a.metodo,
+         'entrada',
+         'abono',
+         null::text,
+         a.monto_bs,
+         a.monto_usd,
+         a.monto_bcv,
+         a.verificado_en is null,
+         a.monto_bs / nullif(a.tasa_venta, 0)
+    from abonos a
+    left join ventas v on v.id = a.venta_id
+    cross join r
+   where a.anulado_en is null
+     -- #71: los de una venta a crédito anulada diciendo qué pasó con el
+     -- dinero siguen en su día: llegaron de verdad.
+     and (v.id is null or not v.anulada or v.credito_cierre is not null)
+     and (a.origen = 'tienda' or a.verificado_en is not null)
+     and a.fecha >= r.desde and a.fecha < r.hasta
+  union all
+  select c.fecha,
+         c.metodo,
+         c.tipo,
+         'anotado',
+         c.categoria,
+         c.monto_bs,
+         c.monto_usd,
+         c.monto_bcv,
+         false,
+         c.monto_bs / nullif(c.tasa_venta, 0)
+    from caja_movimientos c
+   where c.anulado_en is null
+     and c.fecha between p_desde and p_hasta;
+$fn$;
+
+revoke all on function caja_flujo(date, date) from public, anon, authenticated;
+
+-- Las tasas de un día: la última cargada ese día o antes (por cuándo se
+-- cargó, en la hora de Venezuela). Si el día es anterior a toda tasa, la
+-- más antigua: un lote de antes del sistema no se queda sin cifra.
+create or replace function tasas_del_dia(p_dia date, out tasa_bcv numeric, out tasa_venta numeric)
+returns record
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select t.tasa_bcv, t.tasa_venta
+    from tasas t
+   order by (dia_ve(t.creado_en) <= p_dia) desc,
+            case when dia_ve(t.creado_en) <= p_dia then t.creado_en end desc nulls last,
+            t.creado_en asc
+   limit 1;
+$fn$;
+
+revoke all on function tasas_del_dia(date) from public, anon, authenticated;
+
+-- flujo_negocio: lo que salió, lo que entró y lo que queda. Ver la
+-- cabecera. El día de un lote es el más temprano entre su llegada y cuándo
+-- se cargó (un lote viejo se carga después de llegar; uno en camino, antes,
+-- y al liberarse su llegada pasa a ser la de ese día).
+create or replace function flujo_negocio(p_desde date default null, p_hasta date default null)
+returns table (orden int, grupo text, concepto text, bs numeric, binance numeric, bcv numeric)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+#variable_conflict use_column
+declare
+  v_desde date := coalesce(p_desde, date '2000-01-01');
+  v_hasta date := coalesce(p_hasta, hoy_ve());
+  v_t_bcv   numeric;
+  v_t_venta numeric;
+begin
+  select t.tasa_bcv, t.tasa_venta into v_t_bcv, v_t_venta from tasas t where t.vigente limit 1;
+  if v_t_bcv is null then
+    select x.tasa_bcv, x.tasa_venta into v_t_bcv, v_t_venta from tasas_del_dia(hoy_ve()) x;
+  end if;
+
+  return query
+  with
+  lote as (
+    select l.*, least(l.fecha_llegada, dia_ve(l.creado_en)) as dia,
+           (select x.tasa_bcv from tasas_del_dia(least(l.fecha_llegada, dia_ve(l.creado_en))) x) as t_bcv
+      from lotes l
+  ),
+  -- Lo de un lote nace en $ Binance; a bolívares con lo que se pagó el
+  -- dólar ese día (tasa_binance_compra) y a $ BCV con la tasa BCV del día.
+  salio_lotes as (
+    select 'mercancia'::text as concepto,
+           sum((costo_mercancia_usd + flete_mercancia_usd) * tasa_binance_compra) as bs,
+           sum(costo_mercancia_usd + flete_mercancia_usd) as binance,
+           sum((costo_mercancia_usd + flete_mercancia_usd) * tasa_binance_compra / t_bcv) as bcv
+      from lote where dia between v_desde and v_hasta
+    union all
+    select 'exhibidores',
+           sum((costo_exhibidores_usd + costo_flete_usd - flete_mercancia_usd) * tasa_binance_compra),
+           sum(costo_exhibidores_usd + costo_flete_usd - flete_mercancia_usd),
+           sum((costo_exhibidores_usd + costo_flete_usd - flete_mercancia_usd) * tasa_binance_compra / t_bcv)
+      from lote where dia between v_desde and v_hasta
+  ),
+  inv as (
+    select i.*, t.tasa_bcv as t_bcv, t.tasa_venta as t_venta
+      from inversiones i cross join lateral tasas_del_dia(i.fecha) t
+     where i.activo and i.fecha between v_desde and v_hasta
+  ),
+  salio_inv as (
+    select 'mobiliario'::text as concepto,
+           sum(case when moneda = 'bcv' then monto_usd * t_bcv else monto_usd * t_venta end) as bs,
+           sum(case when moneda = 'bcv' then monto_usd * t_bcv / t_venta else monto_usd end) as binance,
+           sum(case when moneda = 'bcv' then monto_usd else monto_usd * t_venta / t_bcv end) as bcv
+      from inv
+  ),
+  caja as (
+    select * from caja_flujo(v_desde, v_hasta)
+  ),
+  filas as (
+    select 10 as orden, 'salio'::text as grupo, s.concepto, s.bs, s.binance, s.bcv from salio_lotes s
+    union all
+    select 20, 'salio', s.concepto, s.bs, s.binance, s.bcv from salio_inv s
+    union all
+    select 30, 'salio', 'caja:' || c.categoria, sum(c.bs), sum(c.binance), sum(c.bcv)
+      from caja c where c.tipo = 'salida' group by c.categoria
+    union all
+    select 40, 'entro', 'ventas', sum(c.bs), sum(c.binance), sum(c.bcv) from caja c where c.origen = 'venta'
+    union all
+    select 41, 'entro', 'abonos', sum(c.bs), sum(c.binance), sum(c.bcv) from caja c where c.origen = 'abono'
+    union all
+    select 42, 'entro', 'caja:' || c.categoria, sum(c.bs), sum(c.binance), sum(c.bcv)
+      from caja c where c.tipo = 'entrada' and c.origen = 'anotado' group by c.categoria
+  ),
+  sin_comprobar as (
+    select sum(c.bs) as bs, sum(c.binance) as binance, sum(c.bcv) as bcv
+      from caja c where c.tipo = 'entrada' and c.por_verificar
+  ),
+  dinero as (
+    select sum(case when f.grupo = 'entro' then 1 else -1 end * coalesce(f.bs, 0))      as bs,
+           sum(case when f.grupo = 'entro' then 1 else -1 end * coalesce(f.binance, 0)) as binance,
+           sum(case when f.grupo = 'entro' then 1 else -1 end * coalesce(f.bcv, 0))     as bcv
+      from filas f
+  ),
+  -- La mercancía a lo que costó, con las tasas de su lote (las mismas con
+  -- que salió), para que lo comprado, lo vendido, lo que hay y lo que viene
+  -- se resten en la misma moneda. Sin lote, las de hoy.
+  costo_m as (
+    select m.id, m.costo_puesto_usd as c,
+           coalesce(l.tasa_binance_compra, v_t_venta) as t_compra,
+           coalesce(l.t_bcv, v_t_bcv) as t_bcv
+      from modelos m left join lote l on l.id = m.lote_id
+  ),
+  en_tienda as (
+    select sum(e.cantidad * c.c * c.t_compra) as bs, sum(e.cantidad * c.c) as binance,
+           sum(e.cantidad * c.c * c.t_compra / c.t_bcv) as bcv
+      from existencias e join costo_m c on c.id = e.modelo_id
+  ),
+  en_camino as (
+    select sum(p.cantidad * c.c * c.t_compra) as bs, sum(p.cantidad * c.c) as binance,
+           sum(p.cantidad * c.c * c.t_compra / c.t_bcv) as bcv
+      from por_llegar p
+      join lotes l on l.id = p.lote_id and l.en_camino
+      join costo_m c on c.id = p.modelo_id
+  ),
+  vendido as (
+    select sum(i.cantidad * i.costo_puesto_usd_snap * c.t_compra) as bs,
+           sum(i.cantidad * i.costo_puesto_usd_snap) as binance,
+           sum(i.cantidad * i.costo_puesto_usd_snap * c.t_compra / c.t_bcv) as bcv
+      from venta_items i
+      join ventas v on v.id = i.venta_id and not v.anulada
+      join costo_m c on c.id = i.modelo_id
+  ),
+  comprado as (
+    select sum((costo_mercancia_usd + flete_mercancia_usd) * tasa_binance_compra) as bs,
+           sum(costo_mercancia_usd + flete_mercancia_usd) as binance,
+           sum((costo_mercancia_usd + flete_mercancia_usd) * tasa_binance_compra / t_bcv) as bcv
+      from lote
+  ),
+  -- A la etiqueta de hoy: lo que está a la venta (activo y con precio).
+  etiqueta as (
+    select sum(e.cantidad * coalesce(m.precio_override_usd, g.precio_usd)) as bcv
+      from existencias e
+      join modelos m on m.id = e.modelo_id and m.activo
+      left join grupos_precio g on g.id = m.grupo_precio_id
+     where coalesce(m.precio_override_usd, g.precio_usd) is not null
+  ),
+  -- Lo que ya pagaron pedidos que todavía apartan sus piezas: está en lo
+  -- que entró y la pieza sigue en la tienda; si no se resta, saldría dos
+  -- veces en "si se vende todo". La misma regla que apartadas_de.
+  abonado as (
+    select sum(a.monto_bs) as bs, sum(a.monto_bs / nullif(a.tasa_venta, 0)) as binance, sum(a.monto_bcv) as bcv
+      from abonos a
+     where a.anulado_en is null
+       and (a.origen = 'tienda' or a.verificado_en is not null)
+       and (   exists (select 1 from reservas r
+                        where r.id = a.reserva_id and r.venta_id is null and r.cerrada_en is null
+                          and (   (r.estado = 'abierta' and r.expira_en > now())
+                               or (r.estado = 'confirmada'
+                                   and (r.pagado_en is not null or r.vence_apartado_en is null
+                                        or r.vence_apartado_en > now()))))
+            or exists (select 1 from apartados p
+                        where p.id = a.apartado_id and p.venta_id is null and p.estado = 'abierto'
+                          and p.cerrado_en is null and p.expira_en > now()))
+  ),
+  deben as (
+    select sum(falta_bcv_de(v.id)) as bcv
+      from ventas v
+     where v.pago_parcial and v.por_verificar and not v.anulada and v.devolucion_de is null
+  ),
+  queda as (
+    select 60 as orden, 'dinero'::text as concepto, d.bs, d.binance, d.bcv from dinero d
+    union all
+    select 61, 'mercancia_costo', coalesce(t.bs, 0), coalesce(t.binance, 0), coalesce(t.bcv, 0) from en_tienda t
+    union all
+    select 62, 'mercancia_en_camino', coalesce(c.bs, 0), coalesce(c.binance, 0), coalesce(c.bcv, 0) from en_camino c
+    union all
+    select 63, 'mercancia_sin_rastro',
+           coalesce(k.bs, 0) - coalesce(v.bs, 0) - coalesce(t.bs, 0) - coalesce(c.bs, 0),
+           coalesce(k.binance, 0) - coalesce(v.binance, 0) - coalesce(t.binance, 0) - coalesce(c.binance, 0),
+           coalesce(k.bcv, 0) - coalesce(v.bcv, 0) - coalesce(t.bcv, 0) - coalesce(c.bcv, 0)
+      from comprado k, vendido v, en_tienda t, en_camino c
+    union all
+    -- Lo que se mide hoy: de $ BCV a bolívares y a $ Binance con la tasa vigente.
+    select 64, 'mercancia_etiqueta', coalesce(e.bcv, 0) * v_t_bcv, coalesce(e.bcv, 0) * v_t_bcv / v_t_venta,
+           coalesce(e.bcv, 0) from etiqueta e
+    union all
+    select 65, 'abonado_sin_entregar', -coalesce(a.bs, 0), -coalesce(a.binance, 0), -coalesce(a.bcv, 0) from abonado a
+    union all
+    select 66, 'te_deben', coalesce(d.bcv, 0) * v_t_bcv, coalesce(d.bcv, 0) * v_t_bcv / v_t_venta,
+           coalesce(d.bcv, 0) from deben d
+  ),
+  todo as (
+    select f.orden, f.grupo, f.concepto, f.bs, f.binance, f.bcv from filas f where f.bs is not null
+    union all
+    select 50, 'nota', 'entro_sin_comprobar', coalesce(s.bs, 0), coalesce(s.binance, 0), coalesce(s.bcv, 0)
+      from sin_comprobar s
+    union all
+    select q.orden, 'queda', q.concepto, q.bs, q.binance, q.bcv from queda q
+    union all
+    select 67, 'queda', 'si_se_vende', sum(q.bs), sum(q.binance), sum(q.bcv)
+      from queda q where q.concepto in ('dinero', 'mercancia_etiqueta', 'abonado_sin_entregar', 'te_deben')
+  )
+  select t.orden, t.grupo, t.concepto, round(t.bs, 2), round(t.binance, 2), round(t.bcv, 2)
+    from todo t
+   order by t.orden, t.concepto;
+end;
+$fn$;
+
+revoke all on function flujo_negocio(date, date) from public, anon, authenticated;
+
+-- La puerta del administrador.
+create or replace function admin_flujo(p_desde date default null, p_hasta date default null)
+returns table (orden int, grupo text, concepto text, bs numeric, binance numeric, bcv numeric)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+begin
+  if not es_admin() then
+    raise exception 'Solo un administrador ve el flujo del negocio.';
+  end if;
+  if p_desde is not null and p_hasta is not null and p_hasta < p_desde then
+    raise exception 'El período no es válido: la fecha final va después de la inicial.';
+  end if;
+  return query select * from flujo_negocio(p_desde, p_hasta);
+end;
+$fn$;
+
+revoke all on function admin_flujo(date, date) from public, anon;
+grant execute on function admin_flujo(date, date) to authenticated;
