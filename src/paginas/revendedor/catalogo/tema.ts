@@ -39,6 +39,9 @@ export interface ColoresRv {
   bordeBoton: string;
   /** El principal donde va como letra: títulos activos, enlaces. */
   acento: string;
+  /** Un error y un "listo", legibles sobre su fondo. */
+  error: string;
+  exito: string;
 }
 
 export interface TemaResuelto {
@@ -215,6 +218,8 @@ function colores(principal: string, fondo: string): ColoresRv {
     sobreBoton,
     bordeBoton: contraste(boton, fondo) < 1.6 ? textoSuave : boton,
     acento: legibleSobre(principal, fondo, superficie),
+    error: legibleSobre('#C0362C', fondo, superficie),
+    exito: legibleSobre('#2E7D4F', fondo, superficie),
   };
 }
 
@@ -259,6 +264,8 @@ export function variablesCss(t: TemaResuelto): Record<string, string> {
     '--rvc-sobre-boton': c.sobreBoton,
     '--rvc-borde-boton': c.bordeBoton,
     '--rvc-acento': c.acento,
+    '--rvc-error': c.error,
+    '--rvc-exito': c.exito,
     '--rvc-radio': RADIO[t.esquinas][0],
     '--rvc-radio-boton': RADIO[t.esquinas][1],
     '--rvc-letra-titulos': FAMILIA_TITULOS[t.letra],

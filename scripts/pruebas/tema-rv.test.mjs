@@ -20,6 +20,7 @@ function todoSeLee(colores, etiqueta) {
   const pares = [
     ['texto', 'fondo'], ['textoSuave', 'fondo'], ['texto', 'superficie'], ['textoSuave', 'superficie'],
     ['sobreBoton', 'boton'], ['acento', 'fondo'], ['acento', 'superficie'],
+    ['error', 'fondo'], ['error', 'superficie'], ['exito', 'fondo'], ['exito', 'superficie'],
   ];
   for (const [a, b] of pares) {
     const r = contraste(colores[a], colores[b]);
