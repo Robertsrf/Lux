@@ -106,6 +106,8 @@ test('qué falta para seguir, paso por paso', () => {
   s.carrito = new Map([[1, 1]]);
   assert.equal(faltaParaSeguir(1, s, resumen, tasa, 30), null);
 
+  assert.equal(faltaParaSeguir(2, s, resumen, tasa, 30), 'Elige una de tus clientas o escribe una nueva.');
+  s.nueva.telefono = '0412';
   assert.equal(faltaParaSeguir(2, s, resumen, tasa, 30), 'Falta su nombre.');
   s.nueva.nombre = 'Ana';
   assert.equal(faltaParaSeguir(2, s, resumen, tasa, 30), 'Falta su teléfono con el código, por ejemplo 0412 1234567.');
@@ -146,4 +148,12 @@ test('una clienta elegida sin teléfono pide el teléfono', () => {
   assert.equal(faltaParaSeguir(2, s, resumen, tasa, 30, clienta(5, 'Ana', { telefono: '04121234567' })), null);
   s.nueva.telefono = '04121234567';
   assert.equal(faltaParaSeguir(2, s, resumen, tasa, 30, clienta(5, 'Ana')), null);
+});
+
+test('el monto puesto en el campo se lee igual', async () => {
+  const { cifraParaCampo } = await import('../../src/paginas/revendedor/panel/vender/cuentas.ts');
+  const { leerCifra } = await import('../../src/lib/dinero.ts');
+  assert.equal(cifraParaCampo(1104.5), '1104,50');
+  assert.equal(leerCifra(cifraParaCampo(1104.5)), 1104.5);
+  assert.equal(leerCifra(cifraParaCampo(8.34)), 8.34);
 });

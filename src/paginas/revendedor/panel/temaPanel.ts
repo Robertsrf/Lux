@@ -69,7 +69,9 @@ export function tokensDelPanel(t: TemaResuelto): Record<string, string> {
   const suave = legibleSobre(c.textoSuave, f0, ...fs);
   const acento = legibleSobre(c.acento, f0, ...fs);
   const ancla = anclaPara(acento, crema, ladoTexto, papel, blanco);
-  const oro = legibleSobre(mezclar(c.boton, crema, 0.4), ancla, texto);
+  // Lo que en Lux es el oro (el botón de la barra, lo ganado): la crema.
+  // Un tono derivado del principal salía gris y el botón parecía apagado.
+  const oro = crema;
   const alerta = legibleSobre('#A8763E', f0, ...fs);
 
   return {

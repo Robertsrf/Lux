@@ -132,6 +132,11 @@ export function montoQueCubre(totalBcv: number, metodo: MetodoPago, tasa: Tasas)
   return centavoArriba(binanceDesdeBs(bs, tasa.tasa_venta) ?? 0);
 }
 
+/** Una cifra para ponerla en un campo, como se escribe aquí: "1104,50" (la lee `leerCifra`). */
+export function cifraParaCampo(valor: number): string {
+  return valor.toFixed(2).replace('.', ',');
+}
+
 /** Lo que el pago deja: null si no hay un monto que se entienda. */
 export function pagoDe(estado: EstadoVender, totalBcv: number, tasa: Tasas) {
   const valor = leerCifra(estado.monto);
@@ -162,6 +167,7 @@ export function faltaParaSeguir(
       return TELEFONO_INCOMPLETO;
     }
   } else {
+    if (!estado.nueva.nombre.trim() && !estado.nueva.telefono.trim()) return 'Elige una de tus clientas o escribe una nueva.';
     if (!estado.nueva.nombre.trim()) return 'Falta su nombre.';
     if (digitosTelefono(estado.nueva.telefono).length < 10) return TELEFONO_INCOMPLETO;
     const ced = soloDigitos(estado.nueva.cedula);
