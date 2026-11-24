@@ -3,11 +3,14 @@ import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icono } from './Iconos';
 import type { NombreIcono } from './Iconos';
+import { agruparEnlaces } from '../lib/menu';
 
 export interface EnlaceNav {
   a: string; texto: string; icono: NombreIcono;
   /** Algo que pide atención en esa sección, dicho corto: "2 vencidos". */
   aviso?: string | null;
+  /** El grupo del menú ("Dinero", "Mercancía"); sin grupo, va arriba sin título. */
+  grupo?: string;
 }
 
 /**
@@ -72,6 +75,20 @@ export function Armazon({ enlaces, principales, marca, quien, alSalir, children 
     </NavLink>
   );
 
+  // Por grupos ("Vender", "Dinero"...) en la lateral y en la hoja (fase 9).
+  // Sin grupos (la vendedora, el revendedor) sale un solo bloque sin título.
+  const grupos = agruparEnlaces(enlaces);
+  const navAgrupada = grupos.map((g) => (
+    g.titulo
+      ? (
+        <div key={g.titulo} className="nav-grupo" role="group" aria-label={g.titulo}>
+          <span className="nav-grupo__titulo" aria-hidden="true">{g.titulo}</span>
+          {g.enlaces.map(enlaceNav)}
+        </div>
+      )
+      : <div key="(sin grupo)" className="nav-grupo">{g.enlaces.map(enlaceNav)}</div>
+  ));
+
   // El rol solo si aporta algo. La vendedora se llama "Vendedora" y su rol
   // es "vendedora": ponerlos juntos escribía la misma palabra dos veces.
   const rolDistinto = quien.rol && quien.rol.toLowerCase() !== quien.nombre.toLowerCase() ? quien.rol : null;
@@ -83,7 +100,7 @@ export function Armazon({ enlaces, principales, marca, quien, alSalir, children 
         <div className="lateral__marca">{marca}</div>
 
         <nav className="navegacion" aria-label="Secciones">
-          {enlaces.map(enlaceNav)}
+          {navAgrupada}
         </nav>
 
         <div className="sesion">
@@ -144,7 +161,7 @@ export function Armazon({ enlaces, principales, marca, quien, alSalir, children 
                 están abajo ahorra cuatro renglones y a cambio obliga a
                 recordar dónde quedó cada cosa. */}
             <nav className="hoja__secciones" aria-label="Todas las secciones">
-              {enlaces.map(enlaceNav)}
+              {navAgrupada}
             </nav>
 
             <button type="button" className="boton boton--secundario hoja__salir" onClick={alSalir}>

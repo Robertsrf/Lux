@@ -6,7 +6,7 @@
 
 .vrv { --texto-base: 18px; font-size: var(--texto-base); padding-bottom: calc(var(--e-8) + 120px); }
 @media (max-width: 899px) {
-  .vrv { padding-bottom: calc(var(--e-7) + 76px + 128px + env(safe-area-inset-bottom, 0px)); }
+  .vrv { padding-bottom: calc(var(--e-7) + 92px + 128px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Los pasos: los de atrás se tocan para volver. */

@@ -132,7 +132,17 @@ button:disabled { cursor: not-allowed; }
 .lateral__marca .monograma { display: none; }
 .lateral :focus-visible { outline-color: var(--oro-arena); }
 
-.navegacion { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; }
+.navegacion { display: flex; flex-direction: column; gap: var(--e-4); flex: 1 1 auto; }
+
+/* El menú por grupos (fase 9): el título de cada grupo en oro, que sobre el
+   verde da 5,38:1. Sin grupos (vendedora, revendedor) es un solo bloque. */
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo__titulo {
+  padding: 0 var(--e-3) var(--e-1);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
 .navegacion a {
   display: flex; align-items: center; gap: var(--e-3);
   min-height: var(--objetivo-tactil);
@@ -145,12 +155,15 @@ button:disabled { cursor: not-allowed; }
   transition: background var(--rapido), color var(--rapido);
 }
 .navegacion a:hover { background: color-mix(in srgb, var(--crema) 10%, transparent); color: var(--crema); }
+/* Estuche (fase 9): la sección en la que estás es una píldora crema con
+   letra verde, como un estuche abierto. Verde sobre crema: 9,4:1. */
 .navegacion a.activo {
-  background: color-mix(in srgb, var(--crema) 14%, transparent);
-  color: var(--crema);
-  box-shadow: inset 3px 0 0 var(--oro-arena);
+  background: var(--crema);
+  color: var(--verde-profundo);
+  font-weight: 600;
 }
-.navegacion a.activo .icono { color: var(--oro-arena); }
+.navegacion a.activo .icono { color: var(--verde-profundo); }
+.navegacion a.activo .aviso-nav { background: var(--blanco); }
 
 /* Lo que pide atención en una sección ("2 vencidos"). Error sobre crema:
    6,05:1, medido. En "Más" del teléfono, solo un punto. */
@@ -1049,10 +1062,13 @@ table.tabla tfoot td {
     grid-template-columns: repeat(4, 1fr);
     gap: var(--e-1);
     position: fixed; z-index: var(--z-barra);
-    left: 0; right: 0; bottom: 0;
-    padding: var(--e-2) var(--e-2) calc(var(--e-2) + env(safe-area-inset-bottom, 0px));
+    /* Estuche (fase 9): una barra que flota, redondeada, a 12 px de los
+       bordes. 12 + 8 + 52 + 8 = 80 px de alto: el contenido reserva 92. */
+    left: var(--e-3); right: var(--e-3); bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+    padding: var(--e-2);
     background: var(--verde-profundo);
-    border-top: 1px solid color-mix(in srgb, var(--oro-arena) 22%, transparent);
+    border-radius: var(--radio-lg);
+    box-shadow: var(--sombra-3);
   }
   .barra-nav a,
   .barra-nav__mas {
@@ -1073,13 +1089,14 @@ table.tabla tfoot td {
   .barra-nav a .texto-nav,
   .barra-nav__mas .texto-nav {
     display: block;
-    font-size: 10px; line-height: 1; letter-spacing: 0.04em;
+    font-size: var(--t-12); line-height: 1; letter-spacing: 0.02em;
     text-transform: none;
   }
   .barra-nav a.activo,
   .barra-nav__mas.activo {
-    color: var(--crema);
-    background: color-mix(in srgb, var(--crema) 12%, transparent);
+    color: var(--oro-arena);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--crema) 10%, transparent);
   }
   .barra-nav a.activo .icono { color: var(--oro-arena); }
   .barra-nav :focus-visible { outline-color: var(--oro-arena); }
@@ -1117,8 +1134,11 @@ table.tabla tfoot td {
     color: var(--oro-arena);
   }
   /* Dos columnas: con trece secciones, una lista vertical obliga a
-     deslizar dentro de la hoja para llegar a las ultimas. */
-  .hoja__secciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
+     deslizar dentro de la hoja para llegar a las ultimas. Por grupos desde
+     la fase 9: cada grupo con su título en oro y sus dos columnas. */
+  .hoja__secciones { display: flex; flex-direction: column; gap: var(--e-4); }
+  .hoja__secciones .nav-grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-2); }
+  .hoja__secciones .nav-grupo__titulo { grid-column: 1 / -1; padding: 0 var(--e-1); }
   .hoja__secciones a {
     display: flex; flex-direction: row; align-items: center; gap: var(--e-3);
     min-height: 52px; padding: 0 var(--e-3);
@@ -1132,9 +1152,9 @@ table.tabla tfoot td {
     letter-spacing: 0.02em; text-transform: none;
   }
   .hoja__secciones a.activo {
-    color: var(--crema);
-    background: color-mix(in srgb, var(--crema) 14%, transparent);
-    box-shadow: inset 3px 0 0 var(--oro-arena);
+    color: var(--verde-profundo);
+    background: var(--crema);
+    font-weight: 600;
   }
   .hoja :focus-visible { outline-color: var(--oro-arena); }
   .hoja__salir { width: 100%; margin-top: var(--e-4); }
@@ -1198,9 +1218,9 @@ table.tabla tfoot td {
   .paginacion--arriba { display: flex; margin-top: 0; margin-bottom: var(--e-4); }
 
   /* El contenido termina por encima de la barra, no debajo. */
-  .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 76px + env(safe-area-inset-bottom, 0px)); }
+  .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 92px + env(safe-area-inset-bottom, 0px)); }
   /* Y el carrito flota por encima de la barra, no encima de sus botones. */
-  .barra-carrito { bottom: calc(var(--e-3) + 76px + env(safe-area-inset-bottom, 0px)); }
+  .barra-carrito { bottom: calc(var(--e-3) + 92px + env(safe-area-inset-bottom, 0px)); }
   .encabezado-pagina { flex-direction: column; align-items: flex-start; }
   h1 { font-size: var(--t-20); }
   .tarjeta { padding: var(--e-4); border-radius: var(--radio-md); }
@@ -1971,7 +1991,7 @@ table.tabla tfoot td {
 .pagina--con-barra { padding-bottom: 132px; }
 @media (max-width: 900px) {
   .pagina--con-barra {
-    padding-bottom: calc(var(--e-7) + 76px + 88px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--e-7) + 92px + 88px + env(safe-area-inset-bottom, 0px));
   }
 }
 

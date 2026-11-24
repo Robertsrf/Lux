@@ -12,7 +12,7 @@ export type NombreIcono =
   | 'tasas' | 'catalogo' | 'mostrador' | 'dia' | 'cierre'
   | 'conteo' | 'pedidos' | 'verificacion' | 'vitrina' | 'salir' | 'mas'
   | 'clientes' | 'agregar' | 'quitar' | 'mover' | 'revendedores' | 'vendedoras' | 'caja'
-  | 'capacitacion' | 'volver'
+  | 'capacitacion' | 'volver' | 'inicio' | 'flujo'
   | 'acero' | 'oro' | 'sello' | 'pausa' | 'reproducir' | 'atras' | 'adelante';
 
 const TRAZOS: Record<NombreIcono, string> = {
@@ -57,6 +57,10 @@ const TRAZOS: Record<NombreIcono, string> = {
   caja:       'M3.5 13.5h17v6a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-6Z M9.5 17h5 M8 3.5V10 M5.5 7.5 8 10l2.5-2.5 M16 10V3.5 M13.5 6 16 3.5 18.5 6',
   // Volver: un galón a la izquierda, del catálogo de un tipo al de todo.
   volver:     'M14.5 5.5 8 12l6.5 6.5',
+  // El Inicio del administrador (fase 9): una casa.
+  inicio:     'M3.5 11 12 4l8.5 7v9.5h-17V11Z M9.5 20.5v-6h5v6',
+  // El Flujo: lo que sale y lo que entra.
+  flujo:      'M7 4v13 M3.5 13.5 7 17l3.5-3.5 M17 20V7 M13.5 10.5 17 7l3.5 3.5',
   // Los materiales de la landing. Acero: una tuerca hexagonal. Oro: un
   // destello de cuatro puntas. Sello: la certificacion, con su visto.
   acero:      'M12 2.8l7.8 4.5v9.4L12 21.2l-7.8-4.5V7.3L12 2.8Z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
