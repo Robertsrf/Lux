@@ -27,6 +27,10 @@ function seLee(tk, etiqueta) {
   // El texto más suave de la barra: crema al 62 % sobre el ancla.
   const suave = mezclar(tk['--crema'], tk['--verde-profundo'], 0.38);
   assert.ok(contraste(suave, tk['--verde-profundo']) >= 4.5, `${etiqueta}: crema al 62 % sobre el ancla`);
+  // La sección activa de la barra de abajo (fase 9): oro sobre el ancla
+  // llevada hacia la tinta (--verde-hondo de base.css).
+  const hondo = mezclar(tk['--verde-profundo'], tk['--tinta'], 0.7);
+  assert.ok(contraste(tk['--oro-arena'], hondo) >= 4.5, `${etiqueta}: oro sobre la sección activa (${tk['--oro-arena']} / ${hondo})`);
   // Los bordes de los campos se ven (3:1).
   assert.ok(contraste(tk['--salvia'], tk['--blanco']) >= 3, `${etiqueta}: salvia sobre blanco`);
   for (const [k, v] of Object.entries(tk)) {
