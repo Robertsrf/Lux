@@ -101,7 +101,10 @@ export function PaginaPieza({ c, alAmpliar }: { c: CatalogoLux; alAmpliar: (fich
           {estado.estado === 'error' ? 'No pudimos traer esta joya' : 'Esta joya ya no está disponible'}
         </h1>
         <p className="pub-prosa">{estado.estado === 'error' ? 'Revisa tu conexión y vuelve a intentarlo.' : 'Se vendió o ya no está en el catálogo. Mira las demás: seguro hay otra que te encanta.'}</p>
-        <button type="button" className="pub-boton" onClick={c.cerrarPieza}>Ver el catálogo</button>
+        <div className="pub-pieza__acciones">
+          {estado.estado === 'error' ? <button type="button" className="pub-boton" onClick={c.reintentarPieza}>Volver a intentar</button> : null}
+          <button type="button" className={estado.estado === 'error' ? 'pub-boton pub-boton--claro' : 'pub-boton'} onClick={c.cerrarPieza}>Ver el catálogo</button>
+        </div>
       </div>
     );
   }
@@ -173,7 +176,7 @@ export function PaginaPieza({ c, alAmpliar }: { c: CatalogoLux; alAmpliar: (fich
             <div className="pub-pieza__acciones">
               <div className="pub-contador pub-contador--grande">
                 <button type="button" className="pub-icono" aria-label={`Quitar una de ${nombre}`} onClick={() => c.cambiar(sel.id, llevas - 1)}><IcoMenos /></button>
-                <span className="pub-contador__n" aria-live="polite">{llevas} en tu pedido</span>
+                <span className="pub-contador__n" aria-live="polite"><span className="pub-rebota" key={llevas}>{llevas}</span> en tu pedido</span>
                 <button type="button" className="pub-icono" aria-label={`Agregar otra de ${nombre}`} disabled={agotada} onClick={() => c.cambiar(sel.id, llevas + 1)}><IcoMas /></button>
               </div>
               <button type="button" className="pub-boton pub-boton--claro" onClick={() => c.setPaso('pedido')}>Ver mi pedido</button>

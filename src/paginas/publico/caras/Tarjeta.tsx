@@ -67,7 +67,7 @@ export function Tarjeta<T extends PiezaTarjeta>({ familia, alVer, pedido, proxim
         {pedido && unica && puestas > 0 ? (
           <div className="pub-contador pub-tarjeta__accion" key="contador">
             <button type="button" className="pub-icono" aria-label={`Quitar una de ${nombre}`} onClick={() => pedido.alCambiar(m.id, puestas - 1)}><IcoMenos /></button>
-            <span className="pub-contador__n" key={puestas} aria-live="polite">{puestas}</span>
+            <span className="pub-contador__n" aria-live="polite"><span className="pub-rebota" key={puestas}>{puestas}</span></span>
             <button type="button" className="pub-icono" aria-label={`Agregar otra de ${nombre}`} disabled={agotado} onClick={() => pedido.alCambiar(m.id, puestas + 1)}><IcoMas /></button>
           </div>
         ) : pedido ? (

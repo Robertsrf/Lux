@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { aMonto, aplicarDescuento, deMonto, descuentosDeCarrito, formatearDescuento, porCantidad, sumar } from '../../lib/dinero';
 import { armadosParaLaBase, armar, paresVigentes } from '../../lib/armados';
@@ -13,7 +13,6 @@ import type { Familia } from '../../lib/familias';
 import { enlaceWhatsAppA } from '../../lib/enlaces';
 import { useTasa } from '../../hooks/useTasa';
 import { decirMinutos, useReglasPedido } from '../../hooks/useReglasPedido';
-import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import type { PasoPedido } from './caras/ComoPedir';
 import type { TipoVitrina } from './caras/Estante';
 import { useLanding } from '../../hooks/useLanding';
@@ -398,30 +397,6 @@ export function useCatalogoLux() {
     };
   }), [estantes]);
 
-  // Lo que ensena el detalle, en el mismo orden que la cuadricula, para
-  // pasar de una pieza a la siguiente sin salir. La clave de la tienda
-  // ("V1 · BG") va aquí y no en la tarjeta: para la clienta son letras sin
-  // significado; para la vendedora que mira su teléfono, el estante.
-  const fichas = useMemo<FotoAmpliada[]>(() => familias.map((f) => {
-    const portada = conFoto(f.variantes);
-    return {
-      clave: f.clave,
-      nombre: f.cabeza.nombre,
-      categoria: f.cabeza.categoria,
-      materiales: textos.materiales_largo ?? null,
-      variantes: f.variantes.map((v) => ({
-        id: v.id,
-        etiqueta: v.variante,
-        path: v.foto_path ?? portada?.foto_path ?? null,
-        thumbPath: v.foto_thumb_path ?? portada?.foto_thumb_path ?? null,
-        bs: v.precio_bs,
-        bcv: v.precio_usd,
-        quedan: v.disponible,
-        nota: [v.variantes_nota, v.ubicaciones_codigo ? `En tienda: ${v.ubicaciones_codigo}` : null].filter(Boolean).join(' · ') || null,
-      })),
-    };
-  }), [familias, textos.materiales_largo]);
-
   // Lo próximo con la misma búsqueda y la misma categoría que el resto.
   const familiasProximas = useMemo(() => {
     const t = texto.trim().toLowerCase();
@@ -429,24 +404,6 @@ export function useCatalogoLux() {
       && (!t || [m.nombre, m.categoria, m.variante ?? ''].some((s) => s.toLowerCase().includes(t)))));
   }, [proximos, texto, categoria]);
 
-  const fichasProximas = useMemo<FotoAmpliada[]>(() => familiasProximas.map((f) => {
-    const portada = conFoto(f.variantes);
-    return {
-      clave: f.clave,
-      nombre: f.cabeza.nombre,
-      categoria: f.cabeza.categoria,
-      materiales: textos.materiales_largo ?? null,
-      variantes: f.variantes.map((v) => ({
-        id: v.id,
-        etiqueta: v.variante,
-        path: v.foto_path ?? portada?.foto_path ?? null,
-        thumbPath: v.foto_thumb_path ?? portada?.foto_thumb_path ?? null,
-        bs: v.precio_bs,
-        bcv: v.precio_usd,
-        nota: ['Próximamente: todavía no se puede pedir', v.variantes_nota].filter(Boolean).join(' · '),
-      })),
-    };
-  }), [familiasProximas, textos.materiales_largo]);
 
   // Cómo pedir, con las cifras de la base: las del apartado de
   // `reglas_pedido()` y los tramos de `tramos_mayoreo`. Sin ellas, los
@@ -487,7 +444,11 @@ export function useCatalogoLux() {
   // pieza no está entre las que ya se trajeron (alguien abrió el enlace), se
   // pide con su familia a lo que se vende y, si no, a lo que viene.
   const pieza = piezaDeRuta(parametros.get('pieza'));
-  const piezaDesdeAqui = useRef(false);
+  // Si se llegó a la pieza desde el catálogo, lo dice la entrada del
+  // historial (no un ref): así "Volver" retrocede solo cuando atrás hay catálogo.
+  const ubicacion = useLocation();
+  const [intentoPieza, setIntentoPieza] = useState(0);
+  const reintentarPieza = () => setIntentoPieza((n) => n + 1);
   const [piezaFuera, setPiezaFuera] = useState<
     { id: number; estado: 'cargando' | 'no_esta' | 'error' } | { id: number; estado: 'proxima'; filas: ModeloProximo[] } | null
   >(null);
@@ -495,11 +456,10 @@ export function useCatalogoLux() {
     const p = new URLSearchParams(parametros);
     p.delete('paso');
     p.set('pieza', String(id));
-    piezaDesdeAqui.current = true;
-    setParametros(p);
+    setParametros(p, { state: { desdeCatalogo: true } });
   };
   const cerrarPieza = () => {
-    if (piezaDesdeAqui.current) { piezaDesdeAqui.current = false; navegar(-1); return; }
+    if ((ubicacion.state as { desdeCatalogo?: boolean } | null)?.desdeCatalogo) { navegar(-1); return; }
     const p = new URLSearchParams(parametros);
     p.delete('pieza');
     setParametros(p, { replace: true });
@@ -532,7 +492,7 @@ export function useCatalogoLux() {
       setPiezaFuera({ id: pieza, estado: 'proxima', filas: filas.some((x) => x.id === p.id) ? filas : [p, ...filas] });
     })();
     return () => { vivo = false; };
-  }, [pieza, piezaConocida, piezaProximaConocida, recordar]);
+  }, [pieza, piezaConocida, piezaProximaConocida, recordar, intentoPieza]);
   const piezaCargada = useMemo<EstadoPieza | null>(() => {
     if (pieza === null) return null;
     const m = conocidos.get(pieza);
@@ -716,6 +676,7 @@ export function useCatalogoLux() {
     abrirPieza,
     cerrarPieza,
     piezaCargada,
+    reintentarPieza,
     navegar,
     tasa,
     textos,
@@ -816,9 +777,7 @@ export function useCatalogoLux() {
     familias,
     estantes,
     tipos,
-    fichas,
     familiasProximas,
-    fichasProximas,
     whatsappTienda,
     pasos,
     cerrarHoja,

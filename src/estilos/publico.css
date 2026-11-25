@@ -210,7 +210,8 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 .pub-estante--visto .pub-estante__fila > :nth-child(4) { animation-delay: 180ms; }
 .pub-estante--visto .pub-estante__fila > :nth-child(5) { animation-delay: 240ms; }
 .pub-estante--visto .pub-estante__fila > :nth-child(n + 6) { animation-delay: 300ms; }
-.pub-tarjeta__accion, .pub-contador__n, .pub-bolsa__n { animation: pub-rebote 260ms var(--pub-curva); }
+.pub-tarjeta__accion, .pub-rebota, .pub-bolsa__n { animation: pub-rebote 260ms var(--pub-curva); }
+.pub-rebota { display: inline-block; }
 .pub-barra { animation: pub-barra-entra 320ms var(--pub-curva); }
 .pub-pieza__primera { view-transition-name: pub-foto; }
 ::view-transition-old(pub-foto), ::view-transition-new(pub-foto) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
