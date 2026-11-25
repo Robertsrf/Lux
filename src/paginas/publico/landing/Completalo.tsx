@@ -58,10 +58,10 @@ function HojaDos({ titulo, texto, boton, no, a, b, alQuerer, alCerrar }: PropsHo
       </ul>
       {mensaje ? <p className="lp-oferta__aviso" role="alert">{mensaje}</p> : null}
       <div className="lp-hoja__acciones">
-        <button type="button" className="boton lp-boton" disabled={pidiendo} onClick={() => void quiero()}>
+        <button type="button" className="pub-boton lp-boton" disabled={pidiendo} onClick={() => void quiero()}>
           {pidiendo ? 'Un momento' : boton}
         </button>
-        <button type="button" className="boton boton--secundario lp-boton" onClick={alCerrar}>{no}</button>
+        <button type="button" className="pub-boton pub-boton--claro lp-boton" onClick={alCerrar}>{no}</button>
       </div>
     </Dialogo>
   );

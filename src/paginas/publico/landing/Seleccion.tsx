@@ -48,7 +48,7 @@ export function Seleccion({ id, titulo, texto, pct, piezas, acciones }: {
       </ul>
       {piezas.length > VISIBLES ? (
         <div className="lp-oferta__mas">
-          <button type="button" className="boton boton--secundario lp-boton" onClick={() => setTodas((x) => !x)}>
+          <button type="button" className="pub-boton pub-boton--claro lp-boton" onClick={() => setTodas((x) => !x)}>
             {todas ? 'Ver menos' : `Ver las ${piezas.length}`}
           </button>
         </div>

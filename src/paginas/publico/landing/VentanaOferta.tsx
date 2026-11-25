@@ -140,8 +140,8 @@ export function VentanaOferta({ codigo, tasa, faltan = [], alVerPedido, alCerrar
       )}
 
       <div className="lp-hoja__acciones">
-        <button type="button" className="boton lp-boton" onClick={alVerPedido}>Ver mi pedido</button>
-        <button type="button" className="boton boton--secundario lp-boton" onClick={alCerrar}>Seguir viendo</button>
+        <button type="button" className="pub-boton lp-boton" onClick={alVerPedido}>Ver mi pedido</button>
+        <button type="button" className="pub-boton pub-boton--claro lp-boton" onClick={alCerrar}>Seguir viendo</button>
       </div>
     </Dialogo>
   );

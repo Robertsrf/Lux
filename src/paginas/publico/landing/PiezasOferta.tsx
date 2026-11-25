@@ -102,7 +102,7 @@ export function BotonOferta({ texto, acciones, origen, modelos, id }: {
 
   return (
     <>
-      <button type="button" className="boton lp-boton lp-oferta__boton" disabled={pidiendo} onClick={() => void pedir()}>
+      <button type="button" className="pub-boton lp-boton lp-oferta__boton" disabled={pidiendo} onClick={() => void pedir()}>
         {pidiendo ? 'Un momento' : texto}
       </button>
       {mensaje ? <p className="lp-oferta__aviso" role="alert">{mensaje}</p> : null}
