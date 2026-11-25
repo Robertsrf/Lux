@@ -160,7 +160,7 @@ button:disabled { cursor: not-allowed; }
 .navegacion a.activo {
   background: var(--crema);
   color: var(--verde-profundo);
-  font-weight: 600;
+  font-weight: 500;
 }
 .navegacion a.activo .icono { color: var(--verde-profundo); }
 .navegacion a.activo .aviso-nav { background: var(--blanco); }
@@ -1095,7 +1095,7 @@ table.tabla tfoot td {
   .barra-nav a.activo,
   .barra-nav__mas.activo {
     color: var(--oro-arena);
-    font-weight: 600;
+    font-weight: 500;
     background: color-mix(in srgb, var(--crema) 10%, transparent);
   }
   .barra-nav a.activo .icono { color: var(--oro-arena); }
@@ -1154,7 +1154,7 @@ table.tabla tfoot td {
   .hoja__secciones a.activo {
     color: var(--verde-profundo);
     background: var(--crema);
-    font-weight: 600;
+    font-weight: 500;
   }
   .hoja :focus-visible { outline-color: var(--oro-arena); }
   .hoja__salir { width: 100%; margin-top: var(--e-4); }
@@ -3887,7 +3887,7 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
 .armazon .tabla thead .col-fija {
   background: var(--panel);
   color: var(--salvia-texto);
-  font-weight: 600;
+  font-weight: 500;
   border-bottom: 1px solid var(--linea-suave);
 }
 
@@ -3992,7 +3992,16 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
 .flujo__como { margin: var(--e-2) 0 0; font-size: var(--t-14); max-width: 70ch; }
 .flujo__ver { display: flex; justify-content: flex-end; margin-bottom: var(--e-3); }
 .flujo__grupos { display: grid; gap: var(--e-4); }
-@media (min-width: 1100px) { .flujo__grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
+/* Dos columnas (Salió y Entró) con "Queda" debajo a todo el ancho; tres
+   solo donde caben sin partir cada concepto en tres renglones. */
+@media (min-width: 1000px) {
+  .flujo__grupos { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .flujo__grupos > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1500px) {
+  .flujo__grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .flujo__grupos > :last-child { grid-column: auto; }
+}
 .flujo__tarjeta h2 { margin-bottom: var(--e-2); }
 .flujo__total { margin: 0; }
 .flujo__total-cifra { font-family: var(--fuente-display); font-size: var(--t-28); font-weight: 600; color: var(--texto-fuerte); }
@@ -4000,7 +4009,7 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
 .flujo__total-otras { margin: var(--e-1) 0 var(--e-4); font-size: var(--t-14); color: var(--texto-secundario); }
 .flujo__tabla { width: 100%; border-collapse: collapse; font-size: var(--t-14); }
 .flujo__tabla thead th {
-  padding: 0 0 var(--e-2); font-size: var(--t-12); font-weight: 600;
+  padding: 0 0 var(--e-2); font-size: var(--t-12); font-weight: 500;
   text-transform: uppercase; letter-spacing: var(--tracking); color: var(--texto-secundario);
   border-bottom: 1px solid var(--linea);
 }
@@ -4013,9 +4022,9 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
   padding: 0; border: 0; background: none; cursor: pointer;
   font: inherit; color: var(--texto); text-align: left;
 }
-.flujo__abrir-que { font-size: var(--t-12); font-weight: 600; color: var(--oro-texto); text-decoration: underline; text-underline-offset: 3px; }
+.flujo__abrir-que { font-size: var(--t-12); font-weight: 500; color: var(--oro-texto); text-decoration: underline; text-underline-offset: 3px; }
 .flujo__pie { margin: var(--e-4) 0 0; font-size: var(--t-12); line-height: 1.45; color: var(--texto-secundario); }
 .flujo__lotes { margin-top: var(--e-4); }
 .flujo__tabla-lotes { overflow-x: auto; margin-top: var(--e-3); }
-.flujo__destaca { font-weight: 600; color: var(--alerta-texto); }
+.flujo__destaca { font-weight: 500; color: var(--alerta-texto); }
 

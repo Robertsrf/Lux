@@ -32,13 +32,13 @@ export function Banda({ etiqueta, cifra, moneda, detalle, progreso, cuadritos, c
           {moneda ? <span className="banda__moneda">{moneda}</span> : null}
         </span>
       </div>
-      {detalle ? <div className="banda__detalle">{detalle}</div> : null}
       {progreso ? (
         <div className="banda__progreso">
           <div className="banda__progreso-texto"><span>{progreso.texto}</span><strong className="cifra">{progreso.valor}</strong></div>
           <div className="banda__barra" role="presentation"><span style={{ width: `${pct}%` }} /></div>
         </div>
       ) : null}
+      {detalle ? <div className="banda__detalle">{detalle}</div> : null}
       {cuadritos && cuadritos.length > 0 ? (
         <dl className="banda__cuadritos">
           {cuadritos.slice(0, 4).map((c) => (
