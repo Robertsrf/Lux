@@ -1,18 +1,20 @@
 import { Navigate } from 'react-router-dom';
 import { rutaDelCatalogo } from '../../lib/direccion';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { Icono } from '../../componentes/Iconos';
-import { formatearBcv, formatearBs, formatearEntero, formatearDescuento, precioEnBs } from '../../lib/dinero';
+import { formatearBcv, formatearBs, formatearDescuento, precioEnBs } from '../../lib/dinero';
 import { ArmarDije } from '../../componentes/ArmarDije';
 import { urlPublicaFoto } from '../../lib/fotos';
-import { nombreConVariante, nombreDeTipo } from '../../lib/familias';
+import { nombreConVariante } from '../../lib/familias';
 import { codigoCompleto } from '../../lib/ofertas';
 import type { Familia } from '../../lib/familias';
 import { decirMinutos } from '../../hooks/useReglasPedido';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
-import { AsiPides, POR_ESTANTE, TarjetaPieza, irA } from '../../componentes/VitrinaPublica';
-import type { PedidoTarjeta } from '../../componentes/VitrinaPublica';
+import { AsiPides, irA } from '../../componentes/VitrinaPublica';
+import { POR_ESTANTE } from './caras/Estante';
+import { Tarjeta } from './caras/Tarjeta';
+import type { PedidoTarjeta } from './caras/Tarjeta';
+import { Lista } from './caras/Lista';
 import { LaTienda } from '../../componentes/LaTienda';
 import { Landing } from './landing/Landing';
 import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
@@ -22,7 +24,7 @@ import { TusCodigos } from './landing/TusCodigos';
 import { VentanaOferta } from './landing/VentanaOferta';
 import { TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { ModeloProximo, ModeloPublico } from '../../lib/tipos';
-import { useCatalogoLux, type Orden } from './useCatalogoLux';
+import { useCatalogoLux } from './useCatalogoLux';
 import { Cabecera } from './caras/Cabecera';
 import { BarraPedido } from './caras/BarraPedido';
 import '@fontsource/fraunces/latin-300.css';
@@ -81,16 +83,11 @@ export function Catalogo() {
     conocidos,
     seleccion,
     texto,
-    categorias,
-    orden,
-    setOrden,
     cargando,
-    cargandoMas,
     error,
     paso,
     para,
     setPaso,
-    categoria,
     setCategoria,
     irATodas,
     elegirPara,
@@ -117,8 +114,6 @@ export function Catalogo() {
     totalProximos,
     todosProximos,
     setTodosProximos,
-    cargarMas,
-    tituloLista,
     resumen,
     armados,
     familias,
@@ -154,7 +149,6 @@ export function Catalogo() {
 
   // Lo que cada tarjeta hace con el pedido: lo mismo en el inicio y en la lista.
   const pedidoTarjeta = (f: Familia<ModeloPublico>): PedidoTarjeta => ({
-    destino: 'pedido',
     llevas: (id) => seleccion.get(id) ?? 0,
     disponible: (id) => conocidos.get(id)?.disponible ?? f.variantes.find((v) => v.id === id)?.disponible ?? 0,
     alAgregar: agregarPorId,
@@ -353,17 +347,6 @@ export function Catalogo() {
 
   /* ---------------------------------------------------------- catalogo */
 
-  const quedanPorVer = enLista ? Math.max(0, total - modelos.length) : 0;
-  // El orden, el mismo en la lista (a la vista) y en el inicio (plegado).
-  const campoOrden = (
-    <Campo etiqueta="Ordenar" htmlFor="orden-publico">
-      <select id="orden-publico" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
-        <option value="nombre">Por tipo</option>
-        <option value="menor">Más baratas primero</option>
-        <option value="mayor">Más caras primero</option>
-      </select>
-    </Campo>
-  );
   // Cuántas joyas hay, contadas como tarjetas (un producto con medidas es
   // una): lo que se va a ver al tocar "Ver todas". Si el inicio no las trajo
   // todas, las filas, que es lo que se sabe.
@@ -410,28 +393,6 @@ export function Catalogo() {
       ) : null}
     </section>
   );
-  // En la lista, qué se ve y en qué orden, a la vista y no plegado: quien
-  // no sabe que "Filtrar" se abre, no lo abre. El buscador y "Todas · Dama ·
-  // Caballero" viven en la cabecera (Cabecera), siempre en el mismo sitio.
-  const controlesLista = (
-    <div className="lista-controles">
-      {categorias.length > 1 && !texto.trim() ? (
-        <div className="lista-controles__tipo">
-          <Campo etiqueta="Ver" htmlFor="ver-publico">
-            <select
-              id="ver-publico"
-              value={categoria ?? ''}
-              onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
-            >
-              <option value="">Todas las joyas</option>
-              {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
-            </select>
-          </Campo>
-        </div>
-      ) : null}
-      {campoOrden}
-    </div>
-  );
   const aviso = (
     <>
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
@@ -460,7 +421,7 @@ export function Catalogo() {
     cuantasJoyas,
     traidas: modelos.length,
     totalEnBase: total,
-    tarjeta: (f) => <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} {...(cintaDe(f) ? { oferta: cintaDe(f)! } : {})} />,
+    tarjeta: (f, ancho = 'estante') => <Tarjeta key={f.clave} familia={f} ancho={ancho} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} {...(cintaDe(f) ? { oferta: cintaDe(f)! } : {})} />,
     irATodas,
     irATipo: setCategoria,
     pasos,
@@ -484,52 +445,7 @@ export function Catalogo() {
             escribir, el teléfono cerraría el teclado a media palabra. */}
         {enLista ? (
           <>
-            <div className="lista-cabeza">
-              <button type="button" className="volver" onClick={alInicio}>
-                <Icono nombre="volver" className="icono icono--sm" />
-                Volver al inicio
-              </button>
-              <h1 className="lista-cabeza__titulo" ref={tituloLista} tabIndex={-1}>
-                {categoria ? nombreDeTipo(categoria) : (texto.trim() ? `Buscaste “${texto.trim()}”` : para ? `Joyas de ${para}` : 'Todas las joyas')}
-              </h1>
-              {/* Los tipos a la vista, para pasar de uno a otro sin volver al
-                  inicio ni abrir nada: un toque. Se envuelven, no se deslizan.
-                  Solo en pantallas anchas: en el teléfono eran cuatro renglones
-                  antes de la primera joya, y ahí va la lista "Ver" de abajo. */}
-              {categorias.length > 1 && !texto.trim() ? (
-                <nav className="tipos-fila" aria-label="Ver otro tipo de joya">
-                  <button type="button" className="tipos-fila__tipo" aria-pressed={!categoria} onClick={irATodas}>Todas</button>
-                  {categorias.map((c) => (
-                    <button key={c} type="button" className="tipos-fila__tipo" aria-pressed={categoria === c} onClick={() => setCategoria(c)}>
-                      {nombreDeTipo(c)}
-                    </button>
-                  ))}
-                </nav>
-              ) : null}
-            </div>
-            {controlesLista}
-            {aviso}
-            {piezasListas ? (
-              <>
-                <div className="rejilla-venta">
-                  {familias.map((f) => (
-                    <TarjetaPieza key={f.clave} familia={f} alVer={() => verFoto(f)} pedido={pedidoTarjeta(f)} {...(cintaDe(f) ? { oferta: cintaDe(f)! } : {})} />
-                  ))}
-                </div>
-
-                {/* Lo que falta por ver, dicho: antes la pieza 401 no salia nunca. */}
-                {quedanPorVer > 0 ? (
-                  <div className="catalogo__mas">
-                    <p className="paginacion__cuenta">
-                      Viendo {formatearEntero(modelos.length)} de {formatearEntero(total)}
-                    </p>
-                    <button type="button" className="boton boton--secundario" disabled={cargandoMas} onClick={() => void cargarMas()}>
-                      {cargandoMas ? 'Trayendo más' : `Ver más piezas · faltan ${formatearEntero(quedanPorVer)}`}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
+            <Lista c={c} tarjeta={(f) => catalogoProps.tarjeta(f, 'rejilla')} aviso={aviso} listas={piezasListas} />
             <SeccionComoPedir c={catalogoProps} />
             <SeccionProximamente c={catalogoProps} />
             {!cargando ? <LaTienda id="la-tienda" textos={textos} /> : null}
