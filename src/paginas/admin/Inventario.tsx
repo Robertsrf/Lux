@@ -456,7 +456,7 @@ export function Inventario() {
           {tieneMinimo(m) ? <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div> : null}
           <div className="ficha-inv__datos">
             <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
-              Margen {formatearPorcentaje(m.margen_pct)}
+              Margen con lo de tienda {formatearPorcentaje(m.margen_pct)}
             </span>
             {m.proximamente ? null : (
               <span>
@@ -499,7 +499,7 @@ export function Inventario() {
             <span className="ficha-inv__usd">{desde(vs, (m) => m.precio_usd, formatearBcv)}</span>
           </div>
           <div className="ficha-inv__datos">
-            <span>Margen {rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</span>
+            <span>Margen con lo de tienda {rango(vs, (m) => m.margen_pct, (n) => formatearPorcentaje(n))}</span>
             {proximo ? null : (
               <span>
                 {cifraExistencia(existencia, false)} en tienda
@@ -537,7 +537,7 @@ export function Inventario() {
                     {tieneMinimo(m) ? <div className="ficha-inv__minimo">Mínimo {formatearBs(m.precio_minimo_bs)}</div> : null}
                     <div className="ficha-inv__datos">
                       <span className={m.margen_pct !== null && m.margen_pct < 0 ? 'negativo' : undefined}>
-                        Margen {formatearPorcentaje(m.margen_pct)}
+                        Margen con lo de tienda {formatearPorcentaje(m.margen_pct)}
                       </span>
                       {m.proximamente ? null : (
                         <span>
@@ -776,7 +776,7 @@ export function Inventario() {
                   <th className="num">Mínimo · Bs</th>
                   <th className="num">Ganancia · $ Binance</th>
                   <th className="num">Ganancia · $ BCV</th>
-                  <th className="num">Margen %</th>
+                  <th className="num" title="Con lo de tienda: el alquiler y los sueldos repartidos por pieza">Margen % · con lo de tienda</th>
                   <th className="num">Existencia</th>
                 </tr>
               </thead>
