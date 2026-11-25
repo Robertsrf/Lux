@@ -132,7 +132,17 @@ button:disabled { cursor: not-allowed; }
 .lateral__marca .monograma { display: none; }
 .lateral :focus-visible { outline-color: var(--oro-arena); }
 
-.navegacion { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; }
+.navegacion { display: flex; flex-direction: column; gap: var(--e-4); flex: 1 1 auto; }
+
+/* El menú por grupos (fase 9): el título de cada grupo en oro, que sobre el
+   verde da 5,38:1. Sin grupos (vendedora, revendedor) es un solo bloque. */
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo__titulo {
+  padding: 0 var(--e-3) var(--e-1);
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
 .navegacion a {
   display: flex; align-items: center; gap: var(--e-3);
   min-height: var(--objetivo-tactil);
@@ -145,12 +155,15 @@ button:disabled { cursor: not-allowed; }
   transition: background var(--rapido), color var(--rapido);
 }
 .navegacion a:hover { background: color-mix(in srgb, var(--crema) 10%, transparent); color: var(--crema); }
+/* Estuche (fase 9): la sección en la que estás es una píldora crema con
+   letra verde, como un estuche abierto. Verde sobre crema: 9,4:1. */
 .navegacion a.activo {
-  background: color-mix(in srgb, var(--crema) 14%, transparent);
-  color: var(--crema);
-  box-shadow: inset 3px 0 0 var(--oro-arena);
+  background: var(--crema);
+  color: var(--verde-profundo);
+  font-weight: 500;
 }
-.navegacion a.activo .icono { color: var(--oro-arena); }
+.navegacion a.activo .icono { color: var(--verde-profundo); }
+.navegacion a.activo .aviso-nav { background: var(--blanco); }
 
 /* Lo que pide atención en una sección ("2 vencidos"). Error sobre crema:
    6,05:1, medido. En "Más" del teléfono, solo un punto. */
@@ -1049,10 +1062,13 @@ table.tabla tfoot td {
     grid-template-columns: repeat(4, 1fr);
     gap: var(--e-1);
     position: fixed; z-index: var(--z-barra);
-    left: 0; right: 0; bottom: 0;
-    padding: var(--e-2) var(--e-2) calc(var(--e-2) + env(safe-area-inset-bottom, 0px));
+    /* Estuche (fase 9): una barra que flota, redondeada, a 12 px de los
+       bordes. 12 + 8 + 52 + 8 = 80 px de alto: el contenido reserva 92. */
+    left: var(--e-3); right: var(--e-3); bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+    padding: var(--e-2);
     background: var(--verde-profundo);
-    border-top: 1px solid color-mix(in srgb, var(--oro-arena) 22%, transparent);
+    border-radius: var(--radio-lg);
+    box-shadow: var(--sombra-3);
   }
   .barra-nav a,
   .barra-nav__mas {
@@ -1073,13 +1089,14 @@ table.tabla tfoot td {
   .barra-nav a .texto-nav,
   .barra-nav__mas .texto-nav {
     display: block;
-    font-size: 10px; line-height: 1; letter-spacing: 0.04em;
+    font-size: var(--t-12); line-height: 1; letter-spacing: 0.02em;
     text-transform: none;
   }
   .barra-nav a.activo,
   .barra-nav__mas.activo {
-    color: var(--crema);
-    background: color-mix(in srgb, var(--crema) 12%, transparent);
+    color: var(--oro-arena);
+    font-weight: 500;
+    background: color-mix(in srgb, var(--crema) 10%, transparent);
   }
   .barra-nav a.activo .icono { color: var(--oro-arena); }
   .barra-nav :focus-visible { outline-color: var(--oro-arena); }
@@ -1117,8 +1134,11 @@ table.tabla tfoot td {
     color: var(--oro-arena);
   }
   /* Dos columnas: con trece secciones, una lista vertical obliga a
-     deslizar dentro de la hoja para llegar a las ultimas. */
-  .hoja__secciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--e-2); }
+     deslizar dentro de la hoja para llegar a las ultimas. Por grupos desde
+     la fase 9: cada grupo con su título en oro y sus dos columnas. */
+  .hoja__secciones { display: flex; flex-direction: column; gap: var(--e-4); }
+  .hoja__secciones .nav-grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-2); }
+  .hoja__secciones .nav-grupo__titulo { grid-column: 1 / -1; padding: 0 var(--e-1); }
   .hoja__secciones a {
     display: flex; flex-direction: row; align-items: center; gap: var(--e-3);
     min-height: 52px; padding: 0 var(--e-3);
@@ -1132,9 +1152,9 @@ table.tabla tfoot td {
     letter-spacing: 0.02em; text-transform: none;
   }
   .hoja__secciones a.activo {
-    color: var(--crema);
-    background: color-mix(in srgb, var(--crema) 14%, transparent);
-    box-shadow: inset 3px 0 0 var(--oro-arena);
+    color: var(--verde-profundo);
+    background: var(--crema);
+    font-weight: 500;
   }
   .hoja :focus-visible { outline-color: var(--oro-arena); }
   .hoja__salir { width: 100%; margin-top: var(--e-4); }
@@ -1198,9 +1218,9 @@ table.tabla tfoot td {
   .paginacion--arriba { display: flex; margin-top: 0; margin-bottom: var(--e-4); }
 
   /* El contenido termina por encima de la barra, no debajo. */
-  .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 76px + env(safe-area-inset-bottom, 0px)); }
+  .pagina { padding: var(--e-5) var(--e-4) calc(var(--e-7) + 92px + env(safe-area-inset-bottom, 0px)); }
   /* Y el carrito flota por encima de la barra, no encima de sus botones. */
-  .barra-carrito { bottom: calc(var(--e-3) + 76px + env(safe-area-inset-bottom, 0px)); }
+  .barra-carrito { bottom: calc(var(--e-3) + 92px + env(safe-area-inset-bottom, 0px)); }
   .encabezado-pagina { flex-direction: column; align-items: flex-start; }
   h1 { font-size: var(--t-20); }
   .tarjeta { padding: var(--e-4); border-radius: var(--radio-md); }
@@ -1971,7 +1991,7 @@ table.tabla tfoot td {
 .pagina--con-barra { padding-bottom: 132px; }
 @media (max-width: 900px) {
   .pagina--con-barra {
-    padding-bottom: calc(var(--e-7) + 76px + 88px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--e-7) + 92px + 88px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -3827,3 +3847,184 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
   color: var(--texto-fuerte); background: var(--superficie);
   border: 1px solid var(--salvia); border-radius: var(--radio-pill);
 }
+
+/* =====================================================================
+   ESTUCHE (fase 9, 24/11/2026): el administrativo rehecho.
+   El verde arriba con la cifra que manda (la Banda), tarjetas blancas
+   redondeadas debajo. Paleta y letras de siempre. Vive dentro de
+   `.armazon` (la tienda con sesión y el panel del revendedor): las
+   páginas públicas se rehacen en la fase 10. Cada par de texto está
+   medido en scripts/pruebas/estuche.test.mjs.
+   ===================================================================== */
+
+:root {
+  /* Lo activo sobre el verde: el verde llevado hacia la tinta. Aclararlo
+     con crema dejaba el oro en 4,13:1; así da 6,70 (crema, 11,10). */
+  --verde-hondo: color-mix(in srgb, var(--tinta) 70%, var(--verde-profundo));
+  /* El fondo de un cuadrito que avisa de algo vencido: error 6,48:1. */
+  --urgente-fondo: color-mix(in srgb, var(--error) 10%, var(--blanco));
+}
+
+.barra-nav a.activo,
+.barra-nav__mas.activo { background: var(--verde-hondo); }
+
+/* Encabezado: el título manda (Fraunces 40; 28 en el teléfono) y debajo
+   una línea que dice qué es la pantalla. El de la vendedora no cambia. */
+.armazon .pagina:not(.mostrador) .encabezado-pagina h1 { font-size: var(--t-40); line-height: 1.1; }
+.armazon .pagina:not(.mostrador) .encabezado-pagina { margin-bottom: var(--e-5); }
+
+/* Tarjetas y cuadros de cifras: blancos sobre papel, sin borde, con la
+   sombra teñida de verde. El borde lo pone la sombra. */
+.armazon .tarjeta,
+.armazon .tablero__celda { border: 0; box-shadow: var(--sombra-1); }
+.armazon .tarjeta > h2:first-child { font-size: var(--t-20); }
+
+/* Tablas: la cabecera clara (Jost 12 en mayúsculas, salvia oscurecida
+   sobre panel, 4,5:1 medido). El verde queda para la Banda y las barras:
+   un solo protagonista por pantalla. */
+.armazon .tabla-envoltura { border: 0; }
+.armazon table.tabla th,
+.armazon .tabla thead .col-fija {
+  background: var(--panel);
+  color: var(--salvia-texto);
+  font-weight: 500;
+  border-bottom: 1px solid var(--linea-suave);
+}
+
+/* --- La Banda: la cifra que manda, en verde. Una por pantalla. ------- */
+
+.banda {
+  display: grid; gap: var(--e-4);
+  margin-bottom: var(--e-5);
+  padding: var(--e-5) var(--e-6);
+  background: var(--verde-profundo);
+  color: var(--crema);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-2);
+}
+.banda__etiqueta {
+  display: block;
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+.banda__cifra {
+  display: block;
+  margin-top: var(--e-1);
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-56); line-height: 1.05;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+.banda__moneda { font-family: var(--fuente-ui); font-size: var(--t-16); font-weight: 500; margin-left: var(--e-1); }
+.banda__detalle { font-size: var(--t-14); line-height: 1.4; }
+.banda__detalle a { color: var(--crema); }
+.banda__progreso { display: grid; gap: var(--e-2); }
+.banda__progreso-texto { display: flex; justify-content: space-between; gap: var(--e-3); font-size: var(--t-14); }
+.banda__barra { height: 8px; border-radius: var(--radio-pill); background: color-mix(in srgb, var(--crema) 22%, transparent); overflow: hidden; }
+.banda__barra > span { display: block; height: 100%; border-radius: inherit; background: var(--oro-arena); }
+.banda__cuadritos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--e-3); margin: 0; }
+.banda__cuadrito { padding: var(--e-3) var(--e-4); border-radius: var(--radio); background: var(--verde-hondo); }
+.banda__cuadrito dt { font-size: var(--t-12); color: var(--oro-arena); text-transform: uppercase; letter-spacing: var(--tracking); }
+.banda__cuadrito dd { margin: var(--e-1) 0 0; font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; font-variant-numeric: tabular-nums; }
+.banda :focus-visible { outline-color: var(--oro-arena); }
+
+@media (max-width: 900px) {
+  .armazon .pagina:not(.mostrador) .encabezado-pagina h1 { font-size: var(--t-28); }
+  .banda { padding: var(--e-5) var(--e-4); }
+  .banda__cifra { font-size: var(--t-40); }
+  .armazon .tarjeta { border-radius: var(--radio-lg); }
+}
+
+/* --- Inicio del administrador (fase 9) -------------------------------- */
+
+.inicio__tasa { margin: 0; font-size: var(--t-14); color: var(--texto-secundario); }
+.inicio__enlace-banda { color: var(--crema); text-decoration: none; }
+.inicio__enlace-banda:hover { text-decoration: underline; }
+
+.para-hoy h2 { margin-bottom: var(--e-3); }
+.para-hoy__nada { margin: 0; padding: var(--e-5); border-radius: var(--radio-lg); background: var(--superficie); box-shadow: var(--sombra-1); color: var(--texto-secundario); }
+.para-hoy__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+@media (min-width: 900px) { .para-hoy__lista { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Una fila tocable de 64 px: el número en su cuadrito, dos renglones y la
+   flecha. Es un enlace, no un div con onClick. */
+.para-hoy__fila {
+  display: flex; align-items: center; gap: var(--e-3);
+  min-height: 64px; padding: var(--e-3) var(--e-4);
+  background: var(--superficie); color: var(--texto);
+  border-radius: var(--radio-lg); box-shadow: var(--sombra-1);
+  text-decoration: none;
+  transition: box-shadow var(--rapido), transform var(--rapido);
+}
+.para-hoy__fila:hover { box-shadow: var(--sombra-2); transform: translateY(-1px); }
+.para-hoy__cuantos {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: var(--radio);
+  background: var(--verde-suave); color: var(--verde-profundo);
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+}
+.para-hoy__fila--urgente .para-hoy__cuantos { background: var(--urgente-fondo); color: var(--error); }
+.para-hoy__texto { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.para-hoy__que { font-size: var(--t-16); font-weight: 500; }
+.para-hoy__detalle { font-size: var(--t-14); color: var(--texto-secundario); }
+.para-hoy__fila--urgente .para-hoy__detalle { color: var(--error); }
+
+/* --- Selector de período (Flujo; lo pueden usar Caja y Reportes) ------- */
+
+.selector-periodo {
+  display: inline-flex; flex-wrap: wrap; gap: var(--e-1);
+  padding: var(--e-1);
+  background: var(--superficie); border-radius: var(--radio-pill); box-shadow: var(--sombra-1);
+}
+.selector-periodo button {
+  min-height: var(--objetivo-tactil); padding: 0 var(--e-4);
+  border: 0; border-radius: var(--radio-pill);
+  background: transparent; color: var(--texto);
+  font: inherit; font-size: var(--t-14); font-weight: 500; cursor: pointer;
+  transition: background var(--rapido), color var(--rapido);
+}
+.selector-periodo button:hover { background: var(--verde-suave); }
+.selector-periodo button[aria-pressed='true'] { background: var(--verde-profundo); color: var(--crema); }
+
+/* --- Flujo (fase 9) --------------------------------------------------- */
+
+.flujo__equivale { margin: 0; font-size: var(--t-16); }
+.flujo__como { margin: var(--e-2) 0 0; font-size: var(--t-14); max-width: 70ch; }
+.flujo__ver { display: flex; justify-content: flex-end; margin-bottom: var(--e-3); }
+.flujo__grupos { display: grid; gap: var(--e-4); }
+/* Dos columnas (Salió y Entró) con "Queda" debajo a todo el ancho; tres
+   solo donde caben sin partir cada concepto en tres renglones. */
+@media (min-width: 1000px) {
+  .flujo__grupos { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .flujo__grupos > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1500px) {
+  .flujo__grupos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .flujo__grupos > :last-child { grid-column: auto; }
+}
+.flujo__tarjeta h2 { margin-bottom: var(--e-2); }
+.flujo__total { margin: 0; }
+.flujo__total-cifra { font-family: var(--fuente-display); font-size: var(--t-28); font-weight: 600; color: var(--texto-fuerte); }
+.flujo__total-que { font-size: var(--t-14); color: var(--texto-secundario); }
+.flujo__total-otras { margin: var(--e-1) 0 var(--e-4); font-size: var(--t-14); color: var(--texto-secundario); }
+.flujo__tabla { width: 100%; border-collapse: collapse; font-size: var(--t-14); }
+.flujo__tabla thead th {
+  padding: 0 0 var(--e-2); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking); color: var(--texto-secundario);
+  border-bottom: 1px solid var(--linea);
+}
+.flujo__tabla tbody th { text-align: left; font-weight: 400; padding: var(--e-2) var(--e-2) var(--e-2) 0; }
+.flujo__tabla td { padding: var(--e-2) 0 var(--e-2) var(--e-3); }
+.flujo__tabla tbody tr + tr > * { border-top: 1px solid var(--linea-suave); }
+.flujo__extra > * { color: var(--alerta-texto); }
+.flujo__abrir {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--e-2);
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--texto); text-align: left;
+}
+.flujo__abrir-que { font-size: var(--t-12); font-weight: 500; color: var(--oro-texto); text-decoration: underline; text-underline-offset: 3px; }
+.flujo__pie { margin: var(--e-4) 0 0; font-size: var(--t-12); line-height: 1.45; color: var(--texto-secundario); }
+.flujo__lotes { margin-top: var(--e-4); }
+.flujo__tabla-lotes { overflow-x: auto; margin-top: var(--e-3); }
+.flujo__destaca { font-weight: 500; color: var(--alerta-texto); }
+

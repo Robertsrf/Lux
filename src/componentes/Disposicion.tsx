@@ -7,39 +7,9 @@ import { Cargando, LimiteDeError } from './Piezas';
 import { useSesion } from '../hooks/useSesion';
 import { cerrarSesion } from '../lib/auth';
 import { supabase } from '../lib/supabase';
+import { ENLACES_ADMIN, PRINCIPALES_ADMIN } from '../lib/menu';
 
-const ENLACES_ADMIN: EnlaceNav[] = [
-  { a: '/admin/inventario', texto: 'Inventario', icono: 'inventario' },
-  // El administrador tambien vende, y aprueba lo que queda por verificar.
-  { a: '/venta',            texto: 'Mostrador',  icono: 'mostrador' },
-  { a: '/venta/pedidos',    texto: 'Pedidos',    icono: 'pedidos' },
-  // Lo que entra y lo que sale de la tienda. Se toca a diario, al anotar
-  // cada gasto: va junto a lo del dia y no al fondo con las cuentas.
-  { a: '/admin/caja',       texto: 'Caja',       icono: 'caja' },
-  // Quién le debe a la tienda; dice cuántos créditos vencieron.
-  { a: '/admin/credito',    texto: 'Crédito',    icono: 'clientes' },
-  // Él también cierra el día y cuenta, y en Conteo revisa lo que no cuadró:
-  // sin estas dos solo llegaba escribiendo la dirección.
-  { a: '/venta/cierre',     texto: 'Cierre',     icono: 'cierre' },
-  { a: '/venta/conteo',     texto: 'Conteo',     icono: 'conteo' },
-  { a: '/venta/codigo',     texto: 'Código',     icono: 'pedidos' },
-  { a: '/admin/reportes',   texto: 'Reportes',   icono: 'reportes' },
-  { a: '/clientes',         texto: 'Clientes',   icono: 'clientes' },
-  { a: '/admin/vendedoras', texto: 'Vendedoras', icono: 'vendedoras' },
-  { a: '/admin/revendedores', texto: 'Revendedores', icono: 'revendedores' },
-  // La guía pública que se manda a quien quiere ser revendedor.
-  { a: '/admin/capacitacion', texto: 'Capacitación revendedores', icono: 'capacitacion' },
-  { a: '/admin/lotes',      texto: 'Lotes',      icono: 'lotes' },
-  { a: '/admin/grupos',     texto: 'Grupos',     icono: 'grupos' },
-  { a: '/admin/tramos',     texto: 'Tramos',     icono: 'tramos' },
-  { a: '/admin/costos',     texto: 'Costos',     icono: 'reportes' },
-  { a: '/admin/inversiones', texto: 'Inversiones', icono: 'lotes' },
-  { a: '/tasas',            texto: 'Tasas',      icono: 'tasas' },
-  { a: '/admin/landing',    texto: 'Landing',    icono: 'catalogo' },
-  { a: '/admin/textos',     texto: 'Textos',     icono: 'catalogo' },
-  { a: '/catalogo',         texto: 'Catálogo',   icono: 'catalogo' },
-  { a: '/vitrina',          texto: 'Vitrina',    icono: 'vitrina' },
-];
+/* El menú del administrador, por grupos, vive en lib/menu.ts (fase 9). */
 
 const ENLACES_VENTA: EnlaceNav[] = [
   { a: '/venta',          texto: 'Mostrador', icono: 'mostrador' },
@@ -66,12 +36,11 @@ const ENLACES_VENTA: EnlaceNav[] = [
   Conteo una vez por semana, Guía casi nunca y Vitrina se enciende y se deja.
   Esas viven en la hoja.
 
-  Las del administrador cambiaron cuando empezo a vender: Inventario, el
-  Mostrador y Pedidos, que es donde aprueba las ventas por verificar.
-  Reportes y Lotes pasan a la hoja; se miran, no se usan a cada rato.
+  Las del administrador cambiaron cuando empezo a vender, y otra vez en la
+  fase 9: Inicio (que le dice que le toca hoy), el Mostrador y Pedidos.
+  Estan en lib/menu.ts, con el menu por grupos.
 */
 const PRINCIPALES_VENTA = ['/venta', '/venta/pedidos', '/venta/tablero'];
-const PRINCIPALES_ADMIN = ['/admin/inventario', '/venta', '/venta/pedidos'];
 
 /**
  * El armazón de la tienda: sus secciones según quién entró. La barra
@@ -88,16 +57,14 @@ export function Disposicion() {
     navegar('/entrar', { replace: true });
   }
 
-  /* Verificación, solo al administrador. La pantalla pasó a ser suya porque
-     enseña el nombre de cada vista y cada función protegida. A la vendedora
-     le seguía apareciendo el enlace y la llevaba a un rechazo: un callejón
-     sin salida dentro de su propio menú. */
+  /* Verificación va en el menú del administrador (grupo Sistema) y nunca en
+     el de la vendedora: enseña el nombre de cada vista y cada función
+     protegida, y a ella la llevaba a un rechazo. */
   const vencidos = useCreditosVencidos(esAdmin);
   const todos: EnlaceNav[] = esAdmin
-    ? [...ENLACES_ADMIN.map((e) => (e.a === '/admin/credito' && vencidos > 0
+    ? ENLACES_ADMIN.map((e) => (e.a === '/admin/credito' && vencidos > 0
         ? { ...e, aviso: `${vencidos} ${vencidos === 1 ? 'vencido' : 'vencidos'}` }
-        : e)),
-      { a: '/verificacion', texto: 'Verificación', icono: 'verificacion' }]
+        : e))
     : ENLACES_VENTA;
 
   return (

@@ -600,6 +600,26 @@ async function main() {
     dice(abre ? !error && Array.isArray(data) : !!error, `admin_flujo(): ${quien}`,
       error ? (abre ? 'ERROR ' + error.message : 'rechazada') : (data?.length ?? 0) + ' fila(s)');
   }
+  // El Inicio y la mercancía sin rastro por lote (#76): la regla, cerrada a
+  // todos; las puertas, solo el dueño. El Inicio solo cuenta: nueve claves.
+  for (const [quien, S] of [['sin sesion', P], ['ella', V], ['el administrador', A]]) {
+    const { error } = await S.rpc('sin_rastro_por_lote', {});
+    dice(!!error, `sin_rastro_por_lote(): cerrada para ${quien}`, error ? 'rechazada ' + error.code : 'RESPONDIO');
+  }
+  for (const [quien, S, abre] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { data, error } = await S.rpc('admin_sin_rastro_lotes', {});
+    dice(abre ? !error && Array.isArray(data) : !!error, `admin_sin_rastro_lotes(): ${quien}`,
+      error ? (abre ? 'ERROR ' + error.message : 'rechazada') : (data?.length ?? 0) + ' fila(s)');
+  }
+  const CLAVES_INICIO = ['ventas_por_verificar', 'por_verificar_bs', 'abonos_por_revisar', 'pedidos_por_entregar',
+    'pedidos_vencidos', 'apartados_por_aprobar', 'creditos_vencidos', 'vencido_bcv', 'conteos_por_revisar'];
+  for (const [quien, S, abre] of [['sin sesion', P, false], ['ella', V, false], ['el administrador', A, true]]) {
+    const { data, error } = await S.rpc('admin_inicio', {});
+    const claves = data && typeof data === 'object' ? Object.keys(data).sort() : [];
+    const justas = claves.length === CLAVES_INICIO.length && CLAVES_INICIO.every((k) => claves.includes(k));
+    dice(abre ? !error && justas : !!error, `admin_inicio(): ${quien}`,
+      error ? (abre ? 'ERROR ' + error.message : 'rechazada') : claves.join(', '));
+  }
   const anotar = (S) => S.rpc('admin_anotar_caja', {
     p_tipo: 'salida', p_fecha: null, p_categoria: 'otro_gasto', p_concepto: 'verificar',
     p_metodo: 'efectivo_bs', p_monto: 0, p_referencia: null,

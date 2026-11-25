@@ -278,6 +278,8 @@ página.
 El oro se reserva para el **borde de confirmación** (`.boton--confirmar`, borde de 2 px), nunca para el relleno — salvo sobre verde profundo, donde sí es relleno legítimo: la barra del carrito y el botón de entrar.
 
 ### Tabla de inventario (admin)
+**Dentro del armazón, desde la fase 9, la cabecera es clara** (panel, `--salvia-texto`): el verde queda para la Banda, la cifra que manda en cada pantalla del administrador (`componentes/Banda.tsx`, una por pantalla como mucho; ver DESIGN.md). Lo de abajo sigue valiendo para las páginas públicas hasta la fase 10.
+
 Cabecera en Jost mayúsculas sobre verde profundo, con las esquinas superiores redondeadas por `--radio-lg`. La fila se resalta al pasar por encima con `--verde-suave`; **no** se usan filas alternas, que compiten con el hover. **Cifras alineadas a la derecha con tabular numerals** (`font-variant-numeric: tabular-nums`). Márgenes negativos en `--error`, positivos en `--tinta`.
 
 **En el teléfono la tabla no se reacomoda: se cambia por fichas.** Trece columnas deslizándose a lo ancho enseñaban dos botones y media SKU, o sea nada. La ficha lleva foto, SKU y grupo, nombre, precio en bolívares con los dólares al lado, margen, existencia y las dos acciones. Siete datos, no trece.
@@ -285,12 +287,13 @@ Cabecera en Jost mayúsculas sobre verde profundo, con las esquinas superiores r
 La regla general, que vale para cualquier tabla que llegue: **en una pantalla estrecha lo correcto no es enseñar lo mismo reacomodado, es enseñar menos.** Se decide qué se cae, no cómo se dobla.
 
 ### Navegación
-En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre por sección. La activa lleva fondo apenas más claro y una barra de oro de 3 px por dentro del borde izquierdo. Caben todas las secciones del admin sin apretarse.
+En escritorio, **barra lateral de 244 px** en verde profundo, con icono y nombre por sección. Desde la fase 9 (Estuche, 24/11/2026) la activa es una **píldora crema con letra verde**, y el menú del administrador va **por grupos** (Vender, Dinero, Mercancía, Gente, En línea, Sistema; Inicio solo arriba), con el título de cada grupo en oro: está en `lib/menu.ts` y lo prueba `menu.test.mjs`. La vendedora y el revendedor no tienen grupos.
 
 **En el teléfono la navegación va ABAJO.** Cambiado en septiembre de 2026, medido antes y después: arriba ocupaba 222 px de 844, el 26 % de la pantalla, en todas las pantallas y antes de que apareciera un solo dato. Abajo son 69 px, y el título de cada pantalla pasó de estar a 246 px del borde a estar a 24.
 
 - Cuatro columnas: **tres secciones y un botón "Más"**. Objetivo táctil de 52 px, que entra hasta en un teléfono de 320 px.
-- Las tres no son las tres primeras de la lista: son **las que se tocan a diario**. Mostrador, Pedidos y Mi día para la vendedora; Inventario, Mostrador y Pedidos para el admin, desde que vende y aprueba las ventas por verificar (septiembre de 2026).
+- Las tres no son las tres primeras de la lista: son **las que se tocan a diario**. Mostrador, Pedidos y Mi día para la vendedora; para el admin, **Inicio, Mostrador y Pedidos** desde la fase 9 (antes Inventario: ahora entra al Inicio, que le dice qué le toca).
+- La barra **flota** a 12 px de los bordes, redondeada (Estuche): 80 px, y el contenido reserva 92. La sección activa va en oro sobre `--verde-hondo`, nunca sobre crema aclarada (el oro bajaba a 4,13:1).
 - "Más" abre una **hoja desde abajo** con TODAS las secciones, incluidas esas tres. Esconder las que ya están en la barra ahorra cuatro renglones y a cambio obliga a recordar dónde quedó cada cosa.
 - La hoja cierra con Escape, con el fondo y al elegir sección, y **devuelve el foco al botón que la abrió**.
 

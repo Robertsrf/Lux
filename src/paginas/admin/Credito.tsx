@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
+import { Banda } from '../../componentes/Banda';
 import { MiniaturaTocable } from '../../componentes/MiniaturaTocable';
 import { ListaAbonos } from '../../componentes/ListaAbonos';
 import { CargarAbono } from '../../componentes/CargarAbono';
@@ -166,16 +167,16 @@ export function Credito() {
       ) : null}
 
       {deudas.length > 0 ? (
-        <div className="panel" style={{ marginBottom: 'var(--e-5)' }}>
-          <span className="panel__titulo">Le deben a la tienda</span>
-          <p className="pedido__total">
-            {formatearBcv(total)}{tasa ? <> · hoy {formatearBs(bsDeBcv(total, tasa.tasa_bcv))}</> : null}
-          </p>
-          <p className="campo__pista">
-            {deudas.length} {deudas.length === 1 ? 'clienta' : 'clientas'}
-            {vencidas > 0 ? ` · ${vencidas} con algo vencido` : ''}
-          </p>
-        </div>
+        <Banda
+          etiqueta="Le deben a la tienda"
+          cifra={formatearBcv(total).replace(/\s*BCV$/, '')}
+          moneda="BCV"
+          detalle={tasa ? `Hoy son ${formatearBs(bsDeBcv(total, tasa.tasa_bcv))}.` : null}
+          cuadritos={[
+            { etiqueta: deudas.length === 1 ? 'Clienta' : 'Clientas', valor: String(deudas.length) },
+            { etiqueta: 'Con algo vencido', valor: String(vencidas) },
+          ]}
+        />
       ) : null}
 
       {deudas.map((d) => {

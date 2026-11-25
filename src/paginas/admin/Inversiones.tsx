@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
 import { Progreso } from '../../componentes/Progreso';
-import { formatearBcv, formatearBinance, formatearDecimal, formatearFecha, leerCifra } from '../../lib/dinero';
+import { Banda } from '../../componentes/Banda';
+import {
+  formatearBcv, formatearBinance, formatearDecimal, formatearFecha, formatearPorcentaje, leerCifra,
+} from '../../lib/dinero';
 import type { Inversion, Recuperacion } from '../../lib/tipos';
 
 const CATEGORIAS = ['mobiliario', 'exhibidor', 'equipo', 'local', 'otro'];
@@ -99,6 +102,21 @@ export function Inversiones() {
 
       {error ? <Aviso tono="error" titulo="Algo no cuadró">{error}</Aviso> : null}
 
+      {/* La cifra que manda (fase 9), con lo que es: sale del plan de gastos
+          de este mes, no de lo pagado (informe de la fase 8, punto 4). */}
+      {rec ? (
+        <Banda
+          etiqueta="Ha vuelto para pagar lo invertido"
+          cifra={formatearBcv(sobra, 0).replace(/\s*BCV$/, '')}
+          moneda="BCV"
+          detalle={<>{sobra < 0 ? 'Todavía no alcanza para el día a día. ' : ''}Lo que dejaron las ventas menos el día a día, contado con el plan de gastos de este mes. Lo cobrado y lo pagado de verdad está en <Link to="/admin/flujo">Flujo</Link>.</>}
+          cuadritos={[
+            { etiqueta: 'Mercancía vendida', valor: formatearPorcentaje(rec.mercancia_recuperada_pct, 0) },
+            { etiqueta: 'Muebles y exhibidores', valor: formatearPorcentaje(rec.activos_recuperado_pct, 0) },
+          ]}
+        />
+      ) : null}
+
       {rec ? (
         <div className="tarjeta">
           <h2>Cuánto ha vuelto</h2>
@@ -107,13 +125,13 @@ export function Inversiones() {
           <div className="pila">
             <div>
               <Progreso
-                titulo="Mercancía"
+                titulo="Mercancía vendida, a lo que costó"
                 pct={rec.mercancia_recuperada_pct}
                 pie={`${formatearBinance(rec.mercancia_vendida_real_usd, 0)} vendidos de ${formatearBinance(rec.invertido_mercancia_real_usd, 0)} · quedan ${formatearBinance(rec.mercancia_en_vitrina_real_usd, 0)} en vitrina`}
               />
               <p className="campo__pista">
-                En dólares Binance, como se compró. Vuelve sola al venderse: cada pieza que sale
-                devuelve lo que costó.
+                En dólares Binance, como se compró. Es el costo de lo que salió vendido, cobrado o
+                no: una venta a crédito o por verificar ya cuenta. Lo cobrado está en Flujo.
               </p>
             </div>
 
@@ -140,7 +158,7 @@ export function Inversiones() {
                 </div>
               </li>
               <li>
-                <span className="dato__etiqueta">Menos el día a día</span>
+                <span className="dato__etiqueta">Menos el día a día, con el plan de gastos</span>
                 <div className="dato__valor">{formatearBcv(rec.gastos_operativos_acumulados_usd, 0)}</div>
                 <div className="campo__pista">
                   alquiler, sueldos y servicios de {formatearDecimal(rec.meses_abierta)} meses
@@ -164,8 +182,9 @@ export function Inversiones() {
           </div>
 
           <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
-            Invertido en total: {formatearBcv(rec.invertido_total_usd, 0)}, todo llevado a
-            dólares BCV con la brecha de hoy. Cuántas piezas vender al mes para cubrir los
+            Invertido en total, al dólar de hoy: {formatearBcv(rec.invertido_total_usd, 0)}, todo
+            llevado a dólares BCV con la brecha de hoy (si la brecha sube, esta cifra sube sola; el
+            Flujo usa la tasa de cada día). Cuántas piezas vender al mes para cubrir los
             gastos está en <Link to="/admin/costos">Costos</Link>.
           </p>
         </div>

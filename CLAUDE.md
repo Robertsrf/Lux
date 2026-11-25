@@ -75,6 +75,10 @@ src/
                 `ver_oferta` y manda las miradas con `keepalive`)
                 grupoSugerido.ts (qué grupo de precio pone la máquina en el
                 formulario de una pieza: sigue al costo hasta que el dueño elige),
+                menu.ts (el menú del administrador por grupos y sus tres de
+                abajo: Inicio, Mostrador, Pedidos; `agruparEnlaces`),
+                inicio.ts ("Para hoy" del Inicio desde `admin_inicio`),
+                flujo.ts (agrupa y nombra lo que da `admin_flujo`; los períodos),
                 dominio.ts (LA regla de direcciones, pura: en qué dirección
                 está la app, qué ruta se abre ahí y a dónde lleva la que no,
                 las direcciones de cada cosa, los usuarios reservados y el
@@ -112,6 +116,8 @@ src/
                 ReportarPago (un pago a distancia con su referencia, sin
                 sesión o del revendedor), PagoMovil (datos para copiar, de
                 Lux o del revendedor), Graficos, Progreso, Recordatorio,
+                Banda (la cifra que manda en verde, una por pantalla del
+                administrador: el Estuche de la fase 9),
                 CompartirCatalogo (y `enlacePublico`, el enlace del
                 catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
                 Filigrana (las líneas de oro de la vitrina que se dibujan),
@@ -130,7 +136,11 @@ src/
                 catálogo y del pedido), ElegirPara ("Todas · Dama ·
                 Caballero", de los dos catálogos en línea)
   paginas/
-    admin/      Inventario (un producto por fila; sus medidas se abren
+    admin/      Inicio (/admin: el dueño entra aquí; la Banda del mes y
+                "Para hoy", lo pendiente con su botón), Flujo (/admin/flujo:
+                salió, entró y queda, $ Binance y $ BCV lado a lado, y la
+                mercancía sin rastro por lote),
+                Inventario (un producto por fila; sus medidas se abren
                 debajo; "Próximamente" lo que no ha llegado),
                 FormularioModelo, Lotes ("Todavía no ha llegado"),
                 LoteEnCamino (/admin/lotes/:id: lo que viene en un lote,
@@ -259,7 +269,10 @@ Vendedoras. Hacen todas lo mismo; el código es para saber quién vendió qué.
 | Navegación | Abajo en el teléfono, lateral en escritorio | Igual |
 
 Por debajo de 900 px la navegación vive **abajo**: barra de cuatro columnas con las
-tres secciones diarias y un botón "Más". No es una hamburguesa arriba a la
+tres secciones diarias y un botón "Más" (las del administrador, Inicio, Mostrador y
+Pedidos desde la fase 9; su menú va por grupos, en `lib/menu.ts`). **El estilo
+Estuche** (fase 9) vive dentro de `.armazon`, la cara con sesión y el panel del
+revendedor: las páginas públicas usan el mismo `base.css` y se rehacen en la fase 10. No es una hamburguesa arriba a la
 izquierda, y no por moda: esa esquina es la que peor alcanza el pulgar de quien
 sostiene el teléfono con una mano y joyas con la otra.
 
@@ -630,6 +643,14 @@ cargó. Lo de "hoy" (la etiqueta, lo que te deben), con la tasa vigente. Revocad
 a todos; `admin_flujo` la envuelve para el administrador. Los lotes se anotan
 SOLO en Lotes (decisión del dueño): si uno se anota también en la Caja como
 "Mercancía", sale dos veces.
+
+`sin_rastro_por_lote()` (#76, revocada a todos) parte por lote, en $ Binance,
+la misma regla de `mercancia_sin_rastro`: la suma de sus renglones es esa cifra
+(lo prueba PGlite). `admin_sin_rastro_lotes()` la envuelve; la lee el Flujo.
+`admin_inicio()` (#76, solo administrador) es el Inicio: un json de nueve
+cifras que solo CUENTA sobre las vistas de siempre (`v_ventas_por_verificar`,
+`v_abonos_detalle`, `v_pedido_vendedora`, `v_apartados_revendedor`,
+`v_credito`, `v_conteos`); no copia ninguna regla.
 
 **El día y el mes son los de Venezuela** (#75): toda cuenta que corte "hoy" o
 "este mes" usa `hoy_ve()`, `dia_ve(momento)` e `inicio_mes_ve()`, nunca
@@ -1594,7 +1615,7 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
 ## Antes de publicar
 
 ```bash
-npm run verificar     # 421 comprobaciones con las dos sesiones (428 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
+npm run verificar     # 430 comprobaciones con las dos sesiones (437 con LUX_REVENDEDOR). Sale 1 si algo se abrió.
 npm run pruebas       # lo que no es base: `lib/ofertas.ts`, `lib/dominio.ts`, el tema del revendedor y su logo, la tarjeta y el reenvío, y los guiones de scripts/
 npm run build         # tsc --noEmit + vite build
 npx wrangler@4.157.0 deploy --dry-run   # si tocaste wrangler.jsonc o cloudflare/

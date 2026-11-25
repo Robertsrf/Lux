@@ -281,7 +281,7 @@ export function Reportes() {
         {cobertura ? (
           <>
             <Progreso
-              titulo="Gastos del mes cubiertos"
+              titulo="Gastos del mes cubiertos · con el plan de Costos"
               pct={cobertura.cubierto_pct}
               pie={`${formatearBcv(cobertura.cubierto_usd, 0)} de ${formatearBcv(cobertura.gastos_mes_usd, 0)}`}
             />
@@ -594,7 +594,7 @@ export function Reportes() {
             <div className="tablero__celda">
               <span className="dato__etiqueta">Te costaron</span>
               <div className="tablero__cifra tablero__cifra--dinero">{formatearBinance(valor.costo_real_usd, 0)}</div>
-              <div className="tablero__meta">reponerlas hoy son {formatearBcv(valor.costo_bcv, 0)}</div>
+              <div className="tablero__meta">reponerlas hoy, con la reserva de merma, son {formatearBcv(valor.costo_bcv, 0)}</div>
             </div>
             <div className="tablero__celda">
               <span className="dato__etiqueta">Valen en etiqueta</span>
@@ -616,7 +616,7 @@ export function Reportes() {
           ) : null}
 
           <div className="tarjeta">
-            <span className="panel__titulo">Por categoría · $ BCV</span>
+            <span className="panel__titulo">Por categoría · $ BCV · margen sin lo de tienda</span>
             <GraficoValor
               datos={porCategoria}
               formato={(n) => formatearBcv(n)}
@@ -625,8 +625,10 @@ export function Reportes() {
             />
             <p className="campo__pista" style={{ marginTop: 'var(--e-4)' }}>
               "Te costaron" es lo que pagaste en Binance. "Reponerlas" es eso mismo llevado a
-              dólares BCV con la brecha de hoy, que es lo que haría falta cobrar para volver a
-              comprarlas. El margen es BRUTO: si vendieras todo hoy te quedarían{' '}
+              dólares BCV con la brecha de hoy y la reserva de merma (para las piezas que se dañan;
+              no es dinero gastado), que es lo que haría falta cobrar para volver a comprarlas. El
+              margen es BRUTO y sin lo de tienda (el alquiler y los sueldos repartidos por pieza que
+              sí lleva el margen del Inventario): si vendieras todo hoy te quedarían{' '}
               {formatearBcv(valor.margen_bruto_bcv)}, y de ahí salen los gastos del mes.
             </p>
           </div>

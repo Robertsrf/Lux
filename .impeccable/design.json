@@ -293,6 +293,14 @@
   },
   "components": [
     {
+      "name": "La Banda (Estuche, fase 9)",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "La cifra que manda en una pantalla del administrador (componentes/Banda.tsx), una por pantalla como mucho: Inicio, Flujo, Caja, Crédito e Inversiones. Verde profundo, radio 22 px; etiqueta en Jost 12 px mayúsculas oro (5,38:1); la cifra en Fraunces 56 px (40 en el teléfono) crema con su moneda detrás; barra de avance en oro; hasta cuatro cuadritos sobre --verde-hondo (el verde hacia la tinta: oro 6,70, crema 11,10).",
+      "html": "<section class=\"ds-banda\"><div class=\"ds-banda-etq\">Noviembre, hasta hoy</div><div class=\"ds-banda-cifra\">$2.200,00 <span>BCV vendido</span></div><div class=\"ds-banda-cuadros\"><div><div class=\"ds-banda-etq\">Piezas vendidas</div><div class=\"ds-banda-dd\">82</div></div><div><div class=\"ds-banda-etq\">Si se vende todo</div><div class=\"ds-banda-dd\">$6.641,90 BCV</div></div></div></section>",
+      "css": ".ds-banda { width: 360px; padding: 24px 16px; background: #1F4045; color: #EDE5D3; border-radius: 22px; } .ds-banda-etq { font-family: 'Jost', system-ui, sans-serif; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: #D0AE8A; } .ds-banda-cifra { font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 600; margin-top: 4px; } .ds-banda-cifra span { font-family: 'Jost', system-ui, sans-serif; font-size: 16px; font-weight: 500; } .ds-banda-cuadros { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; } .ds-banda-cuadros > div { padding: 12px 16px; border-radius: 12px; background: #173034; } .ds-banda-dd { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; margin-top: 4px; }"
+    },
+    {
       "name": "Botón primario",
       "kind": "button",
       "refersTo": "button-primary",
