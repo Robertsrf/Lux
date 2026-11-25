@@ -1,0 +1,183 @@
+/* =====================================================================
+   Lo público de Lux (fase 10, 24/11/2026): la landing, el catálogo, la
+   página de la pieza y el pedido, en el estilo A · Editorial cálido.
+
+   FUERA DEL SISTEMA VISUAL DE LUX por decisión del dueño: de Lux solo se
+   conservan los colores (tokens.css) y las letras (Fraunces, EB Garamond,
+   Jost). Todo vive bajo `.pub`, la clase raíz de esas páginas, para que
+   ninguna pantalla con sesión cambie por esto.
+
+   Contrastes medidos (WCAG, texto normal 4,5:1):
+     verde profundo / papel   9,75     verde profundo / crema   8,92
+     crema / verde profundo   8,92     tinta / papel           13,24
+     --salvia-texto / papel   5,35     --salvia-texto / crema   4,89
+     --salvia-texto / blanco  6,13     --oro-texto / papel      5,11
+     --oro-texto / blanco     5,86     oro arena / verde        5,38
+     tinta / oro arena        7,30     error / papel            6,62
+   El oro arena NUNCA como texto sobre claro (1,66 sobre crema).
+   ===================================================================== */
+
+.pub {
+  --pub-escala: 1;
+  --pub-pildora: 999px;
+  --pub-foto-radio: 4px;
+  --pub-alto-boton: 52px;
+  --pub-alto-control: 48px;
+  --pub-gutter: 16px;
+  --pub-ancho: 1200px;
+  --pub-sombra-barra: 0 10px 30px rgba(20, 41, 44, 0.25);
+  --pub-curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* La escala de letra: fluida, y un paso más con "Letra grande". */
+  --pub-t-etiqueta: calc(13px * var(--pub-escala));
+  --pub-t-chico: calc(14px * var(--pub-escala));
+  --pub-t-ui: calc(16px * var(--pub-escala));
+  --pub-t-prosa: calc(clamp(18px, 1.2vw + 14px, 21px) * var(--pub-escala));
+  --pub-t-nombre: calc(19px * var(--pub-escala));
+  --pub-t-precio: calc(17px * var(--pub-escala));
+  --pub-t-h3: calc(clamp(24px, 2vw + 18px, 32px) * var(--pub-escala));
+  --pub-t-h2: calc(clamp(30px, 3vw + 20px, 48px) * var(--pub-escala));
+  --pub-t-h1: calc(clamp(44px, 6vw + 22px, 88px) * var(--pub-escala));
+
+  min-height: 100vh;
+  background: var(--papel);
+  color: var(--verde-profundo);
+  font-family: var(--fuente-ui);
+  font-size: var(--pub-t-ui);
+  line-height: 1.45;
+}
+html.letra-grande .pub { --pub-escala: 1.15; }
+
+/* base.css le pone su letra a h1–h3; aquí se deshace y cada clase decide. */
+.pub :where(h1, h2, h3, h4, p) { margin: 0; font-family: inherit; font-weight: inherit; letter-spacing: normal; color: inherit; }
+.pub :where(a) { color: inherit; }
+.pub img { max-width: 100%; }
+
+.pub-contenedor { width: 100%; max-width: var(--pub-ancho); margin: 0 auto; padding: 0 var(--pub-gutter); box-sizing: border-box; }
+@media (min-width: 900px) { .pub { --pub-gutter: 32px; } }
+
+/* --- Tipos de letra ------------------------------------------------- */
+.pub-titulo {
+  font-family: var(--fuente-display); font-weight: 300;
+  font-size: var(--pub-t-h2); line-height: 1.02; letter-spacing: -0.015em;
+}
+.pub-titulo em, .pub-titulo i { font-style: italic; }
+.pub-titulo--grande { font-size: var(--pub-t-h1); line-height: 0.98; letter-spacing: -0.02em; }
+.pub-titulo--medio { font-size: var(--pub-t-h3); line-height: 1.08; }
+.pub-etiqueta {
+  font-size: var(--pub-t-etiqueta); letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--oro-texto); font-weight: 500;
+}
+.pub-prosa { font-family: var(--fuente-prosa); font-size: var(--pub-t-prosa); line-height: 1.4; color: var(--tinta); }
+.pub-secundario { color: var(--salvia-texto); }
+.pub-precio { font-family: var(--fuente-display); font-weight: 400; font-size: var(--pub-t-precio); font-variant-numeric: lining-nums; }
+
+/* --- Botones -------------------------------------------------------- */
+.pub-boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--pub-alto-boton); padding: 0 24px; box-sizing: border-box;
+  border: 1px solid var(--verde-profundo); border-radius: var(--pub-pildora);
+  background: var(--verde-profundo); color: var(--crema);
+  font-family: var(--fuente-ui); font-size: var(--pub-t-ui); font-weight: 500;
+  text-decoration: none; cursor: pointer;
+  transition: transform 160ms var(--pub-curva), background-color 160ms;
+}
+.pub-boton:hover { background: var(--tinta); }
+.pub-boton:active { transform: scale(0.97); }
+.pub-boton:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.pub-boton:focus-visible, .pub-icono:focus-visible, .pub-enlace:focus-visible { outline: 2px solid var(--verde-profundo); outline-offset: 3px; }
+.pub-boton--claro { background: transparent; color: var(--verde-profundo); }
+.pub-boton--claro:hover { background: var(--crema); }
+.pub-boton--crema { background: var(--crema); border-color: var(--crema); color: var(--verde-profundo); }
+.pub-boton--crema:hover { background: var(--papel); }
+.pub-boton--ancho { width: 100%; }
+.pub-boton--chico { min-height: 44px; padding: 0 18px; font-size: var(--pub-t-chico); }
+
+.pub-enlace {
+  background: none; border: 0; padding: 10px 0; min-height: 44px;
+  font: inherit; font-size: var(--pub-t-ui); color: var(--verde-profundo);
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; cursor: pointer;
+}
+
+.pub-icono {
+  display: inline-flex; align-items: center; justify-content: center; position: relative;
+  width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--pub-pildora);
+  background: transparent; color: var(--verde-profundo); cursor: pointer;
+}
+.pub-icono svg { width: 22px; height: 22px; }
+
+/* --- Aparecer al entrar en pantalla (useAparecer) -------------------- */
+.pub-aparece { opacity: 0; transform: translateY(16px); transition: opacity 450ms var(--pub-curva), transform 450ms var(--pub-curva); transition-delay: calc(var(--i, 0) * 60ms); }
+.pub-aparece--visible { opacity: 1; transform: none; }
+
+/* --- La cabecera ---------------------------------------------------- */
+.pub-cabecera { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--papel) 94%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--linea); }
+.pub-cabecera__fila { display: flex; align-items: center; gap: 4px; min-height: 64px; }
+.pub-cabecera__marca { display: inline-flex; align-items: baseline; gap: 8px; margin-right: auto; text-decoration: none; color: var(--verde-profundo); min-height: 44px; align-self: center; padding: 8px 0; }
+.pub-cabecera__lux { font-family: var(--fuente-display); font-weight: 400; font-size: 24px; letter-spacing: 0.22em; line-height: 1; }
+.pub-cabecera__by { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--salvia-texto); }
+.pub-letra { font-family: var(--fuente-display); font-size: 20px; line-height: 1; }
+.pub-letra small { font-size: 13px; }
+.pub-letra[aria-pressed='true'] { background: var(--verde-profundo); color: var(--crema); }
+.pub-bolsa__n {
+  position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box;
+  border-radius: var(--pub-pildora); background: var(--verde-profundo); color: var(--crema);
+  font-size: 12px; font-weight: 500; line-height: 20px; text-align: center;
+}
+.pub-whatsapp { display: none; }
+@media (min-width: 600px) { .pub-whatsapp { display: inline-flex; } }
+
+.pub-busca { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding-top: 12px; padding-bottom: 14px; }
+.pub-busca__campo { position: relative; flex: 1 1 260px; min-width: 0; }
+.pub-busca__campo svg { position: absolute; left: 16px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); color: var(--salvia-texto); pointer-events: none; }
+.pub .pub-busca__campo input {
+  min-height: var(--pub-alto-control); padding: 0 16px 0 46px;
+  border: 1px solid var(--linea); border-radius: var(--pub-pildora); background: var(--blanco);
+  font-family: var(--fuente-ui); font-size: max(16px, var(--pub-t-ui)); color: var(--tinta);
+}
+.pub .pub-busca__campo input::placeholder { color: var(--salvia-texto); opacity: 1; }
+.pub .pub-busca__campo input:focus-visible { border-color: var(--verde-profundo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--verde-profundo) 18%, transparent); }
+
+/* "Todas · Dama · Caballero" (ElegirPara), en el estilo A. */
+.pub .para-quien {
+  display: inline-flex; gap: 6px; flex: 0 0 auto; margin: 0; padding: 0;
+  background: none; border: 0; border-radius: 0; max-width: none;
+}
+.pub .para-quien__opcion {
+  min-height: 44px; padding: 0 16px; border-radius: var(--pub-pildora);
+  border: 1px solid var(--linea); background: transparent; color: var(--verde-profundo);
+  font-family: var(--fuente-ui); font-size: var(--pub-t-chico); font-weight: 400;
+  letter-spacing: normal; text-transform: none; cursor: pointer;
+}
+.pub .para-quien__opcion:hover { background: var(--crema); }
+.pub .para-quien__opcion[aria-pressed='true'] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+
+/* --- La barra del pedido -------------------------------------------- */
+.pub-con-barra { padding-bottom: 112px; }
+.pub-barra {
+  position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 45;
+  max-width: 640px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 64px; padding: 8px 8px 8px 22px; box-sizing: border-box;
+  border-radius: 32px; background: var(--verde-profundo); color: var(--crema);
+  box-shadow: var(--pub-sombra-barra);
+}
+.pub-barra__resumen { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.pub-barra__total { font-size: var(--pub-t-chico); }
+.pub-barra__total .pub-precio { font-size: var(--pub-t-precio); }
+.pub-barra__extra { font-size: 13px; color: color-mix(in srgb, var(--crema) 88%, var(--verde-profundo)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-barra__vaciar { display: none; color: var(--crema); }
+@media (min-width: 420px) { .pub-barra__vaciar { display: inline-flex; } }
+.pub-barra .pub-boton--crema { min-height: 48px; }
+.pub-aviso-agregado {
+  position: fixed; left: 16px; right: 16px; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px); z-index: 44;
+  max-width: 600px; margin: 0 auto; padding: 14px 18px; box-sizing: border-box;
+  border-radius: 18px; background: var(--blanco); color: var(--tinta);
+  box-shadow: 0 8px 24px rgba(20, 41, 44, 0.16); font-size: var(--pub-t-chico);
+}
+
+/* --- Movimiento reducido: todo quieto y visible ---------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .pub *, .pub *::before, .pub *::after { animation: none !important; transition: none !important; }
+  .pub-aparece { opacity: 1; transform: none; }
+}

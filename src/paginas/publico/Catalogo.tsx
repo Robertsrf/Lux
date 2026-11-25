@@ -1,7 +1,6 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { rutaDelCatalogo } from '../../lib/direccion';
-import { Aviso, Campo, Cargando, Filtros, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { Wordmark } from '../../componentes/Marca';
+import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import { Icono } from '../../componentes/Iconos';
 import { formatearBcv, formatearBs, formatearEntero, formatearDescuento, precioEnBs } from '../../lib/dinero';
 import { ArmarDije } from '../../componentes/ArmarDije';
@@ -22,10 +21,15 @@ import { HojaCompletalo, HojaPareja } from './landing/Completalo';
 import { TusCodigos } from './landing/TusCodigos';
 import { VentanaOferta } from './landing/VentanaOferta';
 import { TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
-import { BotonLetraGrande } from '../../componentes/LetraGrande';
 import type { ModeloProximo, ModeloPublico } from '../../lib/tipos';
-import { ElegirPara } from '../../componentes/ElegirPara';
 import { useCatalogoLux, type Orden } from './useCatalogoLux';
+import { Cabecera } from './caras/Cabecera';
+import { BarraPedido } from './caras/BarraPedido';
+import '@fontsource/fraunces/latin-300.css';
+import '@fontsource/fraunces/latin-300-italic.css';
+import '@fontsource/fraunces/latin-400.css';
+import '@fontsource/eb-garamond/latin-400-italic.css';
+import '../../estilos/publico.css';
 
 /**
  * Catalogo publico. Se abre sin sesion, desde un enlace de WhatsApp.
@@ -77,7 +81,6 @@ export function Catalogo() {
     conocidos,
     seleccion,
     texto,
-    setTexto,
     categorias,
     orden,
     setOrden,
@@ -92,7 +95,6 @@ export function Catalogo() {
     irATodas,
     elegirPara,
     enLista,
-    recienAgregada,
     consultaActual,
     cargadoPara,
     datos,
@@ -171,26 +173,6 @@ export function Catalogo() {
     />
   ) : null;
 
-  // La misma cabecera en el catálogo y en "Tu pedido": la marca lleva al
-  // inicio, "Letra grande" agranda todo y, si hay número, "Escríbenos" abre
-  // el WhatsApp de la tienda.
-  const cabecera = (
-    <header className="barra barra--publica">
-      <div className="barra__interior">
-        <Link to={rutaDelCatalogo()} className="barra__marca" aria-label="Lux by Emory, ir al inicio del catálogo">
-          <Wordmark alto={40} />
-        </Link>
-        <div className="barra__publica-acciones">
-          <BotonLetraGrande />
-          {whatsappTienda ? (
-            <a className="boton boton--secundario barra__contacto" href={whatsappTienda} target="_blank" rel="noopener noreferrer">
-              Escríbenos<span className="visualmente-oculto"> por WhatsApp</span>
-            </a>
-          ) : null}
-        </div>
-      </div>
-    </header>
-  );
 
   /* ------------------------------------------------------------ pedido */
 
@@ -205,8 +187,8 @@ export function Catalogo() {
     const faltaEnvio = entrega === 'envio' && (!agencia.trim() || !direccion.trim());
 
     return (
-      <>
-        {cabecera}
+      <div className="pub">
+        <Cabecera c={c} conBuscador={false} />
         <div className="pagina pagina--angosta mostrador">
           <div className="encabezado-pagina">
             <div>
@@ -365,7 +347,7 @@ export function Catalogo() {
           </button>
           {hojaArmar}
         </div>
-      </>
+      </div>
     );
   }
 
@@ -428,56 +410,26 @@ export function Catalogo() {
       ) : null}
     </section>
   );
-  const buscador = (
-    <div className="buscador-catalogo">
-      <ElegirPara para={para} alElegir={elegirPara} />
-      <Campo etiqueta="Buscar una pieza" htmlFor="buscar-publico">
-        <input
-          id="buscar-publico" type="search" value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Cadena, anillo, choker..." autoComplete="off"
-        />
-      </Campo>
-      {/* En la lista, qué se ve y en qué orden, a la vista y no plegado:
-          quien no sabe que "Filtrar" se abre, no lo abre. Lado a lado en
-          el teléfono. El tipo, en la lista de opciones solo en el
-          teléfono (en pantallas anchas están las fichas de arriba). */}
-      {enLista ? (
-        <div className="lista-controles">
-          {categorias.length > 1 && !texto.trim() ? (
-            <div className="lista-controles__tipo">
-              <Campo etiqueta="Ver" htmlFor="ver-publico">
-                <select
-                  id="ver-publico"
-                  value={categoria ?? ''}
-                  onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
-                >
-                  <option value="">Todas las joyas</option>
-                  {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
-                </select>
-              </Campo>
-            </div>
-          ) : null}
-          {campoOrden}
-        </div>
-      ) : null}
-      {/* En el inicio, el tipo y el orden plegados: con más piezas de las
-          que trae, el tipo lleva a todas, y ordenar por precio tiene que
-          poder hacerse sin entrar antes a un tipo. */}
-      {categorias.length > 1 && !enLista ? (
-        <Filtros activos={orden !== 'nombre' ? 1 : 0}>
-        <div className="fila">
-          <Campo etiqueta="Tipo" htmlFor="tipo-publico">
-            <select id="tipo-publico" value="" onChange={(e) => (e.target.value === '*' ? irATodas() : setCategoria(e.target.value || null))}>
-              <option value="">Elige un tipo</option>
-              <option value="*">Todas las joyas</option>
+  // En la lista, qué se ve y en qué orden, a la vista y no plegado: quien
+  // no sabe que "Filtrar" se abre, no lo abre. El buscador y "Todas · Dama ·
+  // Caballero" viven en la cabecera (Cabecera), siempre en el mismo sitio.
+  const controlesLista = (
+    <div className="lista-controles">
+      {categorias.length > 1 && !texto.trim() ? (
+        <div className="lista-controles__tipo">
+          <Campo etiqueta="Ver" htmlFor="ver-publico">
+            <select
+              id="ver-publico"
+              value={categoria ?? ''}
+              onChange={(e) => (e.target.value ? setCategoria(e.target.value) : irATodas())}
+            >
+              <option value="">Todas las joyas</option>
               {categorias.map((c) => <option key={c} value={c}>{nombreDeTipo(c)}</option>)}
             </select>
           </Campo>
-          {campoOrden}
         </div>
-        </Filtros>
       ) : null}
+      {campoOrden}
     </div>
   );
   const aviso = (
@@ -523,10 +475,10 @@ export function Catalogo() {
   };
 
   return (
-    <>
-      {cabecera}
+    <div className="pub">
+      <Cabecera c={c} conBuscador />
 
-      <div className={resumen.piezas > 0 ? 'pagina mostrador catalogo-publico pagina--con-barra' : 'pagina mostrador catalogo-publico'}>
+      <div className={resumen.piezas > 0 ? 'pagina mostrador catalogo-publico pagina--con-barra pub-con-barra' : 'pagina mostrador catalogo-publico'}>
         {/* Arriba, o la portada o el título de la lista. El buscador va
             después, siempre en el mismo sitio: si cambiara de lugar al
             escribir, el teléfono cerraría el teclado a media palabra. */}
@@ -555,7 +507,7 @@ export function Catalogo() {
                 </nav>
               ) : null}
             </div>
-            {buscador}
+            {controlesLista}
             {aviso}
             {piezasListas ? (
               <>
@@ -593,7 +545,7 @@ export function Catalogo() {
             textos={textos}
             whatsapp={whatsappTienda}
             portadaDeHoy={portadaDeHoy}
-            buscador={buscador}
+            buscador={null}
             aviso={aviso}
           />
         )}
@@ -684,41 +636,8 @@ export function Catalogo() {
           );
         })()}
 
-        {/* La primera pieza: dónde quedó y cómo se sigue. Encima de la barra,
-            se va sola y no tapa ningún botón. */}
-        {recienAgregada && resumen.piezas > 0 ? (
-          <p className="aviso-agregado" role="status">
-            <strong>Listo, está en tu pedido.</strong> Sigue eligiendo; cuando termines, toca «Ver mi pedido» aquí abajo.
-          </p>
-        ) : null}
-
-        {resumen.piezas > 0 ? (
-          <div className="barra-carrito">
-            <div className="barra-carrito__resumen">
-              <div className="barra-carrito__piezas">
-                {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
-                {resumen.descuento ? (
-                  <span className="barra-carrito__tramo"> · {formatearDescuento(resumen.descuento)} menos</span>
-                ) : null}
-                {resumen.conOferta ? <span className="barra-carrito__tramo"> · con tu oferta</span> : null}
-                {resumen.siguiente ? (
-                  <span className="barra-carrito__falta"> · Te faltan {resumen.siguiente.faltan} joya{resumen.siguiente.faltan === 1 ? '' : 's'} para {formatearDescuento(resumen.siguiente.pct)} en todo el pedido</span>
-                ) : null}
-              </div>
-              <div className="barra-carrito__total" aria-live="polite" aria-busy={resumen.calculando}>
-                {formatearBs(precioEnBs(resumen.totalUsd, tasa))}
-              </div>
-            </div>
-            {/* En un teléfono angosto no cabe con el total: ahí vive en "Tu pedido". */}
-            <button type="button" className="boton boton--secundario barra-carrito__vaciar" onClick={vaciar}>
-              Vaciar
-            </button>
-            <button type="button" className="boton" onClick={() => setPaso('pedido')}>
-              Ver mi pedido
-            </button>
-          </div>
-        ) : null}
+        <BarraPedido c={c} />
       </div>
-    </>
+    </div>
   );
 }
