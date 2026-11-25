@@ -3847,3 +3847,91 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
   color: var(--texto-fuerte); background: var(--superficie);
   border: 1px solid var(--salvia); border-radius: var(--radio-pill);
 }
+
+/* =====================================================================
+   ESTUCHE (fase 9, 24/11/2026): el administrativo rehecho.
+   El verde arriba con la cifra que manda (la Banda), tarjetas blancas
+   redondeadas debajo. Paleta y letras de siempre. Vive dentro de
+   `.armazon` (la tienda con sesión y el panel del revendedor): las
+   páginas públicas se rehacen en la fase 10. Cada par de texto está
+   medido en scripts/pruebas/estuche.test.mjs.
+   ===================================================================== */
+
+:root {
+  /* Lo activo sobre el verde: el verde llevado hacia la tinta. Aclararlo
+     con crema dejaba el oro en 4,13:1; así da 6,70 (crema, 11,10). */
+  --verde-hondo: color-mix(in srgb, var(--tinta) 70%, var(--verde-profundo));
+  /* El fondo de un cuadrito que avisa de algo vencido: error 6,48:1. */
+  --urgente-fondo: color-mix(in srgb, var(--error) 10%, var(--blanco));
+}
+
+.barra-nav a.activo,
+.barra-nav__mas.activo { background: var(--verde-hondo); }
+
+/* Encabezado: el título manda (Fraunces 40; 28 en el teléfono) y debajo
+   una línea que dice qué es la pantalla. El de la vendedora no cambia. */
+.armazon .pagina:not(.mostrador) .encabezado-pagina h1 { font-size: var(--t-40); line-height: 1.1; }
+.armazon .pagina:not(.mostrador) .encabezado-pagina { margin-bottom: var(--e-5); }
+
+/* Tarjetas y cuadros de cifras: blancos sobre papel, sin borde, con la
+   sombra teñida de verde. El borde lo pone la sombra. */
+.armazon .tarjeta,
+.armazon .tablero__celda { border: 0; box-shadow: var(--sombra-1); }
+.armazon .tarjeta > h2:first-child { font-size: var(--t-20); }
+
+/* Tablas: la cabecera clara (Jost 12 en mayúsculas, salvia oscurecida
+   sobre panel, 4,5:1 medido). El verde queda para la Banda y las barras:
+   un solo protagonista por pantalla. */
+.armazon .tabla-envoltura { border: 0; }
+.armazon table.tabla th,
+.armazon .tabla thead .col-fija {
+  background: var(--panel);
+  color: var(--salvia-texto);
+  font-weight: 600;
+  border-bottom: 1px solid var(--linea-suave);
+}
+
+/* --- La Banda: la cifra que manda, en verde. Una por pantalla. ------- */
+
+.banda {
+  display: grid; gap: var(--e-4);
+  margin-bottom: var(--e-5);
+  padding: var(--e-5) var(--e-6);
+  background: var(--verde-profundo);
+  color: var(--crema);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-2);
+}
+.banda__etiqueta {
+  display: block;
+  font-family: var(--fuente-ui); font-size: var(--t-12); font-weight: 500;
+  text-transform: uppercase; letter-spacing: var(--tracking);
+  color: var(--oro-arena);
+}
+.banda__cifra {
+  display: block;
+  margin-top: var(--e-1);
+  font-family: var(--fuente-display); font-weight: 600;
+  font-size: var(--t-56); line-height: 1.05;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+.banda__moneda { font-family: var(--fuente-ui); font-size: var(--t-16); font-weight: 500; margin-left: var(--e-1); }
+.banda__detalle { font-size: var(--t-14); line-height: 1.4; }
+.banda__detalle a { color: var(--crema); }
+.banda__progreso { display: grid; gap: var(--e-2); }
+.banda__progreso-texto { display: flex; justify-content: space-between; gap: var(--e-3); font-size: var(--t-14); }
+.banda__barra { height: 8px; border-radius: var(--radio-pill); background: color-mix(in srgb, var(--crema) 22%, transparent); overflow: hidden; }
+.banda__barra > span { display: block; height: 100%; border-radius: inherit; background: var(--oro-arena); }
+.banda__cuadritos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--e-3); margin: 0; }
+.banda__cuadrito { padding: var(--e-3) var(--e-4); border-radius: var(--radio); background: var(--verde-hondo); }
+.banda__cuadrito dt { font-size: var(--t-12); color: var(--oro-arena); text-transform: uppercase; letter-spacing: var(--tracking); }
+.banda__cuadrito dd { margin: var(--e-1) 0 0; font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600; font-variant-numeric: tabular-nums; }
+.banda :focus-visible { outline-color: var(--oro-arena); }
+
+@media (max-width: 900px) {
+  .armazon .pagina:not(.mostrador) .encabezado-pagina h1 { font-size: var(--t-28); }
+  .banda { padding: var(--e-5) var(--e-4); }
+  .banda__cifra { font-size: var(--t-40); }
+  .armazon .tarjeta { border-radius: var(--radio-lg); }
+}
