@@ -5,6 +5,16 @@ import { ElegirPara } from '../../../componentes/ElegirPara';
 import type { CatalogoLux } from '../useCatalogoLux';
 import { IcoBolsa, IcoLupa, IcoWhatsapp } from './iconos';
 
+/** "Letra grande": sube un paso la letra de lo público y se recuerda en el teléfono. */
+export function BotonLetra() {
+  const { grande, alternar } = useLetraGrande();
+  return (
+    <button type="button" className="pub-icono pub-letra" aria-pressed={grande} aria-label="Letra grande" onClick={alternar}>
+      A<small>A</small>
+    </button>
+  );
+}
+
 /**
  * La cabecera de lo público (fase 10). Arriba, pegada: LUX, WhatsApp,
  * "Letra grande" y el pedido. Debajo, el buscador con "Todas · Dama ·
@@ -12,7 +22,6 @@ import { IcoBolsa, IcoLupa, IcoWhatsapp } from './iconos';
  * teléfono no cierre el teclado cuando escribir pasa del inicio a la lista.
  */
 export function Cabecera({ c, conBuscador }: { c: CatalogoLux; conBuscador: boolean }) {
-  const { grande, alternar } = useLetraGrande();
   const piezas = c.resumen.piezas;
   return (
     <>
@@ -32,9 +41,7 @@ export function Cabecera({ c, conBuscador }: { c: CatalogoLux; conBuscador: bool
               <IcoWhatsapp />
             </a>
           ) : null}
-          <button type="button" className="pub-icono pub-letra" aria-pressed={grande} aria-label="Letra grande" onClick={alternar}>
-            A<small>A</small>
-          </button>
+          <BotonLetra />
           {piezas > 0 ? (
             <button type="button" className="pub-icono" aria-label={`Ver mi pedido: ${piezas} joya${piezas === 1 ? '' : 's'}`} onClick={() => c.setPaso('pedido')}>
               <IcoBolsa />

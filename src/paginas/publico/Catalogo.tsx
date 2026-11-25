@@ -1,13 +1,11 @@
 import { Navigate } from 'react-router-dom';
 import { rutaDelCatalogo } from '../../lib/direccion';
-import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
-import { formatearBcv, formatearBs, formatearDescuento, precioEnBs } from '../../lib/dinero';
+import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
+import { formatearBcv, formatearBs } from '../../lib/dinero';
 import { ArmarDije } from '../../componentes/ArmarDije';
-import { urlPublicaFoto } from '../../lib/fotos';
 import { nombreConVariante } from '../../lib/familias';
 import { codigoCompleto } from '../../lib/ofertas';
 import type { Familia } from '../../lib/familias';
-import { decirMinutos } from '../../hooks/useReglasPedido';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
 import { irA } from './caras/ComoPedir';
@@ -22,17 +20,12 @@ import { Landing } from './landing/Landing';
 import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
 import type { PropsCatalogo } from './landing/SeccionesCatalogo';
 import { HojaCompletalo, HojaPareja } from './landing/Completalo';
-import { TusCodigos } from './landing/TusCodigos';
 import { VentanaOferta } from './landing/VentanaOferta';
-import { TusDatos, datosParaReservar, queFalta } from '../../componentes/TusDatos';
 import type { ModeloProximo, ModeloPublico } from '../../lib/tipos';
 import { useCatalogoLux } from './useCatalogoLux';
 import { Cabecera } from './caras/Cabecera';
 import { BarraPedido } from './caras/BarraPedido';
-import '@fontsource/fraunces/latin-300.css';
-import '@fontsource/fraunces/latin-300-italic.css';
-import '@fontsource/fraunces/latin-400.css';
-import '@fontsource/eb-garamond/latin-400-italic.css';
+import { Pedido } from './caras/Pedido';
 import '../../estilos/publico.css';
 
 /**
@@ -70,7 +63,6 @@ export function Catalogo() {
   const {
     tasa,
     textos,
-    reglas,
     landing,
     ofertas,
     parejaPct,
@@ -96,17 +88,6 @@ export function Catalogo() {
     enLista,
     consultaActual,
     cargadoPara,
-    datos,
-    setDatos,
-    entrega,
-    setEntrega,
-    empresa,
-    setEmpresa,
-    agencia,
-    setAgencia,
-    direccion,
-    setDireccion,
-    reservando,
     familiaAbierta,
     setFamiliaAbierta,
     dijes,
@@ -117,7 +98,6 @@ export function Catalogo() {
     todosProximos,
     setTodosProximos,
     resumen,
-    armados,
     familias,
     estantes,
     tipos,
@@ -127,13 +107,11 @@ export function Catalogo() {
     cerrarHoja,
     cambiar,
     agregarPorId,
-    vaciar,
     quererOferta,
     abrirArmar,
     armarCon,
     esBase,
     alInicio,
-    reservar,
     pieza,
     abrirPieza,
   } = c;
@@ -183,174 +161,7 @@ export function Catalogo() {
     return <Navigate to={rutaDelCatalogo()} replace />;
   }
 
-  if (paso === 'pedido') {
-    const elegidos = [...seleccion.entries()].map(([id, cantidad]) => ({ id, m: conocidos.get(id), cantidad }));
-    const faltaEnvio = entrega === 'envio' && (!agencia.trim() || !direccion.trim());
-
-    return (
-      <div className="pub">
-        <Cabecera c={c} conBuscador={false} />
-        <div className="pagina pagina--angosta mostrador">
-          <div className="encabezado-pagina">
-            <div>
-              <h1>Tu pedido</h1>
-              <p>
-                {resumen.piezas} pieza{resumen.piezas === 1 ? '' : 's'}
-                {resumen.descuento ? `, con ${formatearDescuento(resumen.descuento)} de descuento por cantidad` : ''}.
-                {' '}Tres pasos y quedan apartadas.
-              </p>
-            </div>
-          </div>
-
-          {error ? <ResumenErrores titulo="No se pudo apartar">{error}</ResumenErrores> : null}
-
-          {/* Las partes numeradas: la clienta sabe dónde va y cuánto falta. */}
-          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">1</span> Tus piezas</h2>
-          <div className="lineas-cobro">
-            {elegidos.map(({ id, m, cantidad }) => {
-              const precio = resumen.precioDe.get(id) ?? m?.precio_usd ?? null;
-              const nombre = m ? nombreConVariante(m.nombre, m.variante) : 'Pieza';
-              return (
-                <div className="linea-cobro" key={id}>
-                  {m && urlPublicaFoto(m.foto_thumb_path)
-                    ? <img className="linea-cobro__foto" src={urlPublicaFoto(m.foto_thumb_path)!} alt="" />
-                    : <span className="linea-cobro__foto" />}
-                  <div>
-                    <div className="linea-cobro__nombre">{nombre}</div>
-                    <div className="linea-cobro__precio">
-                      {precio !== null ? `${formatearBs(precioEnBs(precio, tasa))} c/u · ` : ''}
-                      {m ? `quedan ${m.disponible}` : ''}
-                    </div>
-                    {resumen.ofertaDe.has(id) ? (
-                      <div className="campo__pista">
-                        {(resumen.ofertaDe.get(id) ?? 0) < cantidad ? `${resumen.ofertaDe.get(id)} con tu código` : 'Con tu código'}
-                      </div>
-                    ) : null}
-                    {/* La cadena dice qué dijes lleva puestos, y deja ponerle uno. */}
-                    {m?.armado === 'base' ? (
-                      <>
-                        {armados.some((p) => p.base === id) ? (
-                          <div className="campo__pista">
-                            Con {armados.filter((p) => p.base === id)
-                              .map((p) => nombreConVariante(conocidos.get(p.dije)?.nombre ?? 'un dije', conocidos.get(p.dije)?.variante))
-                              .join(', ')}
-                          </div>
-                        ) : null}
-                        <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => void abrirArmar(id, visor.cerrar)}>
-                          Agrégale un dije
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                  <div className="contador">
-                    <button type="button" aria-label={`Quitar una de ${nombre}`} onClick={() => cambiar(id, cantidad - 1)}>&minus;</button>
-                    <span className="contador__valor" aria-live="polite">{cantidad}</span>
-                    <button type="button" aria-label={`Agregar una de ${nombre}`} disabled={!m || cantidad >= m.disponible} onClick={() => cambiar(id, cantidad + 1)}>+</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <TusCodigos
-            codigos={ofertas.codigos}
-            estados={resumen.codigos}
-            carrito={seleccion}
-            alQuitar={ofertas.quitar}
-          />
-
-          <div className="total-cobro" aria-busy={resumen.calculando}>
-            <div>
-              <span className="util secundario">Tu total</span>
-              <div className="campo__pista">
-                {resumen.piezas === 1 ? '1 pieza vale' : `${resumen.piezas} piezas valen`} {formatearBs(precioEnBs(resumen.subtotal, tasa))}
-                {resumen.descuento ? `, menos el descuento por cantidad` : ''}
-                {resumen.conOferta ? `${resumen.descuento ? ' y' : ', menos'} tus códigos` : ''}
-              </div>
-            </div>
-            <div>
-              <div className="total-cobro__cifra">{formatearBs(precioEnBs(resumen.totalUsd, tasa))}</div>
-              <div className="total-cobro__cifra">{formatearBcv(resumen.totalUsd)}</div>
-            </div>
-          </div>
-
-          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">2</span> Tus datos</h2>
-          <TusDatos valor={datos} alCambiar={setDatos} />
-
-          <h2 className="seccion-titulo paso-pedido"><span className="paso-pedido__n" aria-hidden="true">3</span> Cómo lo recibes</h2>
-          <div className="panel">
-            <div className="metodos-pago">
-              <button type="button" aria-pressed={entrega === 'tienda'} onClick={() => setEntrega('tienda')}>
-                Retiro en tienda
-              </button>
-              <button type="button" aria-pressed={entrega === 'envio'} onClick={() => setEntrega('envio')}>
-                Envío a mi ciudad
-              </button>
-            </div>
-
-            {entrega === 'envio' ? (
-              <>
-                <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-                  El envío se paga al retirarlo en la agencia, no ahora.
-                </p>
-                <div className="metodos-pago" style={{ marginTop: 'var(--e-4)' }}>
-                  <button type="button" aria-pressed={empresa === 'domesa'} onClick={() => setEmpresa('domesa')}>Domesa</button>
-                  <button type="button" aria-pressed={empresa === 'mrw'} onClick={() => setEmpresa('mrw')}>MRW</button>
-                </div>
-                <div className="fila" style={{ marginTop: 'var(--e-4)' }}>
-                  <Campo etiqueta="Agencia" htmlFor="r-agencia" pista="La sucursal donde lo vas a retirar.">
-                    <input id="r-agencia" value={agencia} onChange={(e) => setAgencia(e.target.value)} required />
-                  </Campo>
-                  <Campo etiqueta="Dirección de la agencia" htmlFor="r-dir">
-                    <input id="r-dir" value={direccion} onChange={(e) => setDireccion(e.target.value)} required />
-                  </Campo>
-                </div>
-              </>
-            ) : (
-              <p className="campo__pista" style={{ marginTop: 'var(--e-3)' }}>
-                Te esperamos en la tienda con tu cédula{textos.direccion_tienda ? `: ${textos.direccion_tienda}` : ''}.
-              </p>
-            )}
-          </div>
-
-          {/* Antes del botón, lo que pasa al tocarlo, con las cifras de
-              verdad. Antes decía "unos días" y "una parte". */}
-          <div className="panel que-pasa">
-            <span className="panel__titulo">Qué pasa al apartar</span>
-            <p className="prosa">
-              {reglas
-                ? `Tus piezas quedan guardadas a tu nombre ${decirMinutos(reglas.reserva_minutos)}. En la página de tu pedido pagas el total, o al menos el ${formatearDescuento(reglas.apartado_inicial_pct)} para apartarlas ${reglas.apartado_dias} días y pagar lo demás por partes. Si no terminas de pagar a tiempo, lo abonado no se devuelve y las piezas vuelven a la venta.`
-                : 'Tus piezas quedan guardadas a tu nombre mientras pagas. En la página de tu pedido pagas el total, o solo una parte para apartarlas unos días y pagar lo demás por partes; ahí te decimos cuánto y hasta cuándo.'}
-              {whatsappTienda ? ' Ahí mismo nos avisas por WhatsApp con un toque.' : ''}
-            </p>
-          </div>
-
-          <div className="acciones">
-            <button
-              type="button"
-              className="boton boton--confirmar"
-              disabled={reservando || resumen.piezas === 0 || !datosParaReservar(datos) || faltaEnvio}
-              onClick={() => void reservar()}
-            >
-              {reservando ? 'Apartando' : 'Apartar mis piezas'}
-            </button>
-            <button type="button" className="boton boton--secundario" onClick={() => setPaso('catalogo')}>
-              Seguir viendo
-            </button>
-          </div>
-          {/* Un boton apagado sin explicacion es una trampa. */}
-          {!datosParaReservar(datos)
-            ? <p className="campo__pista">{queFalta(datos)}</p>
-            : faltaEnvio ? <p className="campo__pista">Falta la agencia y su dirección para el envío.</p> : null}
-          {/* Vaciar pesaba lo mismo que seguir: ahora es un enlace, lejos del botón. */}
-          <button type="button" className="enlace-texto" onClick={() => { vaciar(); setPaso('catalogo'); }}>
-            Vaciar el pedido
-          </button>
-          {hojaArmar}
-        </div>
-      </div>
-    );
-  }
+  if (paso === 'pedido') return <Pedido c={c} hojaArmar={hojaArmar} />;
 
   /* ---------------------------------------------------------- catalogo */
 

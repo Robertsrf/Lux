@@ -1,3 +1,9 @@
+/* Las letras que usa lo público además de las de siempre (main.tsx). */
+@import '@fontsource/fraunces/latin-300.css';
+@import '@fontsource/fraunces/latin-300-italic.css';
+@import '@fontsource/fraunces/latin-400.css';
+@import '@fontsource/eb-garamond/latin-400-italic.css';
+
 /* =====================================================================
    Lo público de Lux (fase 10, 24/11/2026): la landing, el catálogo, la
    página de la pieza y el pedido, en el estilo A · Editorial cálido.
@@ -352,3 +358,63 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 .pub-portada-sola__botones { display: flex; flex-wrap: wrap; gap: 10px; }
 .pub-aviso:empty { display: none; }
 .pub-aviso { margin-top: 12px; }
+
+/* --- Tu pedido y la página del pedido -------------------------------- */
+.pub-pedido { max-width: 720px; padding-top: 8px; padding-bottom: 48px; }
+.pub-pedido__intro { margin: 8px 0 8px; }
+.pub-pedido__paso { display: flex; align-items: baseline; gap: 12px; margin: 36px 0 14px; font-family: var(--fuente-display); font-weight: 300; font-size: var(--pub-t-h3); line-height: 1.1; color: var(--verde-profundo); }
+.pub-pedido__paso span { font-size: 1.4em; color: var(--oro-texto); }
+.pub-lineas { list-style: none; margin: 0; padding: 0; display: grid; }
+.pub-linea { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--linea); }
+.pub-linea:first-child { border-top: 1px solid var(--linea); }
+.pub-linea__foto { display: block; width: 72px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--pub-foto-radio); background: var(--panel-hondo); }
+.pub-linea__cuerpo { display: grid; gap: 2px; min-width: 0; }
+.pub-linea__nombre { font-family: var(--fuente-prosa); font-size: var(--pub-t-nombre); line-height: 1.2; color: var(--tinta); overflow-wrap: anywhere; }
+.pub-linea__precio { font-size: var(--pub-t-chico); }
+.pub-linea__nota { font-size: var(--pub-t-chico); color: var(--oro-texto); }
+.pub-linea__dije { justify-self: start; min-height: 40px; padding: 4px 0; font-size: var(--pub-t-chico); }
+.pub-linea__contador { box-shadow: none; }
+.pub-linea__cantidad { font-family: var(--fuente-display); font-size: calc(20px * var(--pub-escala)); color: var(--verde-profundo); }
+@media (max-width: 380px) { .pub-linea { grid-template-columns: 60px minmax(0, 1fr); } .pub-linea__foto { width: 60px; } .pub-linea__contador { grid-column: 2; justify-self: start; } }
+.pub-pedido__total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 24px; margin-top: 18px; padding: 18px 20px; border-radius: 16px; background: var(--crema); color: var(--tinta); }
+.pub-pedido__rotulo { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--salvia-texto); }
+.pub-pedido__detalle { margin-top: 4px; font-size: var(--pub-t-chico); max-width: 36ch; }
+.pub-pedido__cifras { display: grid; justify-items: end; gap: 2px; font-size: calc(24px * var(--pub-escala)); }
+.pub-pedido__cifras .pub-precio { font-size: inherit; color: var(--verde-profundo); }
+.pub-pedido__cifras .pub-secundario { color: var(--salvia-texto); font-size: 0.8em; }
+.pub-pedido__entrega { display: grid; gap: 14px; }
+.pub-pedido__opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.pub-pedido__que-pasa { display: grid; gap: 6px; margin-top: 28px; padding: 18px 20px; border-radius: 16px; background: var(--crema); }
+.pub-pedido__que-pasa .pub-prosa { font-size: calc(18px * var(--pub-escala)); }
+.pub-pedido__acciones { display: grid; gap: 12px; margin-top: 24px; }
+.pub-pedido__vaciar { display: block; margin: 12px auto 0; color: var(--salvia-texto); }
+.pub-reserva__cabeza { display: grid; gap: 8px; margin-bottom: 20px; }
+.pub-reserva__ref { font-family: var(--fuente-display); letter-spacing: 0.06em; color: var(--verde-profundo); }
+.pub-avisar { display: grid; gap: 14px; margin: 20px 0; padding: 20px; border-radius: 16px; background: var(--verde-profundo); color: var(--crema); }
+.pub-avisar .pub-prosa { color: var(--crema); }
+.pub-avisar .pub-boton { background: var(--crema); border-color: var(--crema); color: var(--verde-profundo); }
+.pub-avisar .pub-boton:hover { background: var(--papel); color: var(--verde-profundo); }
+
+/* --- Los componentes que lo público comparte con la tienda ------------
+   (TusDatos, PagoMovil, ReportarPago, el estado del pedido, los avisos).
+   Su marcado no cambia: aquí se visten en el estilo A, solo dentro de .pub. */
+.pub .boton {
+  min-height: 48px; padding: 0 22px; border-radius: var(--pub-pildora); border: 1px solid var(--verde-profundo);
+  background: var(--verde-profundo); color: var(--crema); font-family: var(--fuente-ui); font-size: var(--pub-t-ui);
+  font-weight: 500; letter-spacing: normal; text-transform: none; box-shadow: none;
+}
+.pub .boton:hover:not(:disabled) { background: var(--tinta); border-color: var(--tinta); color: var(--crema); }
+.pub .boton--secundario { background: transparent; color: var(--verde-profundo); }
+.pub .boton--secundario:hover:not(:disabled) { background: var(--crema); border-color: var(--verde-profundo); color: var(--verde-profundo); }
+.pub .boton--confirmar { min-height: var(--pub-alto-boton); }
+.pub .boton--pequeno { min-height: 44px; padding: 0 16px; font-size: var(--pub-t-chico); }
+.pub .panel { padding: 18px 20px; border: 0; border-radius: 16px; background: var(--crema); box-shadow: none; color: var(--tinta); }
+.pub .panel__titulo { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--salvia-texto); }
+.pub .seccion-titulo { margin: 32px 0 12px; font-family: var(--fuente-display); font-weight: 300; font-size: var(--pub-t-h3); color: var(--verde-profundo); }
+.pub .prosa { font-family: var(--fuente-prosa); font-size: calc(18px * var(--pub-escala)); line-height: 1.45; color: var(--tinta); }
+.pub .campo__etiqueta, :where(.pub) label { color: var(--verde-profundo); }
+.pub .campo__pista { color: var(--salvia-texto); }
+:where(.pub) :is(input:not([type='checkbox'], [type='radio']), select, textarea) { border-radius: 14px; min-height: var(--pub-alto-control); font-size: max(16px, var(--pub-t-ui)); }
+.pub .metodos-pago button[aria-pressed='true'] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+.pub .clienta-hallada { border-radius: 16px; background: var(--crema); border: 0; }
+.pub .pago-movil { border-radius: 16px; }

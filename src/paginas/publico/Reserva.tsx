@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import { rutaDelCatalogo } from '../../lib/direccion';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando } from '../../componentes/Piezas';
-import { Wordmark } from '../../componentes/Marca';
 import { PagoMovil } from '../../componentes/PagoMovil';
 import { PagosHechos, ReportarPago } from '../../componentes/ReportarPago';
 import {
@@ -15,7 +14,8 @@ import { enlaceWhatsAppA, mensajeDePedido, referenciaPedido } from '../../lib/en
 import { enlaceReserva } from '../../lib/revendedor';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
-import { BotonLetraGrande } from '../../componentes/LetraGrande';
+import { BotonLetra } from './caras/Cabecera';
+import '../../estilos/publico.css';
 import type { ReservaVista } from '../../lib/tipos';
 
 /**
@@ -87,32 +87,31 @@ export function Reserva() {
     || (reserva?.estado === 'abierta' && !restante);
 
   return (
-    <>
-      <header className="barra barra--publica">
-        <div className="barra__interior">
-          <Wordmark alto={40} />
-          <div className="barra__publica-acciones">
-            <BotonLetraGrande />
-            <Link to={rutaDelCatalogo()} className="boton boton--secundario barra__contacto">Ver el catálogo</Link>
-          </div>
+    <div className="pub">
+      <header className="pub-cabecera">
+        <div className="pub-contenedor pub-cabecera__fila">
+          <Link to={rutaDelCatalogo()} className="pub-cabecera__marca" aria-label="Lux by Emory, ver el catálogo">
+            <span className="pub-cabecera__lux" aria-hidden="true">LUX</span>
+            <span className="pub-cabecera__by" aria-hidden="true">by Emory</span>
+          </Link>
+          <BotonLetra />
+          <Link to={rutaDelCatalogo()} className="pub-boton pub-boton--claro pub-boton--chico">Ver el catálogo</Link>
         </div>
       </header>
 
-      <div className="pagina pagina--angosta mostrador">
+      <main className="pub-contenedor pub-pedido pub-reserva">
         {error ? <Aviso tono="error" titulo="No se pudo abrir el pedido">{error}</Aviso> : null}
         {aviso ? <Aviso tono="exito">{aviso}</Aviso> : null}
 
         {reserva ? (
           <>
-            <div className="encabezado-pagina">
-              <div>
-                <h1>Tu pedido</h1>
-                <p>
-                  {token ? <span className="referencia-pedido">{referenciaPedido(token)}</span> : null}
+            <div className="pub-reserva__cabeza">
+              <h1 className="pub-titulo pub-titulo--grande">Tu pedido</h1>
+                <p className="pub-prosa">
+                  {token ? <span className="pub-reserva__ref">{referenciaPedido(token)}</span> : null}
                   {/* El nombre enmascarado ya termina en punto ("María G."): sin otro. */}
                   {reserva.cliente_nombre ? ` · A nombre de ${reserva.cliente_nombre.replace(/\.$/, '')}.` : ' · Guarda este enlace para volver.'}
                 </p>
-              </div>
             </div>
 
             <EstadoDelPedido reserva={reserva} restante={restante} falta={falta} tasa={tasa} escribir={escribir} />
@@ -123,45 +122,45 @@ export function Reserva() {
                 navegador la bloquea (y más el que abre WhatsApp por dentro).
                 Sin número válido en Textos, no sale. */}
             {avisar && !terminado ? (
-              <section className="avisar-tienda">
-                <p className="avisar-tienda__texto">
+              <section className="pub-avisar">
+                <p className="pub-prosa">
                   Tu pedido ya nos llegó. Avísanos por WhatsApp y te atendemos más rápido: el mensaje va escrito, solo tocas Enviar.
                 </p>
-                <a className="boton boton--confirmar avisar-tienda__boton" href={avisar} target="_blank" rel="noopener noreferrer">
+                <a className="pub-boton pub-boton--ancho" href={avisar} target="_blank" rel="noopener noreferrer">
                   Avisar a la tienda por WhatsApp
                 </a>
               </section>
             ) : null}
 
-            <div className="lineas-cobro">
+            <ul className="pub-lineas">
               {/* Una pieza que la tienda quitó del pedido queda en cero: no se
                   enseña (esquema-devoluciones.sql). */}
               {reserva.items.filter((i) => i.cantidad > 0).map((i, n) => {
                 const foto = urlPublicaFoto(i.foto_thumb_path);
                 return (
-                  <div className="linea-cobro" key={`${n}-${i.modelo_id}`}>
-                    {foto ? <img className="linea-cobro__foto" src={foto} alt="" /> : <span className="linea-cobro__foto" />}
-                    <div>
-                      <div className="linea-cobro__nombre">{nombreConVariante(i.nombre, i.variante)}</div>
-                      {i.variantes_nota ? <div className="linea-cobro__precio">{i.variantes_nota}</div> : null}
+                  <li className="pub-linea" key={`${n}-${i.modelo_id}`}>
+                    {foto ? <img className="pub-linea__foto" src={foto} alt="" /> : <span className="pub-linea__foto" />}
+                    <div className="pub-linea__cuerpo">
+                      <p className="pub-linea__nombre">{nombreConVariante(i.nombre, i.variante)}</p>
+                      {i.variantes_nota ? <p className="pub-linea__precio pub-secundario">{i.variantes_nota}</p> : null}
                     </div>
-                    <span className="contador__valor">{i.cantidad}</span>
-                  </div>
+                    <span className="pub-linea__cantidad" aria-label={`${i.cantidad} ${i.cantidad === 1 ? 'pieza' : 'piezas'}`}>×{i.cantidad}</span>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
 
-            <div className="total-cobro">
+            <div className="pub-pedido__total">
               <div>
-                <span className="util secundario">{reserva.piezas} {reserva.piezas === 1 ? 'pieza' : 'piezas'}</span>
-                <div className="campo__pista">
+                <p className="pub-pedido__rotulo">{reserva.piezas} {reserva.piezas === 1 ? 'pieza' : 'piezas'}</p>
+                <p className="pub-secundario pub-pedido__detalle">
                   Valen {formatearBs(precioEnBs(reserva.subtotal_usd, tasa))}
                   {reserva.descuento_pct ? `, menos ${formatearPorcentaje(reserva.descuento_pct)} de descuento` : ''}
-                </div>
+                </p>
               </div>
-              <div>
-                <div className="total-cobro__cifra">{formatearBs(precioEnBs(reserva.total_usd, tasa))}</div>
-                <div className="total-cobro__cifra">{formatearBcv(reserva.total_usd)}</div>
+              <div className="pub-pedido__cifras">
+                <span className="pub-precio">{formatearBs(precioEnBs(reserva.total_usd, tasa))}</span>
+                <span className="pub-precio pub-secundario">{formatearBcv(reserva.total_usd)}</span>
               </div>
             </div>
 
@@ -225,8 +224,8 @@ export function Reserva() {
             ) : null}
           </>
         ) : null}
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
 
