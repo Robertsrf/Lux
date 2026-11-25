@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ComoPedir } from '../../../componentes/VitrinaPublica';
-import type { PasoPedido } from '../../../componentes/VitrinaPublica';
+import { ComoPedir } from '../caras/ComoPedir';
+import type { PasoPedido } from '../caras/ComoPedir';
 import { Estante, POR_ESTANTE, TiposConFoto } from '../caras/Estante';
 import type { TipoVitrina } from '../caras/Estante';
 import { Tarjeta } from '../caras/Tarjeta';

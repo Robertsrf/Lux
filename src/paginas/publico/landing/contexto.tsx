@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { irA } from '../../../componentes/VitrinaPublica';
+import { irA } from '../caras/ComoPedir';
 import type { BotonLanding } from '../../../hooks/useLanding';
 
 /**
@@ -44,7 +44,7 @@ export const idSeccion = (tipo: string): string => `seccion-${tipo}`;
 export function BotonDestino({ boton, sobreVerde = false }: { boton: BotonLanding | null | undefined; sobreVerde?: boolean }) {
   const c = useContextoLanding();
   if (!boton || !boton.texto.trim()) return null;
-  const clase = sobreVerde ? 'boton lp-boton lp-boton--oro' : 'boton lp-boton';
+  const clase = sobreVerde ? 'pub-boton pub-boton--crema lp-boton' : 'pub-boton lp-boton';
   const d = boton.destino;
 
   if (d === 'whatsapp') {

@@ -14,7 +14,7 @@ import { enlaceWhatsAppA } from '../../lib/enlaces';
 import { useTasa } from '../../hooks/useTasa';
 import { decirMinutos, useReglasPedido } from '../../hooks/useReglasPedido';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
-import type { PasoPedido } from '../../componentes/VitrinaPublica';
+import type { PasoPedido } from './caras/ComoPedir';
 import type { TipoVitrina } from './caras/Estante';
 import { useLanding } from '../../hooks/useLanding';
 import { useOfertas } from '../../hooks/useOfertas';

@@ -10,7 +10,7 @@ import type { Familia } from '../../lib/familias';
 import { decirMinutos } from '../../hooks/useReglasPedido';
 import { VisorFoto, useVisorFoto } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
-import { AsiPides, irA } from '../../componentes/VitrinaPublica';
+import { irA } from './caras/ComoPedir';
 import { POR_ESTANTE } from './caras/Estante';
 import { Tarjeta } from './caras/Tarjeta';
 import type { PedidoTarjeta } from './caras/Tarjeta';
@@ -362,46 +362,37 @@ export function Catalogo() {
 
   // El inicio y la lista comparten el buscador y lo que se dice mientras llega
   // (el error, "Trayendo el catálogo", "Ninguna pieza"): se arman una vez.
+  // La portada de siempre (sin la landing, o mientras no llega): la frase,
+  // los materiales, cómo se pide en tres pasos y por dónde empezar.
   const portadaDeHoy = (
-    <section className="portada-catalogo">
-      <p className="portada-catalogo__de">
+    <section className="pub-contenedor pub-portada-sola">
+      <p className="pub-etiqueta">
         {textos.ciudad ? `Desde ${textos.ciudad} para toda Venezuela` : 'Para toda Venezuela'}
       </p>
-      <h1 className="portada-catalogo__titulo">Joyas para usar todos los días</h1>
-      {/* En el teléfono, la versión corta; la larga sale en el detalle de cada pieza. */}
-      {textos.materiales_largo ? (
-        <p className={textos.materiales_corto ? 'portada-catalogo__texto portada-catalogo__texto--largo' : 'portada-catalogo__texto'}>{textos.materiales_largo}</p>
+      <h1 className="pub-titulo pub-titulo--grande">Joyas para usar <em>todos los días</em></h1>
+      {textos.materiales_corto || textos.materiales_largo ? (
+        <p className="pub-prosa">{textos.materiales_corto ?? textos.materiales_largo}</p>
       ) : null}
-      {textos.materiales_corto ? (
-        <p className={textos.materiales_largo ? 'portada-catalogo__texto portada-catalogo__texto--corto' : 'portada-catalogo__texto'}>{textos.materiales_corto}</p>
-      ) : null}
-      <AsiPides
-        pasos={['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil']}
-        alVerMas={() => irA('como-pedir')}
-      />
-      {/* Por dónde empezar, dicho con un botón: quien entra por
-          primera vez no sabe que hay que bajar. */}
-      <div className="portada-catalogo__empezar">
-        <button type="button" className="boton portada-catalogo__boton" onClick={irATodas}>
-          Ver todas las joyas
-        </button>
-        <button type="button" className="asi-pides__mas" onClick={() => irA('tipos')}>
-          O elige por tipo
-        </button>
+      <ol className="pub-portada-sola__pasos">
+        {['Elige tus piezas', 'Apártalas con tu cédula', 'Paga por pago móvil'].map((p, n) => (
+          <li key={p}><span aria-hidden="true">{n + 1}</span>{p}</li>
+        ))}
+      </ol>
+      {/* Por dónde empezar, dicho con un botón: quien entra por primera vez no sabe que hay que bajar. */}
+      <div className="pub-portada-sola__botones">
+        <button type="button" className="pub-boton" onClick={irATodas}>Ver todas las joyas</button>
+        <button type="button" className="pub-boton pub-boton--claro" onClick={() => irA('como-pedir')}>Cómo pedir</button>
       </div>
-      {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace
-          falta: se le atiende por WhatsApp. */}
+      {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace falta. */}
       {whatsappTienda ? (
-        <p className="portada-catalogo__ayuda">
-          ¿Prefieres que te ayudemos?{' '}
-          <a href={whatsappTienda} target="_blank" rel="noopener noreferrer">Escríbenos por WhatsApp</a>
-          {' '}y te ayudamos a pedir.
+        <p className="pub-secundario">
+          ¿Prefieres que te ayudemos? <a href={whatsappTienda} target="_blank" rel="noopener noreferrer">Escríbenos por WhatsApp</a> y te ayudamos a pedir.
         </p>
       ) : null}
     </section>
   );
   const aviso = (
-    <>
+    <div className="pub-contenedor pub-aviso">
       {error ? <Aviso tono="error" titulo="No se pudo cargar el catálogo">{error}</Aviso> : null}
 
       {cargando || cargadoPara !== consultaActual ? (
@@ -416,7 +407,7 @@ export function Catalogo() {
           ) : null}
         </Vacio>
       ) : null}
-    </>
+    </div>
   );
   // Las piezas del inicio ya son las de esta consulta (si no, se estaba
   // escribiendo una letra y la base no ha respondido).

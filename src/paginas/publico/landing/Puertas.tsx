@@ -1,4 +1,4 @@
-import { irA } from '../../../componentes/VitrinaPublica';
+import { irA } from '../caras/ComoPedir';
 import { idSeccion, useContextoLanding } from './contexto';
 
 /**

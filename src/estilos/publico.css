@@ -37,7 +37,7 @@
   --pub-t-precio: calc(17px * var(--pub-escala));
   --pub-t-h3: calc(clamp(24px, 2vw + 18px, 32px) * var(--pub-escala));
   --pub-t-h2: calc(clamp(30px, 3vw + 20px, 48px) * var(--pub-escala));
-  --pub-t-h1: calc(clamp(44px, 6vw + 22px, 88px) * var(--pub-escala));
+  --pub-t-h1: calc(clamp(44px, 4vw + 26px, 76px) * var(--pub-escala));
 
   min-height: 100vh;
   background: var(--papel);
@@ -48,10 +48,15 @@
 }
 html.letra-grande .pub { --pub-escala: 1.15; }
 
-/* base.css le pone su letra a h1–h3; aquí se deshace y cada clase decide. */
-.pub :where(h1, h2, h3, h4, p) { margin: 0; font-family: inherit; font-weight: inherit; letter-spacing: normal; color: inherit; }
-.pub :where(a) { color: inherit; }
-.pub :where(button, select, input, textarea) { font-family: inherit; }
+/* base.css le pone su letra a h1–h3; aquí se deshace y cada clase decide.
+   Con :where(.pub) delante, la regla pesa como un elemento solo: le gana a
+   base.css (que va antes) y pierde ante cualquier clase (landing.css se
+   carga antes que este archivo, y sus clases tienen que mandar). */
+:where(.pub) :is(h1, h2, h3, h4) { margin: 0; font-family: inherit; font-weight: inherit; font-size: inherit; line-height: inherit; letter-spacing: normal; color: inherit; text-wrap: balance; }
+:where(.pub) p { margin: 0; }
+:where(.pub) a { color: inherit; }
+:where(.pub) a:hover { color: inherit; }
+:where(.pub) :is(button, select, input, textarea) { font-family: inherit; }
 .pub img { max-width: 100%; }
 
 .pub-contenedor { width: 100%; max-width: var(--pub-ancho); margin: 0 auto; padding: 0 var(--pub-gutter); box-sizing: border-box; }
@@ -59,7 +64,7 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 
 /* --- Tipos de letra ------------------------------------------------- */
 .pub-titulo {
-  font-family: var(--fuente-display); font-weight: 300;
+  font-family: var(--fuente-display); font-weight: 300; color: var(--verde-profundo);
   font-size: var(--pub-t-h2); line-height: 1.02; letter-spacing: -0.015em;
 }
 .pub-titulo em, .pub-titulo i { font-style: italic; }
@@ -83,14 +88,14 @@ html.letra-grande .pub { --pub-escala: 1.15; }
   text-decoration: none; cursor: pointer;
   transition: transform 160ms var(--pub-curva), background-color 160ms;
 }
-.pub-boton:hover { background: var(--tinta); }
+.pub-boton:hover { background: var(--tinta); color: var(--crema); }
 .pub-boton:active { transform: scale(0.97); }
 .pub-boton:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .pub-boton:focus-visible, .pub-icono:focus-visible, .pub-enlace:focus-visible { outline: 2px solid var(--verde-profundo); outline-offset: 3px; }
 .pub-boton--claro { background: transparent; color: var(--verde-profundo); }
-.pub-boton--claro:hover { background: var(--crema); }
+.pub-boton--claro:hover { background: var(--crema); color: var(--verde-profundo); }
 .pub-boton--crema { background: var(--crema); border-color: var(--crema); color: var(--verde-profundo); }
-.pub-boton--crema:hover { background: var(--papel); }
+.pub-boton--crema:hover { background: var(--papel); color: var(--verde-profundo); }
 .pub-boton--ancho { width: 100%; }
 .pub-boton--chico { min-height: 44px; padding: 0 18px; font-size: var(--pub-t-chico); }
 
@@ -219,7 +224,7 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 /* --- El estante ----------------------------------------------------- */
 .pub-estante { padding-top: clamp(40px, 6vw, 72px); }
 .pub-estante__cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.pub-estante__nota { margin-top: 6px; font-size: var(--pub-t-chico); max-width: 60ch; }
+.pub-estante__nota { margin-top: 6px; font-size: var(--pub-t-chico); }
 .pub-estante__fila {
   position: relative; display: flex; gap: 14px; margin-top: 16px;
   padding: 0 var(--pub-gutter) 8px; overflow-x: auto; scroll-snap-type: x mandatory;
@@ -311,3 +316,39 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 .pub-pieza__compartir svg { width: 20px; height: 20px; }
 
 .pub-pagina { display: block; overflow-x: clip; }
+
+/* --- Así pides ------------------------------------------------------ */
+.pub-como { padding-top: clamp(48px, 7vw, 96px); }
+.pub-como__pasos { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 22px; }
+@media (min-width: 900px) { .pub-como__pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; } }
+.pub-como__paso { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pub-como__n { font-family: var(--fuente-display); font-weight: 300; font-size: calc(44px * var(--pub-escala)); line-height: 0.9; color: var(--oro-texto); }
+.pub-como__titulo { font-size: var(--pub-t-ui); font-weight: 500; margin-bottom: 4px; color: var(--verde-profundo); }
+.pub-como__texto { font-family: var(--fuente-prosa); font-size: calc(18px * var(--pub-escala)); line-height: 1.45; color: var(--tinta); }
+.pub-como__pie { margin-top: 22px; font-size: var(--pub-t-chico); }
+
+/* --- La tienda: el final de la página, en verde ---------------------- */
+.pub-tienda { margin-top: clamp(56px, 8vw, 104px); background: var(--verde-profundo); color: var(--crema); }
+.pub-tienda :focus-visible { outline: 2px solid var(--oro-arena); outline-offset: 3px; }
+.pub-tienda__interior { max-width: var(--pub-ancho); margin: 0 auto; padding: clamp(44px, 7vw, 88px) var(--pub-gutter); box-sizing: border-box; }
+.pub-tienda__etiqueta { font-size: var(--pub-t-etiqueta); letter-spacing: 0.16em; text-transform: uppercase; color: var(--oro-arena); font-weight: 500; }
+.pub-tienda__titulo { margin-top: 8px; font-family: var(--fuente-display); font-weight: 300; font-size: var(--pub-t-h2); line-height: 1.02; }
+.pub-tienda__datos { display: grid; gap: 26px; margin-top: 28px; }
+@media (min-width: 900px) { .pub-tienda__datos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; } }
+.pub-tienda__dato { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.pub-tienda__rotulo { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--oro-arena); }
+.pub-tienda__texto { font-family: var(--fuente-prosa); font-size: var(--pub-t-prosa); line-height: 1.4; }
+.pub-tienda__texto--lineas { white-space: pre-line; }
+.pub-tienda__enlace, .pub-tienda__enlace:hover { color: var(--crema); text-underline-offset: 4px; min-height: 44px; display: inline-flex; align-items: center; }
+.pub-tienda__pago { margin-top: 32px; padding: 6px 18px 18px; border-radius: 16px; background: var(--papel); color: var(--tinta); }
+.pub-tienda__pago summary { min-height: 48px; display: flex; align-items: center; font-weight: 500; color: var(--verde-profundo); cursor: pointer; }
+.pub-tienda__pista { margin-bottom: 12px; font-size: var(--pub-t-chico); color: var(--salvia-texto); }
+
+/* --- La portada de siempre (sin la landing) -------------------------- */
+.pub-portada-sola { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 20px; }
+.pub-portada-sola__pasos { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.pub-portada-sola__pasos li { display: flex; align-items: baseline; gap: 12px; font-size: var(--pub-t-ui); }
+.pub-portada-sola__pasos span { font-family: var(--fuente-display); font-size: calc(26px * var(--pub-escala)); color: var(--oro-texto); width: 18px; }
+.pub-portada-sola__botones { display: flex; flex-wrap: wrap; gap: 10px; }
+.pub-aviso:empty { display: none; }
+.pub-aviso { margin-top: 12px; }

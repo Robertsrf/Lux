@@ -66,13 +66,16 @@ function seDibuja(tipo: TipoSeccion, o: OfertasPublicas | null | undefined, hayP
   }
 }
 /** Las que entran con su propio movimiento, o son lo de siempre: no se les añade el de "aparecer". */
+/** Las que van a sangre o ya traen su propio ancho; las demás, dentro del ancho de la página. */
+const A_SANGRE: ReadonlySet<TipoSeccion> = new Set<TipoSeccion>(['portada', 'cintas', 'tipos', 'estantes', 'proximamente', 'galeria', 'buscamos', 'tienda', 'como_pedir']);
 const SIN_APARECER: ReadonlySet<TipoSeccion> = new Set<TipoSeccion>(['portada', 'cintas', 'tipos', 'estantes', 'como_pedir', 'proximamente', 'tienda']);
 
 /** Cada sección entra una sola vez, con un fundido corto, al aparecer en pantalla. */
 function Seccion({ id, tipo, children }: { id: string; tipo: TipoSeccion; children: ReactNode }) {
   const [ref, visible] = useAparecer<HTMLDivElement>();
   const anima = !SIN_APARECER.has(tipo);
-  const clase = !anima ? 'lp-seccion' : visible ? 'lp-seccion lp-aparece lp-aparece--visible' : 'lp-seccion lp-aparece';
+  const base = A_SANGRE.has(tipo) ? 'lp-seccion' : 'lp-seccion pub-bloque';
+  const clase = !anima ? base : visible ? `${base} lp-aparece lp-aparece--visible` : `${base} lp-aparece`;
   return <div id={id} ref={ref} className={clase} data-tipo={tipo}>{children}</div>;
 }
 
