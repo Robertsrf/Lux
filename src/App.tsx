@@ -45,6 +45,8 @@ import { Pedidos } from './paginas/venta/Pedidos';
 import { Codigo } from './paginas/venta/Codigo';
 
 const Inventario = lazy(() => import('./paginas/admin/Inventario').then((m) => ({ default: m.Inventario })));
+// El Inicio y el Flujo del administrador (fase 9). "InicioAdmin": `Inicio` es la raíz que reparte.
+const InicioAdmin = lazy(() => import('./paginas/admin/Inicio').then((m) => ({ default: m.Inicio })));
 const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').then((m) => ({ default: m.FormularioModelo })));
 const Lotes = lazy(() => import('./paginas/admin/Lotes').then((m) => ({ default: m.Lotes })));
 const LoteEnCamino = lazy(() => import('./paginas/admin/LoteEnCamino').then((m) => ({ default: m.LoteEnCamino })));
@@ -116,7 +118,8 @@ function Inicio() {
   const { sesion, perfil, cargando } = useSesion();
   if (cargando) return <Cargando texto="Abriendo" />;
   if (!sesion) return <Navigate to="/entrar" replace />;
-  return <Navigate to={perfil?.rol === 'admin' ? '/admin/inventario' : '/venta'} replace />;
+  // El dueño entra a su Inicio (fase 9): lo que le toca hoy y cómo va el mes.
+  return <Navigate to={perfil?.rol === 'admin' ? '/admin' : '/venta'} replace />;
 }
 
 const soloAdmin = (elemento: React.ReactNode) => <RutaProtegida soloAdmin>{elemento}</RutaProtegida>;
@@ -199,6 +202,7 @@ export function App() {
             <Route path="/tasas" element={<Tasas />} />
 
             {/* Administracion */}
+            <Route path="/admin" element={soloAdmin(<InicioAdmin />)} />
             <Route path="/admin/inventario" element={soloAdmin(<Inventario />)} />
             <Route path="/admin/modelos/nuevo" element={soloAdmin(<FormularioModelo />)} />
             <Route path="/admin/modelos/:id" element={soloAdmin(<FormularioModelo />)} />

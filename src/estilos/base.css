@@ -3935,3 +3935,37 @@ html.letra-grande .barra-carrito .boton { min-height: 56px; }
   .banda__cifra { font-size: var(--t-40); }
   .armazon .tarjeta { border-radius: var(--radio-lg); }
 }
+
+/* --- Inicio del administrador (fase 9) -------------------------------- */
+
+.inicio__tasa { margin: 0; font-size: var(--t-14); color: var(--texto-secundario); }
+.inicio__enlace-banda { color: var(--crema); text-decoration: none; }
+.inicio__enlace-banda:hover { text-decoration: underline; }
+
+.para-hoy h2 { margin-bottom: var(--e-3); }
+.para-hoy__nada { margin: 0; padding: var(--e-5); border-radius: var(--radio-lg); background: var(--superficie); box-shadow: var(--sombra-1); color: var(--texto-secundario); }
+.para-hoy__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-3); }
+@media (min-width: 900px) { .para-hoy__lista { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Una fila tocable de 64 px: el número en su cuadrito, dos renglones y la
+   flecha. Es un enlace, no un div con onClick. */
+.para-hoy__fila {
+  display: flex; align-items: center; gap: var(--e-3);
+  min-height: 64px; padding: var(--e-3) var(--e-4);
+  background: var(--superficie); color: var(--texto);
+  border-radius: var(--radio-lg); box-shadow: var(--sombra-1);
+  text-decoration: none;
+  transition: box-shadow var(--rapido), transform var(--rapido);
+}
+.para-hoy__fila:hover { box-shadow: var(--sombra-2); transform: translateY(-1px); }
+.para-hoy__cuantos {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: var(--radio);
+  background: var(--verde-suave); color: var(--verde-profundo);
+  font-family: var(--fuente-display); font-size: var(--t-20); font-weight: 600;
+}
+.para-hoy__fila--urgente .para-hoy__cuantos { background: var(--urgente-fondo); color: var(--error); }
+.para-hoy__texto { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.para-hoy__que { font-size: var(--t-16); font-weight: 500; }
+.para-hoy__detalle { font-size: var(--t-14); color: var(--texto-secundario); }
+.para-hoy__fila--urgente .para-hoy__detalle { color: var(--error); }
+
