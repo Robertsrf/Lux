@@ -75,6 +75,10 @@ src/
                 `ver_oferta` y manda las miradas con `keepalive`)
                 grupoSugerido.ts (qué grupo de precio pone la máquina en el
                 formulario de una pieza: sigue al costo hasta que el dueño elige),
+                menu.ts (el menú del administrador por grupos y sus tres de
+                abajo: Inicio, Mostrador, Pedidos; `agruparEnlaces`),
+                inicio.ts ("Para hoy" del Inicio desde `admin_inicio`),
+                flujo.ts (agrupa y nombra lo que da `admin_flujo`; los períodos),
                 dominio.ts (LA regla de direcciones, pura: en qué dirección
                 está la app, qué ruta se abre ahí y a dónde lleva la que no,
                 las direcciones de cada cosa, los usuarios reservados y el
@@ -112,6 +116,8 @@ src/
                 ReportarPago (un pago a distancia con su referencia, sin
                 sesión o del revendedor), PagoMovil (datos para copiar, de
                 Lux o del revendedor), Graficos, Progreso, Recordatorio,
+                Banda (la cifra que manda en verde, una por pantalla del
+                administrador: el Estuche de la fase 9),
                 CompartirCatalogo (y `enlacePublico`, el enlace del
                 catálogo), CodigoQr (el QR de la vitrina, con `uqr`),
                 Filigrana (las líneas de oro de la vitrina que se dibujan),
@@ -130,7 +136,11 @@ src/
                 catálogo y del pedido), ElegirPara ("Todas · Dama ·
                 Caballero", de los dos catálogos en línea)
   paginas/
-    admin/      Inventario (un producto por fila; sus medidas se abren
+    admin/      Inicio (/admin: el dueño entra aquí; la Banda del mes y
+                "Para hoy", lo pendiente con su botón), Flujo (/admin/flujo:
+                salió, entró y queda, $ Binance y $ BCV lado a lado, y la
+                mercancía sin rastro por lote),
+                Inventario (un producto por fila; sus medidas se abren
                 debajo; "Próximamente" lo que no ha llegado),
                 FormularioModelo, Lotes ("Todavía no ha llegado"),
                 LoteEnCamino (/admin/lotes/:id: lo que viene en un lote,
@@ -259,7 +269,10 @@ Vendedoras. Hacen todas lo mismo; el código es para saber quién vendió qué.
 | Navegación | Abajo en el teléfono, lateral en escritorio | Igual |
 
 Por debajo de 900 px la navegación vive **abajo**: barra de cuatro columnas con las
-tres secciones diarias y un botón "Más". No es una hamburguesa arriba a la
+tres secciones diarias y un botón "Más" (las del administrador, Inicio, Mostrador y
+Pedidos desde la fase 9; su menú va por grupos, en `lib/menu.ts`). **El estilo
+Estuche** (fase 9) vive dentro de `.armazon`, la cara con sesión y el panel del
+revendedor: las páginas públicas usan el mismo `base.css` y se rehacen en la fase 10. No es una hamburguesa arriba a la
 izquierda, y no por moda: esa esquina es la que peor alcanza el pulgar de quien
 sostiene el teléfono con una mano y joyas con la otra.
 
