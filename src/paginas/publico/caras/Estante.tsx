@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useAparecer } from '../../../hooks/useAparecer';
 import type { ReactNode } from 'react';
 import type { fuenteFoto } from '../../../lib/fotos';
 import { nombreDeTipo } from '../../../lib/familias';
@@ -22,8 +23,10 @@ export function Estante({ titulo, id, cuantas, alVerTodas, nota, children }: {
   children: ReactNode;
 }) {
   const idTitulo = useId();
+  // Las tarjetas entran escalonadas la primera vez que el estante se ve.
+  const [ref, visible] = useAparecer<HTMLElement>();
   return (
-    <section className="pub-estante" id={id} aria-labelledby={idTitulo}>
+    <section ref={ref} className={visible ? 'pub-estante pub-estante--visto' : 'pub-estante pub-estante--espera'} id={id} aria-labelledby={idTitulo}>
       <div className="pub-contenedor pub-estante__cabeza">
         <h2 className="pub-titulo pub-titulo--medio" id={idTitulo}>{titulo}</h2>
         {alVerTodas ? (

@@ -131,7 +131,7 @@ export function PaginaPieza({ c, alAmpliar }: { c: CatalogoLux; alAmpliar: (fich
           <div className="pub-pieza__fila" ref={fila}>
             {fotos.length > 0 ? fotos.map((f, i) => (
               <button key={f.id} type="button" className="pub-pieza__foto" onClick={ampliar} aria-label={`Ver de cerca ${nombre}${fotos.length > 1 ? `, foto ${i + 1} de ${fotos.length}` : ''}`}>
-                {f.foto ? <img {...f.foto} alt="" /> : null}
+                {f.foto ? <img {...f.foto} alt="" className={i === 0 ? 'pub-pieza__primera' : undefined} /> : null}
               </button>
             )) : <span className="pub-pieza__foto" />}
           </div>

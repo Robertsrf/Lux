@@ -45,7 +45,7 @@ export function Cabecera({ c, conBuscador }: { c: CatalogoLux; conBuscador: bool
           {piezas > 0 ? (
             <button type="button" className="pub-icono" aria-label={`Ver mi pedido: ${piezas} joya${piezas === 1 ? '' : 's'}`} onClick={() => c.setPaso('pedido')}>
               <IcoBolsa />
-              <span className="pub-bolsa__n" aria-hidden="true">{piezas}</span>
+              <span className="pub-bolsa__n" key={piezas} aria-hidden="true">{piezas}</span>
             </button>
           ) : null}
         </div>

@@ -188,10 +188,32 @@ html.letra-grande .pub { --pub-escala: 1.15; }
   box-shadow: 0 8px 24px rgba(20, 41, 44, 0.16); font-size: var(--pub-t-chico);
 }
 
+/* --- El movimiento (fase 10) ----------------------------------------
+   Solo transform y opacity. Las tarjetas de un estante suben escalonadas
+   (60 ms, hasta la sexta) la primera vez que el estante se ve; el contador y
+   el número del pedido rebotan al cambiar; la barra entra desde abajo; la
+   foto de la tarjeta crece hasta la página de la pieza (View Transitions). */
+@keyframes pub-subir { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes pub-rebote { 0% { transform: scale(1); } 45% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes pub-barra-entra { from { transform: translateY(120%); } to { transform: none; } }
+.pub-estante--espera .pub-estante__fila > * { opacity: 0; }
+.pub-estante--visto .pub-estante__fila > * { animation: pub-subir 450ms var(--pub-curva) both; }
+.pub-estante--visto .pub-estante__fila > :nth-child(2) { animation-delay: 60ms; }
+.pub-estante--visto .pub-estante__fila > :nth-child(3) { animation-delay: 120ms; }
+.pub-estante--visto .pub-estante__fila > :nth-child(4) { animation-delay: 180ms; }
+.pub-estante--visto .pub-estante__fila > :nth-child(5) { animation-delay: 240ms; }
+.pub-estante--visto .pub-estante__fila > :nth-child(n + 6) { animation-delay: 300ms; }
+.pub-tarjeta__accion, .pub-contador__n, .pub-bolsa__n { animation: pub-rebote 260ms var(--pub-curva); }
+.pub-barra { animation: pub-barra-entra 320ms var(--pub-curva); }
+.pub-pieza__primera { view-transition-name: pub-foto; }
+::view-transition-old(pub-foto), ::view-transition-new(pub-foto) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 220ms; }
+
 /* --- Movimiento reducido: todo quieto y visible ---------------------- */
 @media (prefers-reduced-motion: reduce) {
   .pub *, .pub *::before, .pub *::after { animation: none !important; transition: none !important; }
   .pub-aparece { opacity: 1; transform: none; }
+  .pub-estante--espera .pub-estante__fila > * { opacity: 1; }
 }
 
 /* --- La tarjeta ----------------------------------------------------- */

@@ -14,7 +14,8 @@ import { Tarjeta } from './caras/Tarjeta';
 import type { PedidoTarjeta } from './caras/Tarjeta';
 import { Lista } from './caras/Lista';
 import { PaginaPieza } from './caras/PaginaPieza';
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { LaTienda } from '../../componentes/LaTienda';
 import { Landing } from './landing/Landing';
 import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
@@ -120,8 +121,18 @@ export function Catalogo() {
   // La pieza abre su página (`?pieza=`); al volver, el catálogo queda donde
   // estaba: se guarda el desplazamiento al abrirla y se devuelve al cerrarla.
   const scrollAntes = useRef(0);
-  const verPieza = (id: number) => { scrollAntes.current = window.scrollY; abrirPieza(id); };
-  useEffect(() => {
+  // Donde el navegador sabe (View Transitions), la foto de la tarjeta crece
+  // hasta la de la página; donde no, o con movimiento reducido, cambia sin más.
+  const verPieza = (id: number, familia?: number) => {
+    scrollAntes.current = window.scrollY;
+    const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (quieto || typeof document.startViewTransition !== 'function') { abrirPieza(id); return; }
+    const foto = familia !== undefined ? document.querySelector<HTMLElement>(`img[data-familia="${familia}"]`) : null;
+    if (foto) foto.style.viewTransitionName = 'pub-foto';
+    const t = document.startViewTransition(() => { flushSync(() => abrirPieza(id)); window.scrollTo(0, 0); });
+    void t.finished.finally(() => { if (foto) foto.style.viewTransitionName = ''; });
+  };
+  useLayoutEffect(() => {
     if (pieza !== null) { window.scrollTo(0, 0); return; }
     if (scrollAntes.current) {
       const y = scrollAntes.current;
@@ -129,8 +140,8 @@ export function Catalogo() {
       requestAnimationFrame(() => window.scrollTo(0, y));
     }
   }, [pieza]);
-  const verFoto = (f: Familia<ModeloPublico>) => verPieza(f.cabeza.id);
-  const verProxima = (f: Familia<ModeloProximo>) => verPieza(f.cabeza.id);
+  const verFoto = (f: Familia<ModeloPublico>) => verPieza(f.cabeza.id, f.clave);
+  const verProxima = (f: Familia<ModeloProximo>) => verPieza(f.cabeza.id, f.clave);
 
   // Lo que cada tarjeta hace con el pedido: lo mismo en el inicio y en la lista.
   const pedidoTarjeta = (f: Familia<ModeloPublico>): PedidoTarjeta => ({

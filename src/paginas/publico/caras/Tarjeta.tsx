@@ -60,14 +60,14 @@ export function Tarjeta<T extends PiezaTarjeta>({ familia, alVer, pedido, proxim
     <article className={`pub-tarjeta pub-tarjeta--${ancho}${proxima ? ' pub-tarjeta--proxima' : ''}`}>
       <div className="pub-tarjeta__caja">
         <button type="button" className="pub-tarjeta__ver" onClick={alVer} aria-label={`Ver ${nombre}${proxima ? ', próximamente' : ''}`}>
-          {foto ? <img className="pub-tarjeta__foto" {...foto} alt="" loading="lazy" /> : <span className="pub-tarjeta__foto" />}
+          {foto ? <img className="pub-tarjeta__foto" data-familia={familia.clave} {...foto} alt="" loading="lazy" /> : <span className="pub-tarjeta__foto" />}
         </button>
         {oferta ? <span className="pub-tarjeta__cinta">{oferta}</span> : null}
         {proxima ? <span className="pub-tarjeta__cinta pub-tarjeta__cinta--proxima">Próximamente</span> : null}
         {pedido && unica && puestas > 0 ? (
           <div className="pub-contador pub-tarjeta__accion" key="contador">
             <button type="button" className="pub-icono" aria-label={`Quitar una de ${nombre}`} onClick={() => pedido.alCambiar(m.id, puestas - 1)}><IcoMenos /></button>
-            <span className="pub-contador__n" aria-live="polite">{puestas}</span>
+            <span className="pub-contador__n" key={puestas} aria-live="polite">{puestas}</span>
             <button type="button" className="pub-icono" aria-label={`Agregar otra de ${nombre}`} disabled={agotado} onClick={() => pedido.alCambiar(m.id, puestas + 1)}><IcoMas /></button>
           </div>
         ) : pedido ? (
