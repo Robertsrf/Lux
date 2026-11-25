@@ -449,3 +449,10 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 .pub .metodos-pago button[aria-pressed='true'] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
 .pub .clienta-hallada { border-radius: 16px; background: var(--crema); border: 0; }
 .pub .pago-movil { border-radius: 16px; }
+
+/* --- "Ver todas las joyas juntas", a la vista tras la portada (25/11) --- */
+.pub-ver-todas-arriba { margin-top: 20px; }
+.pub-estante__pie { margin-top: 16px; }
+.pub-proximas { padding-top: clamp(40px, 6vw, 72px); }
+.pub-proximas .pub-rejilla { margin-top: 16px; }
+.pub-proximas > .pub-secundario { margin-top: 12px; }

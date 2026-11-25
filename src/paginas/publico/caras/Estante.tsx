@@ -14,12 +14,14 @@ export const POR_ESTANTE = 8;
  * relative`: un texto oculto dentro de una fila con scroll se escapa y corre
  * la página de lado (ver Trampas en CLAUDE.md).
  */
-export function Estante({ titulo, id, cuantas, alVerTodas, nota, children }: {
+export function Estante({ titulo, id, cuantas, alVerTodas, nota, pie, children }: {
   titulo: string;
   id?: string;
   cuantas?: number;
   alVerTodas?: () => void;
   nota?: ReactNode;
+  /** Lo que va debajo de la fila, a la vista (un botón). */
+  pie?: ReactNode;
   children: ReactNode;
 }) {
   const idTitulo = useId();
@@ -37,6 +39,7 @@ export function Estante({ titulo, id, cuantas, alVerTodas, nota, children }: {
       </div>
       {nota ? <p className="pub-contenedor pub-estante__nota pub-secundario">{nota}</p> : null}
       <div className="pub-estante__fila">{children}</div>
+      {pie ? <div className="pub-contenedor pub-estante__pie">{pie}</div> : null}
     </section>
   );
 }

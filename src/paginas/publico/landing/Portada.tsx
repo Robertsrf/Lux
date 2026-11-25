@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icono } from '../../../componentes/Iconos';
 import { fotoDeLanding } from '../../../lib/fotos';
 import { useAparecer } from '../../../hooks/useAparecer';
@@ -64,6 +64,21 @@ export function Portada({ diapositivas }: { diapositivas: ElementoLanding[] }) {
     if (!el || el.clientWidth === 0) return;
     setActual(Math.round(el.scrollLeft / el.clientWidth));
   }, []);
+
+  // La caja se adapta a la diapositiva que se ve (su foto con su proporción
+  // y su texto): sin esto la fila tomaba el alto de la más alta y, con una
+  // más baja, quedaba un hueco y los puntos se iban abajo (dueño, 25/11/2026).
+  useLayoutEffect(() => {
+    const el = pista.current;
+    const viva = el?.children[actual] as HTMLElement | undefined;
+    if (!el || !viva) return;
+    const ajustar = () => { el.style.height = `${viva.offsetHeight}px`; };
+    ajustar();
+    if (typeof ResizeObserver === 'undefined') return;
+    const obs = new ResizeObserver(ajustar);
+    obs.observe(viva);
+    return () => obs.disconnect();
+  }, [actual, lista.length]);
 
   const pasaSola = lista.length > 1 && !parada && visible && !segundoPlano && !quieto.current;
   useEffect(() => {

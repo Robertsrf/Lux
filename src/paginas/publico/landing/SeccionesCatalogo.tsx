@@ -4,6 +4,7 @@ import type { PasoPedido } from '../caras/ComoPedir';
 import { Estante, POR_ESTANTE, TiposConFoto } from '../caras/Estante';
 import type { TipoVitrina } from '../caras/Estante';
 import { Tarjeta } from '../caras/Tarjeta';
+import { irA } from '../caras/ComoPedir';
 import { nombreDeTipo } from '../../../lib/familias';
 import type { Familia } from '../../../lib/familias';
 import { formatearEntero } from '../../../lib/dinero';
@@ -101,24 +102,42 @@ export function SeccionComoPedir({ c, id }: { c: PropsCatalogo; id?: string }) {
  */
 export function SeccionProximamente({ c, id }: { c: PropsCatalogo; id?: string }) {
   if (c.cargando || c.proximas.length === 0) return null;
+  const nota = 'Vienen en camino. Todavía no se pueden pedir: cuando lleguen, salen arriba con su botón para agregar.';
+  const tarjeta = (f: Familia<ModeloProximo>, ancho: 'estante' | 'rejilla') => (
+    <Tarjeta key={f.clave} familia={f} alVer={() => c.alVerProxima(f)} proxima ancho={ancho} />
+  );
+  // Todas, para bajar y verlas (dueño, 25/11/2026: "de lado, 140 es
+  // inviable"): una cuadrícula entera, con "Ver menos" que vuelve arriba.
+  if (c.todosProximos) {
+    return (
+      <section className="pub-contenedor pub-proximas" id={id ?? 'proximas'} aria-labelledby="titulo-proximas">
+        <h2 className="pub-titulo pub-titulo--medio" id="titulo-proximas">Próximamente · {formatearEntero(c.proximas.length)}</h2>
+        <p className="pub-estante__nota pub-secundario">{nota}</p>
+        <div className="pub-rejilla">{c.proximasVisibles.map((f) => tarjeta(f, 'rejilla'))}</div>
+        {c.totalProximos > c.cargadosProximos
+          ? <p className="pub-secundario">Y {formatearEntero(c.totalProximos - c.cargadosProximos)} más que vienen en camino.</p>
+          : null}
+        <div className="pub-estante__pie">
+          <button type="button" className="pub-boton pub-boton--claro" aria-expanded="true"
+            onClick={() => { c.alternarProximos(); requestAnimationFrame(() => irA(id ?? 'proximas')); }}>
+            Ver menos
+          </button>
+        </div>
+      </section>
+    );
+  }
   return (
     <Estante
-      id={id}
+      id={id ?? 'proximas'}
       titulo="Próximamente"
-      nota="Vienen en camino. Todavía no se pueden pedir: cuando lleguen, salen arriba con su botón para agregar."
-    >
-      {c.proximasVisibles.map((f) => (
-        <Tarjeta key={f.clave} familia={f} alVer={() => c.alVerProxima(f)} proxima ancho="estante" />
-      ))}
-      {/* Abre y cierra: abierto, las 48 alargaban la página sin manera de volver a plegarlas. */}
-      {c.proximas.length > POR_ESTANTE ? (
-        <button type="button" className="pub-estante__final" aria-expanded={c.todosProximos} onClick={c.alternarProximos}>
-          <span className="pub-titulo pub-titulo--medio">{c.todosProximos ? 'Ver menos' : `Ver las ${formatearEntero(c.proximas.length)}`}</span>
-          {c.todosProximos && c.totalProximos > c.cargadosProximos
-            ? <span className="pub-secundario">Y {formatearEntero(c.totalProximos - c.cargadosProximos)} más en camino</span>
-            : <span className="pub-secundario">que vienen</span>}
+      nota={nota}
+      pie={c.proximas.length > POR_ESTANTE ? (
+        <button type="button" className="pub-boton" aria-expanded="false" onClick={c.alternarProximos}>
+          Ver todas las que vienen · {formatearEntero(c.proximas.length)}
         </button>
       ) : null}
+    >
+      {c.proximasVisibles.map((f) => tarjeta(f, 'estante'))}
     </Estante>
   );
 }

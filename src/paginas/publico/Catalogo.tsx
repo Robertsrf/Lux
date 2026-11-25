@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { rutaDelCatalogo } from '../../lib/direccion';
 import { Aviso, Cargando, Vacio } from '../../componentes/Piezas';
-import { formatearBcv, formatearBs } from '../../lib/dinero';
+import { formatearBcv, formatearBs, formatearEntero } from '../../lib/dinero';
 import { ArmarDije } from '../../componentes/ArmarDije';
 import { nombreConVariante } from '../../lib/familias';
 import { codigoCompleto } from '../../lib/ofertas';
@@ -304,7 +304,16 @@ export function Catalogo() {
             textos={textos}
             whatsapp={whatsappTienda}
             portadaDeHoy={portadaDeHoy}
-            buscador={null}
+            buscador={cuantasJoyas > 0 ? (
+              // "Todas las joyas", juntas y sin separar por tipo, a la vista
+              // justo después de la portada (dueño, 25/11/2026: "super
+              // visible, al alcance; no de primero pero más o menos").
+              <div className="pub-bloque pub-ver-todas-arriba">
+                <button type="button" className="pub-boton pub-boton--ancho" onClick={irATodas}>
+                  Ver todas las joyas juntas · {formatearEntero(cuantasJoyas)}
+                </button>
+              </div>
+            ) : null}
             aviso={aviso}
           />
         )}

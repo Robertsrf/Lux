@@ -11,7 +11,7 @@ export function Puertas() {
   const c = useContextoLanding();
   return (
     <nav className="lp-puertas" aria-label="Por dónde seguir">
-      <button type="button" className="lp-puerta" onClick={c.irATodas}>Joyas</button>
+      <button type="button" className="lp-puerta lp-puerta--principal" onClick={c.irATodas}>Todas las joyas</button>
       {c.idOfertas ? (
         <button type="button" className="lp-puerta" onClick={() => irA(c.idOfertas!)}>Ofertas</button>
       ) : null}

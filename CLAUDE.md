@@ -1171,6 +1171,13 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   portada entra, los estantes suben escalonados, el contador rebota, la foto
   de la tarjeta crece hasta la página con View Transitions) y se apaga con
   `prefers-reduced-motion`. Los 19 tipos de sección no cambiaron.
+  Pedidos del dueño del 25/11/2026: **"Ver todas las joyas juntas"** va en un
+  botón ancho justo después de la portada (el sitio de la landing donde iba
+  el buscador) y como primera puerta, rellena; **la portada se adapta a la
+  foto que se ve** (su proporción real, hasta 3/4 de la pantalla, y la fila
+  del slider toma el alto de esa diapositiva); y **Próximamente** enseña un
+  estante y "Ver todas las que vienen", que las abre en cuadrícula para
+  bajar (con 140, de lado era inviable).
 - **Dama, caballero o unisex** (pedido del dueño del 17/11/2026, cuando
   llegó la joyería de caballero). Cada producto dice para quién es
   (`modelos.para`). El catálogo en línea lleva arriba, en el buscador (el

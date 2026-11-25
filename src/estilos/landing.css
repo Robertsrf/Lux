@@ -33,6 +33,9 @@
   text-underline-offset: 6px; text-decoration-thickness: 1px; cursor: pointer;
 }
 .lp-puerta:hover { text-decoration-color: var(--verde-profundo); }
+/* "Todas las joyas", la primera y rellena: lo que más se busca, al alcance. */
+.lp-puerta--principal { padding: 0 18px; border-radius: var(--pub-pildora); background: var(--verde-profundo); color: var(--crema); text-decoration: none; font-weight: 500; }
+.lp-puerta--principal:hover { background: var(--tinta); color: var(--crema); }
 
 /* --- Botones de la landing (BotonDestino) -------------------------------- */
 .lp-boton { white-space: normal; text-align: center; }
@@ -40,7 +43,7 @@
 /* --- Portada ------------------------------------------------------------- */
 .lp-portada { position: relative; margin: 8px 0 0; }
 .lp-portada :focus-visible { outline: 2px solid var(--verde-profundo); outline-offset: 3px; }
-.lp-portada__pista { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+.lp-portada__pista { display: flex; align-items: flex-start; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
 .lp-portada__pista::-webkit-scrollbar { display: none; }
 .lp-portada__diapositiva { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; }
 .lp-portada__texto {
@@ -53,8 +56,10 @@
   line-height: 0.98; letter-spacing: -0.02em; color: var(--verde-profundo); text-wrap: balance;
 }
 .lp-portada__parrafo { max-width: 42ch; font-family: var(--fuente-prosa); font-size: var(--pub-t-prosa); line-height: 1.4; color: var(--tinta); text-wrap: pretty; }
-.lp-portada__foto { order: 2; position: relative; aspect-ratio: 5 / 6; overflow: hidden; background: var(--panel-hondo); }
-.lp-portada__foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* La foto con su proporción de verdad (la caja se adapta a la imagen), sin
+   pasar de tres cuartos de la pantalla: si es muy alta, se recorta. */
+.lp-portada__foto { order: 2; position: relative; overflow: hidden; background: var(--panel-hondo); }
+.lp-portada__foto img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: cover; }
 /* La foto entra con un acercamiento al revés: de 1,06 a 1. */
 .lp-portada__diapositiva--viva .lp-portada__foto img { animation: lp-entrar 1.2s var(--pub-curva) both; }
 @keyframes lp-entrar { from { transform: scale(1.06); } to { transform: scale(1); } }
@@ -76,7 +81,8 @@
   .lp-portada { max-width: var(--pub-ancho); margin: 16px auto 0; padding: 0 var(--pub-gutter); box-sizing: border-box; }
   .lp-portada__diapositiva { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; }
   .lp-portada__texto { padding: 32px 0; }
-  .lp-portada__foto { aspect-ratio: 4 / 5; max-height: 680px; border-radius: var(--pub-foto-radio); }
+  .lp-portada__foto { border-radius: var(--pub-foto-radio); }
+  .lp-portada__foto img { max-height: 680px; }
   .lp-portada__mandos { padding-left: 0; padding-right: 0; }
 }
 
