@@ -47,6 +47,7 @@ import { Codigo } from './paginas/venta/Codigo';
 const Inventario = lazy(() => import('./paginas/admin/Inventario').then((m) => ({ default: m.Inventario })));
 // El Inicio y el Flujo del administrador (fase 9). "InicioAdmin": `Inicio` es la raíz que reparte.
 const InicioAdmin = lazy(() => import('./paginas/admin/Inicio').then((m) => ({ default: m.Inicio })));
+const Flujo = lazy(() => import('./paginas/admin/Flujo').then((m) => ({ default: m.Flujo })));
 const FormularioModelo = lazy(() => import('./paginas/admin/FormularioModelo').then((m) => ({ default: m.FormularioModelo })));
 const Lotes = lazy(() => import('./paginas/admin/Lotes').then((m) => ({ default: m.Lotes })));
 const LoteEnCamino = lazy(() => import('./paginas/admin/LoteEnCamino').then((m) => ({ default: m.LoteEnCamino })));
@@ -203,6 +204,7 @@ export function App() {
 
             {/* Administracion */}
             <Route path="/admin" element={soloAdmin(<InicioAdmin />)} />
+            <Route path="/admin/flujo" element={soloAdmin(<Flujo />)} />
             <Route path="/admin/inventario" element={soloAdmin(<Inventario />)} />
             <Route path="/admin/modelos/nuevo" element={soloAdmin(<FormularioModelo />)} />
             <Route path="/admin/modelos/:id" element={soloAdmin(<FormularioModelo />)} />
