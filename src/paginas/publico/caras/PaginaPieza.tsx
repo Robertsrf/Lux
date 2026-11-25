@@ -186,6 +186,8 @@ export function PaginaPieza({ c, alAmpliar }: { c: CatalogoLux; alAmpliar: (fich
             </div>
           )}
           {!proxima && disponible > 0 ? <p className="pub-secundario pub-pieza__quedan">{disponible === 1 ? 'Última pieza' : `Quedan ${disponible}`}</p> : null}
+          {/* Lo que falla aquí (traer los dijes, armar uno) se dice aquí: el catálogo está escondido. */}
+          {c.error ? <p className="pub-pieza__error" role="alert">{c.error}</p> : null}
           {esBase ? (
             <button type="button" className="pub-boton pub-boton--claro pub-boton--ancho" onClick={() => void c.abrirArmar(sel.id)}>Agrégale un dije</button>
           ) : null}

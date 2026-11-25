@@ -15,7 +15,6 @@ import type { PedidoTarjeta } from './caras/Tarjeta';
 import { Lista } from './caras/Lista';
 import { PaginaPieza } from './caras/PaginaPieza';
 import { useLayoutEffect, useRef } from 'react';
-import { flushSync } from 'react-dom';
 import { LaTienda } from '../../componentes/LaTienda';
 import { Landing } from './landing/Landing';
 import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
@@ -115,31 +114,50 @@ export function Catalogo() {
     alInicio,
     pieza,
     abrirPieza,
+    parametros,
   } = c;
   const visor = useVisorFoto();
   const visorProximo = useVisorFoto();
   // La pieza abre su página (`?pieza=`); al volver, el catálogo queda donde
-  // estaba: se guarda el desplazamiento al abrirla y se devuelve al cerrarla.
-  const scrollAntes = useRef(0);
+  // estaba: se guarda el desplazamiento al abrirla y se devuelve al cerrarla,
+  // SOLO si se vuelve a la misma vista (no al pedido, ni al inicio desde el
+  // logo, ni a otro "para quién").
+  const scrollAntes = useRef<{ y: number; vista: string } | null>(null);
+  const vistaDe = (p: URLSearchParams) => { const q = new URLSearchParams(p); q.delete('pieza'); return q.toString(); };
+  // Lo que espera la transición de vista para tomar la foto de después: la
+  // pieza ya pintada (BrowserRouter cambia la ruta en una transición de
+  // React, que flushSync no vacía).
+  const piezaPintada = useRef<(() => void) | null>(null);
   // Donde el navegador sabe (View Transitions), la foto de la tarjeta crece
   // hasta la de la página; donde no, o con movimiento reducido, cambia sin más.
   const verPieza = (id: number, familia?: number) => {
-    scrollAntes.current = window.scrollY;
+    scrollAntes.current = { y: window.scrollY, vista: vistaDe(parametros) };
     const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (quieto || typeof document.startViewTransition !== 'function') { abrirPieza(id); return; }
     const foto = familia !== undefined ? document.querySelector<HTMLElement>(`img[data-familia="${familia}"]`) : null;
     if (foto) foto.style.viewTransitionName = 'pub-foto';
-    const t = document.startViewTransition(() => { flushSync(() => abrirPieza(id)); window.scrollTo(0, 0); });
+    const t = document.startViewTransition(() => new Promise<void>((listo) => {
+      piezaPintada.current = listo;
+      abrirPieza(id);
+      // Si algo tarda, la transición no se queda esperando.
+      window.setTimeout(listo, 600);
+    }));
     void t.finished.finally(() => { if (foto) foto.style.viewTransitionName = ''; });
   };
+  const vistaActual = vistaDe(parametros);
   useLayoutEffect(() => {
-    if (pieza !== null) { window.scrollTo(0, 0); return; }
-    if (scrollAntes.current) {
-      const y = scrollAntes.current;
-      scrollAntes.current = 0;
-      requestAnimationFrame(() => window.scrollTo(0, y));
+    if (pieza !== null) {
+      window.scrollTo(0, 0);
+      piezaPintada.current?.();
+      piezaPintada.current = null;
+      return;
     }
-  }, [pieza]);
+    const antes = scrollAntes.current;
+    scrollAntes.current = null;
+    if (antes && paso === 'catalogo' && antes.vista === vistaActual) {
+      requestAnimationFrame(() => window.scrollTo(0, antes.y));
+    }
+  }, [pieza, paso, vistaActual]);
   const verFoto = (f: Familia<ModeloPublico>) => verPieza(f.cabeza.id, f.clave);
   const verProxima = (f: Familia<ModeloProximo>) => verPieza(f.cabeza.id, f.clave);
 
@@ -205,6 +223,7 @@ export function Catalogo() {
         <button type="button" className="pub-boton" onClick={irATodas}>Ver todas las joyas</button>
         <button type="button" className="pub-boton pub-boton--claro" onClick={() => irA('como-pedir')}>Cómo pedir</button>
       </div>
+      <button type="button" className="pub-enlace" onClick={() => irA('tipos')}>O elige por tipo</button>
       {/* Quien no se siente cómodo pidiendo solo, que sepa que no hace falta. */}
       {whatsappTienda ? (
         <p className="pub-secundario">
@@ -257,7 +276,7 @@ export function Catalogo() {
 
   return (
     <div className="pub">
-      <Cabecera c={c} conBuscador />
+      <Cabecera c={c} conBuscador={pieza === null} />
 
       <main className={resumen.piezas > 0 ? 'pub-pagina pub-con-barra' : 'pub-pagina'}>
         {/* Arriba, o la portada o el título de la lista. El buscador va

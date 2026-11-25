@@ -9,8 +9,10 @@ import { IcoBolsa, IcoLupa, IcoWhatsapp } from './iconos';
 export function BotonLetra() {
   const { grande, alternar } = useLetraGrande();
   return (
-    <button type="button" className="pub-icono pub-letra" aria-pressed={grande} aria-label="Letra grande" onClick={alternar}>
-      A<small>A</small>
+    <button type="button" className="pub-icono pub-letra" aria-pressed={grande} onClick={alternar}>
+      <span aria-hidden="true">A<small>A</small></span>
+      {/* Dicho con palabras desde 420 px; en el teléfono angosto, solo para el lector de pantalla. */}
+      <span className="pub-letra__texto">Letra grande</span>
     </button>
   );
 }
