@@ -212,7 +212,11 @@ export function Costos() {
       <div className="encabezado-pagina">
         <div>
           <h1>Costos</h1>
-          <p>Cuántas piezas tienes que vender, y de dónde sale ese número.</p>
+          <p>
+            Cuántas piezas tienes que vender, y de dónde sale ese número. Es el plan con que se ponen
+            los precios: lo pagado de verdad está en la <Link to="/admin/caja">Caja</Link> y
+            el <Link to="/admin/flujo">Flujo</Link>.
+          </p>
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Ayuda, Campo, Cargando, Vacio } from '../../componentes/Piezas';
+import { Banda } from '../../componentes/Banda';
 import { useTasa } from '../../hooks/useTasa';
 import {
   abonoEnBcv, formatearBcv, formatearBinance, formatearBs, formatearMonto, formatearPorcentaje,
@@ -220,6 +221,21 @@ export function Caja() {
       </div>
 
       {error ? <Aviso tono="error" titulo="Algo no cuadró">{error}</Aviso> : null}
+
+      {/* La cifra que manda (fase 9): lo que quedó en el período, en $ BCV. */}
+      {!cargando && porMetodo.length > 0 ? (
+        <Banda
+          etiqueta={titulo}
+          cifra={formatearBcv(totales.quedaBcv).replace(/\s*BCV$/, '')}
+          moneda="BCV quedó"
+          detalle={<>Lo que entró menos lo que salió: {formatearBs(totales.quedaBs)}. Los lotes no pasan por aquí; el gasto entero del negocio está en <Link to="/admin/flujo">Flujo</Link>.</>}
+          cuadritos={[
+            { etiqueta: 'Entró', valor: formatearBcv(totales.entroBcv) },
+            { etiqueta: 'Salió', valor: formatearBcv(totales.salioBcv) },
+            ...(totales.porVerificarBcv > 0 ? [{ etiqueta: 'Sin comprobar', valor: formatearBcv(totales.porVerificarBcv) }] : []),
+          ]}
+        />
+      ) : null}
 
       <div className="caja">
         <div className="caja__anotar">
@@ -572,7 +588,13 @@ function AnotarMovimiento({ hoy, tasa, conceptos, alAnotar }: {
       </Campo>
 
       <div className="fila">
-        <Campo etiqueta="Categoría" htmlFor="caja-categoria">
+        <Campo
+          etiqueta="Categoría"
+          htmlFor="caja-categoria"
+          pista={categoria === 'mercancia' || categoria === 'transporte'
+            ? 'Los lotes se anotan en Lotes. Si anotas aquí un lote, el Flujo lo cuenta dos veces.'
+            : undefined}
+        >
           <select id="caja-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             {categorias.map((c) => <option key={c.valor} value={c.valor}>{c.texto}</option>)}
           </select>
