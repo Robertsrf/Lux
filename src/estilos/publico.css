@@ -272,3 +272,42 @@ html.letra-grande .pub { --pub-escala: 1.15; }
 .pub-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 12px; }
 @media (min-width: 900px) { .pub-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 20px; } }
 .pub-mas { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 0 8px; }
+
+/* --- La página de la pieza ------------------------------------------ */
+.pub-pieza { padding-top: 4px; padding-bottom: 24px; }
+.pub-pieza--vacia { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 8px; padding-bottom: 48px; }
+.pub-pieza__rejilla { display: grid; gap: 20px; }
+@media (min-width: 900px) {
+  .pub-pieza__rejilla { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 48px; max-width: var(--pub-ancho); margin: 0 auto; padding: 0 var(--pub-gutter); box-sizing: border-box; align-items: start; }
+  .pub-pieza__info { position: sticky; top: 88px; padding: 0; }
+}
+.pub-pieza__fotos { min-width: 0; }
+.pub-pieza__fila { position: relative; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.pub-pieza__fila::-webkit-scrollbar { display: none; }
+.pub-pieza__foto { flex: 0 0 100%; scroll-snap-align: start; padding: 0; border: 0; background: var(--panel-hondo); cursor: zoom-in; aspect-ratio: 4 / 5; overflow: hidden; }
+@media (min-width: 900px) { .pub-pieza__foto { border-radius: var(--pub-foto-radio); } }
+.pub-pieza__foto img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pub-pieza__cuenta { padding: 8px var(--pub-gutter) 0; font-size: 13px; }
+@media (min-width: 900px) { .pub-pieza__cuenta { padding-left: 0; } }
+.pub-pieza__info { display: flex; flex-direction: column; gap: 14px; }
+.pub-pieza__nombre { font-size: calc(clamp(38px, 4vw + 20px, 64px) * var(--pub-escala)); outline: none; }
+.pub-pieza__precio { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: calc(22px * var(--pub-escala)); }
+.pub-pieza__precio .pub-precio { font-size: inherit; }
+.pub-pieza__medidas { display: flex; flex-direction: column; gap: 12px; }
+.pub-pieza__grupo { border: 0; margin: 0; padding: 0; min-width: 0; }
+.pub-pieza__leyenda { padding: 0; margin-bottom: 8px; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--salvia-texto); }
+.pub-pieza__opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.pub-pieza__opciones .pub-ficha:disabled { opacity: 0.45; text-decoration: line-through; cursor: not-allowed; }
+.pub-pieza__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; }
+.pub-contador--grande { min-height: var(--pub-alto-boton); padding: 0 6px; box-shadow: none; }
+.pub-contador--grande .pub-contador__n { padding: 0 6px; font-size: var(--pub-t-ui); }
+.pub-pieza__quedan { font-size: var(--pub-t-chico); margin-top: -6px; }
+.pub-pieza__aviso { padding: 14px 16px; border-radius: 14px; background: var(--crema); color: var(--tinta); font-size: var(--pub-t-chico); }
+.pub-pieza__datos { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 4px 0 0; font-size: var(--pub-t-chico); }
+.pub-pieza__datos dt { color: var(--salvia-texto); }
+.pub-pieza__datos dd { margin: 0; color: var(--tinta); }
+.pub-pieza__materiales { font-size: calc(18px * var(--pub-escala)); }
+.pub-pieza__compartir { align-self: flex-start; }
+.pub-pieza__compartir svg { width: 20px; height: 20px; }
+
+.pub-pagina { display: block; overflow-x: clip; }

@@ -25,6 +25,15 @@ import { useTextos } from '../../hooks/useTextos';
 import { registrarVisita } from '../../lib/visitas';
 import type { Cotizacion, ModeloProximo, ModeloPublico, Tramo } from '../../lib/tipos';
 import { paraDeRuta, paraQueVe, type Para } from '../../componentes/ElegirPara';
+import { piezaDeRuta } from '../../lib/pieza';
+
+/** Lo que enseña la página de una pieza (`?pieza=`, fase 10). */
+export type EstadoPieza =
+  | { estado: 'cargando' }
+  | { estado: 'venta'; familia: Familia<ModeloPublico>; abierta: number }
+  | { estado: 'proxima'; familia: Familia<ModeloProximo>; abierta: number }
+  | { estado: 'no_esta' }
+  | { estado: 'error' };
 
 export const COLUMNAS = 'id, sku, nombre, categoria, variantes_nota, foto_path, foto_thumb_path, precio_usd, precio_bs, disponible, ubicaciones_codigo, familia, variante, armado';
 
@@ -473,6 +482,75 @@ export function useCatalogoLux() {
     ];
   }, [tramos, reglas]);
 
+  // LA PÁGINA DE UNA PIEZA (fase 10): `?pieza=<id>` en la ruta, así cada
+  // joya tiene su enlace y "atrás" vuelve al catálogo donde estaba. Si la
+  // pieza no está entre las que ya se trajeron (alguien abrió el enlace), se
+  // pide con su familia a lo que se vende y, si no, a lo que viene.
+  const pieza = piezaDeRuta(parametros.get('pieza'));
+  const piezaDesdeAqui = useRef(false);
+  const [piezaFuera, setPiezaFuera] = useState<
+    { id: number; estado: 'cargando' | 'no_esta' | 'error' } | { id: number; estado: 'proxima'; filas: ModeloProximo[] } | null
+  >(null);
+  const abrirPieza = (id: number) => {
+    const p = new URLSearchParams(parametros);
+    p.delete('paso');
+    p.set('pieza', String(id));
+    piezaDesdeAqui.current = true;
+    setParametros(p);
+  };
+  const cerrarPieza = () => {
+    if (piezaDesdeAqui.current) { piezaDesdeAqui.current = false; navegar(-1); return; }
+    const p = new URLSearchParams(parametros);
+    p.delete('pieza');
+    setParametros(p, { replace: true });
+  };
+  const piezaConocida = pieza !== null && conocidos.has(pieza);
+  const piezaProximaConocida = pieza !== null && proximos.some((m) => m.id === pieza);
+  useEffect(() => {
+    if (pieza === null || piezaConocida || piezaProximaConocida) return;
+    let vivo = true;
+    setPiezaFuera({ id: pieza, estado: 'cargando' });
+    void (async () => {
+      const venta = await supabase.from('v_disponible_publico').select(COLUMNAS).eq('id', pieza).maybeSingle();
+      if (!vivo) return;
+      if (venta.error) { setPiezaFuera({ id: pieza, estado: 'error' }); return; }
+      const fila = venta.data as unknown as ModeloPublico | null;
+      if (fila) {
+        const hermanas = await supabase.from('v_disponible_publico').select(COLUMNAS).eq('familia', fila.familia);
+        if (!vivo) return;
+        recordar(((hermanas.data as unknown as ModeloPublico[] | null) ?? []).concat(fila));
+        setPiezaFuera(null);
+        return;
+      }
+      const proxima = await supabase.from('v_proximamente').select(COLUMNAS_PROXIMO).eq('id', pieza).maybeSingle();
+      if (!vivo) return;
+      const p = proxima.data as unknown as ModeloProximo | null;
+      if (proxima.error || !p) { setPiezaFuera({ id: pieza, estado: proxima.error ? 'error' : 'no_esta' }); return; }
+      const suyas = await supabase.from('v_proximamente').select(COLUMNAS_PROXIMO).eq('familia', p.familia);
+      if (!vivo) return;
+      const filas = (suyas.data as unknown as ModeloProximo[] | null) ?? [];
+      setPiezaFuera({ id: pieza, estado: 'proxima', filas: filas.some((x) => x.id === p.id) ? filas : [p, ...filas] });
+    })();
+    return () => { vivo = false; };
+  }, [pieza, piezaConocida, piezaProximaConocida, recordar]);
+  const piezaCargada = useMemo<EstadoPieza | null>(() => {
+    if (pieza === null) return null;
+    const m = conocidos.get(pieza);
+    if (m) {
+      const familia = agruparPorFamilia([...conocidos.values()].filter((x) => x.familia === m.familia))[0];
+      return familia ? { estado: 'venta', familia, abierta: pieza } : { estado: 'no_esta' };
+    }
+    const pm = proximos.find((x) => x.id === pieza);
+    const deFuera = piezaFuera?.id === pieza ? piezaFuera : null;
+    const filasProximas = pm ? proximos.filter((x) => x.familia === pm.familia) : deFuera?.estado === 'proxima' ? deFuera.filas : null;
+    if (filasProximas) {
+      const familia = agruparPorFamilia(filasProximas)[0];
+      return familia ? { estado: 'proxima', familia, abierta: pieza } : { estado: 'no_esta' };
+    }
+    if (deFuera?.estado === 'no_esta' || deFuera?.estado === 'error') return { estado: deFuera.estado };
+    return { estado: 'cargando' };
+  }, [pieza, conocidos, proximos, piezaFuera]);
+
   const cerrarHoja = useCallback(() => setFamiliaAbierta(null), []);
 
   function cambiar(modeloId: number, cantidad: number) {
@@ -634,6 +712,10 @@ export function useCatalogoLux() {
   }
 
   return {
+    pieza,
+    abrirPieza,
+    cerrarPieza,
+    piezaCargada,
     navegar,
     tasa,
     textos,

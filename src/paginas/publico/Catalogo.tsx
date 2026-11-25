@@ -15,6 +15,8 @@ import { POR_ESTANTE } from './caras/Estante';
 import { Tarjeta } from './caras/Tarjeta';
 import type { PedidoTarjeta } from './caras/Tarjeta';
 import { Lista } from './caras/Lista';
+import { PaginaPieza } from './caras/PaginaPieza';
+import { useEffect, useRef } from 'react';
 import { LaTienda } from '../../componentes/LaTienda';
 import { Landing } from './landing/Landing';
 import { SeccionComoPedir, SeccionProximamente } from './landing/SeccionesCatalogo';
@@ -119,9 +121,7 @@ export function Catalogo() {
     familias,
     estantes,
     tipos,
-    fichas,
     familiasProximas,
-    fichasProximas,
     whatsappTienda,
     pasos,
     cerrarHoja,
@@ -134,18 +134,25 @@ export function Catalogo() {
     esBase,
     alInicio,
     reservar,
+    pieza,
+    abrirPieza,
   } = c;
   const visor = useVisorFoto();
   const visorProximo = useVisorFoto();
-  function verFoto(f: Familia<ModeloPublico>) {
-    const ficha = fichas.find((x) => x.clave === f.clave);
-    if (ficha) visor.abrir(ficha, fichas);
-  }
-
-  function verProxima(f: Familia<ModeloProximo>) {
-    const ficha = fichasProximas.find((x) => x.clave === f.clave);
-    if (ficha) visorProximo.abrir(ficha, fichasProximas);
-  }
+  // La pieza abre su página (`?pieza=`); al volver, el catálogo queda donde
+  // estaba: se guarda el desplazamiento al abrirla y se devuelve al cerrarla.
+  const scrollAntes = useRef(0);
+  const verPieza = (id: number) => { scrollAntes.current = window.scrollY; abrirPieza(id); };
+  useEffect(() => {
+    if (pieza !== null) { window.scrollTo(0, 0); return; }
+    if (scrollAntes.current) {
+      const y = scrollAntes.current;
+      scrollAntes.current = 0;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+  }, [pieza]);
+  const verFoto = (f: Familia<ModeloPublico>) => verPieza(f.cabeza.id);
+  const verProxima = (f: Familia<ModeloProximo>) => verPieza(f.cabeza.id);
 
   // Lo que cada tarjeta hace con el pedido: lo mismo en el inicio y en la lista.
   const pedidoTarjeta = (f: Familia<ModeloPublico>): PedidoTarjeta => ({
@@ -439,10 +446,14 @@ export function Catalogo() {
     <div className="pub">
       <Cabecera c={c} conBuscador />
 
-      <div className={resumen.piezas > 0 ? 'pagina mostrador catalogo-publico pagina--con-barra pub-con-barra' : 'pagina mostrador catalogo-publico'}>
+      <main className={resumen.piezas > 0 ? 'pub-pagina pub-con-barra' : 'pub-pagina'}>
         {/* Arriba, o la portada o el título de la lista. El buscador va
             después, siempre en el mismo sitio: si cambiara de lugar al
             escribir, el teléfono cerraría el teclado a media palabra. */}
+        {pieza !== null ? (
+          <PaginaPieza c={c} alAmpliar={(ficha, proxima) => (proxima ? visorProximo : visor).abrir(ficha)} />
+        ) : null}
+        <div hidden={pieza !== null}>
         {enLista ? (
           <>
             <Lista c={c} tarjeta={(f) => catalogoProps.tarjeta(f, 'rejilla')} aviso={aviso} listas={piezasListas} />
@@ -465,6 +476,7 @@ export function Catalogo() {
             aviso={aviso}
           />
         )}
+        </div>
 
         <footer className="pie-catalogo">
           {textos.catalogo_pie ?? 'Lux by Emory'}
@@ -474,8 +486,6 @@ export function Catalogo() {
 
         <VisorFoto
           {...visor.props}
-          alAbrirPieza={miradas.abrir}
-          alCerrarPieza={miradas.cerrar}
           accion={{
             texto: 'Agregar al pedido',
             alTocar: agregarPorId,
@@ -510,7 +520,7 @@ export function Catalogo() {
             alQuerer={() => quererOferta('complemento', [completalo.a, completalo.b])}
             alCerrar={() => setCompletalo(null)}
           />
-        ) : miradas.pareja && parejaPct !== null && !visor.foto && familiaAbierta === null && armandoBase === null
+        ) : miradas.pareja && parejaPct !== null && !visor.foto && pieza === null && familiaAbierta === null && armandoBase === null
           && conocidos.get(miradas.pareja[0]) && conocidos.get(miradas.pareja[1]) ? (
           <HojaPareja
             a={conocidos.get(miradas.pareja[0])!}
@@ -553,7 +563,7 @@ export function Catalogo() {
         })()}
 
         <BarraPedido c={c} />
-      </div>
+      </main>
     </div>
   );
 }
