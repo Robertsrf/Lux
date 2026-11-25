@@ -58,6 +58,8 @@ densidad) y `anthropic-skills:lux-by-emory`. Se activan solas al tocar el códig
 src/
   lib/          supabase.ts, auth.ts, dinero.ts, fotos.ts, tipos.ts, familias.ts,
                 revendedor.ts (su sesión, sus enlaces, las paletas),
+                pieza.ts (la página de una pieza del catálogo, `?pieza=`:
+                leer la ruta, su ruta y el texto para compartirla, sin precio),
                 escotes.ts (qué collar va con cada escote, por su largo, y
                 cuándo los aretes completan o lo reemplazan; para la vitrina),
                 combinar.ts (qué va con qué: la parte del cuerpo y el tono
@@ -128,10 +130,9 @@ src/
                 (enlaza un revendedor con su ficha de clienta),
                 InventarioDeRevendedor (lo que tiene en la mano, en
                 Revendedores y Crédito),
-                VitrinaPublica (la tarjeta de vitrina, los tipos con foto, el
-                estante y "Cómo pedir": de los dos catálogos en línea),
                 LaTienda (dirección con "Cómo llegar", horario, WhatsApp,
-                Instagram y "Cómo pagar"; SOLO en el de la tienda),
+                Instagram y "Cómo pagar"; SOLO en el de la tienda, en la
+                banda verde del estilo A),
                 LetraGrande (el botón "Letra grande" de la cabecera del
                 catálogo y del pedido), ElegirPara ("Todas · Dama ·
                 Caballero", de los dos catálogos en línea)
@@ -164,16 +165,23 @@ src/
                 con sus medidas dentro y los conteos anteriores; no cambia el
                 inventario: lo que no cuadra lo ajusta, lo deja o lo deshace
                 el administrador ahí mismo)
-    publico/    Catalogo (el inicio: portada con por dónde empezar, tipos
-                con foto y "Todas las joyas", un estante por tipo, "Cómo
-                pedir", Próximamente y la tienda; `?tipo=`, `?ver=todas`,
-                una búsqueda o el orden por precio abren la lista),
+    publico/    Catalogo (la ruta: elige qué dibujar; el inicio: portada,
+                tipos con foto y "Todas las joyas", un estante por tipo,
+                "Así pides", Próximamente y la tienda; `?tipo=`,
+                `?ver=todas`, una búsqueda o el orden por precio abren la
+                lista; `?pieza=` la página de una pieza; `?paso=pedido` el
+                pedido), useCatalogoLux (el cerebro: TODA la lógica que
+                vivía en Catalogo, movida tal cual en la fase 10; no
+                dibuja), caras/ (lo que se ve, estilo A de la fase 10:
+                Cabecera con el buscador siempre en el mismo nodo y
+                BotonLetra, BarraPedido, Tarjeta, Estante y TiposConFoto,
+                Lista, PaginaPieza, Pedido, ComoPedir con `irA`, iconos),
                 Reserva (con "Avisar a la tienda por WhatsApp"),
                 GuiaRevendedor (/guia-revendedor, la guía
                 para quien quiere ser revendedor) con GuiaRevendedorPiezas
                 (calculadora, recorrido, manual, preguntas, solicitud)
     publico/landing/  Landing (arma las secciones de `v_landing`; sin ellas,
-                el inicio de siempre), Puertas (la barra pegada de arriba),
+                el inicio de siempre), Puertas (una fila de enlaces bajo la cabecera),
                 Portada (el slider), Cintas, Historia (Nosotros y Buscamos),
                 Materiales, Galeria, VideoLanding, Redes, SeccionesCatalogo,
                 Estuche, Combos (y Regalo), Seleccion, OfertasCasa, Escote,
@@ -219,7 +227,9 @@ src/
                 revendedor.css (las seis paletas de su panel, medidas; su
                 catálogo tiene su propio CSS en revendedor/catalogo/),
                 guia-revendedor.css (la guía pública),
-                landing.css (la landing y sus ofertas), panel-landing.css,
+                publico.css (lo público de Lux en el estilo A de la fase 10,
+                todo bajo `.pub`), landing.css (la landing y sus ofertas,
+                también estilo A, clases `lp-*`), panel-landing.css,
                 codigo.css (la pantalla Código)
 public/landing/ las fotos de la landing, en dos anchos (1600 y 800 px); las
                 prepara `scripts/preparar-landing.mjs` (ESTADO.md)
@@ -996,8 +1006,9 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   "Binance" es también forma de pago.
 - **El catálogo acepta pedidos desde una pieza.** El mínimo de mayoreo (6 piezas o
   $30) se quitó en septiembre de 2026; el mayoreo es solo el descuento por cantidad.
-  Desde el 14/10/2026, tocar una pieza abre su detalle y cada tarjeta lleva
-  "Agregar" (un contador cuando ya va en el pedido); antes un toque la metía al
+  Desde el 14/10/2026, tocar una pieza abre su detalle (desde la fase 10, su
+  página con enlace, `?pieza=`) y cada tarjeta lleva "Agregar" (desde la fase
+  10, un "+" sobre la foto; un contador cuando ya va en el pedido); antes un toque la metía al
   pedido y dos abrían el detalle. Trae las piezas de a 120 con "Ver más" y dice
   cuántas faltan (antes cortaba en 400 sin aviso), se ordena por tipo o por
   precio, y el total de la barra es el de `cotizar_pedido`. En el mostrador, un
@@ -1024,7 +1035,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     una búsqueda o el orden por precio abren la lista de siempre, con "Ver
     más". El buscador está siempre en el mismo sitio, para que el teléfono no
     cierre el teclado al cambiar de vista.
-  - **La tarjeta de vitrina** (`TarjetaPieza`, de los dos catálogos) ya no
+  - **La tarjeta de vitrina** (`Tarjeta` de `publico/caras/`; el catálogo del
+    revendedor tiene la suya desde la fase 6) ya no
     repite el material ni la clave de bodega (la clave pasa al detalle:
     "En tienda: V1 · BG"). Cuántas quedan va en tono neutro, también
     "Última pieza": "Quedan 2" en alerta salía en 82 de cada 100 tarjetas,
@@ -1079,8 +1091,8 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   - **Sin el #65 el inicio es el de siempre** (`secciones === null`: la portada
     de hoy, el buscador y los estantes). Una sección de oferta sin datos no se
     dibuja ni cuenta para la puerta "Ofertas" (`seDibuja`).
-  - **La portada nunca lleva texto sobre la foto**: abajo en el teléfono, dos
-    columnas desde 900 px. El contraste no depende de la foto que ponga el
+  - **La portada nunca lleva texto sobre la foto**: arriba en el teléfono (la
+    foto debajo, a sangre), dos columnas desde 900 px. El contraste no depende de la foto que ponga el
     dueño. Cada foto lleva su texto alternativo, que el panel pide.
   - **El video sale escondido** hasta que el dueño sube uno: una sección
     visible vacía no aporta.
@@ -1140,6 +1152,25 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
     de sus códigos.
   - **Reportes**: `v_ofertas_mes` (Reportes, "Ventas con oferta") y la columna
     `oferta` en las rebajas. Las diez cifras se cambian en el panel (Ofertas).
+- **Lo público, en el estilo A** (fase 10, 24/11/2026; diseño en
+  `docs/superpowers/specs/2026-11-24-landing-catalogo-pedido-design.md`,
+  maquetas en https://claude.ai/artifact/Y9HXj71jv7A3ttnT1xAYNJ). La landing,
+  el catálogo, la página de la pieza y el pedido salen del sistema visual de
+  Lux por decisión del dueño: solo conservan sus colores y sus letras
+  (Fraunces ligera y cursiva, EB Garamond, Jost). Fondo papel, títulos
+  grandes, fotos a sangre, estantes que se deslizan, botones píldora. **Todo
+  bajo `.pub`**: los componentes que comparte con la tienda (`TusDatos`,
+  `PagoMovil`, `ReportarPago`) se visten desde ahí sin cambiar su marcado, así
+  la tienda y el revendedor no cambian. El reinicio de `h1`–`h3` va con
+  `:where(.pub) h2`: pesa como un elemento, le gana a base.css y pierde ante
+  cualquier clase (ver Trampas). **La pieza tiene su página** (`?pieza=<id>`,
+  `PaginaPieza`): atrás vuelve al catálogo en el mismo sitio; un enlace a una
+  pieza que ya no se vende dice que no está disponible, y una que viene en
+  camino sale como Próximamente; "Compártela por WhatsApp" manda el nombre y
+  el enlace, sin precio. El movimiento es CSS y `useAparecer` (la foto de la
+  portada entra, los estantes suben escalonados, el contador rebota, la foto
+  de la tarjeta crece hasta la página con View Transitions) y se apaga con
+  `prefers-reduced-motion`. Los 19 tipos de sección no cambiaron.
 - **Dama, caballero o unisex** (pedido del dueño del 17/11/2026, cuando
   llegó la joyería de caballero). Cada producto dice para quién es
   (`modelos.para`). El catálogo en línea lleva arriba, en el buscador (el
@@ -1694,6 +1725,14 @@ Y entrega las cifras esperadas junto al archivo: "debería darte margen 44,4 %".
   página de lado: el editor del tema de la fase 6 hacía las dos cosas (Mi
   catálogo medía 603 px en un teléfono de 360) y nadie lo vio hasta mirarlo
   en la fase 7. Un radio lleva su `width`/`height` y su contenedor.
+- **Un reinicio de estilos con la clase raíz delante empata con las clases.**
+  `.pub :where(h2)` pesa lo mismo que `.lp-portada__frase`, y como
+  publico.css se carga después que landing.css, el título de la portada salía
+  en Jost. Sin peso (`:where(.pub) :where(h2)`) perdía ante `h1, h2, h3` de
+  base.css y "La tienda" salía verde sobre verde. Lo que funciona:
+  `:where(.pub) h2`, el peso de un elemento solo (fase 10). Y un `<a>` con
+  clase de botón necesita su color en `:hover`: el `a:hover` de base.css
+  pesa más que la clase sola.
 - **base.css de Lux le pone su letra a `h1`–`h3`.** Una pantalla fuera del
   sistema de Lux (el catálogo del revendedor) lo deshace con
   `.rvc :where(h1, h2, h3...)`: con `:where`, cualquier clase suya gana.

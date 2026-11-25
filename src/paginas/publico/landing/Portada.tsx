@@ -115,7 +115,7 @@ export function Portada({ diapositivas }: { diapositivas: ElementoLanding[] }) {
               <div className="lp-portada__texto">
                 {d.frase ? <h2 className="lp-portada__frase">{d.frase}</h2> : null}
                 {d.texto ? <p className="lp-portada__parrafo">{d.texto}</p> : null}
-                <BotonDestino boton={d.boton} sobreVerde />
+                <BotonDestino boton={d.boton} />
               </div>
             </article>
           );

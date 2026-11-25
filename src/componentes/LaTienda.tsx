@@ -27,63 +27,58 @@ export function LaTienda({ id, textos }: { id?: string; textos: ReturnType<typeo
   if (!direccion && !horario && !mapa && !whatsapp && !instagram && !hayPago) return null;
 
   return (
-    <section className="la-tienda" id={id} aria-labelledby={idTitulo}>
-      <h2 className="seccion-titulo" id={idTitulo}>La tienda</h2>
-      <div className="la-tienda__tarjeta">
-        {direccion || mapa ? (
-          <div className="la-tienda__dato">
-            <span className="la-tienda__etiqueta">Dónde estamos</span>
-            {direccion ? (
-              <p className="la-tienda__texto">{direccionConCiudad(direccion, textos.ciudad)}</p>
-            ) : null}
-            {mapa ? (
-              <a className="boton boton--secundario la-tienda__boton" href={mapa} target="_blank" rel="noopener noreferrer">
-                Cómo llegar<span className="visualmente-oculto"> (abre Google Maps)</span>
-              </a>
-            ) : null}
-          </div>
-        ) : null}
+    <section className="pub-tienda" id={id} aria-labelledby={idTitulo}>
+      <div className="pub-tienda__interior">
+        <p className="pub-tienda__etiqueta">Visítanos</p>
+        <h2 className="pub-tienda__titulo" id={idTitulo}>La tienda</h2>
+        <div className="pub-tienda__datos">
+          {direccion || mapa ? (
+            <div className="pub-tienda__dato">
+              <span className="pub-tienda__rotulo">Dónde estamos</span>
+              {direccion ? <p className="pub-tienda__texto">{direccionConCiudad(direccion, textos.ciudad)}</p> : null}
+              {mapa ? (
+                <a className="pub-boton pub-boton--crema pub-boton--chico" href={mapa} target="_blank" rel="noopener noreferrer">
+                  Cómo llegar<span className="visualmente-oculto"> (abre Google Maps)</span>
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+          {horario ? (
+            <div className="pub-tienda__dato">
+              <span className="pub-tienda__rotulo">Horario</span>
+              <p className="pub-tienda__texto pub-tienda__texto--lineas">{horario}</p>
+            </div>
+          ) : null}
+          {whatsapp || instagram ? (
+            <div className="pub-tienda__dato">
+              <span className="pub-tienda__rotulo">Escríbenos</span>
+              {whatsapp ? (
+                <a className="pub-boton pub-boton--crema pub-boton--chico" href={whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+              ) : null}
+              {instagram ? (
+                <a className="pub-tienda__enlace" href={instagram.url} target="_blank" rel="noopener noreferrer">@{instagram.usuario} en Instagram</a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
-        {horario ? (
-          <div className="la-tienda__dato">
-            <span className="la-tienda__etiqueta">Horario</span>
-            <p className="la-tienda__texto la-tienda__texto--lineas">{horario}</p>
-          </div>
-        ) : null}
-
-        {whatsapp || instagram ? (
-          <div className="la-tienda__dato">
-            <span className="la-tienda__etiqueta">Escríbenos</span>
-            {whatsapp ? (
-              <a className="boton la-tienda__boton" href={whatsapp} target="_blank" rel="noopener noreferrer">
-                WhatsApp
-              </a>
-            ) : null}
-            {instagram ? (
-              <a className="la-tienda__enlace" href={instagram.url} target="_blank" rel="noopener noreferrer">
-                @{instagram.usuario} en Instagram
-              </a>
-            ) : null}
-          </div>
+        {/* Plegado: pagar va después de apartar, que es cuando se sabe el
+            monto. Abierto arriba invitaba a pagar sin pedido. */}
+        {hayPago ? (
+          <details className="pub-tienda__pago">
+            <summary>Cómo pagar</summary>
+            <p className="pub-tienda__pista">
+              Primero aparta tu pedido: ahí te decimos el monto exacto y reportas el pago con su referencia.
+            </p>
+            <PagoMovil
+              cedula={textos.pago_movil_cedula ?? ''}
+              telefono={textos.pago_movil_telefono ?? ''}
+              banco={textos.pago_movil_banco ?? ''}
+              titular={textos.pago_movil_titular ?? ''}
+            />
+          </details>
         ) : null}
       </div>
-
-      {/* Plegado: pagar va después de apartar, que es cuando se sabe el
-          monto. Abierto arriba invitaba a pagar sin pedido. */}
-      {hayPago ? (
-        <details className="la-tienda__pago">
-          <summary>Cómo pagar</summary>
-          <p className="campo__pista">
-            Primero aparta tu pedido: ahí te decimos el monto exacto y reportas el pago con su referencia.
-          </p>
-          <PagoMovil
-            cedula={textos.pago_movil_cedula ?? ''}
-            telefono={textos.pago_movil_telefono ?? ''}
-            banco={textos.pago_movil_banco ?? ''}
-            titular={textos.pago_movil_titular ?? ''}
-          />
-        </details>
-      ) : null}
     </section>
   );
 }

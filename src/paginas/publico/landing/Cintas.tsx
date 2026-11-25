@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAparecer } from '../../../hooks/useAparecer';
 import { formatearDescuento } from '../../../lib/dinero';
 import type { OfertasPublicas } from '../../../lib/ofertas';
 
@@ -33,10 +34,17 @@ export function frasesDeCinta(o: OfertasPublicas | null): string[] {
  */
 export function Cintas({ ofertas }: { ofertas: OfertasPublicas | null }) {
   const frases = frasesDeCinta(ofertas);
+  // La cinta va aparte para que su observador se enganche cuando el div ya
+  // existe: las ofertas suelen llegar después que la landing.
+  return frases.length === 0 ? null : <Cinta frases={frases} />;
+}
+
+function Cinta({ frases }: { frases: string[] }) {
   const [parada, setParada] = useState(false);
-  if (frases.length === 0) return null;
+  // Fuera de pantalla no corre: no gasta batería ni fotogramas.
+  const [ref, visible] = useAparecer<HTMLDivElement>(true);
   return (
-    <div className={parada ? 'lp-cinta lp-cinta--parada' : 'lp-cinta'} role="region" aria-label="Ofertas del momento">
+    <div ref={ref} className={parada || !visible ? 'lp-cinta lp-cinta--parada' : 'lp-cinta'} role="region" aria-label="Ofertas del momento">
       <button type="button" className="lp-cinta__pausa" aria-pressed={parada} onClick={() => setParada((p) => !p)}>
         {parada ? 'Mover las ofertas' : 'Parar las ofertas'}
       </button>

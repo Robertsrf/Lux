@@ -88,12 +88,12 @@ export function Estuche({ id, titulo, texto, codigos, acciones }: {
       {deHoy ? (
         <div className="lp-estuche__hoy">
           <p>Tu código de hoy es <strong className="lp-estuche__codigo">{deHoy.codigo}</strong>.</p>
-          <button type="button" className="boton lp-boton" onClick={() => acciones.verCodigo(deHoy)}>Ver mi código</button>
+          <button type="button" className="pub-boton lp-boton" onClick={() => acciones.verCodigo(deHoy)}>Ver mi código</button>
         </div>
       ) : abiertoHoy ? (
         <p className="lp-estuche__hoy">Hoy ya abriste tu estuche. Mañana hay otro para ti.</p>
       ) : (
-        <button type="button" className="boton lp-boton" disabled={abriendo} onClick={() => void abrir()}>
+        <button type="button" className="pub-boton lp-boton" disabled={abriendo} onClick={() => void abrir()}>
           {abriendo ? 'Abriendo' : 'Abrir mi estuche'}
         </button>
       )}

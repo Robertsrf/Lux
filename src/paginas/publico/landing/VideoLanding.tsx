@@ -50,9 +50,9 @@ export function VideoLanding({ seccion }: { seccion: SeccionLanding }) {
           aria-label={seccion.titulo ?? 'Video'}
         />
         {!puede ? (
-          <button type="button" className="boton lp-video__ver" onClick={() => setPedido(true)}>Ver el video</button>
+          <button type="button" className="pub-boton lp-video__ver" onClick={() => setPedido(true)}>Ver el video</button>
         ) : (
-          <button type="button" className="boton boton--secundario lp-video__pausa" aria-pressed={pausado} onClick={() => setPausado((p) => !p)}>
+          <button type="button" className="pub-boton pub-boton--crema pub-boton--chico lp-video__pausa" aria-pressed={pausado} onClick={() => setPausado((p) => !p)}>
             {pausado ? 'Reanudar el video' : 'Pausar el video'}
           </button>
         )}
