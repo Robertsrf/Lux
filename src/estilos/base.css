@@ -1373,6 +1373,17 @@ table.tabla tfoot td {
   font-size: var(--t-16);
 }
 .rebaja__piso { font-size: var(--t-12); color: var(--alerta-texto); }
+/* La rebaja en % y en Bs, lado a lado (26/11/2026). */
+.rebaja__campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-2); max-width: 340px; }
+.rebaja__campos input { max-width: none; width: 100%; }
+.rebaja__botones { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+.rebaja__botones .boton { min-height: var(--alto-control); }
+
+/* La rebaja a toda la venta, sobre las piezas del cobro. */
+.rebaja-todo { display: grid; gap: var(--e-2); margin-bottom: var(--e-4); }
+.rebaja-todo__fila { display: flex; gap: var(--e-2); }
+.rebaja-todo__fila input { flex: 1 1 auto; min-width: 0; max-width: 200px; }
+.rebaja-todo__quitar { justify-self: start; }
 
 /* --- Lo que hace especial a Lux -------------------------------------- */
 

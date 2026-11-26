@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase, mensajeDeError } from '../../lib/supabase';
 import { Aviso, Campo, Cargando, ResumenErrores, Vacio } from '../../componentes/Piezas';
 import {
   abonoEnBcv, binanceDesdeBs, bsDeBcv, faltaTrasAbono, formatearBcv, formatearBinance, formatearBs,
   fechaVenezuelaMas, formatearFecha, formatearFechaHora, formatearDescuento, formatearTasa, leerCifra, minimoParaApartar, porcentajeRebajado,
-  rebajaMaximaPct,
+  leerPorcentaje, precioConRebajaPct, rebajaMaximaPct,
 } from '../../lib/dinero';
 import { fuenteFoto, urlPublicaFoto } from '../../lib/fotos';
 import { agruparPorFamilia, conFoto, etiquetasCortas, nombreConVariante, rangoDe } from '../../lib/familias';
@@ -14,6 +15,7 @@ import { useUbicaciones } from '../../hooks/useCatalogos';
 import { useTasa } from '../../hooks/useTasa';
 import { useTextos } from '../../hooks/useTextos';
 import { useCarrito } from '../../hooks/useCarrito';
+import type { LineaCobroConCodigo } from '../../hooks/useCarrito';
 import { VisorFoto, useDobleToque, useVisorFoto } from '../../componentes/VisorFoto';
 import type { FotoAmpliada } from '../../componentes/VisorFoto';
 import { ElegirVariante } from '../../componentes/ElegirVariante';
@@ -21,6 +23,7 @@ import { MoverUbicacion } from '../../componentes/MoverUbicacion';
 import { Icono } from '../../componentes/Iconos';
 import { Recordatorio } from '../../componentes/Recordatorio';
 import { BuscadorCliente } from '../../componentes/BuscadorCliente';
+import { guardarCliente } from '../../hooks/useClientes';
 import { METODOS_EN_DOLARES, METODOS_EN_PERSONA, METODOS_PAGO, PIDE_REFERENCIA } from '../../lib/tipos';
 import type { ClienteDeVenta, CreditoDeClienta, MetaVendedora, MetodoPago, ModeloEnUbicacion } from '../../lib/tipos';
 import type { VerOferta } from '../../lib/ofertasApi';
@@ -50,6 +53,17 @@ const COLUMNAS = [
 ].join(', ');
 
 const claveDe = (m: { modelo_id: number; ubicacion_id: number }) => `${m.modelo_id}-${m.ubicacion_id}`;
+
+/**
+ * Los días de crédito que escribe quien cobra: un entero de 1 en adelante.
+ * Sin máximo (decisión del dueño); el campo admite hasta cuatro cifras.
+ */
+function leerDias(texto: string): number | null {
+  const t = texto.trim();
+  if (!/^\d{1,4}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= 1 ? n : null;
+}
 
 /** Cuantas piezas de una ubicacion trae de una vez. Si hay mas, se dice. */
 const LIMITE = 300;
@@ -127,24 +141,34 @@ export function Mostrador() {
   }, [clienteId]);
 
   /*
-    El crédito de la ficha elegida (esquema-credito.sql, #71): con días,
-    el cobro ofrece "A crédito". Sin el #71 la función no existe y no se
-    ofrece. Una ficha nueva no tiene crédito: el crédito es de una clienta
-    que el dueño ya conoce.
+    El crédito se decide en el cobro (#77, 26/11/2026): "A crédito" sale con
+    cualquier clienta, de la lista o nueva, y quien cobra escribe los días de
+    ESTA venta (empiezan en los de su ficha, si tiene). La ficha no cambia.
+    De su ficha (esquema-credito.sql, #71) se lee lo que debe, su tope y si
+    tiene algo vencido: su tope manda. Una ficha nueva no debe nada.
   */
   const [creditoClienta, setCreditoClienta] = useState<CreditoDeClienta | null>(null);
   const [credito, setCredito] = useState(false);
+  const [diasCredito, setDiasCredito] = useState('');
+  const [errorCredito, setErrorCredito] = useState<string | null>(null);
+  // La ficha de una clienta nueva que se guardó para venderle a crédito: si
+  // la venta falla, el reintento usa esta y no crea otra.
+  const fichaGuardada = useRef<{ de: ClienteDeVenta; id: number } | null>(null);
+  const [guardandoFicha, setGuardandoFicha] = useState(false);
   useEffect(() => {
     setCreditoClienta(null);
     setCredito(false);
+    setDiasCredito('');
+    setErrorCredito(null);
     if (clienteId === null) return;
     let vigente = true;
     void (async () => {
       const { data, error: err } = await supabase.rpc('credito_de_clienta', { p_cliente_id: clienteId });
       const fila = ((data as CreditoDeClienta[] | null) ?? [])[0];
-      if (!vigente || err || !fila || fila.dias === null) return;
+      if (!vigente || err || !fila) return;
+      if (fila.dias !== null) setDiasCredito(String(fila.dias));
       setCreditoClienta({
-        dias: Number(fila.dias),
+        dias: fila.dias === null ? null : Number(fila.dias),
         tope_usd: fila.tope_usd === null ? null : Number(fila.tope_usd),
         debe_bcv: Number(fila.debe_bcv),
         queda_bcv: fila.queda_bcv === null ? null : Number(fila.queda_bcv),
@@ -200,7 +224,11 @@ export function Mostrador() {
   // el carrito, que es el que lo suma y lo manda.
   const [extraAbierto, setExtraAbierto] = useState(false);
   const tituloCobro = useRef<HTMLHeadingElement>(null);
-  const edicionCancelada = useRef(false);
+  // La rebaja de la pieza que se está editando, en % y en Bs.
+  const [borrador, setBorrador] = useState<{ pct: string; bs: string; ultimo: 'pct' | 'bs' | null } | null>(null);
+  // La rebaja a toda la venta, en %, y lo que pasó al aplicarla.
+  const [rebajaTodo, setRebajaTodo] = useState('');
+  const [avisoRebaja, setAvisoRebaja] = useState<{ tono: 'exito' | 'error'; texto: string } | null>(null);
 
   /*
     La meta de hoy, dicha donde ella trabaja y no solo en "Tu dia". Es la
@@ -428,15 +456,38 @@ export function Mostrador() {
    * quien cobra ya vio el pago (en efectivo o punto, siempre).
    */
   async function aCreditoAhora(verificado: boolean) {
-    if (!metodo || !cliente?.id) return;
+    const dias = leerDias(diasCredito);
+    if (!metodo || !cliente || dias === null || guardandoFicha) return;
+    setErrorCredito(null);
+    /*
+      Una clienta nueva todavía no tiene ficha, y el crédito es de una
+      ficha: se guarda primero (la misma `guardar_cliente` de Clientes) y
+      se vende con ella. Si la cédula ya es de otra, la base lo dice y no
+      se vende.
+    */
+    let id = cliente.id ?? (fichaGuardada.current?.de === cliente ? fichaGuardada.current.id : null);
+    if (id === null || id === undefined) {
+      setGuardandoFicha(true);
+      const g = await guardarCliente({
+        cedula: cliente.cedula ?? null,
+        nombre: cliente.nombre ?? '',
+        apellido: cliente.apellido ?? null,
+        telefono: cliente.telefono ?? null,
+      });
+      setGuardandoFicha(false);
+      if (!g.ok) { setErrorCredito(`No se guardó su ficha, y sin ficha no hay crédito: ${g.error}`); return; }
+      id = g.id;
+      fichaGuardada.current = { de: cliente, id };
+    }
     const monto = leerCifra(abono);
-    const r = await carrito.venderACredito(cliente.id, {
+    const r = await carrito.venderACredito(id, {
       metodo,
       monto: monto !== null && monto > 0 ? monto : null,
       referencia: PIDE_REFERENCIA.includes(metodo) ? referencia : null,
       verificado,
-    }, alInventario);
+    }, alInventario, dias);
     if (r.ok) {
+      fichaGuardada.current = null;
       setExito(`Venta ${r.venta_id} a crédito a nombre de ${nombreCliente ?? 'la clienta'}. `
         + `Debe ${formatearBcv(r.falta_bcv)}${tasa ? `, hoy ${formatearBs(bsDeBcv(r.falta_bcv, tasa.tasa_bcv))}` : ''}; `
         + `paga hasta el ${formatearFecha(r.credito_vence)}. Queda en Pedidos, y ahí se carga cada pago.`
@@ -452,21 +503,24 @@ export function Mostrador() {
    */
   function cuentaDelCredito() {
     const totalBcv = carrito.totales.totalBcv;
-    if (!tasa || !metodo || totalBcv === null || !creditoClienta || creditoClienta.dias === null) return null;
+    if (!tasa || !metodo || totalBcv === null || !cliente) return null;
+    const dias = leerDias(diasCredito);
     const texto = abono.trim();
     const monto = texto === '' ? 0 : leerCifra(texto);
     const ilegible = monto === null || monto < 0;
     const pagado = !ilegible && monto > 0 ? abonoEnBcv(monto, METODOS_EN_DOLARES.includes(metodo), tasa) : null;
     const { falta, pasa } = faltaTrasAbono(totalBcv, pagado?.bcv ?? 0);
-    const sobreTope = creditoClienta.queda_bcv !== null && falta > creditoClienta.queda_bcv + 0.005;
+    const queda = creditoClienta?.queda_bcv ?? null;
+    const sobreTope = queda !== null && falta > queda + 0.005;
     return {
       ilegible,
+      dias,
       falta,
       faltaBs: bsDeBcv(falta, tasa.tasa_bcv),
       pasa,
       sobreTope,
-      vence: fechaVenezuelaMas(creditoClienta.dias),
-      valido: !ilegible && !pasa && falta > 0 && !sobreTope,
+      vence: dias === null ? null : fechaVenezuelaMas(dias),
+      valido: dias !== null && !ilegible && !pasa && falta > 0 && !sobreTope,
     };
   }
 
@@ -521,11 +575,64 @@ export function Mostrador() {
     ponía la pieza EN su mínimo, la rebaja máxima sin que ella lo quisiera.
     Lo que no se entiende no cambia nada: la pieza sigue en su precio.
   */
-  function aplicarPrecio(modeloId: number, ubicacionIdLinea: number, valor: string) {
-    const bs = leerCifra(valor);
-    if (!edicionCancelada.current && bs !== null) carrito.cambiarPrecio(modeloId, ubicacionIdLinea, bs);
-    edicionCancelada.current = false;
+  /*
+    La rebaja de una pieza se escribe en % o en bolívares (26/11/2026): dos
+    campos que se siguen. Lo que se aplica es el último que se tocó, al
+    tocar "Listo" o Enter; Escape la deja como estaba.
+  */
+  function abrirRebaja(l: LineaCobroConCodigo) {
+    const pct = porcentajeRebajado(l.precio_lista_bs, l.precio_final_bs);
+    setBorrador({ pct: pct > 0 ? String(pct) : '', bs: String(l.precio_final_bs).replace('.', ','), ultimo: null });
+    setEditando(claveDe(l));
+  }
+
+  function escribirPct(l: LineaCobroConCodigo, texto: string) {
+    const pct = leerPorcentaje(texto);
+    const r = pct === null ? null : precioConRebajaPct(l.precio_lista_usd, l.precio_minimo_usd, pct);
+    const bs = texto.trim() === '' ? l.precio_lista_bs : r && tasa ? bsDeBcv(r.usd, tasa.tasa_bcv) : null;
+    setBorrador((b) => ({ pct: texto, bs: bs === null ? (b?.bs ?? '') : String(bs).replace('.', ','), ultimo: 'pct' }));
+  }
+
+  function escribirBs(l: LineaCobroConCodigo, texto: string) {
+    const bs = leerCifra(texto);
+    setBorrador((b) => ({
+      bs: texto,
+      pct: bs === null ? (b?.pct ?? '') : (porcentajeRebajado(l.precio_lista_bs, bs) || '').toString(),
+      ultimo: 'bs',
+    }));
+  }
+
+  function aplicarRebaja(l: LineaCobroConCodigo) {
+    if (borrador?.ultimo === 'pct') {
+      const pct = borrador.pct.trim() === '' ? 0 : leerPorcentaje(borrador.pct);
+      if (pct !== null) carrito.rebajarPct(l.modelo_id, l.ubicacion_id, pct);
+    } else if (borrador?.ultimo === 'bs') {
+      // Lo que no se entiende no cambia nada: la pieza sigue en su precio.
+      const bs = leerCifra(borrador.bs);
+      if (bs !== null) carrito.cambiarPrecio(l.modelo_id, l.ubicacion_id, bs);
+    }
+    setBorrador(null);
     setEditando(null);
+  }
+
+  function cancelarRebaja() {
+    setBorrador(null);
+    setEditando(null);
+  }
+
+  /* La rebaja a toda la venta: cada pieza baja ese % o hasta su mínimo. */
+  function rebajarTodo() {
+    const pct = leerPorcentaje(rebajaTodo);
+    if (pct === null) { setAvisoRebaja({ tono: 'error', texto: 'Escribe solo el porcentaje, por ejemplo 10 o 7,5.' }); return; }
+    const tocan = carrito.totales.lineas.filter((l) => !l.en_tramo && l.cubiertas === 0 && l.precio_minimo_usd < l.precio_lista_usd).length;
+    const enMinimo = carrito.rebajarTodoPct(pct);
+    setAvisoRebaja({
+      tono: 'exito',
+      texto: `Rebajaste ${formatearDescuento(pct)} a ${tocan === 1 ? 'una pieza' : `${tocan} piezas`}.`
+        + (enMinimo > 0
+          ? ` ${enMinimo === 1 ? 'Una quedó' : `${enMinimo} quedaron`} en su mínimo: no ${enMinimo === 1 ? 'baja' : 'bajan'} más.`
+          : ''),
+    });
   }
 
   /* ----------------------------------------------------------- cobro */
@@ -602,6 +709,41 @@ export function Mostrador() {
           </Aviso>
         ) : null}
 
+        {/* La rebaja a toda la venta, en %. Solo a las piezas que la admiten
+            y no llevan tramo, código ni descuento de clienta (ahí su precio a
+            mano no cuenta). Cada una baja ese % o hasta su mínimo. */}
+        {tasa && t.lineas.some((l) => !l.en_tramo && l.cubiertas === 0 && l.precio_minimo_usd < l.precio_lista_usd) ? (
+          <div className="rebaja-todo">
+            <Campo etiqueta="Rebaja a toda la venta · %" htmlFor="rebaja-todo">
+              <div className="rebaja-todo__fila">
+                <input
+                  id="rebaja-todo"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="Por ejemplo 10"
+                  value={rebajaTodo}
+                  onChange={(e) => { setRebajaTodo(e.target.value); setAvisoRebaja(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') rebajarTodo(); }}
+                />
+                <button type="button" className="boton boton--secundario" onClick={rebajarTodo}>Aplicar</button>
+              </div>
+            </Campo>
+            {t.lineas.some((l) => l.precio_manual_usd !== null) ? (
+              <button
+                type="button"
+                className="boton boton--secundario rebaja-todo__quitar"
+                onClick={() => { carrito.quitarRebajas(); setRebajaTodo(''); setAvisoRebaja(null); }}
+              >
+                Quitar las rebajas
+              </button>
+            ) : null}
+            {avisoRebaja ? (
+              <p className={avisoRebaja.tono === 'error' ? 'campo__error' : 'campo__pista'} role="status">{avisoRebaja.texto}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="lineas-cobro">
           {/* Las lineas salen de `totales`, no de `lineas` crudas: ahi ya
               viene aplicado el tramo o la rebaja. Si no, cada renglon diria
@@ -619,31 +761,58 @@ export function Mostrador() {
                   : <span className="linea-cobro__foto" />}
                 <div>
                   <div className="linea-cobro__nombre">{nombre}</div>
-                  {editando === clave && !l.en_tramo ? (
-                    <div className="rebaja">
-                      <label className="rebaja__etiqueta" htmlFor={`rebaja-${clave}`}>
-                        Lo que cobras por esta pieza, en bolívares
-                      </label>
-                      <input
-                        id={`rebaja-${clave}`}
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        defaultValue={String(l.precio_final_bs).replace('.', ',')}
-                        autoFocus
-                        aria-describedby={`piso-${clave}`}
-                        onBlur={(e) => aplicarPrecio(l.modelo_id, l.ubicacion_id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') e.currentTarget.blur();
-                          if (e.key === 'Escape') { edicionCancelada.current = true; e.currentTarget.blur(); }
-                        }}
-                      />
-                      <span className="rebaja__piso" id={`piso-${clave}`}>
-                        Mínimo {formatearBs(l.precio_minimo_bs)}, {rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs)} % menos
-                        que la etiqueta. Para volver a la etiqueta, escribe {formatearBs(l.precio_lista_bs)}.
-                      </span>
-                    </div>
-                  ) : l.cubiertas > 0 ? (
+                  {editando === clave && borrador && !l.en_tramo ? (() => {
+                    const maximo = rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs);
+                    const pctEscrito = leerPorcentaje(borrador.pct);
+                    const pasa = borrador.ultimo === 'pct' && pctEscrito !== null && pctEscrito > maximo;
+                    const teclas = (e: KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === 'Enter') aplicarRebaja(l);
+                      if (e.key === 'Escape') cancelarRebaja();
+                    };
+                    return (
+                      <div className="rebaja">
+                        <div className="rebaja__campos">
+                          <div>
+                            <label className="rebaja__etiqueta" htmlFor={`rebaja-pct-${clave}`}>Rebaja %</label>
+                            <input
+                              id={`rebaja-pct-${clave}`}
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              autoFocus
+                              placeholder="0"
+                              value={borrador.pct}
+                              aria-describedby={`piso-${clave}`}
+                              onChange={(e) => escribirPct(l, e.target.value)}
+                              onKeyDown={teclas}
+                            />
+                          </div>
+                          <div>
+                            <label className="rebaja__etiqueta" htmlFor={`rebaja-${clave}`}>Cobras · Bs</label>
+                            <input
+                              id={`rebaja-${clave}`}
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
+                              value={borrador.bs}
+                              aria-describedby={`piso-${clave}`}
+                              onChange={(e) => escribirBs(l, e.target.value)}
+                              onKeyDown={teclas}
+                            />
+                          </div>
+                        </div>
+                        <span className="rebaja__piso" id={`piso-${clave}`} aria-live="polite">
+                          {pasa
+                            ? `Esta pieza admite hasta ${maximo} %: queda en su mínimo, ${formatearBs(l.precio_minimo_bs)}.`
+                            : `Hasta ${maximo} % menos, mínimo ${formatearBs(l.precio_minimo_bs)}. Rebaja vacía: vuelve a la etiqueta.`}
+                        </span>
+                        <div className="rebaja__botones">
+                          <button type="button" className="boton boton--secundario" onClick={cancelarRebaja}>Cancelar</button>
+                          <button type="button" className="boton" onClick={() => aplicarRebaja(l)}>Listo</button>
+                        </div>
+                      </div>
+                    );
+                  })() : l.cubiertas > 0 ? (
                     <div className="linea-cobro__precio linea-cobro__precio--fijo">
                       <span>{formatearBs(l.precio_oferta_bs)} c/u</span>
                       <s>{formatearBs(l.precio_lista_bs)}</s>
@@ -665,7 +834,7 @@ export function Mostrador() {
                     <button
                       type="button"
                       className="linea-cobro__precio linea-cobro__precio--editable"
-                      onClick={() => setEditando(clave)}
+                      onClick={() => abrirRebaja(l)}
                       disabled={!tasa}
                       aria-label={`Cambiar lo que cobras por ${nombre}. Ahora ${formatearBs(l.precio_final_bs)}`}
                     >
@@ -676,7 +845,8 @@ export function Mostrador() {
                           minimo lo pone el margen. */}
                       <span className="rebaja__pista">
                         {rebajada
-                          ? `rebajaste ${porcentajeRebajado(l.precio_lista_bs, l.precio_final_bs)} % · cambiar`
+                          ? `rebajaste ${porcentajeRebajado(l.precio_lista_bs, l.precio_final_bs)} %`
+                            + (l.precio_final_bs <= l.precio_minimo_bs ? ', su mínimo' : '') + ' · cambiar'
                           : `puedes rebajar hasta ${rebajaMaximaPct(l.precio_lista_bs, l.precio_minimo_bs)} %`}
                       </span>
                     </button>
@@ -848,9 +1018,9 @@ export function Mostrador() {
         {/* Se lo lleva o lo aparta. Apartar: paga al menos el minimo, la
             pieza se queda aqui y tiene unos dias para pagar lo demas; si no,
             pierde lo abonado. Lo demas se carga en Pedidos, abono por abono. */}
-        {/* A crédito: solo a una clienta que el dueño habilitó en su ficha.
-            Se lleva las piezas hoy y paga en sus días. */}
-        {metodo && (reglaApartado || creditoClienta) ? (
+        {/* A crédito: con cualquier clienta, de la lista o nueva (#77). Se
+            lleva las piezas hoy y paga en los días que se escriben aquí. */}
+        {metodo && (reglaApartado || cliente) ? (
           <div className="metodos-pago cobro-parte" role="group" aria-label="Se lo lleva, lo aparta o a crédito">
             <button type="button" aria-pressed={!aparta && !credito} onClick={() => { setAparta(false); setCredito(false); }}>
               Pagó todo
@@ -860,7 +1030,7 @@ export function Mostrador() {
                 Lo aparta
               </button>
             ) : null}
-            {creditoClienta ? (
+            {cliente ? (
               <button type="button" aria-pressed={credito} onClick={() => { setCredito(true); setAparta(false); }}>
                 A crédito
               </button>
@@ -882,15 +1052,42 @@ export function Mostrador() {
           </label>
         ) : null}
 
-        {metodo && credito && creditoClienta && creditoClienta.dias !== null ? (
+        {metodo && credito && cliente ? (
           <div style={{ marginTop: 'var(--e-4)' }}>
+            {/* Los días de ESTA venta. Empiezan en los de su ficha, si tiene;
+                cambiarlos aquí no cambia su ficha. */}
+            <Campo
+              etiqueta="Días para pagar"
+              htmlFor="cobro-credito-dias"
+              pista={creditoClienta?.dias != null
+                ? `Su ficha dice ${creditoClienta.dias} ${creditoClienta.dias === 1 ? 'día' : 'días'}. Cambiarlo aquí vale solo para esta venta.`
+                : 'Solo para esta venta: su ficha no cambia.'}
+              error={diasCredito.trim() !== '' && cuentaCredito?.dias === null ? 'Escribe los días con números, de 1 en adelante.' : null}
+            >
+              <input
+                id="cobro-credito-dias"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                placeholder="Por ejemplo 15"
+                value={diasCredito}
+                onChange={(e) => setDiasCredito(e.target.value)}
+              />
+            </Campo>
             <p className="cobro-dolares">
-              Se lleva las piezas hoy y paga hasta el <strong>{formatearFecha(fechaVenezuelaMas(creditoClienta.dias))}</strong>
-              {' '}({creditoClienta.dias} {creditoClienta.dias === 1 ? 'día' : 'días'}).
-              {creditoClienta.debe_bcv > 0 ? <> Ya debe {formatearBcv(creditoClienta.debe_bcv)}.</> : null}
-              {creditoClienta.queda_bcv !== null ? <> Le quedan {formatearBcv(creditoClienta.queda_bcv)} de su tope.</> : null}
+              {cuentaCredito?.vence && cuentaCredito.dias !== null ? (
+                <>
+                  Se lleva las piezas hoy y paga hasta el <strong>{formatearFecha(cuentaCredito.vence)}</strong>
+                  {' '}({cuentaCredito.dias} {cuentaCredito.dias === 1 ? 'día' : 'días'}).
+                </>
+              ) : 'Se lleva las piezas hoy y paga en los días que escribas.'}
+              {creditoClienta && creditoClienta.debe_bcv > 0 ? <> Ya debe {formatearBcv(creditoClienta.debe_bcv)}.</> : null}
+              {creditoClienta?.queda_bcv != null ? <> Le quedan {formatearBcv(creditoClienta.queda_bcv)} de su tope.</> : null}
+              {!cliente.id ? <> Su ficha se guarda al registrar la venta.</> : null}
             </p>
-            {creditoClienta.vencidas > 0 && creditoClienta.vencida_desde ? (
+            {errorCredito ? <p className="campo__error" role="alert">{errorCredito}</p> : null}
+            {creditoClienta && creditoClienta.vencidas > 0 && creditoClienta.vencida_desde ? (
               <Aviso tono="alerta" titulo="Tiene un crédito vencido">
                 {creditoClienta.vencidas === 1 ? 'Una venta suya venció' : `${creditoClienta.vencidas} ventas suyas vencieron`} el
                 {' '}{formatearFecha(creditoClienta.vencida_desde)} sin pagarse completa. Puedes venderle igual; recuérdale lo que debe.
@@ -922,7 +1119,7 @@ export function Mostrador() {
               ) : cuentaCredito.sobreTope ? (
                 <p className="campo__error" role="alert">
                   Quedaría debiendo {formatearBcv(cuentaCredito.falta)} más y solo le quedan
-                  {' '}{formatearBcv(creditoClienta.queda_bcv ?? 0)} de su tope. Que pague una parte hoy, o lleva menos.
+                  {' '}{formatearBcv(creditoClienta?.queda_bcv ?? 0)} de su tope. Que pague una parte hoy, o lleva menos.
                 </p>
               ) : (
                 <p className="cobro-dolares" aria-live="polite">
@@ -1004,10 +1201,10 @@ export function Mostrador() {
             <button
               type="button"
               className="boton boton--confirmar"
-              disabled={!listoParaCobrar || !cliente?.id || !cuentaCredito?.valido}
+              disabled={!listoParaCobrar || !cliente || !cuentaCredito?.valido}
               onClick={() => void aCreditoAhora(true)}
             >
-              {carrito.cobrando ? 'Registrando' : 'Se lo lleva a crédito'}
+              {carrito.cobrando || guardandoFicha ? 'Registrando' : 'Se lo lleva a crédito'}
             </button>
             {/* Lo que paga hoy por pago movil y todavia no se ve en el
                 banco: queda por verificar en Pedidos, como al apartar. */}
@@ -1015,7 +1212,7 @@ export function Mostrador() {
               <button
                 type="button"
                 className="boton boton--secundario"
-                disabled={!listoParaCobrar || !cliente?.id || !cuentaCredito?.valido}
+                disabled={!listoParaCobrar || !cliente || !cuentaCredito?.valido}
                 onClick={() => void aCreditoAhora(false)}
               >
                 A crédito, pago de hoy por verificar

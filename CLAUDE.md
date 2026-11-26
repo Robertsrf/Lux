@@ -500,7 +500,9 @@ extra, nota, códigos)` (de las dos caras; ver "El crédito") y
 entera: con pagos, se dice qué pasa con el dinero) y
 `vender_para_inventario(...)` (los mismos argumentos que `registrar_venta`:
 la llama tal cual y le pone `inventario_de`; solo con la ficha de un
-revendedor; `vender_a_credito` gana `p_para_inventario` al final, #72).
+revendedor; `vender_a_credito` gana `p_para_inventario` al final, #72, y
+`p_dias` después, #77: los días de esa venta, aunque su ficha no tenga
+crédito; una sola firma).
 
 `admin_reasignar_grupos` ("Poner cada una en su grupo", desde
 `esquema-lote-y-grupos.sql`) calcula lo de tienda, la brecha y la merma una
@@ -870,7 +872,12 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   dueño le dé su código propio.
 - **Lo que puede negociar, ella lo ve; los márgenes, no.** `descuento_max_mostrador_pct`
   (cuánto puede rebajar de la etiqueta) está en su lista de claves legibles; cada
-  tarjeta del mostrador dice su mínimo y en el cobro escribe lo que cobra por pieza. `margen_minimo_pct` **nunca** entra en esa
+  tarjeta del mostrador dice su mínimo y en el cobro escribe lo que cobra por pieza,
+  en bolívares o en % (desde el 26/11/2026), o un % a toda la venta ("Rebaja a toda
+  la venta"): la pantalla pasa el % a precio con `precioConRebajaPct` (nunca bajo el
+  mínimo; la que llega se queda ahí y se dice) y lo manda como el precio a mano de
+  siempre, así la base no cambia. A las líneas con tramo, código o descuento de
+  clienta no las toca. `margen_minimo_pct` **nunca** entra en esa
   lista: con él y el mínimo de cada pieza, que ya ve, despejaría el costo. `verificar`
   lo vigila. Los tres porcentajes (rebaja máxima, margen mínimo, margen para elegir
   grupo) se fijan en Costos.
@@ -914,8 +921,16 @@ y fechas**: ni gastos, ni lo que deja cada pieza, ni la meta de ganancia del due
   `credito_tope_usd` (lo máximo que puede deber a la vez, en $ BCV), que pone
   SOLO él en su ficha (`admin_fijar_credito`); ninguna cifra en el código.
   **Lo vende cualquier vendedora**, en el cobro del mostrador, con "A crédito"
-  junto a "Pagó todo" y "Lo aparta", solo al elegir SU ficha (escrita como
-  ficha nueva, no). **Una venta a crédito ES una venta por partes por
+  junto a "Pagó todo" y "Lo aparta". **Y desde el #77 (26/11/2026) se decide
+  en el cobro** (el dueño: "registrarlo primero y darle crédito y luego ir a
+  ponerle el crédito es fastidioso"): "A crédito" sale con cualquier clienta,
+  de la lista o escrita como nueva (su ficha se guarda con `guardar_cliente`
+  al cobrar), y quien cobra, vendedora o administrador, escribe **"Días para
+  pagar"** de ESA venta (`vender_a_credito(..., p_dias)`); empiezan en los de
+  su ficha si tiene, **la ficha no cambia** y no hay máximo de días (decisión
+  del dueño). El tope de su ficha manda igual. Lo que su ficha dice sigue
+  sirviendo para empezar el campo y para el navegador viejo, que no manda
+  días. **Una venta a crédito ES una venta por partes por
   verificar** con `ventas.credito_vence` (hoy en Venezuela más sus días):
   `vender_a_credito` llama a `registrar_venta` tal cual (precio, tramo,
   descuento de clienta y códigos de siempre), la deja `pago_parcial` y carga

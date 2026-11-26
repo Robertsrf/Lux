@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, mensajeDeError } from '../lib/supabase';
 import {
   aCuatroDecimales, aMonto, bcvDesdeBs, binanceDesdeBs, bsDeBcv, deMonto,
-  descuentosDeCarrito, leerBs, porCantidad, precioConTramo, sumar,
+  descuentosDeCarrito, leerBs, porCantidad, precioConRebajaPct, precioConTramo, sumar,
 } from '../lib/dinero';
 import type { Tasas } from '../lib/dinero';
 import { codigosQueAplican } from '../lib/ofertas';
@@ -368,6 +368,46 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
   }, [lineas, tramos, extra, codigos, tasa?.tasa_bcv, tasa?.tasa_venta, descuentoClientaPct]);
 
   /*
+    LA REBAJA EN PORCENTAJE (26/11/2026)
+    Por pieza o a toda la venta. No es otra regla: el % se pasa a precio
+    (`precioConRebajaPct`, sin bajar del minimo de la pieza) y se guarda
+    como el precio a mano de siempre, que `registrar_venta` valida. Con
+    tramo, codigo o descuento de clienta ese precio no cuenta, asi que la
+    rebaja a toda la venta no toca esas lineas.
+  */
+  const rebajarPct = useCallback((modeloId: number, ubicacionId: number, pct: number) => {
+    setLineas((prev) => prev.map((l) => {
+      if (l.modelo_id !== modeloId || l.ubicacion_id !== ubicacionId) return l;
+      if (pct === 0) return { ...l, precio_manual_usd: null };
+      const r = precioConRebajaPct(l.precio_lista_usd, l.precio_minimo_usd, pct);
+      return r === null ? l : { ...l, precio_manual_usd: r.usd < l.precio_lista_usd ? r.usd : null };
+    }));
+  }, []);
+
+  /** Rebaja a toda la venta. Devuelve cuantas lineas quedaron en su minimo. */
+  const rebajarTodoPct = useCallback((pct: number): number => {
+    const tocan = new Set(totales.lineas
+      .filter((l) => !l.en_tramo && l.cubiertas === 0 && l.precio_minimo_usd < l.precio_lista_usd)
+      .map((l) => `${l.modelo_id}-${l.ubicacion_id}`));
+    let enMinimo = 0;
+    for (const l of lineas) {
+      if (!tocan.has(`${l.modelo_id}-${l.ubicacion_id}`)) continue;
+      if (precioConRebajaPct(l.precio_lista_usd, l.precio_minimo_usd, pct)?.enMinimo) enMinimo++;
+    }
+    setLineas((prev) => prev.map((l) => {
+      if (!tocan.has(`${l.modelo_id}-${l.ubicacion_id}`)) return l;
+      const r = precioConRebajaPct(l.precio_lista_usd, l.precio_minimo_usd, pct);
+      return r === null ? l : { ...l, precio_manual_usd: r.usd < l.precio_lista_usd ? r.usd : null };
+    }));
+    return enMinimo;
+  }, [lineas, totales.lineas]);
+
+  /** Todas las piezas vuelven a su etiqueta (lo rebajado a mano se borra). */
+  const quitarRebajas = useCallback(() => {
+    setLineas((prev) => prev.map((l) => (l.precio_manual_usd === null ? l : { ...l, precio_manual_usd: null })));
+  }, []);
+
+  /*
     Un codigo vale con TODAS sus piezas, en su cantidad. Si ella quita una
     (o baja las unidades por debajo de las del codigo, o otro codigo ya
     tomo esa pieza) el codigo se cae y se lo dice: no se cobra una oferta
@@ -495,6 +535,8 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
     clienteId: number,
     pago: { metodo: MetodoPago; monto: number | null; referencia?: string | null; verificado: boolean },
     paraInventario = false,
+    // Los días de ESTA venta, decididos en el cobro (#77). La ficha no cambia.
+    dias: number | null = null,
   ) => {
     if (lineas.length === 0) return { ok: false as const, error: 'El carrito esta vacio.' };
     if (totales.extraIlegible || totales.extraSinNota) {
@@ -508,6 +550,7 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
     setError(null);
 
     const { data, error: err } = await supabase.rpc('vender_a_credito', {
+      ...(dias !== null ? { p_dias: dias } : {}),
       p_items: piezasParaLaBase(),
       p_cliente_id: clienteId,
       p_metodo: pago.metodo,
@@ -558,7 +601,7 @@ export function useCarrito(tasa: Tasas | null, descuentoClientaPct: number | nul
   }
 
   return {
-    lineas, agregar, cambiarCantidad, cambiarPrecio, vaciar, totales, cobrar, apartar, venderACredito, cobrando, error,
+    lineas, agregar, cambiarCantidad, cambiarPrecio, rebajarPct, rebajarTodoPct, quitarRebajas, vaciar, totales, cobrar, apartar, venderACredito, cobrando, error,
     extra, cambiarExtra, quitarExtra,
     codigos, agregarCodigo, quitarCodigo, avisoCodigo,
   };

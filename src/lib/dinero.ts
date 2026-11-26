@@ -395,6 +395,40 @@ export function rebajaMaximaPct(lista: number | null | undefined, minimo: number
   return Math.floor(((lista - minimo) / lista) * 100 + 1e-6);
 }
 
+/**
+ * El precio de una pieza rebajada un porcentaje de su etiqueta, en $ BCV y
+ * a cuatro decimales (como el precio a mano del carrito), nunca por debajo
+ * de su mínimo. `enMinimo` dice que el % pedido llegó al mínimo (o lo
+ * pasó): la pantalla lo avisa. Null si el % no es una rebaja (0 o menos,
+ * 100 o más, ilegible): entonces no cambia nada.
+ *
+ * Es una comodidad del cobro: el mínimo de verdad lo valida la base.
+ */
+export function precioConRebajaPct(
+  listaUsd: number,
+  minimoUsd: number,
+  pct: number,
+): { usd: number; enMinimo: boolean } | null {
+  if (!Number.isFinite(pct) || pct <= 0 || pct >= 100 || !(listaUsd > 0)) return null;
+  const piso = Math.min(minimoUsd, listaUsd);
+  const rebajado = aCuatroDecimales(listaUsd * (1 - pct / 100));
+  if (rebajado <= piso + 1e-9) return { usd: aCuatroDecimales(piso), enMinimo: true };
+  return { usd: rebajado, enMinimo: false };
+}
+
+/**
+ * El porcentaje de rebaja que escribe una persona: "10", "7,5", "7.5",
+ * "10 %". Hasta dos cifras enteras y dos decimales, así "1.500" nunca se
+ * lee como 1,5: no es un porcentaje. Null si no es una rebaja (0, 100 o
+ * más, ilegible).
+ */
+export function leerPorcentaje(texto: string): number | null {
+  const t = texto.trim().replace(/\s*%$/, '');
+  if (!/^\d{1,2}([.,]\d{1,2})?$/.test(t)) return null;
+  const n = Number(t.replace(',', '.'));
+  return n > 0 && n < 100 ? n : null;
+}
+
 /** Cuanto se rebajo de verdad una pieza, en por ciento entero de su etiqueta. */
 export function porcentajeRebajado(lista: number | null | undefined, cobrado: number | null | undefined): number {
   if (!lista || lista <= 0 || cobrado === null || cobrado === undefined || cobrado >= lista) return 0;
